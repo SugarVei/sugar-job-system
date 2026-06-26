@@ -137,7 +137,10 @@ export function useCollection<T extends BaseRow>(
         return retryData as T;
       }
 
-      if (err) throw new Error(readableDbError(err, table));
+      if (err) {
+        console.error(`[${table}] create error:`, err);
+        throw new Error(readableDbError(err, table));
+      }
 
       setItems((prev) => [data as T, ...prev]);
       return data as T;
