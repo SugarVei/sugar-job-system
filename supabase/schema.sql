@@ -1,13 +1,11 @@
 -- ============================================================
--- Sugar 求职系统 —— Supabase 数据库建表 + 行级安全策略(RLS)
--- 在 Supabase 控制台 → SQL Editor 中粘贴并 Run 即可。
--- 每个用户只能读写自己的数据（user_id = auth.uid()）。
+-- Sugar 求职系统 Supabase schema
+-- Run this in Supabase SQL Editor.
+-- Each signed-in user can only read/write rows whose user_id = auth.uid().
 -- ============================================================
 
--- 用于自动生成 UUID
 create extension if not exists "pgcrypto";
 
--- 通用：更新时自动维护 updated_at
 create or replace function public.set_updated_at()
 returns trigger as $$
 begin
@@ -16,9 +14,7 @@ begin
 end;
 $$ language plpgsql;
 
--- ============================================================
--- 1. 投递记录 applications
--- ============================================================
+-- 1. 投递记录
 create table if not exists public.applications (
   id            uuid primary key default gen_random_uuid(),
   user_id       uuid not null references auth.users (id) on delete cascade,
@@ -36,9 +32,7 @@ create table if not exists public.applications (
 );
 create index if not exists applications_user_id_idx on public.applications (user_id);
 
--- ============================================================
--- 2. 公司库 companies
--- ============================================================
+-- 2. 公司库
 create table if not exists public.companies (
   id            uuid primary key default gen_random_uuid(),
   user_id       uuid not null references auth.users (id) on delete cascade,
@@ -53,9 +47,7 @@ create table if not exists public.companies (
 );
 create index if not exists companies_user_id_idx on public.companies (user_id);
 
--- ============================================================
--- 3. 简历库 resumes
--- ============================================================
+-- 3. 简历库
 create table if not exists public.resumes (
   id              uuid primary key default gen_random_uuid(),
   user_id         uuid not null references auth.users (id) on delete cascade,
@@ -68,9 +60,26 @@ create table if not exists public.resumes (
 );
 create index if not exists resumes_user_id_idx on public.resumes (user_id);
 
--- ============================================================
--- 4. 面试日历 interviews
--- ============================================================
+-- 投递关联简历。旧库执行本脚本时会自动补列。
+alter table public.applications
+  add column if not exists resume_id uuid references public.resumes (id) on delete set null;
+create index if not exists applications_resume_id_idx on public.applications (resume_id);
+
+-- 4. 简历/面试附件
+create table if not exists public.resume_files (
+  id         uuid primary key default gen_random_uuid(),
+  user_id    uuid not null references auth.users (id) on delete cascade,
+  resume_id  uuid not null references public.resumes (id) on delete cascade,
+  file_name  text not null,
+  file_path  text not null,
+  kind       text not null check (kind in ('resume', 'script')),
+  size       bigint,
+  created_at timestamptz not null default now()
+);
+create index if not exists resume_files_user_id_idx on public.resume_files (user_id);
+create index if not exists resume_files_resume_id_idx on public.resume_files (resume_id);
+
+-- 5. 面试日历
 create table if not exists public.interviews (
   id             uuid primary key default gen_random_uuid(),
   user_id        uuid not null references auth.users (id) on delete cascade,
@@ -85,9 +94,7 @@ create table if not exists public.interviews (
 );
 create index if not exists interviews_user_id_idx on public.interviews (user_id);
 
--- ============================================================
--- updated_at 触发器
--- ============================================================
+-- updated_at triggers
 drop trigger if exists trg_applications_updated on public.applications;
 create trigger trg_applications_updated before update on public.applications
   for each row execute function public.set_updated_at();
@@ -104,71 +111,81 @@ drop trigger if exists trg_interviews_updated on public.interviews;
 create trigger trg_interviews_updated before update on public.interviews
   for each row execute function public.set_updated_at();
 
--- ============================================================
--- 开启 RLS
--- ============================================================
+-- Row Level Security
 alter table public.applications enable row level security;
-alter table public.companies    enable row level security;
-alter table public.resumes      enable row level security;
-alter table public.interviews   enable row level security;
-
--- ============================================================
--- RLS 策略：每张表 4 条（select / insert / update / delete）
--- 只能操作 user_id = auth.uid() 的行
--- ============================================================
+alter table public.companies enable row level security;
+alter table public.resumes enable row level security;
+alter table public.resume_files enable row level security;
+alter table public.interviews enable row level security;
 
 -- applications
 drop policy if exists "applications_select_own" on public.applications;
-create policy "applications_select_own" on public.applications
-  for select using (auth.uid() = user_id);
+create policy "applications_select_own" on public.applications for select using (auth.uid() = user_id);
 drop policy if exists "applications_insert_own" on public.applications;
-create policy "applications_insert_own" on public.applications
-  for insert with check (auth.uid() = user_id);
+create policy "applications_insert_own" on public.applications for insert with check (auth.uid() = user_id);
 drop policy if exists "applications_update_own" on public.applications;
-create policy "applications_update_own" on public.applications
-  for update using (auth.uid() = user_id) with check (auth.uid() = user_id);
+create policy "applications_update_own" on public.applications for update using (auth.uid() = user_id) with check (auth.uid() = user_id);
 drop policy if exists "applications_delete_own" on public.applications;
-create policy "applications_delete_own" on public.applications
-  for delete using (auth.uid() = user_id);
+create policy "applications_delete_own" on public.applications for delete using (auth.uid() = user_id);
 
 -- companies
 drop policy if exists "companies_select_own" on public.companies;
-create policy "companies_select_own" on public.companies
-  for select using (auth.uid() = user_id);
+create policy "companies_select_own" on public.companies for select using (auth.uid() = user_id);
 drop policy if exists "companies_insert_own" on public.companies;
-create policy "companies_insert_own" on public.companies
-  for insert with check (auth.uid() = user_id);
+create policy "companies_insert_own" on public.companies for insert with check (auth.uid() = user_id);
 drop policy if exists "companies_update_own" on public.companies;
-create policy "companies_update_own" on public.companies
-  for update using (auth.uid() = user_id) with check (auth.uid() = user_id);
+create policy "companies_update_own" on public.companies for update using (auth.uid() = user_id) with check (auth.uid() = user_id);
 drop policy if exists "companies_delete_own" on public.companies;
-create policy "companies_delete_own" on public.companies
-  for delete using (auth.uid() = user_id);
+create policy "companies_delete_own" on public.companies for delete using (auth.uid() = user_id);
 
 -- resumes
 drop policy if exists "resumes_select_own" on public.resumes;
-create policy "resumes_select_own" on public.resumes
-  for select using (auth.uid() = user_id);
+create policy "resumes_select_own" on public.resumes for select using (auth.uid() = user_id);
 drop policy if exists "resumes_insert_own" on public.resumes;
-create policy "resumes_insert_own" on public.resumes
-  for insert with check (auth.uid() = user_id);
+create policy "resumes_insert_own" on public.resumes for insert with check (auth.uid() = user_id);
 drop policy if exists "resumes_update_own" on public.resumes;
-create policy "resumes_update_own" on public.resumes
-  for update using (auth.uid() = user_id) with check (auth.uid() = user_id);
+create policy "resumes_update_own" on public.resumes for update using (auth.uid() = user_id) with check (auth.uid() = user_id);
 drop policy if exists "resumes_delete_own" on public.resumes;
-create policy "resumes_delete_own" on public.resumes
-  for delete using (auth.uid() = user_id);
+create policy "resumes_delete_own" on public.resumes for delete using (auth.uid() = user_id);
+
+-- resume_files metadata
+drop policy if exists "resume_files_select_own" on public.resume_files;
+create policy "resume_files_select_own" on public.resume_files for select using (auth.uid() = user_id);
+drop policy if exists "resume_files_insert_own" on public.resume_files;
+create policy "resume_files_insert_own" on public.resume_files for insert with check (auth.uid() = user_id);
+drop policy if exists "resume_files_update_own" on public.resume_files;
+create policy "resume_files_update_own" on public.resume_files for update using (auth.uid() = user_id) with check (auth.uid() = user_id);
+drop policy if exists "resume_files_delete_own" on public.resume_files;
+create policy "resume_files_delete_own" on public.resume_files for delete using (auth.uid() = user_id);
 
 -- interviews
 drop policy if exists "interviews_select_own" on public.interviews;
-create policy "interviews_select_own" on public.interviews
-  for select using (auth.uid() = user_id);
+create policy "interviews_select_own" on public.interviews for select using (auth.uid() = user_id);
 drop policy if exists "interviews_insert_own" on public.interviews;
-create policy "interviews_insert_own" on public.interviews
-  for insert with check (auth.uid() = user_id);
+create policy "interviews_insert_own" on public.interviews for insert with check (auth.uid() = user_id);
 drop policy if exists "interviews_update_own" on public.interviews;
-create policy "interviews_update_own" on public.interviews
-  for update using (auth.uid() = user_id) with check (auth.uid() = user_id);
+create policy "interviews_update_own" on public.interviews for update using (auth.uid() = user_id) with check (auth.uid() = user_id);
 drop policy if exists "interviews_delete_own" on public.interviews;
-create policy "interviews_delete_own" on public.interviews
-  for delete using (auth.uid() = user_id);
+create policy "interviews_delete_own" on public.interviews for delete using (auth.uid() = user_id);
+
+-- Private storage bucket for uploaded resumes and interview scripts.
+insert into storage.buckets (id, name, public)
+values ('resumes', 'resumes', false)
+on conflict (id) do nothing;
+
+drop policy if exists "resumes_storage_select_own" on storage.objects;
+create policy "resumes_storage_select_own" on storage.objects
+  for select using (bucket_id = 'resumes' and auth.uid()::text = (storage.foldername(name))[1]);
+
+drop policy if exists "resumes_storage_insert_own" on storage.objects;
+create policy "resumes_storage_insert_own" on storage.objects
+  for insert with check (bucket_id = 'resumes' and auth.uid()::text = (storage.foldername(name))[1]);
+
+drop policy if exists "resumes_storage_update_own" on storage.objects;
+create policy "resumes_storage_update_own" on storage.objects
+  for update using (bucket_id = 'resumes' and auth.uid()::text = (storage.foldername(name))[1])
+  with check (bucket_id = 'resumes' and auth.uid()::text = (storage.foldername(name))[1]);
+
+drop policy if exists "resumes_storage_delete_own" on storage.objects;
+create policy "resumes_storage_delete_own" on storage.objects
+  for delete using (bucket_id = 'resumes' and auth.uid()::text = (storage.foldername(name))[1]);

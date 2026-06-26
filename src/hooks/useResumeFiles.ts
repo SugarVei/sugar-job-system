@@ -5,10 +5,49 @@ import type { ResumeFile, ResumeFileKind } from '../types';
 
 const BUCKET = 'resumes';
 
-// ============================================================
-// 简历附件管理 —— 上传/下载/删除，文件存 Supabase Storage，
-// 元数据存 resume_files 表。按 用户ID/简历ID/文件 路径隔离。
-// ============================================================
+function getSafeExtension(fileName: string) {
+  const ext = fileName.split('.').pop()?.toLowerCase() ?? '';
+  return /^[a-z0-9]{1,10}$/.test(ext) ? `.${ext}` : '';
+}
+
+function safePathPart(value: string) {
+  return value.replace(/[^a-zA-Z0-9_-]/g, '_');
+}
+
+function buildStoragePath(userId: string, resumeId: string, fileName: string) {
+  return [
+    safePathPart(userId),
+    safePathPart(resumeId),
+    `${Date.now()}_${crypto.randomUUID()}${getSafeExtension(fileName)}`,
+  ].join('/');
+}
+
+function readableSupabaseError(error: unknown) {
+  const message = error instanceof Error ? error.message : String(error);
+
+  if (/invalid key/i.test(message)) {
+    return '文件存储路径包含 Supabase 不支持的字符。系统已改为安全路径，请重新上传一次。';
+  }
+
+  if (/bucket/i.test(message) && /(not found|does not exist)/i.test(message)) {
+    return 'Supabase 缺少 resumes 存储桶，请在 Supabase SQL Editor 执行 supabase/migration_resume_files.sql 后再上传。';
+  }
+
+  if (/resume_files|relation .* does not exist|schema cache/i.test(message)) {
+    return 'Supabase 数据库缺少简历文件表，请在 Supabase SQL Editor 执行 supabase/migration_resume_files.sql 后再上传。';
+  }
+
+  if (/row-level security|violates/i.test(message)) {
+    return 'Supabase 权限策略拒绝了本次操作，请检查 resumes 存储桶和 resume_files 表的 RLS policy。';
+  }
+
+  if (/failed to fetch|network/i.test(message)) {
+    return '无法连接 Supabase，请检查 Vercel 环境变量和 Supabase 项目状态。';
+  }
+
+  return message;
+}
+
 export function useResumeFiles() {
   const { user } = useAuth();
   const [files, setFiles] = useState<ResumeFile[]>([]);
@@ -20,32 +59,38 @@ export function useResumeFiles() {
       setLoading(false);
       return;
     }
+
     setLoading(true);
-    const { data, error } = await supabase
-      .from('resume_files')
-      .select('*')
-      .eq('user_id', user.id)
-      .order('created_at', { ascending: false });
-    if (!error) setFiles((data ?? []) as ResumeFile[]);
-    setLoading(false);
+    try {
+      const { data, error } = await supabase
+        .from('resume_files')
+        .select('*')
+        .eq('user_id', user.id)
+        .order('created_at', { ascending: false });
+
+      if (!error) setFiles((data ?? []) as ResumeFile[]);
+    } finally {
+      setLoading(false);
+    }
   }, [user]);
 
   useEffect(() => {
     fetchAll();
   }, [fetchAll]);
 
-  /** 上传一个文件到指定简历下 */
   const upload = useCallback(
     async (resumeId: string, kind: ResumeFileKind, file: File) => {
       if (!user) throw new Error('未登录');
-      // 去掉文件名里的特殊字符，避免 Storage 路径报错
-      const safe = file.name.replace(/[^\w.\-一-龥]/g, '_');
-      const path = `${user.id}/${resumeId}/${Date.now()}_${safe}`;
+      if (!isSupabaseConfigured) throw new Error('Supabase 尚未配置，无法上传文件。');
+
+      const path = buildStoragePath(user.id, resumeId, file.name);
       const { error: upErr } = await supabase.storage.from(BUCKET).upload(path, file, {
         cacheControl: '3600',
+        contentType: file.type || undefined,
         upsert: false,
       });
-      if (upErr) throw upErr;
+
+      if (upErr) throw new Error(readableSupabaseError(upErr));
 
       const { data, error: insErr } = await supabase
         .from('resume_files')
@@ -59,31 +104,35 @@ export function useResumeFiles() {
         })
         .select()
         .single();
+
       if (insErr) {
-        // 元数据写入失败则回滚已上传的对象
         await supabase.storage.from(BUCKET).remove([path]);
-        throw insErr;
+        throw new Error(readableSupabaseError(insErr));
       }
+
       setFiles((prev) => [data as ResumeFile, ...prev]);
       return data as ResumeFile;
     },
     [user],
   );
 
-  /** 获取临时下载链接（私有桶，签名 URL 有效期 60s） */
   const getDownloadUrl = useCallback(async (filePath: string) => {
+    if (!filePath) throw new Error('文件路径为空，无法下载。');
+
     const { data, error } = await supabase.storage.from(BUCKET).createSignedUrl(filePath, 60, {
       download: true,
     });
-    if (error) throw error;
+
+    if (error) throw new Error(readableSupabaseError(error));
     return data.signedUrl;
   }, []);
 
-  /** 删除文件（先删存储对象，再删元数据） */
   const remove = useCallback(async (f: ResumeFile) => {
-    await supabase.storage.from(BUCKET).remove([f.file_path]);
+    if (f.file_path) await supabase.storage.from(BUCKET).remove([f.file_path]);
+
     const { error } = await supabase.from('resume_files').delete().eq('id', f.id);
-    if (error) throw error;
+    if (error) throw new Error(readableSupabaseError(error));
+
     setFiles((prev) => prev.filter((x) => x.id !== f.id));
   }, []);
 

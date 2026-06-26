@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
+import type { DragEvent } from 'react';
 import type { Application, Resume, ResumeFile, ResumeFileKind, NewRecord } from '../types';
 import { useCollection } from '../hooks/useCollection';
 import { useResumeFiles } from '../hooks/useResumeFiles';
@@ -50,7 +51,6 @@ export default function Resumes() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [registerAdd]);
 
-  // 每个简历的关联投递数
   const linkCount = useMemo(() => {
     const m = new Map<string, number>();
     applications.forEach((a) => {
@@ -59,7 +59,6 @@ export default function Resumes() {
     return m;
   }, [applications]);
 
-  // 每个简历的文件分组
   const filesByResume = useMemo(() => {
     const m = new Map<string, ResumeFile[]>();
     fileApi.files.forEach((f) => {
@@ -76,6 +75,7 @@ export default function Resumes() {
     setFormError('');
     setModalOpen(true);
   };
+
   const openEdit = (r: Resume) => {
     setEditing(r);
     setForm({
@@ -95,6 +95,7 @@ export default function Resumes() {
       setTimeout(() => nameRef.current?.focus(), 320);
       return;
     }
+
     setFormError('');
     setSaving(true);
     try {
@@ -137,7 +138,7 @@ export default function Resumes() {
       </div>
 
       {loading ? (
-        <EmptyState text="加载中…" />
+        <EmptyState text="加载中..." />
       ) : filtered.length === 0 ? (
         <EmptyState
           text={items.length === 0 ? '还没有简历版本，添加一份吧' : '没有符合条件的简历'}
@@ -169,7 +170,7 @@ export default function Resumes() {
           <>
             <GhostButton onClick={() => setModalOpen(false)}>取消</GhostButton>
             <PrimaryButton accent={theme.accent} onClick={save} disabled={saving}>
-              {saving ? '保存中…' : '保存'}
+              {saving ? '保存中...' : '保存'}
             </PrimaryButton>
           </>
         }
@@ -180,27 +181,32 @@ export default function Resumes() {
             ref={nameRef}
             value={form.resume_name}
             onChange={(e) => setForm({ ...form, resume_name: e.target.value })}
-            placeholder="如 产品-互联网版"
+            placeholder="如：产品-互联网版"
             style={!form.resume_name.trim() && formError ? { borderColor: '#f0613f', background: '#fff' } : undefined}
           />
         </Field>
         <Field label="适用岗位">
-          <TextInput value={form.target_position ?? ''} onChange={(e) => setForm({ ...form, target_position: e.target.value })} placeholder="如 产品经理" />
+          <TextInput
+            value={form.target_position ?? ''}
+            onChange={(e) => setForm({ ...form, target_position: e.target.value })}
+            placeholder="如：产品经理"
+          />
         </Field>
         <Field label="备注">
-          <TextArea value={form.notes ?? ''} onChange={(e) => setForm({ ...form, notes: e.target.value })} placeholder="这一版的侧重点、适用场景等" />
+          <TextArea
+            value={form.notes ?? ''}
+            onChange={(e) => setForm({ ...form, notes: e.target.value })}
+            placeholder="这一版的侧重点、适用场景等"
+          />
         </Field>
         <p style={{ fontSize: 12.5, color: '#a39d90', margin: '4px 0 0' }}>
-          💡 保存后，可在卡片上的「上传简历 / 上传面试稿件」区域上传 PDF/Word 文件（云端存储，随时下载）。
+          保存后，可在卡片上的“上传简历 / 上传面试稿件”区域上传 PDF/Word 文件。
         </p>
       </Modal>
     </div>
   );
 }
 
-// ============================================================
-// 单个简历卡片：含两个上传区 + 文件列表
-// ============================================================
 function ResumeCard({
   resume,
   files,
@@ -223,6 +229,7 @@ function ResumeCard({
 
   const handleFiles = async (kind: ResumeFileKind, list: FileList | null) => {
     if (!list || list.length === 0) return;
+
     setUploadingKind(kind);
     try {
       for (const file of Array.from(list)) {
@@ -258,7 +265,6 @@ function ResumeCard({
 
   return (
     <div className="card-hover" style={{ ...CARD, padding: 24 }}>
-      {/* 头部 */}
       <div className="flex items-start justify-between gap-3">
         <div>
           <h3 style={{ fontFamily: 'Poppins', fontSize: 18, fontWeight: 600, margin: '0 0 10px' }}>{resume.resume_name}</h3>
@@ -285,7 +291,6 @@ function ResumeCard({
 
       {resume.notes && <p style={{ fontSize: 13, lineHeight: 1.6, color: '#8a8478', margin: '14px 0 16px' }}>{resume.notes}</p>}
 
-      {/* 两个上传区 */}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3" style={{ margin: '4px 0 14px' }}>
         <input
           ref={resumeInputRef}
@@ -309,22 +314,23 @@ function ResumeCard({
         />
         <UploadZone
           title="上传简历"
-          hint="pdf / doc / docx"
+          hint="PDF / DOC / DOCX"
           busy={uploadingKind === 'resume'}
           onClick={() => resumeInputRef.current?.click()}
+          onFiles={(files) => handleFiles('resume', files)}
         />
         <UploadZone
           title="上传面试稿件"
-          hint="可上传多份"
+          hint="可一次拖入多份"
           busy={uploadingKind === 'script'}
           onClick={() => scriptInputRef.current?.click()}
+          onFiles={(files) => handleFiles('script', files)}
         />
       </div>
 
-      {/* 文件列表 */}
       <div className="flex flex-col gap-[9px]">
         {files.length === 0 ? (
-          <div style={{ fontSize: 12.5, color: '#a39d90', padding: '4px 2px' }}>暂无文件，点上方区域上传。</div>
+          <div style={{ fontSize: 12.5, color: '#a39d90', padding: '4px 2px' }}>暂无文件，点击或拖拽文件到上方区域上传。</div>
         ) : (
           files.map((f) => {
             const isResume = f.kind === 'resume';
@@ -349,7 +355,7 @@ function ResumeCard({
                 </div>
                 <div className="flex gap-1 flex-none">
                   <button onClick={() => download(f)} disabled={downloadingId === f.id} className="btn-press" style={dlBtn}>
-                    {downloadingId === f.id ? '…' : '下载'}
+                    {downloadingId === f.id ? '...' : '下载'}
                   </button>
                   <button onClick={() => delFile(f)} aria-label="删除文件" className="btn-press" style={{ ...miniBtn, width: 32, height: 32 }}>
                     <IconTrash size={13} />
@@ -364,24 +370,58 @@ function ResumeCard({
   );
 }
 
-function UploadZone({ title, hint, busy, onClick }: { title: string; hint: string; busy: boolean; onClick: () => void }) {
+function UploadZone({
+  title,
+  hint,
+  busy,
+  onClick,
+  onFiles,
+}: {
+  title: string;
+  hint: string;
+  busy: boolean;
+  onClick: () => void;
+  onFiles: (files: FileList) => void;
+}) {
+  const [dragging, setDragging] = useState(false);
+
+  const handleDrag = (event: DragEvent<HTMLButtonElement>, active: boolean) => {
+    event.preventDefault();
+    event.stopPropagation();
+    if (!busy) setDragging(active);
+  };
+
+  const handleDrop = (event: DragEvent<HTMLButtonElement>) => {
+    event.preventDefault();
+    event.stopPropagation();
+    setDragging(false);
+    if (!busy && event.dataTransfer.files.length > 0) onFiles(event.dataTransfer.files);
+  };
+
   return (
     <button
+      type="button"
       onClick={onClick}
+      onDragEnter={(event) => handleDrag(event, true)}
+      onDragOver={(event) => handleDrag(event, true)}
+      onDragLeave={(event) => handleDrag(event, false)}
+      onDrop={handleDrop}
       disabled={busy}
       className="btn-press"
       style={{
-        border: '1.5px dashed #d8cfbd',
-        background: busy ? '#f3ede1' : '#faf7f0',
+        border: dragging ? '1.5px solid #7c5f4b' : '1.5px dashed #d8cfbd',
+        background: busy ? '#f3ede1' : dragging ? '#fff4df' : '#faf7f0',
         borderRadius: 14,
-        padding: 16,
+        padding: '18px 16px',
         textAlign: 'center',
         cursor: busy ? 'default' : 'pointer',
         width: '100%',
+        minHeight: 86,
+        transition: 'border-color 160ms ease, background 160ms ease, transform 160ms ease',
       }}
     >
-      <div style={{ fontSize: 13, fontWeight: 600, color: '#4a463e' }}>{busy ? '上传中…' : title}</div>
-      <div style={{ fontSize: 11.5, color: '#a39d90', marginTop: 4 }}>{hint}</div>
+      <div style={{ fontSize: 13, fontWeight: 700, color: '#4a463e' }}>{busy ? '上传中...' : dragging ? '松开即可上传' : title}</div>
+      <div style={{ fontSize: 11.5, color: '#8f8879', marginTop: 6 }}>{dragging ? '文件会保存到当前简历版本' : `拖拽到这里，或点击选择 · ${hint}`}</div>
     </button>
   );
 }
@@ -398,6 +438,7 @@ const miniBtn: React.CSSProperties = {
   justifyContent: 'center',
   cursor: 'pointer',
 };
+
 const dlBtn: React.CSSProperties = {
   height: 32,
   padding: '0 12px',

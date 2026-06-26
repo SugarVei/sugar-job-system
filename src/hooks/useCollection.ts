@@ -2,16 +2,39 @@ import { useCallback, useEffect, useState } from 'react';
 import { supabase, isSupabaseConfigured } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
 
-// ============================================================
-// 通用数据集合 Hook —— 封装某张表的增删改查
-// RLS 保证只能读写自己的数据（见 supabase/schema.sql）
-// ============================================================
-
 interface BaseRow {
   id: string;
   user_id: string;
   created_at: string;
   updated_at: string;
+}
+
+function readableDbError(error: unknown, table: string) {
+  const message = error instanceof Error ? error.message : String(error);
+
+  if (/resume_id|resume_files|schema cache|relation .* does not exist/i.test(message)) {
+    return 'Supabase 数据库缺少最新简历关联字段/文件表，请在 Supabase SQL Editor 执行 supabase/migration_resume_files.sql。';
+  }
+
+  if (/row-level security|violates/i.test(message)) {
+    return `Supabase 权限策略拒绝了 ${table} 操作，请检查该表的 RLS policy。`;
+  }
+
+  if (/failed to fetch|network/i.test(message)) {
+    return '无法连接 Supabase，请检查 Vercel 环境变量和 Supabase 项目状态。';
+  }
+
+  return message;
+}
+
+function isMissingResumeId(error: unknown) {
+  const message = error instanceof Error ? error.message : String(error);
+  return /resume_id|schema cache/i.test(message);
+}
+
+function stripResumeId(payload: Record<string, unknown>) {
+  const { resume_id: _resumeId, ...rest } = payload;
+  return rest;
 }
 
 export function useCollection<T extends BaseRow>(
@@ -29,63 +52,106 @@ export function useCollection<T extends BaseRow>(
       setLoading(false);
       return;
     }
+
     setLoading(true);
     setError(null);
-    const { data, error: err } = await supabase
-      .from(table)
-      .select('*')
-      .eq('user_id', user.id)
-      .order(orderBy.column, { ascending: orderBy.ascending ?? false });
-    if (err) {
-      setError(err.message);
+
+    try {
+      const { data, error: err } = await supabase
+        .from(table)
+        .select('*')
+        .eq('user_id', user.id)
+        .order(orderBy.column, { ascending: orderBy.ascending ?? false });
+
+      if (err) {
+        setError(readableDbError(err, table));
+        setItems([]);
+      } else {
+        setItems((data ?? []) as T[]);
+      }
+    } catch (err) {
+      setError(readableDbError(err, table));
       setItems([]);
-    } else {
-      setItems((data ?? []) as T[]);
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
   }, [user, table, orderBy.column, orderBy.ascending]);
 
   useEffect(() => {
     fetchAll();
   }, [fetchAll]);
 
-  /** 新增一条记录（自动带上当前 user_id） */
   const create = useCallback(
     async (payload: Record<string, unknown>) => {
       if (!user) throw new Error('未登录');
+      if (!isSupabaseConfigured) throw new Error('Supabase 尚未配置，无法保存数据。');
+
+      const insertPayload = { ...payload, user_id: user.id };
       const { data, error: err } = await supabase
         .from(table)
-        .insert({ ...payload, user_id: user.id })
+        .insert(insertPayload)
         .select()
         .single();
-      if (err) throw err;
+
+      if (err && table === 'applications' && 'resume_id' in payload && isMissingResumeId(err)) {
+        const { data: retryData, error: retryErr } = await supabase
+          .from(table)
+          .insert({ ...stripResumeId(payload), user_id: user.id })
+          .select()
+          .single();
+
+        if (retryErr) throw new Error(readableDbError(retryErr, table));
+
+        setError('投递已保存，但数据库缺少 resume_id 字段，暂时无法关联简历。请执行 supabase/migration_resume_files.sql。');
+        setItems((prev) => [retryData as T, ...prev]);
+        return retryData as T;
+      }
+
+      if (err) throw new Error(readableDbError(err, table));
+
       setItems((prev) => [data as T, ...prev]);
       return data as T;
     },
     [user, table],
   );
 
-  /** 更新一条记录 */
   const update = useCallback(
     async (id: string, payload: Record<string, unknown>) => {
+      const updatePayload = { ...payload, updated_at: new Date().toISOString() };
       const { data, error: err } = await supabase
         .from(table)
-        .update({ ...payload, updated_at: new Date().toISOString() })
+        .update(updatePayload)
         .eq('id', id)
         .select()
         .single();
-      if (err) throw err;
+
+      if (err && table === 'applications' && 'resume_id' in payload && isMissingResumeId(err)) {
+        const { data: retryData, error: retryErr } = await supabase
+          .from(table)
+          .update({ ...stripResumeId(payload), updated_at: updatePayload.updated_at })
+          .eq('id', id)
+          .select()
+          .single();
+
+        if (retryErr) throw new Error(readableDbError(retryErr, table));
+
+        setError('投递已更新，但数据库缺少 resume_id 字段，暂时无法关联简历。请执行 supabase/migration_resume_files.sql。');
+        setItems((prev) => prev.map((it) => (it.id === id ? (retryData as T) : it)));
+        return retryData as T;
+      }
+
+      if (err) throw new Error(readableDbError(err, table));
+
       setItems((prev) => prev.map((it) => (it.id === id ? (data as T) : it)));
       return data as T;
     },
     [table],
   );
 
-  /** 删除一条记录 */
   const remove = useCallback(
     async (id: string) => {
       const { error: err } = await supabase.from(table).delete().eq('id', id);
-      if (err) throw err;
+      if (err) throw new Error(readableDbError(err, table));
       setItems((prev) => prev.filter((it) => it.id !== id));
     },
     [table],
