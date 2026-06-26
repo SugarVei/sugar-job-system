@@ -22,8 +22,32 @@ function buildStoragePath(userId: string, resumeId: string, fileName: string) {
   ].join('/');
 }
 
+function stringifyErrorValue(value: unknown): string {
+  if (value == null) return '';
+  if (typeof value === 'string') return value;
+  if (typeof value === 'number' || typeof value === 'boolean') return String(value);
+  if (value instanceof Error) return value.message;
+
+  if (typeof value === 'object') {
+    const record = value as Record<string, unknown>;
+    const parts = ['message', 'error_description', 'error', 'details', 'hint', 'statusCode', 'status']
+      .map((key) => stringifyErrorValue(record[key]))
+      .filter(Boolean);
+
+    if (parts.length > 0) return parts.join(' | ');
+
+    try {
+      return JSON.stringify(value);
+    } catch {
+      return Object.prototype.toString.call(value);
+    }
+  }
+
+  return String(value);
+}
+
 function readableSupabaseError(error: unknown) {
-  const message = error instanceof Error ? error.message : String(error);
+  const message = stringifyErrorValue(error);
 
   if (/invalid key/i.test(message)) {
     return '文件存储路径包含 Supabase 不支持的字符。系统已改为安全路径，请重新上传一次。';
@@ -45,7 +69,7 @@ function readableSupabaseError(error: unknown) {
     return '无法连接 Supabase，请检查 Vercel 环境变量和 Supabase 项目状态。';
   }
 
-  return message;
+  return message || '未知上传错误，请打开浏览器开发者工具查看 Network/Console 里的 Supabase 返回内容。';
 }
 
 export function useResumeFiles() {

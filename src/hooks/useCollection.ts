@@ -9,8 +9,32 @@ interface BaseRow {
   updated_at: string;
 }
 
+function stringifyErrorValue(value: unknown): string {
+  if (value == null) return '';
+  if (typeof value === 'string') return value;
+  if (typeof value === 'number' || typeof value === 'boolean') return String(value);
+  if (value instanceof Error) return value.message;
+
+  if (typeof value === 'object') {
+    const record = value as Record<string, unknown>;
+    const parts = ['message', 'error_description', 'error', 'details', 'hint', 'statusCode', 'status']
+      .map((key) => stringifyErrorValue(record[key]))
+      .filter(Boolean);
+
+    if (parts.length > 0) return parts.join(' | ');
+
+    try {
+      return JSON.stringify(value);
+    } catch {
+      return Object.prototype.toString.call(value);
+    }
+  }
+
+  return String(value);
+}
+
 function readableDbError(error: unknown, table: string) {
-  const message = error instanceof Error ? error.message : String(error);
+  const message = stringifyErrorValue(error);
 
   if (/resume_id|resume_files|schema cache|relation .* does not exist/i.test(message)) {
     return 'Supabase 数据库缺少最新简历关联字段/文件表，请在 Supabase SQL Editor 执行 supabase/migration_resume_files.sql。';
@@ -24,11 +48,11 @@ function readableDbError(error: unknown, table: string) {
     return '无法连接 Supabase，请检查 Vercel 环境变量和 Supabase 项目状态。';
   }
 
-  return message;
+  return message || `${table} 操作失败，但 Supabase 没有返回可读错误信息。`;
 }
 
 function isMissingResumeId(error: unknown) {
-  const message = error instanceof Error ? error.message : String(error);
+  const message = stringifyErrorValue(error);
   return /resume_id|schema cache/i.test(message);
 }
 

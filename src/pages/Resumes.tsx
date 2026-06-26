@@ -28,6 +28,16 @@ function fmtDateTime(iso: string) {
   }
 }
 
+function errorText(error: unknown) {
+  if (error instanceof Error) return error.message;
+  if (typeof error === 'string') return error;
+  try {
+    return JSON.stringify(error);
+  } catch {
+    return String(error);
+  }
+}
+
 export default function Resumes() {
   const { items, loading, create, update, remove } = useCollection<Resume>('resumes', {
     column: 'updated_at',
@@ -103,7 +113,7 @@ export default function Resumes() {
       else await create(form);
       setModalOpen(false);
     } catch (e) {
-      setFormError('保存失败：' + (e as Error).message);
+      setFormError('保存失败：' + errorText(e));
     } finally {
       setSaving(false);
     }
@@ -236,7 +246,7 @@ function ResumeCard({
         await fileApi.upload(resume.id, kind, file);
       }
     } catch (e) {
-      alert('上传失败：' + (e as Error).message);
+      alert('上传失败：' + errorText(e));
     } finally {
       setUploadingKind(null);
     }
@@ -248,7 +258,7 @@ function ResumeCard({
       const url = await fileApi.getDownloadUrl(f.file_path);
       window.open(url, '_blank');
     } catch (e) {
-      alert('下载失败：' + (e as Error).message);
+      alert('下载失败：' + errorText(e));
     } finally {
       setDownloadingId(null);
     }
@@ -259,7 +269,7 @@ function ResumeCard({
     try {
       await fileApi.remove(f);
     } catch (e) {
-      alert('删除失败：' + (e as Error).message);
+      alert('删除失败：' + errorText(e));
     }
   };
 
