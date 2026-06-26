@@ -25,6 +25,26 @@ const controlStyle: React.CSSProperties = {
   outline: 'none',
 };
 
+/** 弹窗内的内联错误提示（替代浏览器 alert 校验） */
+export function FormError({ message }: { message?: string }) {
+  if (!message) return null;
+  return (
+    <div
+      style={{
+        background: '#fbe0d8',
+        color: '#a23d24',
+        fontSize: 13,
+        fontWeight: 600,
+        padding: '10px 14px',
+        borderRadius: 12,
+        marginBottom: 14,
+      }}
+    >
+      {message}
+    </div>
+  );
+}
+
 export function Field({
   label,
   children,

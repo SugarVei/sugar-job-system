@@ -5,7 +5,7 @@ import { useResumeFiles } from '../hooks/useResumeFiles';
 import { useAppShell } from '../contexts/AppShellContext';
 import { useTheme } from '../contexts/ThemeContext';
 import Modal from '../components/Modal';
-import { Field, TextInput, TextArea, PrimaryButton, GhostButton } from '../components/Field';
+import { Field, TextInput, TextArea, PrimaryButton, GhostButton, FormError } from '../components/Field';
 import { IconEdit, IconTrash, IconPlus, IconFile } from '../components/icons';
 import { CARD } from '../lib/appHelpers';
 import EmptyState from '../components/EmptyState';
@@ -40,6 +40,9 @@ export default function Resumes() {
   const [editing, setEditing] = useState<Resume | null>(null);
   const [form, setForm] = useState<NewRecord<Resume>>(empty);
   const [saving, setSaving] = useState(false);
+  const [formError, setFormError] = useState('');
+  const [scrollSig, setScrollSig] = useState(0);
+  const nameRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     registerAdd(() => openCreate());
@@ -70,6 +73,7 @@ export default function Resumes() {
   const openCreate = () => {
     setEditing(null);
     setForm(empty);
+    setFormError('');
     setModalOpen(true);
   };
   const openEdit = (r: Resume) => {
@@ -80,21 +84,25 @@ export default function Resumes() {
       file_url: r.file_url ?? '',
       notes: r.notes ?? '',
     });
+    setFormError('');
     setModalOpen(true);
   };
 
   const save = async () => {
     if (!form.resume_name.trim()) {
-      alert('请填写简历名称');
+      setFormError('「简历名称」为必填项，请补全后再保存。');
+      setScrollSig((n) => n + 1);
+      setTimeout(() => nameRef.current?.focus(), 320);
       return;
     }
+    setFormError('');
     setSaving(true);
     try {
       if (editing) await update(editing.id, form);
       else await create(form);
       setModalOpen(false);
     } catch (e) {
-      alert('保存失败：' + (e as Error).message);
+      setFormError('保存失败：' + (e as Error).message);
     } finally {
       setSaving(false);
     }
@@ -156,6 +164,7 @@ export default function Resumes() {
         open={modalOpen}
         title={editing ? '编辑简历' : '新增简历'}
         onClose={() => setModalOpen(false)}
+        scrollTopSignal={scrollSig}
         footer={
           <>
             <GhostButton onClick={() => setModalOpen(false)}>取消</GhostButton>
@@ -165,8 +174,15 @@ export default function Resumes() {
           </>
         }
       >
+        <FormError message={formError} />
         <Field label="简历名称 *">
-          <TextInput value={form.resume_name} onChange={(e) => setForm({ ...form, resume_name: e.target.value })} placeholder="如 产品-互联网版" />
+          <TextInput
+            ref={nameRef}
+            value={form.resume_name}
+            onChange={(e) => setForm({ ...form, resume_name: e.target.value })}
+            placeholder="如 产品-互联网版"
+            style={!form.resume_name.trim() && formError ? { borderColor: '#f0613f', background: '#fff' } : undefined}
+          />
         </Field>
         <Field label="适用岗位">
           <TextInput value={form.target_position ?? ''} onChange={(e) => setForm({ ...form, target_position: e.target.value })} placeholder="如 产品经理" />

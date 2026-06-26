@@ -1,10 +1,10 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import type { Interview, InterviewType, NewRecord } from '../types';
 import { useCollection } from '../hooks/useCollection';
 import { useAppShell } from '../contexts/AppShellContext';
 import { useTheme } from '../contexts/ThemeContext';
 import Modal from '../components/Modal';
-import { Field, TextInput, TextArea, Select, PrimaryButton, GhostButton } from '../components/Field';
+import { Field, TextInput, TextArea, Select, PrimaryButton, GhostButton, FormError } from '../components/Field';
 import { IconEdit, IconTrash, IconPlus, IconMapPin } from '../components/icons';
 import { CARD } from '../lib/appHelpers';
 import EmptyState from '../components/EmptyState';
@@ -64,6 +64,9 @@ export default function Interviews() {
   const [editing, setEditing] = useState<Interview | null>(null);
   const [form, setForm] = useState<NewRecord<Interview>>(empty);
   const [saving, setSaving] = useState(false);
+  const [formError, setFormError] = useState('');
+  const [scrollSig, setScrollSig] = useState(0);
+  const companyRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     registerAdd(() => openCreate());
@@ -91,6 +94,7 @@ export default function Interviews() {
   const openCreate = () => {
     setEditing(null);
     setForm(empty);
+    setFormError('');
     setModalOpen(true);
   };
   const openEdit = (ev: Interview) => {
@@ -104,14 +108,18 @@ export default function Interviews() {
       interview_type: ev.interview_type ?? '视频',
       notes: ev.notes ?? '',
     });
+    setFormError('');
     setModalOpen(true);
   };
 
   const save = async () => {
-    if (!form.company_name) {
-      alert('请填写公司名称');
+    if (!form.company_name.trim()) {
+      setFormError('「公司名称」为必填项，请补全后再保存。');
+      setScrollSig((n) => n + 1);
+      setTimeout(() => companyRef.current?.focus(), 320);
       return;
     }
+    setFormError('');
     setSaving(true);
     try {
       const payload = {
@@ -122,7 +130,7 @@ export default function Interviews() {
       else await create(payload);
       setModalOpen(false);
     } catch (e) {
-      alert('保存失败：' + (e as Error).message);
+      setFormError('保存失败：' + (e as Error).message);
     } finally {
       setSaving(false);
     }
@@ -305,6 +313,7 @@ export default function Interviews() {
         open={modalOpen}
         title={editing ? '编辑面试' : '新增面试'}
         onClose={() => setModalOpen(false)}
+        scrollTopSignal={scrollSig}
         footer={
           <>
             {editing && (
@@ -319,9 +328,15 @@ export default function Interviews() {
           </>
         }
       >
+        <FormError message={formError} />
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-3">
           <Field label="公司名称 *">
-            <TextInput value={form.company_name} onChange={(e) => setForm({ ...form, company_name: e.target.value })} />
+            <TextInput
+              ref={companyRef}
+              value={form.company_name}
+              onChange={(e) => setForm({ ...form, company_name: e.target.value })}
+              style={!form.company_name.trim() && formError ? { borderColor: '#f0613f', background: '#fff' } : undefined}
+            />
           </Field>
           <Field label="岗位">
             <TextInput value={form.position_name ?? ''} onChange={(e) => setForm({ ...form, position_name: e.target.value })} />

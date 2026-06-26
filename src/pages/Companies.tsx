@@ -1,10 +1,10 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import type { Company, NewRecord } from '../types';
 import { useCollection } from '../hooks/useCollection';
 import { useAppShell } from '../contexts/AppShellContext';
 import { useTheme } from '../contexts/ThemeContext';
 import Modal from '../components/Modal';
-import { Field, TextInput, TextArea, Select, PrimaryButton, GhostButton } from '../components/Field';
+import { Field, TextInput, TextArea, Select, PrimaryButton, GhostButton, FormError } from '../components/Field';
 import { IconEdit, IconTrash, IconPlus, IconExternalLink } from '../components/icons';
 import { initialOf, avatarColor, CARD } from '../lib/appHelpers';
 import EmptyState from '../components/EmptyState';
@@ -27,6 +27,9 @@ export default function Companies() {
   const [editing, setEditing] = useState<Company | null>(null);
   const [form, setForm] = useState<NewRecord<Company>>(empty);
   const [saving, setSaving] = useState(false);
+  const [formError, setFormError] = useState('');
+  const [scrollSig, setScrollSig] = useState(0);
+  const nameRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     registerAdd(() => openCreate());
@@ -42,6 +45,7 @@ export default function Companies() {
   const openCreate = () => {
     setEditing(null);
     setForm(empty);
+    setFormError('');
     setModalOpen(true);
   };
   const openEdit = (c: Company) => {
@@ -54,21 +58,25 @@ export default function Companies() {
       website: c.website ?? '',
       notes: c.notes ?? '',
     });
+    setFormError('');
     setModalOpen(true);
   };
 
   const save = async () => {
-    if (!form.company_name) {
-      alert('请填写公司名称');
+    if (!form.company_name.trim()) {
+      setFormError('「公司名称」为必填项，请补全后再保存。');
+      setScrollSig((n) => n + 1);
+      setTimeout(() => nameRef.current?.focus(), 320);
       return;
     }
+    setFormError('');
     setSaving(true);
     try {
       if (editing) await update(editing.id, form);
       else await create(form);
       setModalOpen(false);
     } catch (e) {
-      alert('保存失败：' + (e as Error).message);
+      setFormError('保存失败：' + (e as Error).message);
     } finally {
       setSaving(false);
     }
@@ -204,6 +212,7 @@ export default function Companies() {
         open={modalOpen}
         title={editing ? '编辑公司' : '新增公司'}
         onClose={() => setModalOpen(false)}
+        scrollTopSignal={scrollSig}
         footer={
           <>
             <GhostButton onClick={() => setModalOpen(false)}>取消</GhostButton>
@@ -213,9 +222,15 @@ export default function Companies() {
           </>
         }
       >
+        <FormError message={formError} />
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-3">
           <Field label="公司名称 *">
-            <TextInput value={form.company_name} onChange={(e) => setForm({ ...form, company_name: e.target.value })} />
+            <TextInput
+              ref={nameRef}
+              value={form.company_name}
+              onChange={(e) => setForm({ ...form, company_name: e.target.value })}
+              style={!form.company_name.trim() && formError ? { borderColor: '#f0613f', background: '#fff' } : undefined}
+            />
           </Field>
           <Field label="行业">
             <TextInput value={form.industry ?? ''} onChange={(e) => setForm({ ...form, industry: e.target.value })} placeholder="如 互联网" />
