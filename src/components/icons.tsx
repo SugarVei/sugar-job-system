@@ -1,0 +1,188 @@
+import type { SVGProps } from 'react';
+
+// ============================================================
+// 图标集合 —— 全部移植自原设计稿的内联 SVG
+// 统一 stroke="currentColor"，颜色由父级 color 控制
+// ============================================================
+
+type IconProps = SVGProps<SVGSVGElement> & { size?: number };
+
+function base(size: number, props: SVGProps<SVGSVGElement>) {
+  return {
+    width: size,
+    height: size,
+    viewBox: '0 0 24 24',
+    fill: 'none',
+    stroke: 'currentColor',
+    strokeWidth: 2,
+    strokeLinecap: 'round' as const,
+    strokeLinejoin: 'round' as const,
+    ...props,
+  };
+}
+
+export const IconDashboard = ({ size = 20, ...p }: IconProps) => (
+  <svg {...base(size, p)}>
+    <rect x="3" y="3" width="7" height="9" rx="1.5" />
+    <rect x="14" y="3" width="7" height="5" rx="1.5" />
+    <rect x="14" y="12" width="7" height="9" rx="1.5" />
+    <rect x="3" y="16" width="7" height="5" rx="1.5" />
+  </svg>
+);
+
+export const IconOverview = ({ size = 20, ...p }: IconProps) => (
+  <svg {...base(size, p)}>
+    <path d="M3 3v18h18" />
+    <path d="M7 14l3-4 3 2 4-6" />
+  </svg>
+);
+
+export const IconApplications = ({ size = 20, ...p }: IconProps) => (
+  <svg {...base(size, p)}>
+    <rect x="3" y="4" width="18" height="16" rx="2" />
+    <path d="M3 9h18M8 14h8" />
+  </svg>
+);
+
+export const IconCompanies = ({ size = 20, ...p }: IconProps) => (
+  <svg {...base(size, p)}>
+    <rect x="4" y="3" width="16" height="18" rx="2" />
+    <path d="M9 8h.01M15 8h.01M9 12h.01M15 12h.01M9 16h6" />
+  </svg>
+);
+
+export const IconResumes = ({ size = 20, ...p }: IconProps) => (
+  <svg {...base(size, p)}>
+    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+    <path d="M14 2v6h6M9 13h6M9 17h4" />
+  </svg>
+);
+
+export const IconInterviews = ({ size = 20, ...p }: IconProps) => (
+  <svg {...base(size, p)}>
+    <rect x="3" y="4" width="18" height="18" rx="2" />
+    <path d="M16 2v4M8 2v4M3 10h18" />
+  </svg>
+);
+
+export const IconSearch = ({ size = 17, ...p }: IconProps) => (
+  <svg {...base(size, p)}>
+    <circle cx="11" cy="11" r="7" />
+    <path d="m21 21-4.3-4.3" />
+  </svg>
+);
+
+export const IconPlus = ({ size = 17, ...p }: IconProps) => (
+  <svg {...base(size, { strokeWidth: 2.2, ...p })}>
+    <path d="M12 5v14M5 12h14" />
+  </svg>
+);
+
+export const IconChevronDown = ({ size = 14, ...p }: IconProps) => (
+  <svg {...base(size, { strokeWidth: 2.2, ...p })}>
+    <path d="m6 9 6 6 6-6" />
+  </svg>
+);
+
+export const IconChevronRight = ({ size = 14, ...p }: IconProps) => (
+  <svg {...base(size, { strokeWidth: 2.4, ...p })}>
+    <path d="m9 18 6-6-6-6" />
+  </svg>
+);
+
+export const IconLogout = ({ size = 17, ...p }: IconProps) => (
+  <svg {...base(size, p)}>
+    <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
+    <path d="m16 17 5-5-5-5" />
+    <path d="M21 12H9" />
+  </svg>
+);
+
+export const IconUser = ({ size = 40, ...p }: IconProps) => (
+  <svg {...base(size, { strokeWidth: 1.6, ...p })}>
+    <circle cx="12" cy="8" r="4" />
+    <path d="M4 20c0-4 3.6-7 8-7s8 3 8 7" />
+  </svg>
+);
+
+export const IconCamera = ({ size = 13, ...p }: IconProps) => (
+  <svg {...base(size, p)}>
+    <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z" />
+    <circle cx="12" cy="13" r="3.5" />
+  </svg>
+);
+
+export const IconEdit = ({ size = 15, ...p }: IconProps) => (
+  <svg {...base(size, p)}>
+    <path d="M12 20h9M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z" />
+  </svg>
+);
+
+export const IconTrash = ({ size = 15, ...p }: IconProps) => (
+  <svg {...base(size, p)}>
+    <path d="M3 6h18M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2m3 0v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6" />
+  </svg>
+);
+
+export const IconFile = ({ size = 16, ...p }: IconProps) => (
+  <svg {...base(size, p)}>
+    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+    <path d="M14 2v6h6" />
+  </svg>
+);
+
+export const IconMapPin = ({ size = 11, ...p }: IconProps) => (
+  <svg {...base(size, p)}>
+    <path d="M12 21s-6-5.7-6-10a6 6 0 0 1 12 0c0 4.3-6 10-6 10Z" />
+    <circle cx="12" cy="11" r="2" />
+  </svg>
+);
+
+export const IconClose = ({ size = 18, ...p }: IconProps) => (
+  <svg {...base(size, p)}>
+    <path d="M18 6 6 18M6 6l12 12" />
+  </svg>
+);
+
+export const IconExternalLink = ({ size = 14, ...p }: IconProps) => (
+  <svg {...base(size, p)}>
+    <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" />
+    <path d="M15 3h6v6M10 14 21 3" />
+  </svg>
+);
+
+export const IconEye = ({ size = 18, ...p }: IconProps) => (
+  <svg {...base(size, p)}>
+    <path d="M2 12s4-7 10-7 10 7 10 7-4 7-10 7-10-7-10-7Z" />
+    <circle cx="12" cy="12" r="3" />
+  </svg>
+);
+
+export const IconTrophy = ({ size = 22, ...p }: IconProps) => (
+  <svg {...base(size, p)}>
+    <path d="M6 9V2h12v7a6 6 0 0 1-12 0ZM6 9H3a3 3 0 0 0 3 3M18 9h3a3 3 0 0 1-3 3M9 20h6M12 15v5" />
+  </svg>
+);
+
+export const IconArrowRight = ({ size = 22, ...p }: IconProps) => (
+  <svg {...base(size, p)}>
+    <path d="M5 12h14M13 6l6 6-6 6" />
+  </svg>
+);
+
+/** Sugar 品牌 Logo（描边版 "Y" 标志，移植自原设计） */
+export const SugarMark = ({ size = 26, color = '#fff' }: { size?: number; color?: string }) => (
+  <svg
+    width={size}
+    height={size}
+    viewBox="0 0 100 100"
+    fill="none"
+    stroke={color}
+    strokeWidth={8.5}
+    strokeLinecap="round"
+    strokeLinejoin="round"
+  >
+    <path d="M34 30 H66 M50 30 V63" />
+    <path d="M32 45 V57 Q32 75 41 75 Q50 75 50 63 Q50 75 59 75 Q68 75 68 57 V45" />
+  </svg>
+);

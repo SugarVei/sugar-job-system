@@ -1,0 +1,9 @@
+[build]
+  command = "npm run build"
+  publish = "dist"
+
+# 单页应用：所有路由回退到 index.html
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200
