@@ -4,15 +4,9 @@ import { useCollection } from '../hooks/useCollection';
 import { useAppShell } from '../contexts/AppShellContext';
 import { useTheme } from '../contexts/ThemeContext';
 import Modal from '../components/Modal';
-import { Field, TextInput, TextArea, Select, PrimaryButton, GhostButton } from '../components/Field';
+import { Field, TextInput, TextArea, Select, PrimaryButton, GhostButton, FormError } from '../components/Field';
 import { IconEdit, IconTrash, IconPlus, IconExternalLink } from '../components/icons';
-import {
-  STATUS_OPTIONS,
-  statusTag,
-  buildSteps,
-  matchApp,
-  CARD,
-} from '../lib/appHelpers';
+import { STATUS_OPTIONS, statusTag, buildSteps, matchApp, CARD } from '../lib/appHelpers';
 import EmptyState from '../components/EmptyState';
 
 const empty: NewRecord<Application> = {
@@ -28,9 +22,19 @@ const empty: NewRecord<Application> = {
   resume_id: null,
 };
 
+function errorText(error: unknown) {
+  if (error instanceof Error) return error.message;
+  if (typeof error === 'string') return error;
+  try {
+    return JSON.stringify(error);
+  } catch {
+    return String(error);
+  }
+}
+
 export default function Applications() {
-  const { items, loading, create, update, remove } = useCollection<Application>('applications');
-  const { items: resumes } = useCollection<Resume>('resumes'); // 用于“使用简历”下拉
+  const { items, loading, error: applicationsError, create, update, remove } = useCollection<Application>('applications');
+  const { items: resumes, error: resumesError } = useCollection<Resume>('resumes');
   const { query, registerAdd } = useAppShell();
   const { theme } = useTheme();
   const [statusFilter, setStatusFilter] = useState<'all' | ApplicationStatus>('all');
@@ -39,10 +43,9 @@ export default function Applications() {
   const [form, setForm] = useState<NewRecord<Application>>(empty);
   const [saving, setSaving] = useState(false);
   const [formError, setFormError] = useState('');
-  const [scrollSig, setScrollSig] = useState(0); // 变化时让弹窗滚回顶部
+  const [scrollSig, setScrollSig] = useState(0);
   const companyRef = useRef<HTMLInputElement>(null);
 
-  // 注册顶栏“+新增”按钮动作
   useEffect(() => {
     registerAdd(() => openCreate());
     return () => registerAdd(null);
@@ -55,32 +58,33 @@ export default function Applications() {
     setFormError('');
     setModalOpen(true);
   };
-  const openEdit = (a: Application) => {
-    setEditing(a);
+
+  const openEdit = (application: Application) => {
+    setEditing(application);
     setForm({
-      company_name: a.company_name,
-      position_name: a.position_name,
-      city: a.city ?? '',
-      channel: a.channel ?? '',
-      apply_date: a.apply_date ?? '',
-      status: a.status,
-      salary_range: a.salary_range ?? '',
-      job_url: a.job_url ?? '',
-      notes: a.notes ?? '',
-      resume_id: a.resume_id ?? null,
+      company_name: application.company_name,
+      position_name: application.position_name,
+      city: application.city ?? '',
+      channel: application.channel ?? '',
+      apply_date: application.apply_date ?? '',
+      status: application.status,
+      salary_range: application.salary_range ?? '',
+      job_url: application.job_url ?? '',
+      notes: application.notes ?? '',
+      resume_id: application.resume_id ?? null,
     });
     setFormError('');
     setModalOpen(true);
   };
 
   const save = async () => {
-    // 校验必填项：失败时滚回顶部、聚焦公司名输入框、内联提示（不再用浏览器弹窗）
     if (!form.company_name.trim() || !form.position_name.trim()) {
       setFormError('「公司名称」和「岗位名称」为必填项，请补全后再保存。');
       setScrollSig((n) => n + 1);
       setTimeout(() => companyRef.current?.focus(), 320);
       return;
     }
+
     setFormError('');
     setSaving(true);
     try {
@@ -89,48 +93,46 @@ export default function Applications() {
         apply_date: form.apply_date || null,
         resume_id: form.resume_id || null,
       };
+
       if (editing) await update(editing.id, payload);
       else await create(payload);
       setModalOpen(false);
-    } catch (e) {
-      setFormError('保存失败：' + (e as Error).message);
+    } catch (error) {
+      setFormError('保存失败：' + errorText(error));
     } finally {
       setSaving(false);
     }
   };
 
-  const del = async (a: Application) => {
-    if (!confirm(`确定删除「${a.company_name} · ${a.position_name}」吗？`)) return;
+  const del = async (application: Application) => {
+    if (!confirm(`确定删除「${application.company_name} · ${application.position_name}」吗？`)) return;
     try {
-      await remove(a.id);
-    } catch (e) {
-      alert('删除失败：' + (e as Error).message);
+      await remove(application.id);
+    } catch (error) {
+      alert('删除失败：' + errorText(error));
     }
   };
 
   const filtered = useMemo(
     () =>
       items
-        .filter((a) => statusFilter === 'all' || a.status === statusFilter)
-        .filter((a) => matchApp(a, query)),
+        .filter((application) => statusFilter === 'all' || application.status === statusFilter)
+        .filter((application) => matchApp(application, query)),
     [items, statusFilter, query],
   );
 
   return (
     <div className="flex flex-col gap-[18px] animate-rise">
-      {/* 过滤条 */}
-      <div
-        className="grid grid-cols-1 sm:grid-cols-[1fr_auto_auto] gap-3 p-4"
-        style={{ ...CARD, borderRadius: 20 }}
-      >
-        <Select
-          value={statusFilter}
-          onChange={(e) => setStatusFilter(e.target.value as 'all' | ApplicationStatus)}
-        >
+      {(applicationsError || resumesError) && (
+        <FormError message={applicationsError || resumesError || ''} />
+      )}
+
+      <div className="grid grid-cols-1 sm:grid-cols-[1fr_auto_auto] gap-3 p-4" style={{ ...CARD, borderRadius: 20 }}>
+        <Select value={statusFilter} onChange={(event) => setStatusFilter(event.target.value as 'all' | ApplicationStatus)}>
           <option value="all">全部状态</option>
-          {STATUS_OPTIONS.map((s) => (
-            <option key={s} value={s}>
-              {s}
+          {STATUS_OPTIONS.map((status) => (
+            <option key={status} value={status}>
+              {status}
             </option>
           ))}
         </Select>
@@ -145,7 +147,7 @@ export default function Applications() {
       </div>
 
       {loading ? (
-        <EmptyState text="加载中…" />
+        <EmptyState text="加载中..." />
       ) : filtered.length === 0 ? (
         <EmptyState
           text={items.length === 0 ? '还没有投递记录，点右上角新增第一条吧' : '没有符合条件的记录'}
@@ -153,30 +155,27 @@ export default function Applications() {
           onAction={items.length === 0 ? openCreate : undefined}
         />
       ) : (
-        filtered.map((a) => {
-          const tag = statusTag(a.status);
-          const steps = buildSteps(a.status);
+        filtered.map((application) => {
+          const tag = statusTag(application.status);
+          const steps = buildSteps(application.status);
           return (
-            <div key={a.id} className="card-hover" style={{ ...CARD, padding: '22px 24px' }}>
+            <div key={application.id} className="card-hover" style={{ ...CARD, padding: '22px 24px' }}>
               <div className="flex items-start justify-between gap-4 flex-wrap">
                 <div style={{ minWidth: 0 }}>
                   <div className="flex items-center gap-[10px] flex-wrap">
                     <h3 style={{ fontFamily: 'Poppins', fontSize: 18, fontWeight: 600, margin: 0 }}>
-                      {a.company_name} · {a.position_name}
+                      {application.company_name} · {application.position_name}
                     </h3>
-                    <span style={pill(tag.bg, tag.fg)}>{a.status}</span>
+                    <span style={pill(tag.bg, tag.fg)}>{application.status}</span>
                   </div>
-                  <div
-                    className="flex flex-wrap mt-[9px]"
-                    style={{ gap: '6px 18px', fontSize: 13, color: '#8a8478' }}
-                  >
-                    {a.city && <span>{a.city}</span>}
-                    {a.channel && <span>{a.channel}</span>}
-                    {a.salary_range && <span>{a.salary_range}</span>}
-                    {a.apply_date && <span>投递：{a.apply_date}</span>}
-                    {a.job_url && (
+                  <div className="flex flex-wrap mt-[9px]" style={{ gap: '6px 18px', fontSize: 13, color: '#8a8478' }}>
+                    {application.city && <span>{application.city}</span>}
+                    {application.channel && <span>{application.channel}</span>}
+                    {application.salary_range && <span>{application.salary_range}</span>}
+                    {application.apply_date && <span>投递：{application.apply_date}</span>}
+                    {application.job_url && (
                       <a
-                        href={a.job_url}
+                        href={application.job_url}
                         target="_blank"
                         rel="noreferrer"
                         style={{ color: theme.accent, display: 'inline-flex', alignItems: 'center', gap: 4, fontWeight: 600 }}
@@ -187,28 +186,27 @@ export default function Applications() {
                   </div>
                 </div>
                 <div className="flex gap-2 flex-none">
-                  <button onClick={() => openEdit(a)} className="btn-press" style={iconBtnText}>
+                  <button onClick={() => openEdit(application)} className="btn-press" style={iconBtnText}>
                     <IconEdit size={14} /> 编辑
                   </button>
-                  <button onClick={() => del(a)} aria-label="删除" className="btn-press" style={iconBtn}>
+                  <button onClick={() => del(application)} aria-label="删除" className="btn-press" style={iconBtn}>
                     <IconTrash size={15} />
                   </button>
                 </div>
               </div>
 
-              {/* 进度步骤 */}
               <div className="grid grid-cols-4 gap-1" style={{ margin: '20px 0 4px' }}>
-                {steps.map((s) => (
-                  <div key={s.idx} className="flex flex-col items-center gap-[7px]">
+                {steps.map((step) => (
+                  <div key={step.idx} className="flex flex-col items-center gap-[7px]">
                     <div className="flex items-center w-full">
-                      <div style={{ height: 2, flex: 1, background: s.lineL }} />
+                      <div style={{ height: 2, flex: 1, background: step.lineL }} />
                       <div
                         style={{
                           width: 24,
                           height: 24,
                           borderRadius: '50%',
-                          background: s.dotBg,
-                          color: s.dotFg,
+                          background: step.dotBg,
+                          color: step.dotFg,
                           display: 'flex',
                           alignItems: 'center',
                           justifyContent: 'center',
@@ -217,18 +215,18 @@ export default function Applications() {
                           flex: 'none',
                         }}
                       >
-                        {s.idx}
+                        {step.idx}
                       </div>
-                      <div style={{ height: 2, flex: 1, background: s.lineR }} />
+                      <div style={{ height: 2, flex: 1, background: step.lineR }} />
                     </div>
-                    <span style={{ fontSize: 11.5, color: s.labelColor, fontWeight: s.labelWeight }}>
-                      {s.label}
+                    <span style={{ fontSize: 11.5, color: step.labelColor, fontWeight: step.labelWeight }}>
+                      {step.label}
                     </span>
                   </div>
                 ))}
               </div>
 
-              {a.notes && (
+              {application.notes && (
                 <div
                   style={{
                     background: '#f5f0e7',
@@ -239,7 +237,7 @@ export default function Applications() {
                     marginTop: 12,
                   }}
                 >
-                  备注：{a.notes}
+                  备注：{application.notes}
                 </div>
               )}
             </div>
@@ -256,29 +254,13 @@ export default function Applications() {
           <>
             <GhostButton onClick={() => setModalOpen(false)}>取消</GhostButton>
             <PrimaryButton accent={theme.accent} onClick={save} disabled={saving}>
-              {saving ? '保存中…' : '保存'}
+              {saving ? '保存中...' : '保存'}
             </PrimaryButton>
           </>
         }
       >
-        {/* 校验错误内联提示 */}
-        {formError && (
-          <div
-            style={{
-              background: '#fbe0d8',
-              color: '#a23d24',
-              fontSize: 13,
-              fontWeight: 600,
-              padding: '10px 14px',
-              borderRadius: 12,
-              marginBottom: 14,
-            }}
-          >
-            {formError}
-          </div>
-        )}
+        <FormError message={formError} />
 
-        {/* 必填区：公司名称 + 岗位名称，置顶并高亮，避免被忽略 */}
         <div
           style={{
             background: '#fbf6ec',
@@ -296,16 +278,16 @@ export default function Applications() {
               <TextInput
                 ref={companyRef}
                 value={form.company_name}
-                onChange={(e) => setForm({ ...form, company_name: e.target.value })}
-                placeholder="如 字节跳动"
+                onChange={(event) => setForm({ ...form, company_name: event.target.value })}
+                placeholder="如：字节跳动"
                 style={!form.company_name.trim() && formError ? { borderColor: '#f0613f', background: '#fff' } : undefined}
               />
             </Field>
             <Field label="岗位名称 *">
               <TextInput
                 value={form.position_name}
-                onChange={(e) => setForm({ ...form, position_name: e.target.value })}
-                placeholder="如 产品经理 / 工业工程师"
+                onChange={(event) => setForm({ ...form, position_name: event.target.value })}
+                placeholder="如：产品经理 / 工业工程师"
                 style={!form.position_name.trim() && formError ? { borderColor: '#f0613f', background: '#fff' } : undefined}
               />
             </Field>
@@ -314,42 +296,42 @@ export default function Applications() {
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-3">
           <Field label="城市">
-            <TextInput value={form.city ?? ''} onChange={(e) => setForm({ ...form, city: e.target.value })} placeholder="如 北京" />
+            <TextInput value={form.city ?? ''} onChange={(event) => setForm({ ...form, city: event.target.value })} placeholder="如：北京" />
           </Field>
           <Field label="投递渠道">
-            <TextInput value={form.channel ?? ''} onChange={(e) => setForm({ ...form, channel: e.target.value })} placeholder="如 内推 / BOSS直聘" />
+            <TextInput value={form.channel ?? ''} onChange={(event) => setForm({ ...form, channel: event.target.value })} placeholder="如：内推 / BOSS直聘" />
           </Field>
           <Field label="投递日期">
-            <TextInput type="date" value={form.apply_date ?? ''} onChange={(e) => setForm({ ...form, apply_date: e.target.value })} />
+            <TextInput type="date" value={form.apply_date ?? ''} onChange={(event) => setForm({ ...form, apply_date: event.target.value })} />
           </Field>
           <Field label="当前状态">
-            <Select value={form.status} onChange={(e) => setForm({ ...form, status: e.target.value as ApplicationStatus })}>
-              {STATUS_OPTIONS.map((s) => (
-                <option key={s} value={s}>
-                  {s}
+            <Select value={form.status} onChange={(event) => setForm({ ...form, status: event.target.value as ApplicationStatus })}>
+              {STATUS_OPTIONS.map((status) => (
+                <option key={status} value={status}>
+                  {status}
                 </option>
               ))}
             </Select>
           </Field>
           <Field label="薪资范围">
-            <TextInput value={form.salary_range ?? ''} onChange={(e) => setForm({ ...form, salary_range: e.target.value })} placeholder="如 25-40k" />
+            <TextInput value={form.salary_range ?? ''} onChange={(event) => setForm({ ...form, salary_range: event.target.value })} placeholder="如：25-40k" />
           </Field>
           <Field label="岗位链接">
-            <TextInput value={form.job_url ?? ''} onChange={(e) => setForm({ ...form, job_url: e.target.value })} placeholder="https://" />
+            <TextInput value={form.job_url ?? ''} onChange={(event) => setForm({ ...form, job_url: event.target.value })} placeholder="https://" />
           </Field>
         </div>
         <Field label="使用简历（关联简历库）">
-          <Select value={form.resume_id ?? ''} onChange={(e) => setForm({ ...form, resume_id: e.target.value || null })}>
+          <Select value={form.resume_id ?? ''} onChange={(event) => setForm({ ...form, resume_id: event.target.value || null })}>
             <option value="">不关联</option>
-            {resumes.map((r) => (
-              <option key={r.id} value={r.id}>
-                {r.resume_name}
+            {resumes.map((resume) => (
+              <option key={resume.id} value={resume.id}>
+                {resume.resume_name}
               </option>
             ))}
           </Select>
         </Field>
         <Field label="备注">
-          <TextArea value={form.notes ?? ''} onChange={(e) => setForm({ ...form, notes: e.target.value })} placeholder="下一步、HR 信息、截止时间等" />
+          <TextArea value={form.notes ?? ''} onChange={(event) => setForm({ ...form, notes: event.target.value })} placeholder="下一步、HR 信息、截止时间等" />
         </Field>
       </Modal>
     </div>
@@ -359,6 +341,7 @@ export default function Applications() {
 function pill(bg: string, fg: string): React.CSSProperties {
   return { background: bg, color: fg, fontSize: 12, fontWeight: 600, padding: '4px 10px', borderRadius: 999 };
 }
+
 const iconBtnText: React.CSSProperties = {
   display: 'flex',
   alignItems: 'center',
@@ -373,6 +356,7 @@ const iconBtnText: React.CSSProperties = {
   color: '#4a463e',
   cursor: 'pointer',
 };
+
 const iconBtn: React.CSSProperties = {
   display: 'flex',
   alignItems: 'center',

@@ -18,8 +18,18 @@ const empty: NewRecord<Company> = {
   notes: '',
 };
 
+function errorText(error: unknown) {
+  if (error instanceof Error) return error.message;
+  if (typeof error === 'string') return error;
+  try {
+    return JSON.stringify(error);
+  } catch {
+    return String(error);
+  }
+}
+
 export default function Companies() {
-  const { items, loading, create, update, remove } = useCollection<Company>('companies');
+  const { items, loading, error: companiesError, create, update, remove } = useCollection<Company>('companies');
   const { query, registerAdd } = useAppShell();
   const { theme } = useTheme();
   const [industryFilter, setIndustryFilter] = useState('all');
@@ -38,7 +48,7 @@ export default function Companies() {
   }, [registerAdd]);
 
   const industries = useMemo(
-    () => Array.from(new Set(items.map((c) => c.industry).filter(Boolean))) as string[],
+    () => Array.from(new Set(items.map((company) => company.industry).filter(Boolean))) as string[],
     [items],
   );
 
@@ -48,15 +58,16 @@ export default function Companies() {
     setFormError('');
     setModalOpen(true);
   };
-  const openEdit = (c: Company) => {
-    setEditing(c);
+
+  const openEdit = (company: Company) => {
+    setEditing(company);
     setForm({
-      company_name: c.company_name,
-      industry: c.industry ?? '',
-      city: c.city ?? '',
-      scale: c.scale ?? '',
-      website: c.website ?? '',
-      notes: c.notes ?? '',
+      company_name: company.company_name,
+      industry: company.industry ?? '',
+      city: company.city ?? '',
+      scale: company.scale ?? '',
+      website: company.website ?? '',
+      notes: company.notes ?? '',
     });
     setFormError('');
     setModalOpen(true);
@@ -69,46 +80,53 @@ export default function Companies() {
       setTimeout(() => nameRef.current?.focus(), 320);
       return;
     }
+
     setFormError('');
     setSaving(true);
     try {
       if (editing) await update(editing.id, form);
       else await create(form);
       setModalOpen(false);
-    } catch (e) {
-      setFormError('保存失败：' + (e as Error).message);
+    } catch (error) {
+      setFormError('保存失败：' + errorText(error));
     } finally {
       setSaving(false);
     }
   };
 
-  const del = async (c: Company) => {
-    if (!confirm(`确定删除「${c.company_name}」吗？`)) return;
-    await remove(c.id);
+  const del = async (company: Company) => {
+    if (!confirm(`确定删除「${company.company_name}」吗？`)) return;
+    try {
+      await remove(company.id);
+    } catch (error) {
+      alert('删除失败：' + errorText(error));
+    }
   };
 
   const filtered = useMemo(
     () =>
       items
-        .filter((c) => industryFilter === 'all' || c.industry === industryFilter)
-        .filter((c) => {
+        .filter((company) => industryFilter === 'all' || company.industry === industryFilter)
+        .filter((company) => {
           if (!query) return true;
-          const t = query.toLowerCase();
-          return [c.company_name, c.industry, c.city, c.notes]
+          const text = query.toLowerCase();
+          return [company.company_name, company.industry, company.city, company.notes]
             .filter(Boolean)
-            .some((v) => (v as string).toLowerCase().includes(t));
+            .some((value) => (value as string).toLowerCase().includes(text));
         }),
     [items, industryFilter, query],
   );
 
   return (
     <div className="flex flex-col gap-[18px] animate-rise">
+      {companiesError && <FormError message={companiesError} />}
+
       <div className="grid grid-cols-1 sm:grid-cols-[1fr_auto] gap-3 p-4" style={{ ...CARD, borderRadius: 20 }}>
-        <Select value={industryFilter} onChange={(e) => setIndustryFilter(e.target.value)}>
+        <Select value={industryFilter} onChange={(event) => setIndustryFilter(event.target.value)}>
           <option value="all">全部行业</option>
-          {industries.map((i) => (
-            <option key={i} value={i}>
-              {i}
+          {industries.map((industry) => (
+            <option key={industry} value={industry}>
+              {industry}
             </option>
           ))}
         </Select>
@@ -120,7 +138,7 @@ export default function Companies() {
       </div>
 
       {loading ? (
-        <EmptyState text="加载中…" />
+        <EmptyState text="加载中..." />
       ) : filtered.length === 0 ? (
         <EmptyState
           text={items.length === 0 ? '公司库还是空的，添加一个目标公司吧' : '没有符合条件的公司'}
@@ -129,10 +147,10 @@ export default function Companies() {
         />
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">
-          {filtered.map((c) => {
-            const col = avatarColor(c.company_name);
+          {filtered.map((company) => {
+            const color = avatarColor(company.company_name);
             return (
-              <div key={c.id} className="card-hover" style={{ ...CARD, padding: 22 }}>
+              <div key={company.id} className="card-hover" style={{ ...CARD, padding: 22 }}>
                 <div className="flex items-start justify-between gap-[10px]">
                   <div className="flex items-center gap-[11px]" style={{ minWidth: 0 }}>
                     <div
@@ -140,8 +158,8 @@ export default function Companies() {
                         width: 44,
                         height: 44,
                         borderRadius: 13,
-                        background: col.bg,
-                        color: col.fg,
+                        background: color.bg,
+                        color: color.fg,
                         display: 'flex',
                         alignItems: 'center',
                         justifyContent: 'center',
@@ -151,7 +169,7 @@ export default function Companies() {
                         flex: 'none',
                       }}
                     >
-                      {initialOf(c.company_name)}
+                      {initialOf(company.company_name)}
                     </div>
                     <div style={{ minWidth: 0 }}>
                       <div
@@ -164,29 +182,29 @@ export default function Companies() {
                           textOverflow: 'ellipsis',
                         }}
                       >
-                        {c.company_name}
+                        {company.company_name}
                       </div>
                       <div style={{ fontSize: 12, color: '#9a9488', marginTop: 2 }}>
-                        {[c.industry, c.scale, c.city].filter(Boolean).join(' · ') || '—'}
+                        {[company.industry, company.scale, company.city].filter(Boolean).join(' · ') || '-'}
                       </div>
                     </div>
                   </div>
                   <div className="flex gap-1 flex-none">
-                    <button onClick={() => openEdit(c)} aria-label="编辑" className="btn-press" style={miniBtn}>
+                    <button onClick={() => openEdit(company)} aria-label="编辑" className="btn-press" style={miniBtn}>
                       <IconEdit size={14} />
                     </button>
-                    <button onClick={() => del(c)} aria-label="删除" className="btn-press" style={miniBtn}>
+                    <button onClick={() => del(company)} aria-label="删除" className="btn-press" style={miniBtn}>
                       <IconTrash size={14} />
                     </button>
                   </div>
                 </div>
 
-                {c.notes && (
-                  <p style={{ fontSize: 13, lineHeight: 1.6, color: '#8a8478', margin: '14px 0 12px' }}>{c.notes}</p>
+                {company.notes && (
+                  <p style={{ fontSize: 13, lineHeight: 1.6, color: '#8a8478', margin: '14px 0 12px' }}>{company.notes}</p>
                 )}
-                {c.website && (
+                {company.website && (
                   <a
-                    href={c.website}
+                    href={company.website}
                     target="_blank"
                     rel="noreferrer"
                     style={{
@@ -196,7 +214,7 @@ export default function Companies() {
                       fontSize: 13,
                       fontWeight: 600,
                       color: theme.accent,
-                      marginTop: c.notes ? 0 : 14,
+                      marginTop: company.notes ? 0 : 14,
                     }}
                   >
                     官网 / 招聘链接 <IconExternalLink size={12} />
@@ -217,7 +235,7 @@ export default function Companies() {
           <>
             <GhostButton onClick={() => setModalOpen(false)}>取消</GhostButton>
             <PrimaryButton accent={theme.accent} onClick={save} disabled={saving}>
-              {saving ? '保存中…' : '保存'}
+              {saving ? '保存中...' : '保存'}
             </PrimaryButton>
           </>
         }
@@ -228,25 +246,25 @@ export default function Companies() {
             <TextInput
               ref={nameRef}
               value={form.company_name}
-              onChange={(e) => setForm({ ...form, company_name: e.target.value })}
+              onChange={(event) => setForm({ ...form, company_name: event.target.value })}
               style={!form.company_name.trim() && formError ? { borderColor: '#f0613f', background: '#fff' } : undefined}
             />
           </Field>
           <Field label="行业">
-            <TextInput value={form.industry ?? ''} onChange={(e) => setForm({ ...form, industry: e.target.value })} placeholder="如 互联网" />
+            <TextInput value={form.industry ?? ''} onChange={(event) => setForm({ ...form, industry: event.target.value })} placeholder="如：互联网" />
           </Field>
           <Field label="城市">
-            <TextInput value={form.city ?? ''} onChange={(e) => setForm({ ...form, city: e.target.value })} />
+            <TextInput value={form.city ?? ''} onChange={(event) => setForm({ ...form, city: event.target.value })} />
           </Field>
           <Field label="公司规模">
-            <TextInput value={form.scale ?? ''} onChange={(e) => setForm({ ...form, scale: e.target.value })} placeholder="如 1000-5000 人" />
+            <TextInput value={form.scale ?? ''} onChange={(event) => setForm({ ...form, scale: event.target.value })} placeholder="如：1000-5000 人" />
           </Field>
         </div>
         <Field label="官网 / 招聘链接">
-          <TextInput value={form.website ?? ''} onChange={(e) => setForm({ ...form, website: e.target.value })} placeholder="https://" />
+          <TextInput value={form.website ?? ''} onChange={(event) => setForm({ ...form, website: event.target.value })} placeholder="https://" />
         </Field>
         <Field label="备注">
-          <TextArea value={form.notes ?? ''} onChange={(e) => setForm({ ...form, notes: e.target.value })} />
+          <TextArea value={form.notes ?? ''} onChange={(event) => setForm({ ...form, notes: event.target.value })} />
         </Field>
       </Modal>
     </div>
