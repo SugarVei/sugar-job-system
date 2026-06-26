@@ -46,7 +46,7 @@ function readableDbError(error: unknown, table: string) {
     return `数据库表不存在，请检查 Supabase 数据库配置。原始错误：${message}`;
   }
 
-  if (/resume_id|resume_files|schema cache/i.test(message)) {
+  if (/resume_id|resume_files/i.test(message)) {
     return 'Supabase 数据库缺少最新简历关联字段/文件表，请在 Supabase SQL Editor 执行 supabase/migration_resume_files.sql。';
   }
 
