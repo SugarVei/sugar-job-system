@@ -1,4 +1,5 @@
 import { useEffect, useRef, type ReactNode } from 'react';
+import { createPortal } from 'react-dom';
 import { IconClose } from './icons';
 
 // ============================================================
@@ -43,7 +44,9 @@ export default function Modal({ open, title, onClose, children, footer, scrollTo
 
   if (!open) return null;
 
-  return (
+  // 用 Portal 渲染到 <body>，脱离带 backdrop-filter/overflow:hidden 的应用外壳，
+  // 否则 fixed 定位会以外壳卡片为基准并被其裁切（弹窗被困在白框内）。
+  return createPortal(
     <div
       ref={overlayRef}
       onClick={onClose}
@@ -131,6 +134,7 @@ export default function Modal({ open, title, onClose, children, footer, scrollTo
           )}
         </div>
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 }
