@@ -1,5 +1,5 @@
-import { useEffect, useMemo, useState } from 'react';
-import type { Application, ApplicationStatus, NewRecord } from '../types';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import type { Application, ApplicationStatus, NewRecord, Resume } from '../types';
 import { useCollection } from '../hooks/useCollection';
 import { useAppShell } from '../contexts/AppShellContext';
 import { useTheme } from '../contexts/ThemeContext';
@@ -25,10 +25,12 @@ const empty: NewRecord<Application> = {
   salary_range: '',
   job_url: '',
   notes: '',
+  resume_id: null,
 };
 
 export default function Applications() {
   const { items, loading, create, update, remove } = useCollection<Application>('applications');
+  const { items: resumes } = useCollection<Resume>('resumes'); // 用于“使用简历”下拉
   const { query, registerAdd } = useAppShell();
   const { theme } = useTheme();
   const [statusFilter, setStatusFilter] = useState<'all' | ApplicationStatus>('all');
@@ -36,6 +38,9 @@ export default function Applications() {
   const [editing, setEditing] = useState<Application | null>(null);
   const [form, setForm] = useState<NewRecord<Application>>(empty);
   const [saving, setSaving] = useState(false);
+  const [formError, setFormError] = useState('');
+  const [scrollSig, setScrollSig] = useState(0); // 变化时让弹窗滚回顶部
+  const companyRef = useRef<HTMLInputElement>(null);
 
   // 注册顶栏“+新增”按钮动作
   useEffect(() => {
@@ -47,6 +52,7 @@ export default function Applications() {
   const openCreate = () => {
     setEditing(null);
     setForm(empty);
+    setFormError('');
     setModalOpen(true);
   };
   const openEdit = (a: Application) => {
@@ -61,23 +67,33 @@ export default function Applications() {
       salary_range: a.salary_range ?? '',
       job_url: a.job_url ?? '',
       notes: a.notes ?? '',
+      resume_id: a.resume_id ?? null,
     });
+    setFormError('');
     setModalOpen(true);
   };
 
   const save = async () => {
-    if (!form.company_name || !form.position_name) {
-      alert('请填写公司名称和岗位名称');
+    // 校验必填项：失败时滚回顶部、聚焦公司名输入框、内联提示（不再用浏览器弹窗）
+    if (!form.company_name.trim() || !form.position_name.trim()) {
+      setFormError('「公司名称」和「岗位名称」为必填项，请补全后再保存。');
+      setScrollSig((n) => n + 1);
+      setTimeout(() => companyRef.current?.focus(), 320);
       return;
     }
+    setFormError('');
     setSaving(true);
     try {
-      const payload = { ...form, apply_date: form.apply_date || null };
+      const payload = {
+        ...form,
+        apply_date: form.apply_date || null,
+        resume_id: form.resume_id || null,
+      };
       if (editing) await update(editing.id, payload);
       else await create(payload);
       setModalOpen(false);
     } catch (e) {
-      alert('保存失败：' + (e as Error).message);
+      setFormError('保存失败：' + (e as Error).message);
     } finally {
       setSaving(false);
     }
@@ -235,6 +251,7 @@ export default function Applications() {
         open={modalOpen}
         title={editing ? '编辑投递' : '新增投递'}
         onClose={() => setModalOpen(false)}
+        scrollTopSignal={scrollSig}
         footer={
           <>
             <GhostButton onClick={() => setModalOpen(false)}>取消</GhostButton>
@@ -244,13 +261,58 @@ export default function Applications() {
           </>
         }
       >
+        {/* 校验错误内联提示 */}
+        {formError && (
+          <div
+            style={{
+              background: '#fbe0d8',
+              color: '#a23d24',
+              fontSize: 13,
+              fontWeight: 600,
+              padding: '10px 14px',
+              borderRadius: 12,
+              marginBottom: 14,
+            }}
+          >
+            {formError}
+          </div>
+        )}
+
+        {/* 必填区：公司名称 + 岗位名称，置顶并高亮，避免被忽略 */}
+        <div
+          style={{
+            background: '#fbf6ec',
+            border: '1px solid #f0e6cf',
+            borderRadius: 16,
+            padding: '14px 16px 2px',
+            marginBottom: 16,
+          }}
+        >
+          <div style={{ fontSize: 12, fontWeight: 700, color: '#a23d24', marginBottom: 10, letterSpacing: '.02em' }}>
+            必填信息
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-3">
+            <Field label="公司名称 *">
+              <TextInput
+                ref={companyRef}
+                value={form.company_name}
+                onChange={(e) => setForm({ ...form, company_name: e.target.value })}
+                placeholder="如 字节跳动"
+                style={!form.company_name.trim() && formError ? { borderColor: '#f0613f', background: '#fff' } : undefined}
+              />
+            </Field>
+            <Field label="岗位名称 *">
+              <TextInput
+                value={form.position_name}
+                onChange={(e) => setForm({ ...form, position_name: e.target.value })}
+                placeholder="如 产品经理 / 工业工程师"
+                style={!form.position_name.trim() && formError ? { borderColor: '#f0613f', background: '#fff' } : undefined}
+              />
+            </Field>
+          </div>
+        </div>
+
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-3">
-          <Field label="公司名称 *">
-            <TextInput value={form.company_name} onChange={(e) => setForm({ ...form, company_name: e.target.value })} placeholder="如 字节跳动" />
-          </Field>
-          <Field label="岗位名称 *">
-            <TextInput value={form.position_name} onChange={(e) => setForm({ ...form, position_name: e.target.value })} placeholder="如 产品经理" />
-          </Field>
           <Field label="城市">
             <TextInput value={form.city ?? ''} onChange={(e) => setForm({ ...form, city: e.target.value })} placeholder="如 北京" />
           </Field>
@@ -276,6 +338,16 @@ export default function Applications() {
             <TextInput value={form.job_url ?? ''} onChange={(e) => setForm({ ...form, job_url: e.target.value })} placeholder="https://" />
           </Field>
         </div>
+        <Field label="使用简历（关联简历库）">
+          <Select value={form.resume_id ?? ''} onChange={(e) => setForm({ ...form, resume_id: e.target.value || null })}>
+            <option value="">不关联</option>
+            {resumes.map((r) => (
+              <option key={r.id} value={r.id}>
+                {r.resume_name}
+              </option>
+            ))}
+          </Select>
+        </Field>
         <Field label="备注">
           <TextArea value={form.notes ?? ''} onChange={(e) => setForm({ ...form, notes: e.target.value })} placeholder="下一步、HR 信息、截止时间等" />
         </Field>

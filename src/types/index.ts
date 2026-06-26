@@ -27,6 +27,8 @@ export interface Application {
   salary_range: string | null;
   job_url: string | null;
   notes: string | null;
+  /** 关联的简历版本（指向 resumes.id），可空 */
+  resume_id: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -55,6 +57,21 @@ export interface Resume {
   notes: string | null;
   created_at: string;
   updated_at: string;
+}
+
+/** 简历附件文件（存于 Supabase Storage） */
+export type ResumeFileKind = 'resume' | 'script';
+export interface ResumeFile {
+  id: string;
+  user_id: string;
+  resume_id: string;
+  file_name: string;
+  /** Storage 中的对象路径 */
+  file_path: string;
+  /** resume = 简历本体；script = 面试稿件 */
+  kind: ResumeFileKind;
+  size: number | null;
+  created_at: string;
 }
 
 /** 面试日历事件 */

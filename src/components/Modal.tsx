@@ -1,4 +1,4 @@
-import { useEffect, type ReactNode } from 'react';
+import { useEffect, useRef, type ReactNode } from 'react';
 import { IconClose } from './icons';
 
 // ============================================================
@@ -11,9 +11,13 @@ interface ModalProps {
   onClose: () => void;
   children: ReactNode;
   footer?: ReactNode;
+  /** 该值变化时把弹窗内容滚回顶部（用于校验失败时让用户看到顶部必填项） */
+  scrollTopSignal?: number;
 }
 
-export default function Modal({ open, title, onClose, children, footer }: ModalProps) {
+export default function Modal({ open, title, onClose, children, footer, scrollTopSignal }: ModalProps) {
+  const bodyRef = useRef<HTMLDivElement>(null);
+
   // 打开时禁止背景滚动 + 支持 ESC 关闭
   useEffect(() => {
     if (!open) return;
@@ -27,6 +31,11 @@ export default function Modal({ open, title, onClose, children, footer }: ModalP
       document.body.style.overflow = '';
     };
   }, [open, onClose]);
+
+  // 打开时、或收到滚动信号时，把弹窗滚回顶部
+  useEffect(() => {
+    if (open && bodyRef.current) bodyRef.current.scrollTo({ top: 0, behavior: 'smooth' });
+  }, [open, scrollTopSignal]);
 
   if (!open) return null;
 
@@ -48,6 +57,7 @@ export default function Modal({ open, title, onClose, children, footer }: ModalP
       }}
     >
       <div
+        ref={bodyRef}
         onClick={(e) => e.stopPropagation()}
         className="scrolly"
         style={{

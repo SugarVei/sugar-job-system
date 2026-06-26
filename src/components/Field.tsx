@@ -1,4 +1,4 @@
-import type { ReactNode } from 'react';
+import { forwardRef, type ReactNode } from 'react';
 
 // ============================================================
 // 表单字段基础组件（输入框 / 下拉 / 多行）
@@ -40,11 +40,11 @@ export function Field({
   );
 }
 
-export function TextInput(
-  props: React.InputHTMLAttributes<HTMLInputElement>,
-) {
-  return <input {...props} className="field-input" style={{ ...controlStyle, ...props.style }} />;
-}
+export const TextInput = forwardRef<HTMLInputElement, React.InputHTMLAttributes<HTMLInputElement>>(
+  function TextInput(props, ref) {
+    return <input ref={ref} {...props} className="field-input" style={{ ...controlStyle, ...props.style }} />;
+  },
+);
 
 export function TextArea(
   props: React.TextareaHTMLAttributes<HTMLTextAreaElement>,
