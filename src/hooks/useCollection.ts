@@ -36,12 +36,14 @@ function stringifyErrorValue(value: unknown): string {
 function readableDbError(error: unknown, table: string) {
   const message = stringifyErrorValue(error);
 
-  if (/resume_id|resume_files|schema cache|relation .* does not exist/i.test(message)) {
-    return 'Supabase 数据库缺少最新简历关联字段/文件表，请在 Supabase SQL Editor 执行 supabase/migration_resume_files.sql。';
+  // RLS check first: RLS errors often mention the table name, so checking table-name first
+  // would mis-classify RLS violations as "missing column/table" errors.
+  if (/row-level security|new row violates|violates row-level/i.test(message)) {
+    return `Supabase 权限策略拒绝了 ${table} 操作。原始错误：${message}`;
   }
 
-  if (/row-level security|violates/i.test(message)) {
-    return `Supabase 权限策略拒绝了 ${table} 操作，请检查该表的 RLS policy。`;
+  if (/resume_id|resume_files|schema cache|relation.*does not exist/i.test(message)) {
+    return 'Supabase 数据库缺少最新简历关联字段/文件表，请在 Supabase SQL Editor 执行 supabase/migration_resume_files.sql。';
   }
 
   if (/failed to fetch|network/i.test(message)) {

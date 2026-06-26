@@ -57,12 +57,14 @@ function readableSupabaseError(error: unknown) {
     return 'Supabase 缺少 resumes 存储桶，请在 Supabase SQL Editor 执行 supabase/migration_resume_files.sql 后再上传。';
   }
 
-  if (/resume_files|relation .* does not exist|schema cache/i.test(message)) {
-    return 'Supabase 数据库缺少简历文件表，请在 Supabase SQL Editor 执行 supabase/migration_resume_files.sql 后再上传。';
+  // RLS check must come before table-name check: RLS errors mention the table name
+  // e.g. "new row violates row-level security policy for table "resume_files""
+  if (/row-level security|new row violates|violates row-level/i.test(message)) {
+    return `Supabase 权限策略拒绝了本次操作。原始错误：${message}`;
   }
 
-  if (/row-level security|violates/i.test(message)) {
-    return 'Supabase 权限策略拒绝了本次操作，请检查 resumes 存储桶和 resume_files 表的 RLS policy。';
+  if (/relation.*does not exist|schema cache/i.test(message)) {
+    return 'Supabase 数据库缺少简历文件表，请在 Supabase SQL Editor 执行 supabase/migration_resume_files.sql 后再上传。';
   }
 
   if (/failed to fetch|network/i.test(message)) {
@@ -114,7 +116,10 @@ export function useResumeFiles() {
         upsert: false,
       });
 
-      if (upErr) throw new Error(readableSupabaseError(upErr));
+      if (upErr) {
+        console.error('[upload] storage error raw:', upErr);
+        throw new Error(readableSupabaseError(upErr));
+      }
 
       const { data, error: insErr } = await supabase
         .from('resume_files')
@@ -130,6 +135,7 @@ export function useResumeFiles() {
         .single();
 
       if (insErr) {
+        console.error('[upload] resume_files insert error raw:', insErr);
         await supabase.storage.from(BUCKET).remove([path]);
         throw new Error(readableSupabaseError(insErr));
       }
