@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import type { Application, ApplicationStatus } from '../types';
 import { useCollection } from '../hooks/useCollection';
 import { useAppShell } from '../contexts/AppShellContext';
@@ -251,6 +251,111 @@ Offer 转化率：${items.length > 0 ? Math.round((byStatus['Offer']/items.lengt
           )}
         </div>
       </div>
+
+      {/* DeepSeek 余额 */}
+      <DeepSeekBalanceCard />
+    </div>
+  );
+}
+
+// ── DeepSeek 余额卡片 ──────────────────────────────────────────
+interface BalanceInfo {
+  currency: string;
+  total_balance: string;
+  granted_balance: string;
+  topped_up_balance: string;
+}
+
+function DeepSeekBalanceCard() {
+  const [balance, setBalance] = useState<BalanceInfo | null>(null);
+  const [available, setAvailable] = useState<boolean | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+  const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
+  const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  const fetch_ = async () => {
+    setLoading(true);
+    setError('');
+    try {
+      const res = await fetch('/api/deepseek-balance');
+      const data = await res.json();
+      if (data.error) throw new Error(data.error);
+      setAvailable(data.is_available ?? true);
+      setBalance((data.balance_infos as BalanceInfo[])?.[0] ?? null);
+      setLastUpdated(new Date());
+    } catch (e) {
+      setError(e instanceof Error ? e.message : '获取失败');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetch_();
+    timerRef.current = setInterval(fetch_, 5 * 60 * 1000); // 每5分钟刷新
+    return () => { if (timerRef.current) clearInterval(timerRef.current); };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const fmt = (v: string) => `¥${parseFloat(v).toFixed(2)}`;
+
+  return (
+    <div style={{ ...CARD, padding: 24 }}>
+      <div className="flex items-center justify-between flex-wrap gap-3" style={{ marginBottom: 18 }}>
+        <div className="flex items-center gap-3">
+          <div style={{ width: 38, height: 38, borderRadius: 12, background: '#e8f4fd', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 18 }}>🤖</div>
+          <div>
+            <div style={{ fontFamily: 'Poppins', fontSize: 15, fontWeight: 700, color: '#1b1a17' }}>DeepSeek API 余额</div>
+            <div style={{ fontSize: 11.5, color: '#a39d90', marginTop: 1 }}>
+              {lastUpdated ? `更新于 ${lastUpdated.getHours().toString().padStart(2,'0')}:${lastUpdated.getMinutes().toString().padStart(2,'0')}` : '未获取'}
+            </div>
+          </div>
+        </div>
+        <div className="flex items-center gap-2">
+          {available !== null && (
+            <span style={{ fontSize: 12, fontWeight: 600, padding: '4px 10px', borderRadius: 999, background: available ? '#d9e6d3' : '#fbe0d8', color: available ? '#2f5d36' : '#a23d24' }}>
+              {available ? '● 正常' : '● 不可用'}
+            </span>
+          )}
+          <button
+            onClick={fetch_}
+            disabled={loading}
+            className="btn-press"
+            style={{ height: 34, padding: '0 14px', border: '1px solid #e4ddcf', background: '#faf7f0', borderRadius: 11, fontSize: 12.5, fontWeight: 600, color: '#4a463e', cursor: loading ? 'not-allowed' : 'pointer' }}
+          >
+            {loading ? '刷新中…' : '↺ 刷新'}
+          </button>
+        </div>
+      </div>
+
+      {error && (
+        <div style={{ fontSize: 13, color: '#a23d24', background: '#fbe0d8', borderRadius: 12, padding: '10px 14px' }}>{error}</div>
+      )}
+
+      {!error && !balance && !loading && (
+        <div style={{ fontSize: 13, color: '#a39d90' }}>暂无数据</div>
+      )}
+
+      {balance && (
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+          <div style={{ background: '#dcebd5', borderRadius: 16, padding: '16px 18px' }}>
+            <div style={{ fontSize: 12, fontWeight: 600, color: '#2f5d36', opacity: 0.85 }}>总余额</div>
+            <div style={{ fontFamily: 'Poppins', fontSize: 28, fontWeight: 700, color: '#2f5d36', margin: '5px 0 2px' }}>{fmt(balance.total_balance)}</div>
+            <div style={{ fontSize: 11.5, color: '#2f5d36', opacity: 0.7 }}>{balance.currency}</div>
+          </div>
+          <div style={{ background: '#fbeec2', borderRadius: 16, padding: '16px 18px' }}>
+            <div style={{ fontSize: 12, fontWeight: 600, color: '#7a5a12', opacity: 0.85 }}>充值余额</div>
+            <div style={{ fontFamily: 'Poppins', fontSize: 28, fontWeight: 700, color: '#7a5a12', margin: '5px 0 2px' }}>{fmt(balance.topped_up_balance)}</div>
+            <div style={{ fontSize: 11.5, color: '#7a5a12', opacity: 0.7 }}>已充值金额</div>
+          </div>
+          <div style={{ background: '#e4e0f7', borderRadius: 16, padding: '16px 18px' }}>
+            <div style={{ fontSize: 12, fontWeight: 600, color: '#4a3f96', opacity: 0.85 }}>赠送余额</div>
+            <div style={{ fontFamily: 'Poppins', fontSize: 28, fontWeight: 700, color: '#4a3f96', margin: '5px 0 2px' }}>{fmt(balance.granted_balance)}</div>
+            <div style={{ fontSize: 11.5, color: '#4a3f96', opacity: 0.7 }}>官方赠送额度</div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

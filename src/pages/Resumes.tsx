@@ -11,6 +11,7 @@ import { Field, TextInput, TextArea, PrimaryButton, GhostButton, FormError } fro
 import { IconEdit, IconTrash, IconPlus, IconFile } from '../components/icons';
 import { CARD } from '../lib/appHelpers';
 import EmptyState from '../components/EmptyState';
+import { generateDocx, downloadBlob } from '../lib/generateDocx';
 
 const empty: NewRecord<Resume> = {
   resume_name: '',
@@ -237,29 +238,35 @@ function ResumeCard({
   const scriptInputRef = useRef<HTMLInputElement>(null);
   const [uploadingKind, setUploadingKind] = useState<ResumeFileKind | null>(null);
   const [downloadingId, setDownloadingId] = useState<string | null>(null);
-  const [aiModalOpen, setAiModalOpen] = useState(false);
-  const [aiResumeText, setAiResumeText] = useState('');
-  const [aiGenerating, setAiGenerating] = useState(false);
-  const [aiStreamText, setAiStreamText] = useState('');
-  const [aiDone, setAiDone] = useState(false);
   const [expandedScripts, setExpandedScripts] = useState<Set<string>>(new Set());
-  const aiTextareaRef = useRef<HTMLTextAreaElement>(null);
 
-  const closeAiModal = () => { setAiModalOpen(false); setAiStreamText(''); setAiDone(false); };
+  // AI 生成状态
+  const [aiOpen, setAiOpen] = useState(false);
+  // 'select' = 选择简历文件（多份时）; 'working' = 提取+生成中; 'done' = 完成
+  const [aiStep, setAiStep] = useState<'select' | 'working' | 'done'>('select');
+  const [aiProgress, setAiProgress] = useState('');
+  const [aiStreamText, setAiStreamText] = useState('');
+  const [aiSelectedId, setAiSelectedId] = useState<string | null>(null);
 
-  // 锁定 body 滚动 + ESC 关闭
+  // 已上传的简历文件（非 AI 生成）
+  const uploadedResumes = files.filter((f) => f.kind === 'resume' && f.source !== 'ai' && f.file_path);
+
+  const closeAiModal = () => {
+    setAiOpen(false);
+    setAiStep('select');
+    setAiStreamText('');
+    setAiProgress('');
+    setAiSelectedId(null);
+  };
+
   useEffect(() => {
-    if (!aiModalOpen) return;
+    if (!aiOpen) return;
     document.body.style.overflow = 'hidden';
     const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') closeAiModal(); };
     document.addEventListener('keydown', onKey);
-    setTimeout(() => aiTextareaRef.current?.focus(), 120);
-    return () => {
-      document.removeEventListener('keydown', onKey);
-      document.body.style.overflow = '';
-    };
+    return () => { document.removeEventListener('keydown', onKey); document.body.style.overflow = ''; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [aiModalOpen]);
+  }, [aiOpen]);
 
   const handleFiles = async (kind: ResumeFileKind, list: FileList | null) => {
     if (!list || list.length === 0) return;
@@ -289,11 +296,56 @@ function ResumeCard({
     }
   };
 
-  const generateAIScript = async () => {
-    if (!aiResumeText.trim()) { alert('请先粘贴简历内容'); return; }
-    setAiGenerating(true);
+  const extractResumeText = async (f: ResumeFile): Promise<string> => {
+    const signedUrl = await fileApi.getDownloadUrl(f.file_path!);
+    const ext = f.file_name.split('.').pop()?.toLowerCase() ?? '';
+
+    if (ext === 'pdf') {
+      const res = await fetch('/api/parse-resume', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ signedUrl }),
+      });
+      const json = await res.json();
+      if (!res.ok || json.error) throw new Error(json.error ?? 'PDF 解析失败');
+      return json.text as string;
+    }
+
+    if (ext === 'docx') {
+      const res = await fetch(signedUrl);
+      const buf = await res.arrayBuffer();
+      const { default: JSZip } = await import('jszip');
+      const zip = await JSZip.loadAsync(buf);
+      const xmlFile = zip.file('word/document.xml');
+      if (!xmlFile) throw new Error('无效的 DOCX 文件');
+      const xml = await xmlFile.async('string');
+      // Split at paragraph boundaries, extract <w:t> text per paragraph
+      const withBreaks = xml.replace(/<w:p[ />]/g, '\n__PARA__');
+      return withBreaks
+        .split('__PARA__')
+        .map((seg) => {
+          const segParts: string[] = [];
+          const segRe = /<w:t(?:\s[^>]*)?>([^<]*)<\/w:t>/g;
+          let sm: RegExpExecArray | null;
+          while ((sm = segRe.exec(seg)) !== null) segParts.push(sm[1]);
+          return segParts.join('');
+        })
+        .join('\n')
+        .replace(/\n{3,}/g, '\n\n')
+        .trim();
+    }
+
+    throw new Error(`不支持的格式 .${ext}，请上传 PDF 或 DOCX`);
+  };
+
+  const startGeneration = async (fileId?: string) => {
+    const targetId = fileId ?? aiSelectedId ?? uploadedResumes[0]?.id;
+    const targetFile = uploadedResumes.find((f) => f.id === targetId);
+    if (!targetFile) return;
+
+    setAiStep('working');
+    setAiProgress('📄 正在读取简历文件…');
     setAiStreamText('');
-    setAiDone(false);
 
     const SYSTEM_PROMPT = `你现在是一名资深求职面试辅导老师，请根据我提供的简历内容，帮我生成一份"实习面试稿件"。
 
@@ -343,13 +395,18 @@ function ResumeCard({
 
     let fullText = '';
     try {
+      const resumeText = await extractResumeText(targetFile);
+      if (!resumeText.trim()) throw new Error('简历内容为空，无法生成稿件');
+
+      setAiProgress('🤖 AI 正在生成面试稿件…');
+
       const res = await fetch('/api/ai-chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           messages: [
             { role: 'system', content: SYSTEM_PROMPT },
-            { role: 'user', content: `以下是我的简历内容：\n\n${aiResumeText}` },
+            { role: 'user', content: `以下是我的简历内容：\n\n${resumeText}` },
           ],
           maxTokens: 8192,
         }),
@@ -374,23 +431,26 @@ function ResumeCard({
             const json = JSON.parse(data);
             if (json.error) throw new Error(json.error);
             const token: string | undefined = json.choices?.[0]?.delta?.content;
-            if (token) {
-              fullText += token;
-              setAiStreamText(fullText);
-            }
+            if (token) { fullText += token; setAiStreamText(fullText); }
           } catch { /* skip */ }
         }
       }
 
       if (fullText) {
         await fileApi.saveAIScript(resume.id, resume.resume_name, fullText);
-        setAiDone(true);
+        setAiStep('done');
+        setAiProgress('');
       }
     } catch (e) {
-      alert('AI 生成失败：' + errorText(e));
-    } finally {
-      setAiGenerating(false);
+      alert('生成失败：' + errorText(e));
+      closeAiModal();
     }
+  };
+
+  const handleDownloadDocx = async () => {
+    const docName = `${resume.resume_name}-面试稿件`;
+    const blob = await generateDocx(docName, aiStreamText);
+    downloadBlob(blob, `${docName}.docx`);
   };
 
   const delFile = async (f: ResumeFile) => {
@@ -469,7 +529,18 @@ function ResumeCard({
         {/* AI 生成按钮 */}
         <button
           type="button"
-          onClick={() => { setAiModalOpen(true); setAiStreamText(''); setAiDone(false); setAiResumeText(''); }}
+          onClick={() => {
+            if (uploadedResumes.length === 0) {
+              alert('请先在上方上传一份简历文件（PDF / DOCX）');
+              return;
+            }
+            setAiOpen(true);
+            setAiStep(uploadedResumes.length === 1 ? 'working' : 'select');
+            setAiStreamText('');
+            setAiProgress('');
+            setAiSelectedId(uploadedResumes[0].id);
+            if (uploadedResumes.length === 1) startGeneration(uploadedResumes[0].id);
+          }}
           className="btn-press"
           style={{
             border: '1.5px dashed #a89cf0',
@@ -493,10 +564,10 @@ function ResumeCard({
         </button>
       </div>
 
-      {/* AI 生成弹窗 —— 用 Portal 渲染到 body，避免被卡片 stacking context 遮挡 */}
-      {aiModalOpen && createPortal(
+      {/* AI 生成弹窗 */}
+      {aiOpen && createPortal(
         <div
-          onClick={closeAiModal}
+          onClick={() => { if (aiStep !== 'working') closeAiModal(); }}
           style={{ position: 'fixed', inset: 0, background: 'rgba(40,30,25,0.38)', backdropFilter: 'blur(6px)', WebkitBackdropFilter: 'blur(6px)', zIndex: 400, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16, animation: 'fadeIn .2s ease' }}
         >
           <div
@@ -507,53 +578,94 @@ function ResumeCard({
             <div style={{ padding: '20px 24px 16px', borderBottom: '1px solid #f0ebe0', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexShrink: 0 }}>
               <div>
                 <div style={{ fontFamily: 'Poppins', fontWeight: 700, fontSize: 16, color: '#1b1a17' }}>🤖 AI 生成面试稿件</div>
-                <div style={{ fontSize: 12, color: '#8a8478', marginTop: 3 }}>粘贴简历文本，DeepSeek 将根据专业模板生成完整面试稿</div>
+                <div style={{ fontSize: 12, color: '#8a8478', marginTop: 3 }}>
+                  {aiStep === 'select' && '选择要使用的简历文件'}
+                  {aiStep === 'working' && (aiProgress || 'AI 正在处理…')}
+                  {aiStep === 'done' && '✅ 生成完成，已保存到文件列表'}
+                </div>
               </div>
-              <button onClick={closeAiModal} style={{ width: 34, height: 34, border: '1px solid #e4ddcf', background: '#faf7f0', borderRadius: 10, cursor: 'pointer', color: '#8a8478', fontSize: 14, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>✕</button>
+              {aiStep !== 'working' && (
+                <button onClick={closeAiModal} style={{ width: 34, height: 34, border: '1px solid #e4ddcf', background: '#faf7f0', borderRadius: 10, cursor: 'pointer', color: '#8a8478', fontSize: 14, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>✕</button>
+              )}
             </div>
 
             {/* Body */}
             <div style={{ flex: 1, overflowY: 'auto', padding: '18px 24px' }}>
-              {!aiGenerating && !aiDone && (
-                <>
-                  <label style={{ fontSize: 13, fontWeight: 600, color: '#4a463e', display: 'block', marginBottom: 8 }}>
-                    粘贴你的简历内容（复制 PDF 或 Word 中的文字即可）
-                  </label>
-                  <textarea
-                    ref={aiTextareaRef}
-                    value={aiResumeText}
-                    onChange={e => setAiResumeText(e.target.value)}
-                    placeholder={'姓名：...\n教育背景：...\n项目经历：...\n技能：...'}
-                    rows={12}
-                    style={{ width: '100%', resize: 'vertical', border: '1.5px solid #e4ddcf', borderRadius: 12, padding: '12px 14px', fontSize: 13, lineHeight: 1.6, outline: 'none', background: '#faf7f0', color: '#1b1a17', fontFamily: 'inherit', boxSizing: 'border-box' }}
-                  />
-                  <p style={{ fontSize: 12, color: '#a39d90', marginTop: 8 }}>提示：内容越详细，生成质量越高。预计生成时间 30-90 秒。</p>
-                </>
+
+              {/* 选择简历文件（多份时） */}
+              {aiStep === 'select' && (
+                <div className="flex flex-col gap-2">
+                  <p style={{ fontSize: 13, color: '#6b665c', marginBottom: 8 }}>检测到多份简历，请选择本次要生成稿件的版本：</p>
+                  {uploadedResumes.map((f) => (
+                    <button
+                      key={f.id}
+                      onClick={() => setAiSelectedId(f.id)}
+                      className="btn-press"
+                      style={{
+                        display: 'flex', alignItems: 'center', gap: 12, padding: '12px 16px',
+                        border: `1.5px solid ${aiSelectedId === f.id ? '#a89cf0' : '#e4ddcf'}`,
+                        background: aiSelectedId === f.id ? '#f3f1fc' : '#faf7f0',
+                        borderRadius: 13, cursor: 'pointer', textAlign: 'left',
+                      }}
+                    >
+                      <div style={{ width: 32, height: 32, borderRadius: 9, background: '#e0daf6', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 14, flexShrink: 0 }}>📄</div>
+                      <div>
+                        <div style={{ fontSize: 13.5, fontWeight: 600, color: '#1b1a17' }}>{f.file_name}</div>
+                        <div style={{ fontSize: 11.5, color: '#a39d90', marginTop: 2 }}>{fmtDateTime(f.created_at)}</div>
+                      </div>
+                      {aiSelectedId === f.id && <span style={{ marginLeft: 'auto', color: '#a89cf0', fontSize: 18 }}>✓</span>}
+                    </button>
+                  ))}
+                </div>
               )}
-              {(aiGenerating || aiDone) && (
+
+              {/* 生成中 */}
+              {aiStep === 'working' && (
                 <div>
-                  <div style={{ fontSize: 13, fontWeight: 600, color: '#4a463e', marginBottom: 12 }}>
-                    {aiGenerating ? '🔄 AI 正在生成中，请稍候…' : '✅ 生成完成，已保存到简历文件列表'}
-                  </div>
-                  <div style={{ background: '#faf7f0', border: '1px solid #f0ebe0', borderRadius: 12, padding: '14px 16px', fontSize: 13, lineHeight: 1.8, whiteSpace: 'pre-wrap', maxHeight: 400, overflowY: 'auto', color: '#2a2720', wordBreak: 'break-word' }}>
-                    {aiStreamText || '▌'}
-                  </div>
+                  {!aiStreamText && (
+                    <div style={{ textAlign: 'center', padding: '40px 0', color: '#8a8478' }}>
+                      <div style={{ fontSize: 36, marginBottom: 14 }}>⏳</div>
+                      <div style={{ fontSize: 13.5, fontWeight: 600 }}>{aiProgress}</div>
+                      <div style={{ fontSize: 12, marginTop: 6 }}>预计需要 30-90 秒，请勿关闭窗口</div>
+                    </div>
+                  )}
+                  {aiStreamText && (
+                    <div style={{ background: '#faf7f0', border: '1px solid #f0ebe0', borderRadius: 12, padding: '14px 16px', fontSize: 13, lineHeight: 1.8, whiteSpace: 'pre-wrap', maxHeight: 400, overflowY: 'auto', color: '#2a2720', wordBreak: 'break-word' }}>
+                      {aiStreamText}▌
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* 完成 */}
+              {aiStep === 'done' && (
+                <div style={{ background: '#faf7f0', border: '1px solid #f0ebe0', borderRadius: 12, padding: '14px 16px', fontSize: 13, lineHeight: 1.8, whiteSpace: 'pre-wrap', maxHeight: 400, overflowY: 'auto', color: '#2a2720', wordBreak: 'break-word' }}>
+                  {aiStreamText}
                 </div>
               )}
             </div>
 
             {/* Footer */}
             <div style={{ padding: '14px 24px 20px', borderTop: '1px solid #f0ebe0', display: 'flex', justifyContent: 'flex-end', gap: 10, flexShrink: 0 }}>
-              <button onClick={closeAiModal} style={{ height: 42, padding: '0 20px', border: '1px solid #e4ddcf', background: '#faf7f0', borderRadius: 13, fontSize: 13, fontWeight: 600, color: '#4a463e', cursor: 'pointer' }}>
-                {aiDone ? '关闭' : '取消'}
-              </button>
-              {!aiGenerating && !aiDone && (
+              {aiStep !== 'working' && (
+                <button onClick={closeAiModal} style={{ height: 42, padding: '0 20px', border: '1px solid #e4ddcf', background: '#faf7f0', borderRadius: 13, fontSize: 13, fontWeight: 600, color: '#4a463e', cursor: 'pointer' }}>
+                  {aiStep === 'done' ? '关闭' : '取消'}
+                </button>
+              )}
+              {aiStep === 'select' && (
                 <button
-                  onClick={generateAIScript}
-                  disabled={!aiResumeText.trim()}
-                  style={{ height: 42, padding: '0 24px', border: 'none', background: !aiResumeText.trim() ? '#c8c0f0' : '#a89cf0', color: '#fff', borderRadius: 13, fontSize: 13, fontWeight: 700, cursor: !aiResumeText.trim() ? 'not-allowed' : 'pointer' }}
+                  onClick={() => { setAiStep('working'); startGeneration(aiSelectedId ?? undefined); }}
+                  style={{ height: 42, padding: '0 24px', border: 'none', background: '#a89cf0', color: '#fff', borderRadius: 13, fontSize: 13, fontWeight: 700, cursor: 'pointer' }}
                 >
                   🚀 开始生成
+                </button>
+              )}
+              {aiStep === 'done' && (
+                <button
+                  onClick={handleDownloadDocx}
+                  style={{ height: 42, padding: '0 24px', border: 'none', background: '#5fa86b', color: '#fff', borderRadius: 13, fontSize: 13, fontWeight: 700, cursor: 'pointer' }}
+                >
+                  ⬇️ 下载 Word 文档
                 </button>
               )}
             </div>
