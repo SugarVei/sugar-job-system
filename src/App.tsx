@@ -1,4 +1,5 @@
 import { AuthProvider, useAuth } from './contexts/AuthContext';
+import { ApiKeysProvider } from './contexts/ApiKeysContext';
 import { ThemeProvider } from './contexts/ThemeContext';
 import { AppShellProvider, useAppShell } from './contexts/AppShellContext';
 import LiquidBackground from './components/LiquidBackground';
@@ -48,9 +49,11 @@ function Gate() {
 
   return (
     <AppShellProvider>
-      <AppLayout>
-        <CurrentPage />
-      </AppLayout>
+      <ApiKeysProvider>
+        <AppLayout>
+          <CurrentPage />
+        </AppLayout>
+      </ApiKeysProvider>
     </AppShellProvider>
   );
 }

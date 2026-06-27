@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { useTheme } from '../contexts/ThemeContext';
+import { useApiKeys } from '../contexts/ApiKeysContext';
 
 interface Message {
   role: 'user' | 'assistant';
@@ -16,6 +17,7 @@ interface Props {
 async function streamChat(
   messages: Message[],
   systemPrompt: string,
+  providerConfig: { apiKey: string; baseUrl: string; model: string; provider: string } | null,
   onToken: (t: string) => void,
   onError: (e: string) => void,
 ) {
@@ -25,7 +27,16 @@ async function streamChat(
     res = await fetch('/api/ai-chat', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ messages: fullMessages, maxTokens: 2048 }),
+      body: JSON.stringify({
+        messages: fullMessages,
+        maxTokens: 2048,
+        ...(providerConfig ? {
+          provider: providerConfig.provider,
+          apiKey: providerConfig.apiKey,
+          baseUrl: providerConfig.baseUrl,
+          model: providerConfig.model,
+        } : {}),
+      }),
     });
   } catch {
     onError('网络错误，无法连接 AI 接口。');
@@ -63,6 +74,7 @@ export default function AIChatDialog({
   buttonLabel = '💬 AI 分析助手',
 }: Props) {
   const { theme } = useTheme();
+  const { getActiveConfig } = useApiKeys();
   const [open, setOpen] = useState(false);
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState('');
@@ -101,6 +113,7 @@ export default function AIChatDialog({
     await streamChat(
       newMessages,
       systemPrompt,
+      getActiveConfig(),
       (token) => {
         setMessages(prev => {
           const next = [...prev];

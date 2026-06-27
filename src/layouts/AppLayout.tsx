@@ -5,6 +5,7 @@ import { useAppShell } from '../contexts/AppShellContext';
 import { useProfile } from '../hooks/useProfile';
 import { NAV_ITEMS, greetFor } from '../components/navConfig';
 import ThemeSwitcher from '../components/ThemeSwitcher';
+import ApiKeySettings from '../components/ApiKeySettings';
 import {
   SugarMark,
   IconSearch,
@@ -194,6 +195,7 @@ export default function AppLayout({ children }: { children: ReactNode }) {
             })}
           </nav>
 
+          <ApiKeySettings />
           <button onClick={() => signOut()} className="btn-press" style={logoutBtn}>
             <IconLogout size={17} />
             退出登录

@@ -6,6 +6,7 @@ import { useCollection } from '../hooks/useCollection';
 import { useResumeFiles } from '../hooks/useResumeFiles';
 import { useAppShell } from '../contexts/AppShellContext';
 import { useTheme } from '../contexts/ThemeContext';
+import { useApiKeys } from '../contexts/ApiKeysContext';
 import Modal from '../components/Modal';
 import { Field, TextInput, TextArea, PrimaryButton, GhostButton, FormError } from '../components/Field';
 import { IconEdit, IconTrash, IconPlus, IconFile } from '../components/icons';
@@ -234,6 +235,7 @@ function ResumeCard({
   onEdit: () => void;
   onDelete: () => void;
 }) {
+  const { getActiveConfig } = useApiKeys();
   const resumeInputRef = useRef<HTMLInputElement>(null);
   const scriptInputRef = useRef<HTMLInputElement>(null);
   const [uploadingKind, setUploadingKind] = useState<ResumeFileKind | null>(null);
@@ -402,6 +404,13 @@ function ResumeCard({
 
       setAiProgress('🤖 AI 正在生成面试稿件…');
 
+      const aiConfig = getActiveConfig();
+      if (!aiConfig) {
+        alert('请先在侧边栏「⚙️ AI 设置」中配置 API Key');
+        closeAiModal();
+        return;
+      }
+
       const res = await fetch('/api/ai-chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -411,6 +420,10 @@ function ResumeCard({
             { role: 'user', content: `以下是我的简历内容：\n\n${resumeText}` },
           ],
           maxTokens: 8192,
+          provider: aiConfig.provider,
+          apiKey: aiConfig.apiKey,
+          baseUrl: aiConfig.baseUrl,
+          model: aiConfig.model,
         }),
       });
 

@@ -5,6 +5,8 @@ import { useAppShell } from '../contexts/AppShellContext';
 import { STATUS_OPTIONS, statusTag, CARD } from '../lib/appHelpers';
 import EmptyState from '../components/EmptyState';
 import AIChatDialog from '../components/AIChatDialog';
+import { useApiKeys } from '../contexts/ApiKeysContext';
+import { PROVIDERS } from '../lib/providers';
 
 // ============================================================
 // 投递总览 —— 按状态/城市/渠道的真实数据概览，支持按状态查看
@@ -253,12 +255,12 @@ Offer 转化率：${items.length > 0 ? Math.round((byStatus['Offer']/items.lengt
       </div>
 
       {/* DeepSeek 余额 */}
-      <DeepSeekBalanceCard />
+      <ApiBalanceCard />
     </div>
   );
 }
 
-// ── DeepSeek 余额卡片 ──────────────────────────────────────────
+// ── AI API 余额卡片 ──────────────────────────────────────────
 interface BalanceInfo {
   currency: string;
   total_balance: string;
@@ -266,7 +268,8 @@ interface BalanceInfo {
   topped_up_balance: string;
 }
 
-function DeepSeekBalanceCard() {
+function ApiBalanceCard() {
+  const { keys, activeProvider } = useApiKeys();
   const [balance, setBalance] = useState<BalanceInfo | null>(null);
   const [available, setAvailable] = useState<boolean | null>(null);
   const [loading, setLoading] = useState(false);
@@ -274,15 +277,24 @@ function DeepSeekBalanceCard() {
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
+  const provider = PROVIDERS[activeProvider];
+  const apiKey = keys[activeProvider];
+
   const fetch_ = async () => {
+    if (!apiKey) return;
+    if (!provider.supportsBalance) { setBalance(null); setAvailable(null); return; }
     setLoading(true);
     setError('');
     try {
-      const res = await fetch('/api/deepseek-balance');
-      const data = await res.json();
+      const res = await fetch('/api/deepseek-balance', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ apiKey }),
+      });
+      const data = await res.json() as { error?: string; is_available?: boolean; balance_infos?: BalanceInfo[] };
       if (data.error) throw new Error(data.error);
       setAvailable(data.is_available ?? true);
-      setBalance((data.balance_infos as BalanceInfo[])?.[0] ?? null);
+      setBalance(data.balance_infos?.[0] ?? null);
       setLastUpdated(new Date());
     } catch (e) {
       setError(e instanceof Error ? e.message : '获取失败');
@@ -292,23 +304,25 @@ function DeepSeekBalanceCard() {
   };
 
   useEffect(() => {
+    setBalance(null); setAvailable(null); setError(''); setLastUpdated(null);
     fetch_();
-    timerRef.current = setInterval(fetch_, 5 * 60 * 1000); // 每5分钟刷新
+    timerRef.current = setInterval(fetch_, 5 * 60 * 1000);
     return () => { if (timerRef.current) clearInterval(timerRef.current); };
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [activeProvider, apiKey]);
 
   const fmt = (v: string) => `¥${parseFloat(v).toFixed(2)}`;
+  const hhmm = (d: Date) => `${d.getHours().toString().padStart(2,'0')}:${d.getMinutes().toString().padStart(2,'0')}`;
 
   return (
     <div style={{ ...CARD, padding: 24 }}>
       <div className="flex items-center justify-between flex-wrap gap-3" style={{ marginBottom: 18 }}>
         <div className="flex items-center gap-3">
-          <div style={{ width: 38, height: 38, borderRadius: 12, background: '#e8f4fd', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 18 }}>🤖</div>
+          <div style={{ width: 38, height: 38, borderRadius: 12, background: '#e8f4fd', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 18 }}>{provider.emoji}</div>
           <div>
-            <div style={{ fontFamily: 'Poppins', fontSize: 15, fontWeight: 700, color: '#1b1a17' }}>DeepSeek API 余额</div>
+            <div style={{ fontFamily: 'Poppins', fontSize: 15, fontWeight: 700, color: '#1b1a17' }}>{provider.label} API 余额</div>
             <div style={{ fontSize: 11.5, color: '#a39d90', marginTop: 1 }}>
-              {lastUpdated ? `更新于 ${lastUpdated.getHours().toString().padStart(2,'0')}:${lastUpdated.getMinutes().toString().padStart(2,'0')}` : '未获取'}
+              {lastUpdated ? `更新于 ${hhmm(lastUpdated)}` : apiKey ? '未获取' : '未配置 API Key'}
             </div>
           </div>
         </div>
@@ -318,26 +332,50 @@ function DeepSeekBalanceCard() {
               {available ? '● 正常' : '● 不可用'}
             </span>
           )}
-          <button
-            onClick={fetch_}
-            disabled={loading}
-            className="btn-press"
-            style={{ height: 34, padding: '0 14px', border: '1px solid #e4ddcf', background: '#faf7f0', borderRadius: 11, fontSize: 12.5, fontWeight: 600, color: '#4a463e', cursor: loading ? 'not-allowed' : 'pointer' }}
-          >
-            {loading ? '刷新中…' : '↺ 刷新'}
-          </button>
+          {apiKey && provider.supportsBalance && (
+            <button
+              onClick={fetch_}
+              disabled={loading}
+              className="btn-press"
+              style={{ height: 34, padding: '0 14px', border: '1px solid #e4ddcf', background: '#faf7f0', borderRadius: 11, fontSize: 12.5, fontWeight: 600, color: '#4a463e', cursor: loading ? 'not-allowed' : 'pointer' }}
+            >
+              {loading ? '刷新中…' : '↺ 刷新'}
+            </button>
+          )}
         </div>
       </div>
+
+      {!apiKey && (
+        <div style={{ fontSize: 13, color: '#a39d90', background: '#faf7f0', borderRadius: 12, padding: '12px 16px' }}>
+          请在侧边栏「⚙️ AI 设置」中配置 <strong>{provider.label}</strong> 的 API Key，即可在此查看余额
+        </div>
+      )}
+
+      {apiKey && !provider.supportsBalance && (
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+          <div style={{ background: '#dcebd5', borderRadius: 16, padding: '16px 18px', gridColumn: 'span 2' }}>
+            <div style={{ fontSize: 12, fontWeight: 600, color: '#2f5d36', opacity: 0.85 }}>当前服务商</div>
+            <div style={{ fontFamily: 'Poppins', fontSize: 20, fontWeight: 700, color: '#2f5d36', margin: '5px 0 2px' }}>{provider.emoji} {provider.label}</div>
+            <div style={{ fontSize: 11.5, color: '#2f5d36', opacity: 0.7 }}>该服务商不提供余额查询 API</div>
+          </div>
+          <a
+            href={provider.topUpUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            style={{ background: '#e4e0f7', borderRadius: 16, padding: '16px 18px', textDecoration: 'none', display: 'flex', flexDirection: 'column', justifyContent: 'space-between', cursor: 'pointer' }}
+          >
+            <div style={{ fontSize: 12, fontWeight: 600, color: '#4a3f96', opacity: 0.85 }}>前往充值</div>
+            <div style={{ fontFamily: 'Poppins', fontSize: 28, fontWeight: 700, color: '#4a3f96', margin: '5px 0 2px' }}>充值 →</div>
+            <div style={{ fontSize: 11.5, color: '#4a3f96', opacity: 0.7 }}>打开 {provider.label} 充值页</div>
+          </a>
+        </div>
+      )}
 
       {error && (
         <div style={{ fontSize: 13, color: '#a23d24', background: '#fbe0d8', borderRadius: 12, padding: '10px 14px' }}>{error}</div>
       )}
 
-      {!error && !balance && !loading && (
-        <div style={{ fontSize: 13, color: '#a39d90' }}>暂无数据</div>
-      )}
-
-      {balance && (
+      {apiKey && provider.supportsBalance && !error && balance && (
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
           <div style={{ background: '#dcebd5', borderRadius: 16, padding: '16px 18px' }}>
             <div style={{ fontSize: 12, fontWeight: 600, color: '#2f5d36', opacity: 0.85 }}>总余额</div>
@@ -349,12 +387,21 @@ function DeepSeekBalanceCard() {
             <div style={{ fontFamily: 'Poppins', fontSize: 28, fontWeight: 700, color: '#7a5a12', margin: '5px 0 2px' }}>{fmt(balance.topped_up_balance)}</div>
             <div style={{ fontSize: 11.5, color: '#7a5a12', opacity: 0.7 }}>已充值金额</div>
           </div>
-          <div style={{ background: '#e4e0f7', borderRadius: 16, padding: '16px 18px' }}>
+          <a
+            href={provider.topUpUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            style={{ background: '#e4e0f7', borderRadius: 16, padding: '16px 18px', textDecoration: 'none', display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}
+          >
             <div style={{ fontSize: 12, fontWeight: 600, color: '#4a3f96', opacity: 0.85 }}>赠送余额</div>
             <div style={{ fontFamily: 'Poppins', fontSize: 28, fontWeight: 700, color: '#4a3f96', margin: '5px 0 2px' }}>{fmt(balance.granted_balance)}</div>
-            <div style={{ fontSize: 11.5, color: '#4a3f96', opacity: 0.7 }}>官方赠送额度</div>
-          </div>
+            <div style={{ fontSize: 11.5, color: '#4a3f96', opacity: 0.7 }}>点击 → 去充值</div>
+          </a>
         </div>
+      )}
+
+      {apiKey && provider.supportsBalance && !error && !balance && !loading && (
+        <div style={{ fontSize: 13, color: '#a39d90' }}>暂无数据</div>
       )}
     </div>
   );
