@@ -247,6 +247,7 @@ function ResumeCard({
   const [aiProgress, setAiProgress] = useState('');
   const [aiStreamText, setAiStreamText] = useState('');
   const [aiSelectedId, setAiSelectedId] = useState<string | null>(null);
+  const [aiFileName, setAiFileName] = useState('');  // 上传简历文件名（不含扩展名）
 
   // 已上传的简历文件（非 AI 生成）
   const uploadedResumes = files.filter((f) => f.kind === 'resume' && f.source !== 'ai' && f.file_path);
@@ -257,6 +258,7 @@ function ResumeCard({
     setAiStreamText('');
     setAiProgress('');
     setAiSelectedId(null);
+    setAiFileName('');
   };
 
   useEffect(() => {
@@ -437,7 +439,10 @@ function ResumeCard({
       }
 
       if (fullText) {
-        await fileApi.saveAIScript(resume.id, resume.resume_name, fullText);
+        // 用上传文件名（去扩展名）作为稿件名，避免 resume_name 为空的问题
+        const scriptName = targetFile.file_name.replace(/\.[^.]+$/, '');
+        setAiFileName(scriptName);
+        await fileApi.saveAIScript(resume.id, scriptName, fullText);
         setAiStep('done');
         setAiProgress('');
       }
@@ -448,7 +453,7 @@ function ResumeCard({
   };
 
   const handleDownloadDocx = async () => {
-    const docName = `${resume.resume_name}-面试稿件`;
+    const docName = `${aiFileName}-面试稿件`;
     const blob = await generateDocx(docName, aiStreamText);
     downloadBlob(blob, `${docName}.docx`);
   };
