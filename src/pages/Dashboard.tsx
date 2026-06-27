@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import type { Application, Interview } from '../types';
 import { useCollection } from '../hooks/useCollection';
 import { useAppShell } from '../contexts/AppShellContext';
@@ -10,10 +10,221 @@ import {
   IconTrophy,
   IconChevronRight,
 } from '../components/icons';
-import { initialOf, avatarColor, statusTag, CARD } from '../lib/appHelpers';
+import { initialOf, avatarColor, CARD } from '../lib/appHelpers';
+
+// ── 行动队列卡片色板（暖色调，匹配网页风格）──────────────────────
+const AQ_PALETTES: { bg: string; fg: string }[] = [
+  { bg: '#f2ddd0', fg: '#7a3a1e' },
+  { bg: '#d4e8d0', fg: '#2a5e34' },
+  { bg: '#f0e4b8', fg: '#6a4a08' },
+  { bg: '#ddd4ec', fg: '#4a3670' },
+  { bg: '#c8e0d4', fg: '#1e5a44' },
+  { bg: '#f4d4c8', fg: '#7a3228' },
+  { bg: '#e0dcc8', fg: '#5a4018' },
+  { bg: '#d0dcec', fg: '#2a4070' },
+  { bg: '#eed4d8', fg: '#6a2838' },
+  { bg: '#d8e8d0', fg: '#285828' },
+  { bg: '#f4e0c0', fg: '#6a3808' },
+  { bg: '#d8d4e8', fg: '#382e60' },
+];
+
+// ── 行动队列卡片 ──────────────────────────────────────────────────
+function AQCard({
+  app, palette, isSelected, isDimmed, onSelect, onViewDetail,
+}: {
+  app: Application;
+  palette: { bg: string; fg: string };
+  isSelected: boolean;
+  isDimmed: boolean;
+  onSelect: () => void;
+  onViewDetail: () => void;
+}) {
+  return (
+    <div
+      onClick={onSelect}
+      style={{
+        width: isSelected ? 236 : 104,
+        height: isSelected ? 140 : 62,
+        borderRadius: 11,
+        padding: '9px 11px',
+        background: palette.bg,
+        color: palette.fg,
+        cursor: 'pointer',
+        flexShrink: 0,
+        overflow: 'hidden',
+        position: 'relative',
+        opacity: isDimmed ? 0.38 : 1,
+        transform: isDimmed ? 'scaleY(0.86)' : 'none',
+        transition: 'width .44s cubic-bezier(.34,1.15,.64,1), height .44s cubic-bezier(.34,1.15,.64,1), opacity .28s, transform .36s cubic-bezier(.34,1.15,.64,1)',
+        userSelect: 'none',
+      }}
+    >
+      {/* 未展开视图 */}
+      <div style={{ opacity: isSelected ? 0 : 1, transition: 'opacity .18s', pointerEvents: isSelected ? 'none' : 'auto' }}>
+        <div style={{ fontSize: 17, fontWeight: 700, lineHeight: 1, marginBottom: 3 }}>
+          {app.company_name.charAt(0)}
+        </div>
+        <div style={{ fontSize: 11.5, fontWeight: 700, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+          {app.company_name}
+        </div>
+        <div style={{ fontSize: 10, marginTop: 2, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', opacity: 0.72 }}>
+          {app.position_name}
+        </div>
+        <span style={{ display: 'inline-block', fontSize: 9, fontWeight: 700, padding: '2px 6px', borderRadius: 999, background: 'rgba(0,0,0,.1)', marginTop: 4 }}>
+          {app.status}
+        </span>
+      </div>
+
+      {/* 展开视图 */}
+      <div style={{
+        position: 'absolute', inset: 0, padding: '11px 13px',
+        opacity: isSelected ? 1 : 0,
+        transition: isSelected ? 'opacity .22s .2s' : 'opacity .1s',
+        display: 'flex', flexDirection: 'column', justifyContent: 'space-between',
+        pointerEvents: isSelected ? 'auto' : 'none',
+      }}>
+        <div>
+          <div style={{ fontSize: 13, fontWeight: 700 }}>{app.company_name}</div>
+          <div style={{ fontSize: 10.5, marginTop: 1, opacity: 0.75 }}>{app.position_name}</div>
+          <div style={{ fontSize: 9.5, marginTop: 4, lineHeight: 1.6, opacity: 0.62 }}>
+            {[app.city, app.channel].filter(Boolean).join(' · ')}
+            <br />
+            <span style={{ display: 'inline-block', fontSize: 9, fontWeight: 700, padding: '2px 6px', borderRadius: 999, background: 'rgba(0,0,0,.1)' }}>
+              {app.status}
+            </span>
+          </div>
+        </div>
+        <button
+          onClick={(e) => { e.stopPropagation(); onViewDetail(); }}
+          style={{
+            display: 'inline-flex', alignItems: 'center', gap: 4,
+            background: 'rgba(0,0,0,.1)', border: '1px solid rgba(0,0,0,.14)',
+            borderRadius: 7, padding: '4px 9px', fontSize: 10.5, fontWeight: 700,
+            color: palette.fg, cursor: 'pointer',
+          }}
+        >
+          查看详情 →
+        </button>
+      </div>
+    </div>
+  );
+}
+
+// ── 行动队列单行 ──────────────────────────────────────────────────
+function AQRow({
+  apps, direction, selectedId, colorOffset, onSelect, onViewDetail,
+}: {
+  apps: Application[];
+  direction: 'ltr' | 'rtl';
+  selectedId: string | null;
+  colorOffset: number;
+  onSelect: (id: string) => void;
+  onViewDetail: (app: Application) => void;
+}) {
+  // 不足 7 张时重复填满，保证滚动顺畅；再翻倍实现无缝循环
+  const track = useMemo(() => {
+    let cycle = [...apps];
+    while (cycle.length < 7) cycle = [...cycle, ...apps];
+    return [...cycle, ...cycle];
+  }, [apps]);
+
+  const anim = direction === 'ltr' ? 'aqLTR 30s linear infinite' : 'aqRTL 30s linear infinite';
+  const paused = selectedId !== null;
+
+  return (
+    <div style={{
+      overflow: 'hidden',
+      position: 'relative',
+      WebkitMaskImage: 'linear-gradient(to right, transparent, black 8%, black 92%, transparent)',
+      maskImage: 'linear-gradient(to right, transparent, black 8%, black 92%, transparent)',
+    }}>
+      <div style={{
+        display: 'flex',
+        gap: 7,
+        width: 'max-content',
+        animation: anim,
+        animationPlayState: paused ? 'paused' : 'running',
+      }}>
+        {track.map((app, i) => (
+          <AQCard
+            key={`${app.id}-${i}`}
+            app={app}
+            palette={AQ_PALETTES[(colorOffset + (i % apps.length)) % AQ_PALETTES.length]}
+            isSelected={selectedId === app.id}
+            isDimmed={selectedId !== null && selectedId !== app.id}
+            onSelect={() => onSelect(app.id)}
+            onViewDetail={() => onViewDetail(app)}
+          />
+        ))}
+      </div>
+    </div>
+  );
+}
+
+// ── 行动队列容器：根据投递数量自动解锁行数 ───────────────────────
+function ActionQueue({ apps, onViewDetail }: {
+  apps: Application[];
+  onViewDetail: (app: Application) => void;
+}) {
+  const [selectedId, setSelectedId] = useState<string | null>(null);
+
+  // 1–6 → 1行  7–12 → 2行  13–18 → 3行  19+ → 4行
+  const rowCount = apps.length <= 6 ? 1 : apps.length <= 12 ? 2 : apps.length <= 18 ? 3 : 4;
+
+  const rows = useMemo(() => {
+    if (apps.length === 0) return [];
+    const result: Application[][] = Array.from({ length: rowCount }, () => []);
+    apps.forEach((app, i) => result[i % rowCount].push(app));
+    return result;
+  }, [apps, rowCount]);
+
+  const handleSelect = (id: string) => setSelectedId(prev => prev === id ? null : id);
+
+  return (
+    <div style={{ background: '#ece4d6', borderRadius: 26, padding: '22px 22px 18px', position: 'relative', overflow: 'hidden' }}>
+      <style>{`
+        @keyframes aqLTR{0%{transform:translateX(0)}100%{transform:translateX(-50%)}}
+        @keyframes aqRTL{0%{transform:translateX(-50%)}100%{transform:translateX(0)}}
+      `}</style>
+      <div style={{ position: 'absolute', right: -40, top: -40, width: 180, height: 180, borderRadius: '50%', background: 'radial-gradient(circle,rgba(244,200,74,.5),transparent 70%)' }} />
+      <div style={{ position: 'relative' }}>
+        <div style={{ fontSize: 13, fontWeight: 700, color: '#a23d24', letterSpacing: '.04em', textTransform: 'uppercase' }}>行动队列</div>
+        <p style={{ fontSize: 13, color: '#7a7468', margin: '4px 0 14px' }}>
+          进行中的投递 · 点击卡片展开详情
+        </p>
+
+        {apps.length === 0 ? (
+          <div style={{ background: '#fffdf8', borderRadius: 16, padding: 18, fontSize: 13.5, color: '#8a8478' }}>
+            暂无待办，去「投递记录」添加一条吧。
+          </div>
+        ) : (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 7 }}>
+            {rows.map((row, ri) => (
+              <AQRow
+                key={ri}
+                apps={row}
+                direction={ri % 2 === 0 ? 'ltr' : 'rtl'}
+                selectedId={selectedId}
+                colorOffset={ri * 6}
+                onSelect={handleSelect}
+                onViewDetail={onViewDetail}
+              />
+            ))}
+          </div>
+        )}
+
+        {selectedId && (
+          <p style={{ margin: '8px 0 0', fontSize: 11, color: '#9a9488', textAlign: 'center' }}>
+            再次点击收起
+          </p>
+        )}
+      </div>
+    </div>
+  );
+}
 
 // ============================================================
-// 总览仪表盘 —— 全部统计由真实数据计算
+// 总览仪表盘
 // ============================================================
 export default function Dashboard() {
   const { items: apps } = useCollection<Application>('applications');
@@ -21,7 +232,7 @@ export default function Dashboard() {
     column: 'interview_time',
     ascending: true,
   });
-  const { setScreen } = useAppShell();
+  const { setScreen, setQuery } = useAppShell();
   const { theme } = useTheme();
 
   const now = new Date();
@@ -32,7 +243,6 @@ export default function Dashboard() {
     const inProgress = apps.filter((a) => !['Offer', '拒绝'].includes(a.status)).length;
     const followUps = apps.filter((a) => a.status === '待跟进').length;
 
-    // 本周面试数
     const weekStart = new Date(now);
     weekStart.setHours(0, 0, 0, 0);
     weekStart.setDate(weekStart.getDate() - ((weekStart.getDay() + 6) % 7));
@@ -48,7 +258,6 @@ export default function Dashboard() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [apps, interviews]);
 
-  // 近期面试（未来 / 最近）
   const upcoming = useMemo(() => {
     return [...interviews]
       .filter((iv) => iv.interview_time)
@@ -58,62 +267,29 @@ export default function Dashboard() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [interviews]);
 
-  // 待办：待跟进 / 进行中的投递
-  const todos = useMemo(
-    () => apps.filter((a) => ['待跟进', '笔试', '面试'].includes(a.status)).slice(0, 4),
+  // 进行中的投递（无数量上限），按行数动态解锁
+  const activeApps = useMemo(
+    () => apps.filter((a) => ['待跟进', '笔试', '面试'].includes(a.status)),
     [apps],
   );
 
-  // 当月日历：标记有面试的日期
   const monthDays = useMemo(() => buildMonth(now, interviews), [interviews]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const goalTarget = 30;
   const goalPct = Math.min(100, Math.round((stats.total / goalTarget) * 100));
+
+  // 跳转到投递记录并筛选该公司
+  const handleViewDetail = (app: Application) => {
+    setScreen('applications');
+    setTimeout(() => setQuery(app.company_name), 0);
+  };
 
   return (
     <div className="flex flex-col gap-[22px] animate-rise">
       {/* 顶部：行动队列 + 月历 */}
       <div className="grid grid-cols-1 lg:grid-cols-[1.55fr_1fr] gap-[22px]">
         {/* 行动队列 */}
-        <div style={{ background: '#ece4d6', borderRadius: 26, padding: '26px 26px 22px', position: 'relative', overflow: 'hidden' }}>
-          <div style={{ position: 'absolute', right: -40, top: -40, width: 180, height: 180, borderRadius: '50%', background: 'radial-gradient(circle,rgba(244,200,74,.5),transparent 70%)' }} />
-          <div style={{ position: 'relative' }}>
-            <div style={{ fontSize: 13, fontWeight: 700, color: '#a23d24', letterSpacing: '.04em', textTransform: 'uppercase' }}>行动队列</div>
-            <p style={{ fontSize: 13.5, color: '#7a7468', margin: '6px 0 18px' }}>待跟进与进行中的投递，优先处理。</p>
-            <div className="flex flex-col gap-[11px]">
-              {todos.length === 0 ? (
-                <div style={{ background: '#fffdf8', borderRadius: 16, padding: 18, fontSize: 13.5, color: '#8a8478' }}>
-                  暂无待办，去「投递记录」添加一条吧。
-                </div>
-              ) : (
-                todos.map((a) => {
-                  const tag = statusTag(a.status);
-                  const col = avatarColor(a.company_name);
-                  return (
-                    <div
-                      key={a.id}
-                      onClick={() => setScreen('applications')}
-                      style={{ display: 'grid', gridTemplateColumns: 'auto 1fr auto', alignItems: 'center', gap: 14, background: '#fffdf8', borderRadius: 16, padding: '14px 16px', boxShadow: '0 4px 14px rgba(60,50,35,.05)', cursor: 'pointer' }}
-                    >
-                      <div style={{ width: 40, height: 40, borderRadius: 12, background: col.bg, color: col.fg, display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700, fontFamily: 'Poppins' }}>
-                        {initialOf(a.company_name)}
-                      </div>
-                      <div style={{ minWidth: 0 }}>
-                        <div style={{ fontWeight: 600, fontSize: 14.5, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                          {a.company_name} · {a.position_name}
-                        </div>
-                        <div style={{ fontSize: 12.5, color: '#8a8478', marginTop: 2 }}>
-                          {[a.city, a.channel].filter(Boolean).join(' · ') || '—'}
-                        </div>
-                      </div>
-                      <span style={{ background: tag.bg, color: tag.fg, fontSize: 12, fontWeight: 600, padding: '5px 11px', borderRadius: 999, whiteSpace: 'nowrap' }}>{a.status}</span>
-                    </div>
-                  );
-                })
-              )}
-            </div>
-          </div>
-        </div>
+        <ActionQueue apps={activeApps} onViewDetail={handleViewDetail} />
 
         {/* 月历 */}
         <div style={{ background: '#dcebd5', borderRadius: 26, padding: 24 }}>
@@ -250,7 +426,7 @@ function buildMonth(now: Date, interviews: Interview[]): DayCell[] {
   const year = now.getFullYear();
   const month = now.getMonth();
   const first = new Date(year, month, 1);
-  const lead = (first.getDay() + 6) % 7; // 周一开头
+  const lead = (first.getDay() + 6) % 7;
   const daysInMonth = new Date(year, month + 1, 0).getDate();
   const eventDays = new Set<number>();
   interviews.forEach((iv) => {
