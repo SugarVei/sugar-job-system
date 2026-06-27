@@ -8,6 +8,7 @@ import { Field, TextInput, TextArea, Select, PrimaryButton, GhostButton, FormErr
 import { IconEdit, IconTrash, IconPlus, IconExternalLink } from '../components/icons';
 import { STATUS_OPTIONS, statusTag, buildSteps, matchApp, CARD } from '../lib/appHelpers';
 import EmptyState from '../components/EmptyState';
+import { exportApplicationsToExcel } from '../lib/exportExcel';
 
 const empty: NewRecord<Application> = {
   company_name: '',
@@ -139,11 +140,33 @@ export default function Applications() {
         <div className="hidden sm:block" style={{ fontSize: 13, color: '#9a9488', alignSelf: 'center' }}>
           共 {filtered.length} 条
         </div>
-        <PrimaryButton accent={theme.accent} onClick={openCreate} style={{ height: 44 }}>
-          <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
-            <IconPlus size={16} /> 新增投递
-          </span>
-        </PrimaryButton>
+        <div style={{ display: 'flex', gap: 8 }}>
+          <button
+            onClick={() => exportApplicationsToExcel(items)}
+            disabled={items.length === 0}
+            style={{
+              height: 44,
+              padding: '0 16px',
+              border: '1px solid #e4ddcf',
+              background: items.length === 0 ? '#f5f2eb' : '#faf7f0',
+              borderRadius: 12,
+              fontSize: 13,
+              fontWeight: 600,
+              color: items.length === 0 ? '#c0b8a8' : '#4a463e',
+              cursor: items.length === 0 ? 'not-allowed' : 'pointer',
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: 6,
+            }}
+          >
+            📊 导出 Excel
+          </button>
+          <PrimaryButton accent={theme.accent} onClick={openCreate} style={{ height: 44 }}>
+            <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+              <IconPlus size={16} /> 新增投递
+            </span>
+          </PrimaryButton>
+        </div>
       </div>
 
       {loading ? (
