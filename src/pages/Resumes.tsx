@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import type { DragEvent } from 'react';
 import type { Application, Resume, ResumeFile, ResumeFileKind, NewRecord } from '../types';
 import { useCollection } from '../hooks/useCollection';
@@ -242,6 +243,23 @@ function ResumeCard({
   const [aiStreamText, setAiStreamText] = useState('');
   const [aiDone, setAiDone] = useState(false);
   const [expandedScripts, setExpandedScripts] = useState<Set<string>>(new Set());
+  const aiTextareaRef = useRef<HTMLTextAreaElement>(null);
+
+  const closeAiModal = () => { setAiModalOpen(false); setAiStreamText(''); setAiDone(false); };
+
+  // 锁定 body 滚动 + ESC 关闭
+  useEffect(() => {
+    if (!aiModalOpen) return;
+    document.body.style.overflow = 'hidden';
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') closeAiModal(); };
+    document.addEventListener('keydown', onKey);
+    setTimeout(() => aiTextareaRef.current?.focus(), 120);
+    return () => {
+      document.removeEventListener('keydown', onKey);
+      document.body.style.overflow = '';
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [aiModalOpen]);
 
   const handleFiles = async (kind: ResumeFileKind, list: FileList | null) => {
     if (!list || list.length === 0) return;
@@ -475,59 +493,73 @@ function ResumeCard({
         </button>
       </div>
 
-      {/* AI 生成弹窗 */}
-      {aiModalOpen && (
-        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.35)', zIndex: 300, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }}>
-          <div style={{ background: '#fffdf8', borderRadius: 20, width: '100%', maxWidth: 640, maxHeight: '90vh', display: 'flex', flexDirection: 'column', boxShadow: '0 16px 60px rgba(0,0,0,0.18)', overflow: 'hidden' }}>
-            <div style={{ padding: '18px 20px', borderBottom: '1px solid #f0ebe0', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexShrink: 0 }}>
+      {/* AI 生成弹窗 —— 用 Portal 渲染到 body，避免被卡片 stacking context 遮挡 */}
+      {aiModalOpen && createPortal(
+        <div
+          onClick={closeAiModal}
+          style={{ position: 'fixed', inset: 0, background: 'rgba(40,30,25,0.38)', backdropFilter: 'blur(6px)', WebkitBackdropFilter: 'blur(6px)', zIndex: 400, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16, animation: 'fadeIn .2s ease' }}
+        >
+          <div
+            onClick={e => e.stopPropagation()}
+            style={{ background: 'rgba(255,253,250,0.98)', borderRadius: 24, width: '100%', maxWidth: 620, maxHeight: 'calc(100vh - 60px)', display: 'flex', flexDirection: 'column', boxShadow: '0 30px 80px rgba(120,40,70,.22)', overflow: 'hidden', animation: 'popIn .26s ease both' }}
+          >
+            {/* Header */}
+            <div style={{ padding: '20px 24px 16px', borderBottom: '1px solid #f0ebe0', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexShrink: 0 }}>
               <div>
-                <div style={{ fontWeight: 700, fontSize: 15, color: '#1b1a17' }}>🤖 AI 生成面试稿件</div>
-                <div style={{ fontSize: 12, color: '#8a8478', marginTop: 3 }}>粘贴简历文本，DeepSeek 将根据专业模板为你生成完整面试稿</div>
+                <div style={{ fontFamily: 'Poppins', fontWeight: 700, fontSize: 16, color: '#1b1a17' }}>🤖 AI 生成面试稿件</div>
+                <div style={{ fontSize: 12, color: '#8a8478', marginTop: 3 }}>粘贴简历文本，DeepSeek 将根据专业模板生成完整面试稿</div>
               </div>
-              <button onClick={() => { setAiModalOpen(false); setAiStreamText(''); setAiDone(false); }} style={{ width: 30, height: 30, border: '1px solid #e4ddcf', background: '#faf7f0', borderRadius: 9, cursor: 'pointer', color: '#8a8478', fontSize: 14, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>✕</button>
+              <button onClick={closeAiModal} style={{ width: 34, height: 34, border: '1px solid #e4ddcf', background: '#faf7f0', borderRadius: 10, cursor: 'pointer', color: '#8a8478', fontSize: 14, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>✕</button>
             </div>
 
-            <div style={{ flex: 1, overflowY: 'auto', padding: '18px 20px' }}>
+            {/* Body */}
+            <div style={{ flex: 1, overflowY: 'auto', padding: '18px 24px' }}>
               {!aiGenerating && !aiDone && (
                 <>
                   <label style={{ fontSize: 13, fontWeight: 600, color: '#4a463e', display: 'block', marginBottom: 8 }}>
                     粘贴你的简历内容（复制 PDF 或 Word 中的文字即可）
                   </label>
                   <textarea
+                    ref={aiTextareaRef}
                     value={aiResumeText}
                     onChange={e => setAiResumeText(e.target.value)}
-                    placeholder="姓名：...\n教育背景：...\n项目经历：...\n技能：..."
+                    placeholder={'姓名：...\n教育背景：...\n项目经历：...\n技能：...'}
                     rows={12}
                     style={{ width: '100%', resize: 'vertical', border: '1.5px solid #e4ddcf', borderRadius: 12, padding: '12px 14px', fontSize: 13, lineHeight: 1.6, outline: 'none', background: '#faf7f0', color: '#1b1a17', fontFamily: 'inherit', boxSizing: 'border-box' }}
                   />
                   <p style={{ fontSize: 12, color: '#a39d90', marginTop: 8 }}>提示：内容越详细，生成质量越高。预计生成时间 30-90 秒。</p>
                 </>
               )}
-
               {(aiGenerating || aiDone) && (
                 <div>
                   <div style={{ fontSize: 13, fontWeight: 600, color: '#4a463e', marginBottom: 12 }}>
                     {aiGenerating ? '🔄 AI 正在生成中，请稍候…' : '✅ 生成完成，已保存到简历文件列表'}
                   </div>
-                  <div style={{ background: '#faf7f0', border: '1px solid #f0ebe0', borderRadius: 12, padding: '14px 16px', fontSize: 13, lineHeight: 1.8, whiteSpace: 'pre-wrap', maxHeight: 360, overflowY: 'auto', color: '#2a2720', wordBreak: 'break-word' }}>
+                  <div style={{ background: '#faf7f0', border: '1px solid #f0ebe0', borderRadius: 12, padding: '14px 16px', fontSize: 13, lineHeight: 1.8, whiteSpace: 'pre-wrap', maxHeight: 400, overflowY: 'auto', color: '#2a2720', wordBreak: 'break-word' }}>
                     {aiStreamText || '▌'}
                   </div>
                 </div>
               )}
             </div>
 
-            <div style={{ padding: '14px 20px', borderTop: '1px solid #f0ebe0', display: 'flex', justifyContent: 'flex-end', gap: 10, flexShrink: 0 }}>
-              <button onClick={() => { setAiModalOpen(false); setAiStreamText(''); setAiDone(false); }} style={{ height: 40, padding: '0 18px', border: '1px solid #e4ddcf', background: '#faf7f0', borderRadius: 12, fontSize: 13, fontWeight: 600, color: '#4a463e', cursor: 'pointer' }}>
+            {/* Footer */}
+            <div style={{ padding: '14px 24px 20px', borderTop: '1px solid #f0ebe0', display: 'flex', justifyContent: 'flex-end', gap: 10, flexShrink: 0 }}>
+              <button onClick={closeAiModal} style={{ height: 42, padding: '0 20px', border: '1px solid #e4ddcf', background: '#faf7f0', borderRadius: 13, fontSize: 13, fontWeight: 600, color: '#4a463e', cursor: 'pointer' }}>
                 {aiDone ? '关闭' : '取消'}
               </button>
               {!aiGenerating && !aiDone && (
-                <button onClick={generateAIScript} disabled={!aiResumeText.trim()} style={{ height: 40, padding: '0 22px', border: 'none', background: !aiResumeText.trim() ? '#c8c0f0' : '#a89cf0', color: '#fff', borderRadius: 12, fontSize: 13, fontWeight: 700, cursor: !aiResumeText.trim() ? 'not-allowed' : 'pointer' }}>
+                <button
+                  onClick={generateAIScript}
+                  disabled={!aiResumeText.trim()}
+                  style={{ height: 42, padding: '0 24px', border: 'none', background: !aiResumeText.trim() ? '#c8c0f0' : '#a89cf0', color: '#fff', borderRadius: 13, fontSize: 13, fontWeight: 700, cursor: !aiResumeText.trim() ? 'not-allowed' : 'pointer' }}
+                >
                   🚀 开始生成
                 </button>
               )}
             </div>
           </div>
-        </div>
+        </div>,
+        document.body,
       )}
 
       <div className="flex flex-col gap-[9px]">
