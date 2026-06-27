@@ -43,6 +43,7 @@ export default function Applications() {
   const [editing, setEditing] = useState<Application | null>(null);
   const [form, setForm] = useState<NewRecord<Application>>(empty);
   const [saving, setSaving] = useState(false);
+  const [exporting, setExporting] = useState(false);
   const [formError, setFormError] = useState('');
   const [scrollSig, setScrollSig] = useState(0);
   const companyRef = useRef<HTMLInputElement>(null);
@@ -142,24 +143,30 @@ export default function Applications() {
         </div>
         <div style={{ display: 'flex', gap: 8 }}>
           <button
-            onClick={() => exportApplicationsToExcel(items)}
-            disabled={items.length === 0}
+            onClick={async () => {
+              if (items.length === 0 || exporting) return;
+              setExporting(true);
+              try { await exportApplicationsToExcel(items); }
+              catch (err) { alert('导出失败：' + String(err)); }
+              finally { setExporting(false); }
+            }}
+            disabled={items.length === 0 || exporting}
             style={{
               height: 44,
               padding: '0 16px',
               border: '1px solid #e4ddcf',
-              background: items.length === 0 ? '#f5f2eb' : '#faf7f0',
+              background: (items.length === 0 || exporting) ? '#f5f2eb' : '#faf7f0',
               borderRadius: 12,
               fontSize: 13,
               fontWeight: 600,
-              color: items.length === 0 ? '#c0b8a8' : '#4a463e',
-              cursor: items.length === 0 ? 'not-allowed' : 'pointer',
+              color: (items.length === 0 || exporting) ? '#c0b8a8' : '#4a463e',
+              cursor: (items.length === 0 || exporting) ? 'not-allowed' : 'pointer',
               display: 'inline-flex',
               alignItems: 'center',
               gap: 6,
             }}
           >
-            📊 导出 Excel
+            {exporting ? '导出中...' : '📊 导出 Excel'}
           </button>
           <PrimaryButton accent={theme.accent} onClick={openCreate} style={{ height: 44 }}>
             <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
