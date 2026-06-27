@@ -53,6 +53,20 @@ export default function Companies() {
     [items],
   );
 
+  const aiSystemPrompt = useMemo(() => {
+    const cityMap: Record<string, number> = {};
+    const indMap: Record<string, number> = {};
+    items.forEach(c => {
+      if (c.city) cityMap[c.city] = (cityMap[c.city] ?? 0) + 1;
+      if (c.industry) indMap[c.industry] = (indMap[c.industry] ?? 0) + 1;
+    });
+    const topCity = Object.entries(cityMap).sort((a,b)=>b[1]-a[1]).slice(0,5).map(([k,v])=>`${k}(${v})`).join('、');
+    const topInd = Object.entries(indMap).sort((a,b)=>b[1]-a[1]).slice(0,5).map(([k,v])=>`${k}(${v})`).join('、');
+    return `你是一名专业的求职顾问。用户的公司库数据如下：
+共 ${items.length} 家公司，主要城市：${topCity || '未记录'}，行业分布：${topInd || '未记录'}。
+请根据这些信息帮用户分析目标公司的倾向、地域集中度、行业匹配度，并给出具体建议。回答要简洁、实用。`;
+  }, [items]);
+
   const openCreate = () => {
     setEditing(null);
     setForm(empty);
@@ -122,7 +136,7 @@ export default function Companies() {
     <div className="flex flex-col gap-[18px] animate-rise">
       {companiesError && <FormError message={companiesError} />}
 
-      <div className="grid grid-cols-1 sm:grid-cols-[1fr_auto] gap-3 p-4" style={{ ...CARD, borderRadius: 20 }}>
+      <div className="grid grid-cols-1 sm:grid-cols-[1fr_auto_auto] gap-3 p-4" style={{ ...CARD, borderRadius: 20 }}>
         <Select value={industryFilter} onChange={(event) => setIndustryFilter(event.target.value)}>
           <option value="all">全部行业</option>
           {industries.map((industry) => (
@@ -131,6 +145,13 @@ export default function Companies() {
             </option>
           ))}
         </Select>
+        {items.length > 0 && (
+          <AIChatDialog
+            systemPrompt={aiSystemPrompt}
+            placeholder="问我关于你的目标公司分析…"
+            buttonLabel="🤖 AI 分析"
+          />
+        )}
         <PrimaryButton accent={theme.accent} onClick={openCreate} style={{ height: 44 }}>
           <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
             <IconPlus size={16} /> 新增公司
@@ -226,30 +247,6 @@ export default function Companies() {
           })}
         </div>
       )}
-
-      {/* AI 助手 */}
-      {items.length > 0 && (() => {
-        const cityMap: Record<string,number> = {};
-        const indMap: Record<string,number> = {};
-        const scaleMap: Record<string,number> = {};
-        items.forEach(c => {
-          if (c.city) cityMap[c.city] = (cityMap[c.city] ?? 0) + 1;
-          if (c.industry) indMap[c.industry] = (indMap[c.industry] ?? 0) + 1;
-          if (c.scale) scaleMap[c.scale] = (scaleMap[c.scale] ?? 0) + 1;
-        });
-        const topCity = Object.entries(cityMap).sort((a,b)=>b[1]-a[1]).slice(0,5).map(([k,v])=>`${k}(${v})`).join('、');
-        const topInd = Object.entries(indMap).sort((a,b)=>b[1]-a[1]).slice(0,5).map(([k,v])=>`${k}(${v})`).join('、');
-        const sp = `你是一名专业的求职顾问。用户的公司库数据如下：
-共 ${items.length} 家公司，主要城市：${topCity || '未记录'}，行业分布：${topInd || '未记录'}。
-请根据这些信息帮用户分析目标公司的倾向、地域集中度、行业匹配度，并给出具体建议。回答要简洁、实用。`;
-        return (
-          <AIChatDialog
-            systemPrompt={sp}
-            placeholder="问我关于你的目标公司分析…"
-            buttonLabel="💬 AI 公司分析"
-          />
-        );
-      })()}
 
       <Modal
         open={modalOpen}

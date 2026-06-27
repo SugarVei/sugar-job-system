@@ -103,6 +103,19 @@ Offer 转化率：${items.length > 0 ? Math.round((byStatus['Offer']/items.lengt
 
   return (
     <div className="flex flex-col gap-[22px] animate-rise">
+      {/* 顶部工具栏：标题 + AI 按钮 */}
+      <div className="flex items-center justify-between flex-wrap gap-3">
+        <div>
+          <div style={{ fontFamily: 'Poppins', fontSize: 20, fontWeight: 700, color: '#1b1a17' }}>投递总览</div>
+          <div style={{ fontSize: 13, color: '#8a8478', marginTop: 2 }}>共 {stats.total} 条投递记录</div>
+        </div>
+        <AIChatDialog
+          systemPrompt={aiSystemPrompt}
+          placeholder="问我任何关于你的投递情况的问题…"
+          buttonLabel="🤖 AI 投递分析"
+        />
+      </div>
+
       {/* 统计卡 */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         <StatCard label="投递总数" value={stats.total} sub="全部记录" bg="#d9e6d3" fg="#2f5d36" />
@@ -238,12 +251,6 @@ Offer 转化率：${items.length > 0 ? Math.round((byStatus['Offer']/items.lengt
           )}
         </div>
       </div>
-
-      <AIChatDialog
-        systemPrompt={aiSystemPrompt}
-        placeholder="问我任何关于你的投递情况的问题…"
-        buttonLabel="💬 AI 投递分析"
-      />
     </div>
   );
 }
