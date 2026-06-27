@@ -8,6 +8,7 @@ import { Field, TextInput, TextArea, Select, PrimaryButton, GhostButton, FormErr
 import { IconEdit, IconTrash, IconPlus, IconExternalLink } from '../components/icons';
 import { initialOf, avatarColor, CARD } from '../lib/appHelpers';
 import EmptyState from '../components/EmptyState';
+import AIChatDialog from '../components/AIChatDialog';
 
 const empty: NewRecord<Company> = {
   company_name: '',
@@ -225,6 +226,30 @@ export default function Companies() {
           })}
         </div>
       )}
+
+      {/* AI 助手 */}
+      {items.length > 0 && (() => {
+        const cityMap: Record<string,number> = {};
+        const indMap: Record<string,number> = {};
+        const scaleMap: Record<string,number> = {};
+        items.forEach(c => {
+          if (c.city) cityMap[c.city] = (cityMap[c.city] ?? 0) + 1;
+          if (c.industry) indMap[c.industry] = (indMap[c.industry] ?? 0) + 1;
+          if (c.scale) scaleMap[c.scale] = (scaleMap[c.scale] ?? 0) + 1;
+        });
+        const topCity = Object.entries(cityMap).sort((a,b)=>b[1]-a[1]).slice(0,5).map(([k,v])=>`${k}(${v})`).join('、');
+        const topInd = Object.entries(indMap).sort((a,b)=>b[1]-a[1]).slice(0,5).map(([k,v])=>`${k}(${v})`).join('、');
+        const sp = `你是一名专业的求职顾问。用户的公司库数据如下：
+共 ${items.length} 家公司，主要城市：${topCity || '未记录'}，行业分布：${topInd || '未记录'}。
+请根据这些信息帮用户分析目标公司的倾向、地域集中度、行业匹配度，并给出具体建议。回答要简洁、实用。`;
+        return (
+          <AIChatDialog
+            systemPrompt={sp}
+            placeholder="问我关于你的目标公司分析…"
+            buttonLabel="💬 AI 公司分析"
+          />
+        );
+      })()}
 
       <Modal
         open={modalOpen}

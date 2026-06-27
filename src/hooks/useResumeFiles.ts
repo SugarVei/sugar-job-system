@@ -166,5 +166,32 @@ export function useResumeFiles() {
     setFiles((prev) => prev.filter((x) => x.id !== f.id));
   }, []);
 
-  return { files, loading, refresh: fetchAll, upload, getDownloadUrl, remove };
+  const saveAIScript = useCallback(
+    async (resumeId: string, resumeName: string, content: string) => {
+      if (!user) throw new Error('未登录');
+      if (!isSupabaseConfigured) throw new Error('Supabase 尚未配置');
+
+      const { data, error } = await supabase
+        .from('resume_files')
+        .insert({
+          user_id: user.id,
+          resume_id: resumeId,
+          file_name: `${resumeName}-面试稿件`,
+          file_path: null,
+          kind: 'script',
+          size: null,
+          content,
+          source: 'ai',
+        })
+        .select()
+        .single();
+
+      if (error) throw new Error(readableSupabaseError(error));
+      setFiles((prev) => [data as ResumeFile, ...prev]);
+      return data as ResumeFile;
+    },
+    [user],
+  );
+
+  return { files, loading, refresh: fetchAll, upload, getDownloadUrl, remove, saveAIScript };
 }

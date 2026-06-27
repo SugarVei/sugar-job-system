@@ -4,6 +4,7 @@ import { useCollection } from '../hooks/useCollection';
 import { useAppShell } from '../contexts/AppShellContext';
 import { STATUS_OPTIONS, statusTag, CARD } from '../lib/appHelpers';
 import EmptyState from '../components/EmptyState';
+import AIChatDialog from '../components/AIChatDialog';
 
 // ============================================================
 // 投递总览 —— 按状态/城市/渠道的真实数据概览，支持按状态查看
@@ -68,6 +69,27 @@ export default function Overview() {
   const chMax = Math.max(1, ...channelBars.map((c) => c[1]));
 
   const listForStatus = activeStatus ? items.filter((a) => a.status === activeStatus) : [];
+
+  const aiSystemPrompt = useMemo(() => {
+    const byStatus: Record<string, number> = {};
+    STATUS_OPTIONS.forEach(s => (byStatus[s] = 0));
+    items.forEach(a => (byStatus[a.status] = (byStatus[a.status] ?? 0) + 1));
+    const cityMap: Record<string, number> = {};
+    const chMap: Record<string, number> = {};
+    items.forEach(a => {
+      if (a.city) cityMap[a.city] = (cityMap[a.city] ?? 0) + 1;
+      if (a.channel) chMap[a.channel] = (chMap[a.channel] ?? 0) + 1;
+    });
+    const topCities = Object.entries(cityMap).sort((a,b)=>b[1]-a[1]).slice(0,5).map(([k,v])=>`${k}(${v})`).join('、');
+    const topCh = Object.entries(chMap).sort((a,b)=>b[1]-a[1]).slice(0,5).map(([k,v])=>`${k}(${v})`).join('、');
+    const recent = items.slice(0, 5).map(a => `${a.company_name}·${a.position_name}(${a.status})`).join('；');
+    return `你是一名专业的求职顾问，请根据以下用户的真实投递数据给出分析和建议，回答要具体、实用，语气亲切。
+投递统计：总计 ${items.length} 条，已投递 ${byStatus['已投递']}，笔试 ${byStatus['笔试']}，面试 ${byStatus['面试']}，Offer ${byStatus['Offer']}，拒绝 ${byStatus['拒绝']}，待跟进 ${byStatus['待跟进']}。
+Offer 转化率：${items.length > 0 ? Math.round((byStatus['Offer']/items.length)*100) : 0}%。
+主要投递城市：${topCities || '未记录'}。投递渠道：${topCh || '未记录'}。
+最近投递：${recent || '暂无'}。
+请根据这些数据帮助用户分析求职状况，并给出有针对性的建议。`;
+  }, [items]);
 
   if (loading) return <EmptyState text="加载中…" />;
   if (items.length === 0)
@@ -216,6 +238,12 @@ export default function Overview() {
           )}
         </div>
       </div>
+
+      <AIChatDialog
+        systemPrompt={aiSystemPrompt}
+        placeholder="问我任何关于你的投递情况的问题…"
+        buttonLabel="💬 AI 投递分析"
+      />
     </div>
   );
 }

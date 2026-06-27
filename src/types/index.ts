@@ -56,9 +56,11 @@ export interface ResumeFile {
   user_id: string;
   resume_id: string;
   file_name: string;
-  file_path: string;
+  file_path: string | null;
   kind: ResumeFileKind;
   size: number | null;
+  content: string | null;
+  source: 'upload' | 'ai';
   created_at: string;
 }
 
