@@ -47,12 +47,17 @@ export default function AppLayout({ children }: { children: ReactNode }) {
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
-        backgroundImage: avatar ? `url('${avatar}')` : undefined,
-        backgroundSize: 'cover',
-        backgroundPosition: 'center',
-        background: avatar ? undefined : 'linear-gradient(135deg,#ece4d6,#dcd2c0)',
+        background: avatar ? '#fffdf8' : 'linear-gradient(135deg,#ece4d6,#dcd2c0)',
+        overflow: 'hidden',
       }}
     >
+      {avatar && (
+        <img
+          src={avatar}
+          alt="用户头像"
+          style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
+        />
+      )}
       {!avatar && <IconUser size={Math.round(sizePx * 0.48)} color="#a89e8a" />}
     </div>
   );
@@ -138,7 +143,7 @@ export default function AppLayout({ children }: { children: ReactNode }) {
                 <IconCamera size={13} color="#1b1a17" />
               </span>
             </label>
-            <div style={{ fontSize: 12, color: '#9a9488', marginTop: 6 }}>Welcome Back,</div>
+            <div style={{ fontSize: 12, color: '#9a9488', marginTop: 6 }}>欢迎回来，</div>
             <input
               className="nameedit"
               value={name}

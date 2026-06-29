@@ -95,14 +95,14 @@ export default function Login() {
             </div>
           </div>
           <h1 style={{ fontFamily: 'Poppins', fontSize: 30, fontWeight: 700, textAlign: 'center', margin: '0 0 6px' }}>
-            {mode === 'login' ? 'Welcome back!' : '创建账号'}
+            {mode === 'login' ? '欢迎回来！' : '创建账号'}
           </h1>
           <p style={{ textAlign: 'center', fontSize: 13.5, color: '#9a9488', margin: '0 0 28px' }}>
             {mode === 'login' ? '请输入你的登录信息' : '注册后即可云端同步你的求职数据'}
           </p>
 
           <form onSubmit={submit}>
-            <label style={lbl}>Email</label>
+            <label style={lbl}>邮箱</label>
             <input
               type="email"
               value={email}
@@ -112,7 +112,7 @@ export default function Login() {
               style={underlineInput}
             />
 
-            <label style={lbl}>Password</label>
+            <label style={lbl}>密码</label>
             <div style={{ display: 'flex', alignItems: 'center', borderBottom: '1.5px solid #e0d8c9', marginBottom: 20 }}>
               <input
                 type={showPw ? 'text' : 'password'}
@@ -136,7 +136,7 @@ export default function Login() {
             {info && <div style={msgBox('#dcebd5', '#2f5d36')}>{info}</div>}
 
             <button type="submit" disabled={busy} className="btn-press" style={{ ...primaryBtn, opacity: busy ? 0.7 : 1 }}>
-              {busy ? '处理中…' : mode === 'login' ? 'Log In' : 'Sign Up'}
+              {busy ? '处理中…' : mode === 'login' ? '登录' : '注册'}
             </button>
           </form>
 
