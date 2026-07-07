@@ -6,6 +6,7 @@ import {
   IconCompanies,
   IconResumes,
   IconInterviews,
+  IconTrophy,
 } from './icons';
 
 // ============================================================
@@ -15,6 +16,7 @@ export const NAV_ITEMS: {
   key: ScreenKey;
   label: string;
   Icon: typeof IconDashboard;
+  href?: string;
 }[] = [
   { key: 'dashboard', label: '总览', Icon: IconDashboard },
   { key: 'overview', label: '投递总览', Icon: IconOverview },
@@ -22,6 +24,7 @@ export const NAV_ITEMS: {
   { key: 'companies', label: '公司库', Icon: IconCompanies },
   { key: 'resumes', label: '简历库', Icon: IconResumes },
   { key: 'interviews', label: '面试日历', Icon: IconInterviews },
+  { key: 'companies', label: '热门公司', Icon: IconTrophy, href: '/hot-companies.html' },
 ];
 
 export function greetFor(screen: ScreenKey, name: string): { title: string; sub: string } {

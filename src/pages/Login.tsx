@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { isSupabaseConfigured } from '../lib/supabase';
 import EmojiRings from '../components/EmojiRings';
-import { SugarMark, IconEye } from '../components/icons';
+import { SugarMark, IconEye, IconExternalLink } from '../components/icons';
 
 // ============================================================
 // 登录 / 注册页
@@ -153,6 +153,11 @@ export default function Login() {
             {mode === 'login' ? '没有账号？去注册' : '已有账号？去登录'}
           </button>
 
+          <a href="/hot-companies.html" className="btn-press" style={publicLinkBtn}>
+            热门公司 · 快捷投递
+            <IconExternalLink size={14} />
+          </a>
+
           {!isSupabaseConfigured && (
             <p style={{ textAlign: 'center', fontSize: 12, color: '#a23d24', marginTop: 14 }}>
               ⚠️ 未检测到 Supabase 配置，登录功能不可用。请参考 README 配置 .env。
@@ -204,6 +209,23 @@ const secondaryBtn: React.CSSProperties = {
   fontSize: 15,
   fontWeight: 600,
   cursor: 'pointer',
+};
+const publicLinkBtn: React.CSSProperties = {
+  width: '100%',
+  height: 48,
+  border: '1.5px solid #1b1a17',
+  borderRadius: 999,
+  background: '#1b1a17',
+  color: '#f4f1ea',
+  fontSize: 15,
+  fontWeight: 600,
+  cursor: 'pointer',
+  marginTop: 12,
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  gap: 8,
+  textDecoration: 'none',
 };
 function msgBox(bg: string, fg: string): React.CSSProperties {
   return {
