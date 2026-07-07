@@ -1,0 +1,502 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet data-dc-atomics>
+<meta name="design_doc_mode" content="canvas">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@500;600;700&amp;family=DM+Sans:wght@400;500;600;700&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0;background:#f0eee9;font-family:'DM Sans',system-ui,'PingFang SC','Microsoft YaHei',sans-serif;-webkit-font-smoothing:antialiased}
+a{color:#4a463e}a:hover{color:#1b1a17}
+.dv-turn{padding:40px 44px 32px;border-bottom:1px solid rgba(0,0,0,.08);scroll-margin-top:16px}
+.dv-thd{display:flex;align-items:baseline;gap:10px;margin:0 0 8px}
+.dv-tid{font:600 10px ui-monospace,Menlo,monospace;padding:3px 7px;background:#1a1a1a;color:#fff;border-radius:4px;text-decoration:none}
+.dv-tname{font:600 13px/1.2 system-ui,sans-serif;color:#1a1a1a}
+.dv-note{font:400 11.5px/1.6 system-ui,sans-serif;color:rgba(0,0,0,.5);margin:0 0 22px;max-width:760px}
+.dv-opts{display:flex;flex-wrap:wrap;gap:28px;align-items:flex-start}
+.dv-opt{flex:none;display:flex;flex-direction:column;gap:9px;scroll-margin-top:16px}
+.dv-oid{font:600 10.5px ui-monospace,Menlo,monospace;padding:3px 7px;background:rgba(0,0,0,.08);color:#1a1a1a;border-radius:5px;text-decoration:none}
+.dv-olabel{display:flex;align-items:baseline;gap:8px;font:400 11px/1.3 system-ui,sans-serif;color:rgba(0,0,0,.55)}
+.dv-card{max-width:100%;background:#fff;border:1px solid rgba(0,0,0,.08);border-radius:8px;box-shadow:0 1px 3px rgba(0,0,0,.06);overflow:hidden}
+.dv-opt:target .dv-oid{background:#2a78d6;color:#fff}
+.dv-next{margin:22px 0 0;font:12px/1.5 system-ui,sans-serif;color:rgba(0,0,0,.5)}
+.scrolly{scrollbar-width:thin;scrollbar-color:#cfc6b4 transparent}
+.scrolly::-webkit-scrollbar{width:12px}
+.scrolly::-webkit-scrollbar-track{background:transparent;margin:8px 0}
+.scrolly::-webkit-scrollbar-thumb{background:#d2c9b7;border-radius:999px;border:3px solid #f3efe7;min-height:48px}
+.scrolly::-webkit-scrollbar-thumb:hover{background:#bcb09a}
+@keyframes drift1{0%{transform:translate(0,0) scale(1)}50%{transform:translate(60px,40px) scale(1.2)}100%{transform:translate(0,0) scale(1)}}
+@keyframes drift2{0%{transform:translate(0,0) scale(1.1)}50%{transform:translate(-70px,-30px) scale(1.28)}100%{transform:translate(0,0) scale(1.1)}}
+@keyframes drift3{0%{transform:translate(0,0) scale(1)}50%{transform:translate(40px,-50px) scale(1.18)}100%{transform:translate(0,0) scale(1)}}
+</style>
+</helmet>
+
+<section class="dv-turn" id="t1" data-screen-label="热门公司设计稿">
+<div class="dv-thd"><a class="dv-tid" href="#t1">1</a><span class="dv-tname">「热门公司 · 快捷投递」— 桌面 / 移动 / 卡片组件细节</span></div>
+<p class="dv-note">依据现有代码复用：侧边栏 248px + 磨砂壳（rgba(250,246,240,.66) + blur）、卡片 #fffdf8 / 边框 #e0d8c9 / 圆角 16px、深色强调 #1b1a17、米白主题弥散流光背景。头像为公司首字（暖橙 / 雾蓝 / 灰绿 / 藕粉 / 沙黄五色轮换），不使用真实 Logo。导航新增第 7 项「热门公司」。已合并投递表（小顾师姐工作.xlsx）中的全部公司并去重：共 131 家，扩展为 8 个行业分组。</p>
+<div class="dv-opts">
+
+<!-- ============ 1a 桌面端 1440 ============ -->
+<div class="dv-opt" id="1a">
+<div class="dv-olabel"><a class="dv-oid" href="#1a">1a</a>桌面端 · 1440px · 筛选「全部」分组视图</div>
+<div class="dv-card" style="width:1440px">
+<div style="position:relative;width:1440px;overflow:hidden;background:radial-gradient(130% 130% at 70% 20%, #f5efe5 0%, #ece2d3 38%, #e3d6c4 100%)">
+  <div style="position:absolute;width:760px;height:760px;left:-120px;top:180px;border-radius:50%;background:radial-gradient(circle, rgba(217,181,143,.9) 0%, rgba(217,181,143,0) 65%);filter:blur(90px);animation:drift1 18s ease-in-out infinite"></div>
+  <div style="position:absolute;width:700px;height:700px;left:680px;top:-160px;border-radius:50%;background:radial-gradient(circle, rgba(224,196,160,.9) 0%, rgba(224,196,160,0) 65%);filter:blur(90px);animation:drift2 23s ease-in-out infinite"></div>
+  <div style="position:absolute;width:560px;height:560px;left:860px;top:900px;border-radius:50%;background:radial-gradient(circle, rgba(199,159,120,.85) 0%, rgba(199,159,120,0) 65%);filter:blur(95px);animation:drift3 20s ease-in-out infinite"></div>
+  <div style="position:absolute;inset:0;background:radial-gradient(120% 90% at 50% 0%, rgba(255,255,255,.32), rgba(255,255,255,0) 45%);pointer-events:none"></div>
+
+  <div style="position:relative;margin:26px;border-radius:34px;background:rgba(250,246,240,.66);backdrop-filter:blur(34px) saturate(1.15);-webkit-backdrop-filter:blur(34px) saturate(1.15);box-shadow:0 30px 80px rgba(120,90,55,.16);display:flex;overflow:hidden;height:900px;max-height:900px">
+
+    <!-- 侧边栏 -->
+    <aside style="width:248px;flex:none;display:flex;flex-direction:column;padding:24px 18px;border-right:1px solid rgba(120,105,80,.1);height:100%;overflow:hidden">
+      <div style="display:flex;align-items:center;gap:11px;padding:6px 8px;margin-bottom:26px">
+        <div style="width:42px;height:42px;border-radius:13px;background:#1b1a17;display:flex;align-items:center;justify-content:center;box-shadow:0 3px 10px rgba(60,50,35,.12);flex:none">
+          <svg width="26" height="26" viewBox="0 0 100 100" fill="none" stroke="#fff" stroke-width="8.5" stroke-linecap="round" stroke-linejoin="round"><path d="M34 30 H66 M50 30 V63"></path><path d="M32 45 V57 Q32 75 41 75 Q50 75 50 63 Q50 75 59 75 Q68 75 68 57 V45"></path></svg>
+        </div>
+        <div>
+          <div style="font-family:Poppins;font-weight:600;font-size:18px;line-height:1.1;color:#1b1a17">Sugar</div>
+          <div style="font-size:11.5px;color:#9a9488;margin-top:2px">行动优先 · 求职系统</div>
+        </div>
+      </div>
+      <div style="display:flex;flex-direction:column;align-items:center;gap:6px;padding:4px 8px 18px;margin-bottom:12px;border-bottom:1px solid rgba(120,105,80,.12)">
+        <div style="position:relative;width:84px;height:84px">
+          <div style="width:84px;height:84px;border-radius:50%;border:3px solid #fffdf8;box-shadow:0 6px 16px rgba(60,50,35,.14);display:flex;align-items:center;justify-content:center;background:linear-gradient(135deg,#ece4d6,#dcd2c0)">
+            <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#a89e8a" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="4"></circle><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"></path></svg>
+          </div>
+          <span style="position:absolute;right:-2px;bottom:-2px;width:28px;height:28px;border-radius:50%;background:#f4c84a;border:3px solid #f3efe7;display:flex;align-items:center;justify-content:center">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#1b1a17" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"></path><circle cx="12" cy="13" r="3.5"></circle></svg>
+          </span>
+        </div>
+        <div style="font-size:12px;color:#9a9488;margin-top:6px">欢迎回来，</div>
+        <div style="font-family:Poppins;font-size:18px;font-weight:600;color:#1b1a17">Sugar</div>
+      </div>
+      <nav style="display:flex;flex-direction:column;gap:6px;flex:1">
+        <div style="display:flex;align-items:center;gap:12px;height:46px;padding:0 14px;border-radius:14px;font-size:14.5px;font-weight:600;color:#6b665c;cursor:pointer" style-hover="background:rgba(27,26,23,.06)"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="9" rx="1.5"></rect><rect x="14" y="3" width="7" height="5" rx="1.5"></rect><rect x="14" y="12" width="7" height="9" rx="1.5"></rect><rect x="3" y="16" width="7" height="5" rx="1.5"></rect></svg>总览</div>
+        <div style="display:flex;align-items:center;gap:12px;height:46px;padding:0 14px;border-radius:14px;font-size:14.5px;font-weight:600;color:#6b665c;cursor:pointer" style-hover="background:rgba(27,26,23,.06)"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"></path><path d="M7 14l3-4 3 2 4-6"></path></svg>投递总览</div>
+        <div style="display:flex;align-items:center;gap:12px;height:46px;padding:0 14px;border-radius:14px;font-size:14.5px;font-weight:600;color:#6b665c;cursor:pointer" style-hover="background:rgba(27,26,23,.06)"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="2"></rect><path d="M3 9h18M8 14h8"></path></svg>投递记录</div>
+        <div style="display:flex;align-items:center;gap:12px;height:46px;padding:0 14px;border-radius:14px;font-size:14.5px;font-weight:600;color:#6b665c;cursor:pointer" style-hover="background:rgba(27,26,23,.06)"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="3" width="16" height="18" rx="2"></rect><path d="M9 8h.01M15 8h.01M9 12h.01M15 12h.01M9 16h6"></path></svg>公司库</div>
+        <div style="display:flex;align-items:center;gap:12px;height:46px;padding:0 14px;border-radius:14px;font-size:14.5px;font-weight:600;color:#6b665c;cursor:pointer" style-hover="background:rgba(27,26,23,.06)"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><path d="M14 2v6h6M9 13h6M9 17h4"></path></svg>简历库</div>
+        <div style="display:flex;align-items:center;gap:12px;height:46px;padding:0 14px;border-radius:14px;font-size:14.5px;font-weight:600;color:#6b665c;cursor:pointer" style-hover="background:rgba(27,26,23,.06)"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"></rect><path d="M16 2v4M8 2v4M3 10h18"></path></svg>面试日历</div>
+        <div style="display:flex;align-items:center;gap:12px;height:46px;padding:0 14px;border-radius:14px;font-size:14.5px;font-weight:600;background:#1b1a17;color:#f4f1ea;cursor:pointer"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.38-.5-2-1-3-1.072-2.143-.224-4.054 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 1 1-14 0c0-1.153.433-2.294 1-3a2.5 2.5 0 0 0 2.5 2.5z"></path></svg>热门公司</div>
+      </nav>
+      <div style="display:flex;align-items:center;gap:10px;height:44px;padding:0 14px;border:1px solid #e0d8c9;background:#fffdf8;border-radius:13px;font-size:14px;font-weight:600;color:#4a463e;cursor:pointer;margin-top:12px"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="7.5" cy="15.5" r="3.5"></circle><path d="M14 9l-3.2 3.2M10.5 12.5l2 2M15.5 7.5l2 2M21 3l-3 3"></path></svg>API 设置</div>
+      <div style="display:flex;align-items:center;gap:10px;height:44px;padding:0 14px;border:1px solid #e0d8c9;background:#fffdf8;border-radius:13px;font-size:14px;font-weight:600;color:#4a463e;cursor:pointer;margin-top:12px"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path><path d="m16 17 5-5-5-5"></path><path d="M21 12H9"></path></svg>退出登录</div>
+    </aside>
+
+    <!-- 主区 -->
+    <main style="flex:1;min-width:0;min-height:0;display:flex;flex-direction:column">
+      <!-- 顶栏 -->
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:16px;padding:26px 34px 18px">
+        <div style="flex:1;min-width:180px">
+          <h1 style="font-family:Poppins;font-weight:600;font-size:30px;margin:0;letter-spacing:-.01em;color:#1b1a17">热门公司</h1>
+          <p style="font-size:14px;color:#8a8478;margin:5px 0 0">精选大陆知名企业，一键直达校招官网</p>
+        </div>
+        <div style="display:flex;align-items:center;gap:12px;flex:none">
+          <div style="display:flex;align-items:center;gap:7px;height:38px;padding:0 12px;background:#fffdf8;border-radius:12px;box-shadow:0 4px 14px rgba(60,50,35,.05)">
+            <span style="width:16px;height:16px;border-radius:50%;background:#f0a8bd"></span>
+            <span style="width:16px;height:16px;border-radius:50%;background:#a9cdee"></span>
+            <span style="width:16px;height:16px;border-radius:50%;background:#b6d8a8"></span>
+            <span style="width:16px;height:16px;border-radius:50%;background:#c6c6cf"></span>
+            <span style="width:16px;height:16px;border-radius:50%;background:#ece0cd;box-shadow:0 0 0 2px #1b1a17"></span>
+          </div>
+          <div style="display:flex;align-items:center;gap:9px;height:46px;background:#fffdf8;border-radius:14px;padding:0 16px;box-shadow:0 4px 14px rgba(60,50,35,.05)">
+            <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#a39d90" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"></circle><path d="m21 21-4.3-4.3"></path></svg>
+            <span style="font-size:14px;color:#a39d90;width:180px">搜索公司、岗位…</span>
+          </div>
+          <div style="display:flex;align-items:center;gap:8px;height:46px;padding:0 18px;border-radius:14px;background:#1b1a17;color:#f4f1ea;font-size:14.5px;font-weight:600;cursor:pointer"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12h14"></path></svg>新增</div>
+        </div>
+      </div>
+
+      <!-- 内容区 -->
+      <div class="scrolly" style="flex:1;min-height:0;padding:8px 34px 34px;display:flex;flex-direction:column;gap:22px;overflow-y:auto;overflow-x:hidden;overscroll-behavior:contain">
+        <!-- 行业筛选条 -->
+        <div style="display:flex;align-items:center;justify-content:space-between;gap:14px;flex-wrap:wrap">
+          <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+            <div style="height:38px;display:flex;align-items:center;padding:0 18px;border-radius:999px;background:#1b1a17;color:#f4f1ea;font-size:13.5px;font-weight:600;cursor:pointer">全部</div>
+            <div style="height:38px;display:flex;align-items:center;padding:0 16px;border-radius:999px;background:#fffdf8;border:1px solid #e0d8c9;color:#6b665c;font-size:13px;font-weight:600;cursor:pointer" style-hover="border-color:#c9beab;color:#4a463e">半导体·显示</div>
+            <div style="height:38px;display:flex;align-items:center;padding:0 16px;border-radius:999px;background:#fffdf8;border:1px solid #e0d8c9;color:#6b665c;font-size:13px;font-weight:600;cursor:pointer" style-hover="border-color:#c9beab;color:#4a463e">新能源车</div>
+            <div style="height:38px;display:flex;align-items:center;padding:0 16px;border-radius:999px;background:#fffdf8;border:1px solid #e0d8c9;color:#6b665c;font-size:13px;font-weight:600;cursor:pointer" style-hover="border-color:#c9beab;color:#4a463e">汽车电子</div>
+            <div style="height:38px;display:flex;align-items:center;padding:0 16px;border-radius:999px;background:#fffdf8;border:1px solid #e0d8c9;color:#6b665c;font-size:13px;font-weight:600;cursor:pointer" style-hover="border-color:#c9beab;color:#4a463e">电池·能源</div>
+            <div style="height:38px;display:flex;align-items:center;padding:0 16px;border-radius:999px;background:#fffdf8;border:1px solid #e0d8c9;color:#6b665c;font-size:13px;font-weight:600;cursor:pointer" style-hover="border-color:#c9beab;color:#4a463e">高端制造</div>
+            <div style="height:38px;display:flex;align-items:center;padding:0 16px;border-radius:999px;background:#fffdf8;border:1px solid #e0d8c9;color:#6b665c;font-size:13px;font-weight:600;cursor:pointer" style-hover="border-color:#c9beab;color:#4a463e">家电·3C</div>
+            <div style="height:38px;display:flex;align-items:center;padding:0 16px;border-radius:999px;background:#fffdf8;border:1px solid #e0d8c9;color:#6b665c;font-size:13px;font-weight:600;cursor:pointer" style-hover="border-color:#c9beab;color:#4a463e">互联网</div>
+            <div style="height:38px;display:flex;align-items:center;padding:0 16px;border-radius:999px;background:#fffdf8;border:1px solid #e0d8c9;color:#6b665c;font-size:13px;font-weight:600;cursor:pointer" style-hover="border-color:#c9beab;color:#4a463e">快消·医疗</div>
+          </div>
+          <div style="display:flex;align-items:center;gap:8px;height:38px;background:#fffdf8;border:1px solid #e0d8c9;border-radius:12px;padding:0 14px;flex:none">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#a39d90" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"></circle><path d="m21 21-4.3-4.3"></path></svg>
+            <span style="font-size:13px;color:#a39d90;width:150px">搜索公司名…</span>
+          </div>
+        </div>
+
+        <!-- 行业分组 -->
+        <sc-for list="{{ groups }}" as="g" hint-placeholder-count="5">
+          <div style="display:flex;flex-direction:column;gap:12px">
+            <div style="display:flex;align-items:center;gap:9px;margin-top:6px">
+              <span style="width:8px;height:8px;border-radius:50%;background:{{ g.dot }};flex:none"></span>
+              <span style="font-size:13.5px;font-weight:700;color:#4a463e">{{ g.name }}</span>
+              <span style="font-size:12px;color:#9a9488">{{ g.count }} 家</span>
+            </div>
+            <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:14px">
+              <sc-for list="{{ g.companies }}" as="c" hint-placeholder-count="4">
+                <div style="background:rgba(255,253,248,.85);backdrop-filter:blur(8px);border:1px solid #e0d8c9;border-radius:16px;padding:16px;display:flex;flex-direction:column;gap:14px;box-shadow:0 3px 10px rgba(60,50,35,.08);transition:transform .2s ease, box-shadow .2s ease" style-hover="transform:translateY(-3px);box-shadow:0 14px 32px rgba(60,50,35,.14)">
+                  <div style="display:flex;align-items:center;gap:12px">
+                    <div style="width:44px;height:44px;border-radius:12px;background:{{ c.bg }};color:{{ c.fg }};display:flex;align-items:center;justify-content:center;font-family:Poppins;font-size:18px;font-weight:700;flex:none">{{ c.initial }}</div>
+                    <div style="min-width:0">
+                      <div style="font-size:15px;font-weight:700;color:#4a463e;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ c.name }}</div>
+                      <div style="font-size:12px;color:#9a9488;margin-top:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ c.sub }}</div>
+                    </div>
+                  </div>
+                  <div style="display:flex;align-items:center;gap:8px">
+                    <a href="{{ c.url }}" target="_blank" rel="noopener noreferrer" style="flex:1;height:38px;display:flex;align-items:center;justify-content:center;gap:6px;border-radius:13px;background:#1b1a17;color:#f4f1ea;font-size:13px;font-weight:600;cursor:pointer;transition:transform .12s ease;text-decoration:none" style-hover="transform:translateY(-1px)">校招官网<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path><path d="M15 3h6v6M10 14 21 3"></path></svg></a>
+                    <div style="height:38px;display:flex;align-items:center;justify-content:center;padding:0 13px;border-radius:13px;border:1px solid #e0d8c9;background:#fffdf8;color:#6b665c;font-size:12.5px;font-weight:600;cursor:pointer;white-space:nowrap" style-hover="border-color:#c9beab;color:#4a463e">+ 公司库</div>
+                  </div>
+                </div>
+              </sc-for>
+            </div>
+          </div>
+        </sc-for>
+      </div>
+    </main>
+  </div>
+</div>
+</div>
+</div>
+
+<!-- ============ 1b 移动端 375 ============ -->
+<div class="dv-opt" id="1b">
+<div class="dv-olabel"><a class="dv-oid" href="#1b">1b</a>移动端 · 375px · 双列紧凑卡片 + 底部导航</div>
+<div class="dv-card" style="width:375px">
+<div style="position:relative;width:375px;overflow:hidden;background:radial-gradient(130% 130% at 70% 20%, #f5efe5 0%, #ece2d3 38%, #e3d6c4 100%)">
+  <div style="position:absolute;width:420px;height:420px;left:-140px;top:120px;border-radius:50%;background:radial-gradient(circle, rgba(217,181,143,.9) 0%, rgba(217,181,143,0) 65%);filter:blur(80px);animation:drift1 18s ease-in-out infinite"></div>
+  <div style="position:absolute;width:380px;height:380px;left:140px;top:-100px;border-radius:50%;background:radial-gradient(circle, rgba(224,196,160,.9) 0%, rgba(224,196,160,0) 65%);filter:blur(80px);animation:drift2 23s ease-in-out infinite"></div>
+  <div style="position:absolute;width:340px;height:340px;left:100px;top:1500px;border-radius:50%;background:radial-gradient(circle, rgba(199,159,120,.85) 0%, rgba(199,159,120,0) 65%);filter:blur(85px);animation:drift3 20s ease-in-out infinite"></div>
+
+  <div style="position:relative;margin:12px;border-radius:22px;background:rgba(250,246,240,.66);backdrop-filter:blur(34px) saturate(1.15);-webkit-backdrop-filter:blur(34px) saturate(1.15);box-shadow:0 30px 80px rgba(120,90,55,.16);overflow:hidden;display:flex;flex-direction:column;height:812px;max-height:812px">
+
+    <!-- 移动端顶部条 -->
+    <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;padding:14px 16px 6px">
+      <div style="display:flex;align-items:center;gap:10px">
+        <div style="width:38px;height:38px;border-radius:13px;background:#1b1a17;display:flex;align-items:center;justify-content:center;box-shadow:0 3px 10px rgba(60,50,35,.12);flex:none">
+          <svg width="22" height="22" viewBox="0 0 100 100" fill="none" stroke="#fff" stroke-width="8.5" stroke-linecap="round" stroke-linejoin="round"><path d="M34 30 H66 M50 30 V63"></path><path d="M32 45 V57 Q32 75 41 75 Q50 75 50 63 Q50 75 59 75 Q68 75 68 57 V45"></path></svg>
+        </div>
+        <div style="font-family:Poppins;font-weight:600;font-size:17px;color:#1b1a17">Sugar</div>
+      </div>
+      <div style="display:flex;align-items:center;gap:8px">
+        <div style="display:flex;align-items:center;gap:5px;height:34px;padding:0 9px;background:#fffdf8;border-radius:11px;box-shadow:0 4px 14px rgba(60,50,35,.05)">
+          <span style="width:13px;height:13px;border-radius:50%;background:#f0a8bd"></span>
+          <span style="width:13px;height:13px;border-radius:50%;background:#a9cdee"></span>
+          <span style="width:13px;height:13px;border-radius:50%;background:#ece0cd;box-shadow:0 0 0 2px #1b1a17"></span>
+        </div>
+        <div style="width:40px;height:40px;border-radius:12px;border:1px solid #e0d8c9;background:#fffdf8;color:#4a463e;display:flex;align-items:center;justify-content:center;flex:none">
+          <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path><path d="m16 17 5-5-5-5"></path><path d="M21 12H9"></path></svg>
+        </div>
+      </div>
+    </div>
+
+    <!-- 标题 + 搜索 -->
+    <div style="padding:10px 16px 0">
+      <h1 style="font-family:Poppins;font-weight:600;font-size:22px;margin:0;letter-spacing:-.01em;color:#1b1a17">热门公司</h1>
+      <p style="font-size:13px;color:#8a8478;margin:4px 0 0">精选大陆知名企业，一键直达校招官网</p>
+      <div style="display:flex;align-items:center;gap:9px;height:44px;background:#fffdf8;border-radius:14px;padding:0 14px;box-shadow:0 4px 14px rgba(60,50,35,.05);margin-top:12px">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#a39d90" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"></circle><path d="m21 21-4.3-4.3"></path></svg>
+        <span style="font-size:14px;color:#a39d90">搜索公司名…</span>
+      </div>
+    </div>
+
+    <!-- 横向滚动胶囊组 -->
+    <div style="display:flex;align-items:center;gap:8px;padding:14px 16px 4px;overflow:hidden">
+      <div style="height:36px;display:flex;align-items:center;padding:0 16px;border-radius:999px;background:#1b1a17;color:#f4f1ea;font-size:13px;font-weight:600;flex:none">全部</div>
+      <div style="height:36px;display:flex;align-items:center;padding:0 16px;border-radius:999px;background:#fffdf8;border:1px solid #e0d8c9;color:#6b665c;font-size:13px;font-weight:600;flex:none">半导体·芯片</div>
+      <div style="height:36px;display:flex;align-items:center;padding:0 16px;border-radius:999px;background:#fffdf8;border:1px solid #e0d8c9;color:#6b665c;font-size:13px;font-weight:600;flex:none">新能源车</div>
+      <div style="height:36px;display:flex;align-items:center;padding:0 16px;border-radius:999px;background:#fffdf8;border:1px solid #e0d8c9;color:#6b665c;font-size:13px;font-weight:600;flex:none">电池·能源</div>
+    </div>
+
+    <!-- 分组卡片（双列） -->
+    <div class="scrolly" style="flex:1;min-height:0;padding:10px 16px 100px;display:flex;flex-direction:column;gap:16px;overflow-y:auto;overflow-x:hidden;overscroll-behavior:contain">
+      <sc-for list="{{ groups }}" as="g" hint-placeholder-count="5">
+        <div style="display:flex;flex-direction:column;gap:10px">
+          <div style="display:flex;align-items:center;gap:8px;margin-top:4px">
+            <span style="width:7px;height:7px;border-radius:50%;background:{{ g.dot }};flex:none"></span>
+            <span style="font-size:13px;font-weight:700;color:#4a463e">{{ g.name }}</span>
+            <span style="font-size:11px;color:#9a9488">{{ g.count }} 家</span>
+          </div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+            <sc-for list="{{ g.companies }}" as="c" hint-placeholder-count="4">
+              <div style="background:rgba(255,253,248,.88);border:1px solid #e0d8c9;border-radius:15px;padding:12px;display:flex;flex-direction:column;gap:10px;box-shadow:0 3px 10px rgba(60,50,35,.07)">
+                <div style="display:flex;align-items:center;gap:9px">
+                  <div style="width:36px;height:36px;border-radius:10px;background:{{ c.bg }};color:{{ c.fg }};display:flex;align-items:center;justify-content:center;font-family:Poppins;font-size:15px;font-weight:700;flex:none">{{ c.initial }}</div>
+                  <div style="min-width:0">
+                    <div style="font-size:13.5px;font-weight:700;color:#4a463e;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ c.name }}</div>
+                    <div style="font-size:11px;color:#9a9488;margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ c.sub }}</div>
+                  </div>
+                </div>
+                <a href="{{ c.url }}" target="_blank" rel="noopener noreferrer" style="height:40px;display:flex;align-items:center;justify-content:center;gap:5px;border-radius:13px;background:#1b1a17;color:#f4f1ea;font-size:12.5px;font-weight:600;cursor:pointer;text-decoration:none">校招官网<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path><path d="M15 3h6v6M10 14 21 3"></path></svg></a>
+                <div style="height:40px;display:flex;align-items:center;justify-content:center;border-radius:13px;border:1px solid #e0d8c9;background:#fffdf8;color:#6b665c;font-size:12px;font-weight:600;cursor:pointer">+ 加入公司库</div>
+              </div>
+            </sc-for>
+          </div>
+        </div>
+      </sc-for>
+    </div>
+
+    <!-- 底部标签导航 -->
+    <div style="position:absolute;left:10px;right:10px;bottom:10px;height:64px;background:rgba(255,253,250,.92);backdrop-filter:blur(18px);-webkit-backdrop-filter:blur(18px);border-radius:20px;box-shadow:0 12px 30px rgba(60,50,35,.18);display:flex;align-items:center;justify-content:space-around;padding:0 6px">
+      <div style="display:flex;flex-direction:column;align-items:center;gap:3px;color:#9a9488;flex:1;padding:6px 0"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="9" rx="1.5"></rect><rect x="14" y="3" width="7" height="5" rx="1.5"></rect><rect x="14" y="12" width="7" height="9" rx="1.5"></rect><rect x="3" y="16" width="7" height="5" rx="1.5"></rect></svg><span style="font-size:9px;font-weight:600">总览</span></div>
+      <div style="display:flex;flex-direction:column;align-items:center;gap:3px;color:#9a9488;flex:1;padding:6px 0"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"></path><path d="M7 14l3-4 3 2 4-6"></path></svg><span style="font-size:9px;font-weight:600">投递总览</span></div>
+      <div style="display:flex;flex-direction:column;align-items:center;gap:3px;color:#9a9488;flex:1;padding:6px 0"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="2"></rect><path d="M3 9h18M8 14h8"></path></svg><span style="font-size:9px;font-weight:600">投递记录</span></div>
+      <div style="display:flex;flex-direction:column;align-items:center;gap:3px;color:#9a9488;flex:1;padding:6px 0"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="3" width="16" height="18" rx="2"></rect><path d="M9 8h.01M15 8h.01M9 12h.01M15 12h.01M9 16h6"></path></svg><span style="font-size:9px;font-weight:600">公司库</span></div>
+      <div style="display:flex;flex-direction:column;align-items:center;gap:3px;color:#9a9488;flex:1;padding:6px 0"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><path d="M14 2v6h6M9 13h6M9 17h4"></path></svg><span style="font-size:9px;font-weight:600">简历库</span></div>
+      <div style="display:flex;flex-direction:column;align-items:center;gap:3px;color:#9a9488;flex:1;padding:6px 0"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"></rect><path d="M16 2v4M8 2v4M3 10h18"></path></svg><span style="font-size:9px;font-weight:600">面试日历</span></div>
+      <div style="display:flex;flex-direction:column;align-items:center;gap:3px;color:#a9803f;flex:1;padding:6px 0"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.38-.5-2-1-3-1.072-2.143-.224-4.054 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 1 1-14 0c0-1.153.433-2.294 1-3a2.5 2.5 0 0 0 2.5 2.5z"></path></svg><span style="font-size:9px;font-weight:600">热门公司</span></div>
+    </div>
+  </div>
+</div>
+</div>
+</div>
+
+<!-- ============ 1c 卡片组件细节 ============ -->
+<div class="dv-opt" id="1c">
+<div class="dv-olabel"><a class="dv-oid" href="#1c">1c</a>公司卡片组件 · 默认态 / hover 态（1.5×）</div>
+<div class="dv-card" style="width:760px">
+<div style="background:radial-gradient(130% 130% at 70% 20%, #f5efe5 0%, #ece2d3 60%, #e8dccb 100%);padding:44px 40px;display:flex;gap:56px;align-items:flex-start;justify-content:center">
+
+  <div style="display:flex;flex-direction:column;gap:14px;align-items:center">
+    <div style="width:456px;transform-origin:top center;background:rgba(255,253,248,.85);border:1px solid #e0d8c9;border-radius:24px;padding:24px;display:flex;flex-direction:column;gap:21px;box-shadow:0 5px 15px rgba(60,50,35,.08)">
+      <div style="display:flex;align-items:center;gap:18px">
+        <div style="width:66px;height:66px;border-radius:18px;background:#f3e2d3;color:#9c6a45;display:flex;align-items:center;justify-content:center;font-family:Poppins;font-size:27px;font-weight:700;flex:none">宁</div>
+        <div>
+          <div style="font-size:22.5px;font-weight:700;color:#4a463e">宁德时代</div>
+          <div style="font-size:18px;color:#9a9488;margin-top:4px">动力电池 · 宁德</div>
+        </div>
+      </div>
+      <div style="display:flex;align-items:center;gap:12px">
+        <div style="flex:1;height:57px;display:flex;align-items:center;justify-content:center;gap:9px;border-radius:20px;background:#1b1a17;color:#f4f1ea;font-size:19.5px;font-weight:600">校招官网<svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path><path d="M15 3h6v6M10 14 21 3"></path></svg></div>
+        <div style="height:57px;display:flex;align-items:center;justify-content:center;padding:0 20px;border-radius:20px;border:1.5px solid #e0d8c9;background:#fffdf8;color:#6b665c;font-size:18.5px;font-weight:600;white-space:nowrap">+ 公司库</div>
+      </div>
+    </div>
+    <div style="font:600 11px ui-monospace,Menlo,monospace;color:#8a8478;background:rgba(255,253,248,.7);border:1px solid #e0d8c9;border-radius:8px;padding:5px 10px">默认态 · translateY(0) · shadow 0 3px 10px rgba(60,50,35,.08)</div>
+  </div>
+
+  <div style="display:flex;flex-direction:column;gap:14px;align-items:center">
+    <div style="width:456px;transform:translateY(-4px);background:rgba(255,253,248,.95);border:1px solid #d6ccb8;border-radius:24px;padding:24px;display:flex;flex-direction:column;gap:21px;box-shadow:0 21px 48px rgba(60,50,35,.16)">
+      <div style="display:flex;align-items:center;gap:18px">
+        <div style="width:66px;height:66px;border-radius:18px;background:#f3e2d3;color:#9c6a45;display:flex;align-items:center;justify-content:center;font-family:Poppins;font-size:27px;font-weight:700;flex:none">宁</div>
+        <div>
+          <div style="font-size:22.5px;font-weight:700;color:#4a463e">宁德时代</div>
+          <div style="font-size:18px;color:#9a9488;margin-top:4px">动力电池 · 宁德</div>
+        </div>
+      </div>
+      <div style="display:flex;align-items:center;gap:12px">
+        <div style="flex:1;height:57px;display:flex;align-items:center;justify-content:center;gap:9px;border-radius:20px;background:#000;color:#f4f1ea;font-size:19.5px;font-weight:600;transform:translateY(-1.5px);box-shadow:0 8px 18px rgba(27,26,23,.28)">校招官网<svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path><path d="M15 3h6v6M10 14 21 3"></path></svg></div>
+        <div style="height:57px;display:flex;align-items:center;justify-content:center;padding:0 20px;border-radius:20px;border:1.5px solid #c9beab;background:#fffdf8;color:#4a463e;font-size:18.5px;font-weight:600;white-space:nowrap">+ 公司库</div>
+      </div>
+    </div>
+    <div style="font:600 11px ui-monospace,Menlo,monospace;color:#8a8478;background:rgba(255,253,248,.7);border:1px solid #e0d8c9;border-radius:8px;padding:5px 10px">hover 态 · translateY(-3px) · shadow 0 14px 32px rgba(60,50,35,.14)</div>
+  </div>
+
+</div>
+<div style="padding:18px 40px 22px;border-top:1px solid rgba(0,0,0,.06);background:#fffdf8;display:flex;flex-wrap:wrap;gap:8px 22px;font:500 11px ui-monospace,Menlo,monospace;color:#8a8478">
+  <span>卡片 #fffdf8/.85 + blur · 边框 1px #e0d8c9 · 圆角 16px</span>
+  <span>头像 44px · 圆角 12px · 首字 Poppins 700</span>
+  <span>主按钮 #1b1a17 / #f4f1ea · 圆角 13px · 高 38px</span>
+  <span>头像五色轮换：暖橙 雾蓝 灰绿 藕粉 沙黄</span>
+</div>
+</div>
+</div>
+
+</div>
+<p class="dv-next">可以继续："把 <a class="dv-oid" href="#1a">1a</a> 的卡片按钮改成图标悬浮出现" · "给 <a class="dv-oid" href="#1b">1b</a> 换成单列列表式卡片" · "换一版更紧凑的信息密度"</p>
+</section>
+
+</x-dc>
+<script type="text/x-dc" data-dc-script>
+class Component extends DCLogic {
+  renderVals() {
+    // 头像五色轮换（低饱和）：暖橙 / 雾蓝 / 灰绿 / 藕粉 / 沙黄
+    const P = [
+      ['#f3e2d3', '#9c6a45'],
+      ['#dde6ee', '#5b7590'],
+      ['#e0e8db', '#64785c'],
+      ['#f0e0e2', '#a1707a'],
+      ['#f0e7d2', '#93794a'],
+    ];
+    // FALLBACK_LINK_NOTES:
+    // - 鹏新旭：未找到独立校招站，暂用集团官网首页
+    // - 新凯来：未找到独立校招站，暂用集团官网首页
+    // - 中科美菱：未找到独立校招站，暂用集团官网招聘频道
+    // - 小天才：未找到独立校招站，暂用官网招聘/加入入口
+    // - 和而泰：未找到独立校招站，暂用集团官网招聘频道
+    // - 海德斯：按 H3C/新华三官方招聘入口处理，需后续人工确认公司名称是否指代 H3C
+    // - 若个别 zhiye/feishu/mokahr 链接由企业官方招聘系统承载，仍按官方招聘入口使用
+    // 以上链接均指向企业官方招聘站、官方招聘频道或企业官方承载的招聘系统。
+    const G = [
+      { name: '半导体 · 芯片 · 显示', dot: '#8ba3bd', list: [
+        ['中芯国际', '晶圆代工', '上海', 'https://careers.smics.com'],
+        ['长江存储', '存储芯片', '武汉', 'https://ymtc.zhiye.com'],
+        ['长鑫存储', '存储芯片', '合肥', 'https://cxmt.zhiye.com'],
+        ['北方华创', '半导体设备', '北京', 'https://naura.zhiye.com'],
+        ['韦尔股份', '图像传感器', '上海', 'https://www.willsemi.com/cn/recruitment'],
+        ['紫光展锐', '手机芯片', '上海', 'https://unisoc.zhiye.com'],
+        ['寒武纪', 'AI 芯片', '北京', 'https://app.mokahr.com/campus-recruitment/cambricon'],
+        ['台积电', '晶圆代工', '南京', 'https://www.tsmc.com/chinese/careers'],
+        ['华虹 · 华力', '晶圆代工', '上海', 'https://www.huahonggrace.com/cn/careers'],
+        ['华润微电子', '功率半导体', '无锡', 'https://www.crmicro.com/join'],
+        ['晶合集成', '晶圆代工', '合肥', 'https://nexchip.zhiye.com'],
+        ['芯碁微装', '直写光刻设备', '合肥', 'https://cfmee.zhiye.com'],
+        ['鹏芯微', '晶圆代工', '深圳', 'https://www.pxwsemi.com/join'],
+        ['鹏新旭', '半导体制造', '深圳', 'https://www.pengxinxu.com'],
+        ['新凯来', '半导体设备', '深圳', 'https://www.sicarrier.com'],
+        ['深南电路', 'PCB · 封装基板', '深圳', 'https://scc.zhiye.com'],
+        ['江丰电子', '溅射靶材', '宁波', 'https://www.kfmic.com/join'],
+        ['睿创微纳', '红外传感', '烟台', 'https://raytron.zhiye.com'],
+        ['京东方', '显示面板', '北京', 'https://campus.boe.com'],
+        ['维信诺', 'OLED 面板', '昆山', 'https://visionox.zhiye.com'],
+        ['翰博高新', '显示材料', '合肥', 'https://www.hibr.com.cn/join'],
+      ]},
+      { name: '新能源车 · 整车', dot: '#93a98c', list: [
+        ['比亚迪', '新能源整车', '深圳', 'https://job.byd.com'],
+        ['蔚来', '智能电动车', '上海', 'https://nio.jobs.feishu.cn/campus'],
+        ['理想汽车', '智能电动车', '北京', 'https://www.lixiang.com/careers'],
+        ['小鹏汽车', '智能电动车', '广州', 'https://app.mokahr.com/campus-recruitment/xiaopeng'],
+        ['小米汽车', '智能电动车', '北京', 'https://hr.xiaomi.com/campus'],
+        ['极氪', '智能电动车', '杭州', 'https://zeekr.zhiye.com'],
+        ['零跑', '智能电动车', '杭州', 'https://leapmotor.zhiye.com'],
+        ['赛力斯', '新能源整车', '重庆', 'https://seres.zhiye.com'],
+        ['特斯拉', '智能电动车', '上海', 'https://www.tesla.cn/careers'],
+        ['奇瑞', '整车', '芜湖', 'https://chery.zhiye.com'],
+        ['吉利', '整车', '杭州', 'https://geely.zhiye.com'],
+        ['长安汽车', '整车', '重庆', 'https://changan.zhiye.com'],
+        ['上汽集团', '整车', '上海', 'https://saicmotor.zhiye.com'],
+        ['中国一汽', '整车', '长春', 'https://faw.zhiye.com'],
+        ['江淮汽车', '整车', '合肥', 'https://jac.zhiye.com'],
+        ['宇通', '客车', '郑州', 'https://yutong.zhiye.com'],
+        ['开沃', '新能源客车', '南京', 'https://www.skywellcorp.com/join'],
+      ]},
+      { name: '汽车电子 · 零部件', dot: '#a08cb5', list: [
+        ['博世', '汽车零部件', '上海', 'https://www.bosch.com.cn/careers/'],
+        ['联合电子', '汽车电子', '上海', 'https://www.uaes.com/career'],
+        ['经纬恒润', '汽车电子', '北京', 'https://hirain.zhiye.com'],
+        ['禾赛', '激光雷达', '上海', 'https://hesai.jobs.feishu.cn'],
+        ['福耀科技', '汽车玻璃', '福州', 'https://fuyao.zhiye.com'],
+        ['万向', '汽车零部件', '杭州', 'https://www.wanxiang.com.cn/join'],
+        ['巨一科技', '电驱 · 智能装备', '合肥', 'https://jee.zhiye.com'],
+        ['联创电子', '光学电子', '南昌', 'https://www.lcetron.com/join'],
+      ]},
+      { name: '电池 · 能源', dot: '#c9906b', list: [
+        ['宁德时代', '动力电池', '宁德', 'https://talent.catl.com'],
+        ['中创新航', '动力电池', '常州', 'https://calb.zhiye.com'],
+        ['亿纬锂能', '锂电池', '惠州', 'https://evebattery.zhiye.com'],
+        ['欣旺达', '锂电池', '深圳', 'https://sunwoda.zhiye.com'],
+        ['国轩高科', '动力电池', '合肥', 'https://gotion.zhiye.com'],
+        ['隆基绿能', '光伏', '西安', 'https://longi.zhiye.com'],
+        ['阳光电源', '光伏逆变器', '合肥', 'https://sungrow.zhiye.com'],
+        ['远景', '风电 · 储能', '上海', 'https://envision.jobs.feishu.cn'],
+        ['三一重能', '风电装备', '北京', 'https://sanyre.zhiye.com'],
+        ['禾迈', '微型逆变器', '杭州', 'https://www.hoymiles.com/cn/careers/'],
+        ['正浩 EcoFlow', '便携储能', '深圳', 'https://www.ecoflow.com/cn/careers'],
+        ['威迈斯', '车载电源', '深圳', 'https://www.vmaxpower.com.cn/join'],
+        ['科华数据', '电源 · 数据中心', '厦门', 'https://kehua.zhiye.com'],
+        ['特变电工', '输变电装备', '昌吉', 'https://tbea.zhiye.com'],
+        ['中国能建', '能源工程', '北京', 'https://zhaopin.ceec.net.cn'],
+      ]},
+      { name: '高端制造 · 装备', dot: '#c39aa0', list: [
+        ['汇川技术', '工业自动化', '深圳', 'https://inovance.zhiye.com'],
+        ['大疆', '无人机', '深圳', 'https://we.dji.com/zh-CN/campus'],
+        ['三一重工', '工程机械', '长沙', 'https://sany.zhiye.com'],
+        ['立讯精密', '精密制造', '东莞', 'https://luxshare.zhiye.com'],
+        ['徐工', '工程机械', '徐州', 'https://xcmg.zhiye.com'],
+        ['卡特彼勒', '工程机械', '徐州', 'https://www.caterpillar.com/zh/careers.html'],
+        ['山推', '工程机械', '济宁', 'https://www.shantui.com/careers/'],
+        ['合力叉车', '工业车辆', '合肥', 'https://www.helichina.com/join'],
+        ['海天塑机', '注塑机', '宁波', 'https://www.haitianpm.com/cn/careers/'],
+        ['豪迈', '精密机械', '高密', 'https://www.himile.com/join'],
+        ['南高齿', '风电齿轮', '南京', 'https://www.ngctransmission.com/cn/career'],
+        ['中国中车', '轨道交通', '北京', 'https://www.crrcgc.cc/g5121.aspx'],
+        ['宏工科技', '物料自动化', '东莞', 'https://www.honggong.com/join'],
+        ['东华工程', '化工工程', '合肥', 'https://www.chinaecec.com/careers'],
+        ['西门子', '工业科技', '北京', 'https://www.siemens.com/cn/zh/company/jobs.html'],
+        ['施耐德', '能效管理', '北京', 'https://www.se.com/cn/zh/about-us/careers/overview.jsp'],
+        ['科大智能电气', '电气自动化', '合肥', 'https://www.csg.com.cn/join'],
+        ['英威腾', '变频器 · 电源', '深圳', 'https://invt.zhiye.com'],
+        ['宝钢', '钢铁材料', '上海', 'https://www.baosteel.com/join'],
+        ['邦德', '激光装备', '济南', 'https://www.bodor.com/cn/career'],
+      ]},
+      { name: '家电 · 消费电子', dot: '#7ea6a0', list: [
+        ['美的集团', '智能家电', '佛山', 'https://careers.midea.com'],
+        ['海尔', '智能家电', '青岛', 'https://maker.haier.net/client/campus'],
+        ['格力', '家电 · 装备', '珠海', 'https://gree.zhiye.com'],
+        ['海信', '家电 · 显示', '青岛', 'https://hisense.zhiye.com'],
+        ['TCL', '家电 · 显示', '惠州', 'https://campus.tcl.com'],
+        ['长虹', '家电', '绵阳', 'https://changhong.zhiye.com'],
+        ['奥克斯', '空调', '宁波', 'https://auxgroup.zhiye.com'],
+        ['中科美菱', '低温设备', '合肥', 'https://www.zkmeiling.com/join'],
+        ['方太', '厨电', '宁波', 'https://fotile.zhiye.com'],
+        ['公牛', '电工电器', '宁波', 'https://bull.zhiye.com'],
+        ['科沃斯', '服务机器人', '苏州', 'https://ecovacs.zhiye.com'],
+        ['九号公司', '智能短交通', '北京', 'https://ninebot.zhiye.com'],
+        ['安克创新', '消费电子', '长沙', 'https://anker-in.zhiye.com'],
+        ['小天才', '智能硬件', '东莞', 'https://www.okii.com/join'],
+        ['OPPO', '智能手机', '东莞', 'https://careers.oppo.com/campus'],
+        ['联想', 'PC · 智能设备', '北京', 'https://talent.lenovo.com.cn'],
+        ['联宝', '电子制造', '合肥', 'https://lcfc.zhiye.com'],
+        ['歌尔', '声学 · 光学', '潍坊', 'https://goertek.zhiye.com'],
+        ['瑞声科技', '声学器件', '深圳', 'https://aac.zhiye.com'],
+        ['和而泰', '智能控制器', '深圳', 'https://www.szhittech.com/join'],
+        ['爱玛', '电动两轮车', '天津', 'https://aimatech.zhiye.com'],
+        ['雅迪', '电动两轮车', '无锡', 'https://yadea.zhiye.com'],
+        ['得力', '办公用品', '宁波', 'https://deli.zhiye.com'],
+      ]},
+      { name: '互联网 · 科技', dot: '#bfa871', list: [
+        ['华为', 'ICT · 终端', '深圳', 'https://career.huawei.com/reccampportal'],
+        ['腾讯', '互联网', '深圳', 'https://join.qq.com'],
+        ['字节跳动', '互联网', '北京', 'https://jobs.bytedance.com/campus'],
+        ['美团', '本地生活', '北京', 'https://campus.meituan.com'],
+        ['阿里巴巴', '电商 · 云计算', '杭州', 'https://campus.alibaba.com'],
+        ['京东', '电商 · 物流', '北京', 'https://campus.jd.com'],
+        ['顺丰', '快递物流', '深圳', 'https://hr.sf-express.com'],
+        ['途虎养车', '汽车服务', '上海', 'https://tuhu.zhiye.com'],
+        ['得物', '潮流电商', '上海', 'https://dewu.jobs.feishu.cn'],
+        ['SHEIN', '跨境电商', '广州', 'https://talent.sheincorp.cn'],
+        ['科大讯飞', 'AI · 语音', '合肥', 'https://iflytek.zhiye.com'],
+        ['中兴', '通信设备', '深圳', 'https://job.zte.com.cn'],
+        ['海康威视', '智能物联', '杭州', 'https://campus.hikvision.com'],
+        ['锐捷网络', '网络设备', '福州', 'https://ruijie.zhiye.com'],
+        ['TP-LINK', '网络设备', '深圳', 'https://hr.tp-link.com.cn'],
+        ['海德斯', '通信设备', '', 'https://www.h3c.com/cn/About_H3C/Careers/'],
+      ]},
+      { name: '快消 · 医疗', dot: '#c78f7e', list: [
+        ['宝洁', '日化快消', '广州', 'https://www.pgcareers.com.cn'],
+        ['亿滋', '食品', '上海', 'https://www.mondelezinternational.com/careers/'],
+        ['伊利', '乳业', '呼和浩特', 'https://yili.zhiye.com'],
+        ['蒙牛', '乳业', '呼和浩特', 'https://mengniu.zhiye.com'],
+        ['农夫山泉', '饮料', '杭州', 'https://www.nongfuspring.com/careers'],
+        ['蜜雪冰城', '茶饮', '郑州', 'https://www.mxbc.com/join'],
+        ['迪卡侬', '体育零售', '上海', 'https://careers.decathlon.com.cn'],
+        ['安踏', '运动服饰', '晋江', 'https://anta.zhiye.com'],
+        ['三棵树', '涂料', '莆田', 'https://skshu.zhiye.com'],
+        ['迈瑞医疗', '医疗器械', '深圳', 'https://mindray.zhiye.com'],
+        ['英科医疗', '医疗耗材', '淄博', 'https://intco.zhiye.com'],
+      ]},
+    ];
+    const groups = G.map((g, gi) => ({
+      name: g.name,
+      dot: g.dot,
+      count: g.list.length,
+      companies: g.list.map((c, i) => {
+        const [bg, fg] = P[(gi + i) % P.length];
+        return { name: c[0], sub: c[2] ? c[1] + ' · ' + c[2] : c[1], url: c[3], initial: c[0][0], bg, fg };
+      }),
+    }));
+    return { groups };
+  }
+}
+</script>
+</body>
+</html>
