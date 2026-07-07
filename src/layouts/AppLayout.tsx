@@ -168,15 +168,12 @@ export default function AppLayout({ children }: { children: ReactNode }) {
 
           {/* 导航 */}
           <nav style={{ display: 'flex', flexDirection: 'column', gap: 6, flex: 1 }}>
-            {NAV_ITEMS.map(({ key, label, Icon, href }) => {
-              const active = !href && screen === key;
+            {NAV_ITEMS.map(({ key, label, Icon }) => {
+              const active = screen === key;
               return (
                 <button
-                  key={`${key}-${href ?? 'app'}`}
-                  onClick={() => {
-                    if (href) window.location.href = href;
-                    else setScreen(key);
-                  }}
+                  key={key}
+                  onClick={() => setScreen(key)}
                   className={`nav-item ${active ? 'nav-item--active' : ''}`}
                   style={{
                     background: active ? '#1b1a17' : 'transparent',
@@ -322,15 +319,12 @@ export default function AppLayout({ children }: { children: ReactNode }) {
           zIndex: 50,
         }}
       >
-        {NAV_ITEMS.map(({ key, label, Icon, href }) => {
-          const active = !href && screen === key;
+        {NAV_ITEMS.map(({ key, label, Icon }) => {
+          const active = screen === key;
           return (
             <button
-              key={`${key}-${href ?? 'app'}`}
-              onClick={() => {
-                if (href) window.location.href = href;
-                else setScreen(key);
-              }}
+              key={key}
+              onClick={() => setScreen(key)}
               style={{
                 display: 'flex',
                 flexDirection: 'column',

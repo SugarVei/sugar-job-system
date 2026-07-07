@@ -84,5 +84,6 @@ export type ScreenKey =
   | 'overview'
   | 'applications'
   | 'companies'
+  | 'hotCompanies'
   | 'resumes'
   | 'interviews';
