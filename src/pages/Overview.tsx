@@ -14,11 +14,17 @@ import { PROVIDERS } from '../lib/providers';
 
 // 各状态在环形图中的颜色
 const STATUS_COLOR: Record<ApplicationStatus, string> = {
+  待投递: '#cfc6b4',
   已投递: '#cfc6b4',
+  简历筛选: '#e4d7a8',
   笔试: '#f4c84a',
-  面试: '#7cc4a0',
+  一面: '#7cc4a0',
+  二面: '#6bb7b1',
+  HR面: '#7aa7d8',
   Offer: '#5fa86b',
-  拒绝: '#f0613f',
+  已拒绝: '#f0613f',
+  已放弃: '#c56c5a',
+  人才库: '#a89b82',
   待跟进: '#a89cf0',
 };
 
@@ -32,6 +38,12 @@ function countBy<T>(arr: T[], key: (x: T) => string | null | undefined) {
   return Array.from(m.entries()).sort((a, b) => b[1] - a[1]);
 }
 
+function timeValue(value: string | null) {
+  if (!value) return Number.POSITIVE_INFINITY;
+  const t = new Date(value).getTime();
+  return Number.isNaN(t) ? Number.POSITIVE_INFINITY : t;
+}
+
 export default function Overview() {
   const { items, loading } = useCollection<Application>('applications');
   const { setScreen, setQuery } = useAppShell();
@@ -39,10 +51,13 @@ export default function Overview() {
 
   const stats = useMemo(() => {
     const total = items.length;
-    const interviewing = items.filter((a) => ['面试', 'Offer'].includes(a.status)).length;
+    const interviewing = items.filter((a) => ['一面', '二面', 'HR面', 'Offer'].includes(a.status)).length;
     const offers = items.filter((a) => a.status === 'Offer').length;
     const followUps = items.filter((a) => a.status === '待跟进').length;
-    return { total, interviewing, offers, followUps };
+    const highPriority = items.filter((a) => a.priority === 'high' || a.priority === 'urgent').length;
+    const nearDeadline = items.filter((a) => timeValue(a.deadline_at) <= Date.now() + 3 * 86400000).length;
+    const withJd = items.filter((a) => Boolean(a.jd_text?.trim())).length;
+    return { total, interviewing, offers, followUps, highPriority, nearDeadline, withJd };
   }, [items]);
 
   const statusCounts = useMemo(
@@ -88,12 +103,13 @@ export default function Overview() {
     const topCh = Object.entries(chMap).sort((a,b)=>b[1]-a[1]).slice(0,5).map(([k,v])=>`${k}(${v})`).join('、');
     const recent = items.slice(0, 5).map(a => `${a.company_name}·${a.position_name}(${a.status})`).join('；');
     return `你是一名专业的求职顾问，请根据以下用户的真实投递数据给出分析和建议，回答要具体、实用，语气亲切。
-投递统计：总计 ${items.length} 条，已投递 ${byStatus['已投递']}，笔试 ${byStatus['笔试']}，面试 ${byStatus['面试']}，Offer ${byStatus['Offer']}，拒绝 ${byStatus['拒绝']}，待跟进 ${byStatus['待跟进']}。
+投递统计：总计 ${items.length} 条，待投递 ${byStatus['待投递']}，已投递 ${byStatus['已投递']}，简历筛选 ${byStatus['简历筛选']}，笔试 ${byStatus['笔试']}，一面 ${byStatus['一面']}，二面 ${byStatus['二面']}，HR面 ${byStatus['HR面']}，Offer ${byStatus['Offer']}，已拒绝 ${byStatus['已拒绝']}，已放弃 ${byStatus['已放弃']}，人才库 ${byStatus['人才库']}，待跟进 ${byStatus['待跟进']}。
 Offer 转化率：${items.length > 0 ? Math.round((byStatus['Offer']/items.length)*100) : 0}%。
+高优先级投递 ${stats.highPriority} 条，临近截止 ${stats.nearDeadline} 条，有 JD 记录 ${stats.withJd} 条。
 主要投递城市：${topCities || '未记录'}。投递渠道：${topCh || '未记录'}。
 最近投递：${recent || '暂无'}。
 请根据这些数据帮助用户分析求职状况，并给出有针对性的建议。`;
-  }, [items]);
+  }, [items, stats.highPriority, stats.nearDeadline, stats.withJd]);
 
   if (loading) return <EmptyState text="加载中…" />;
   if (items.length === 0)
@@ -187,6 +203,12 @@ Offer 转化率：${items.length > 0 ? Math.round((byStatus['Offer']/items.lengt
             </div>
           )}
         </div>
+      </div>
+
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        <StatCard label="高优先级投递" value={stats.highPriority} sub="high / urgent" bg="#fbeec2" fg="#7a5a12" />
+        <StatCard label="临近截止" value={stats.nearDeadline} sub="3 天内或已过期" bg="#fbe0d8" fg="#a23d24" />
+        <StatCard label="有 JD 记录" value={stats.withJd} sub={`覆盖率 ${pct(stats.withJd, stats.total)}`} bg="#e4e0f7" fg="#4a3f96" />
       </div>
 
       {/* 岗位分布 */}

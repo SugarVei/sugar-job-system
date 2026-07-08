@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import type { Application, ApplicationStatus, NewRecord, Resume } from '../types';
+import type { Application, ApplicationPriority, ApplicationStatus, NewRecord, Resume } from '../types';
 import { useCollection } from '../hooks/useCollection';
 import { useAppShell } from '../contexts/AppShellContext';
 import { useTheme } from '../contexts/ThemeContext';
@@ -16,12 +16,61 @@ const empty: NewRecord<Application> = {
   city: '',
   channel: '',
   apply_date: '',
-  status: '已投递',
+  status: '待投递',
   salary_range: '',
   job_url: '',
   notes: '',
   resume_id: null,
+  jd_text: '',
+  jd_keywords: [],
+  match_score: null,
+  match_summary: '',
+  next_action: '',
+  next_action_at: '',
+  deadline_at: '',
+  priority: 'normal',
 };
+
+const PRIORITY_OPTIONS: Array<{ value: ApplicationPriority; label: string }> = [
+  { value: 'low', label: '低' },
+  { value: 'normal', label: '普通' },
+  { value: 'high', label: '高' },
+  { value: 'urgent', label: '紧急' },
+];
+
+function priorityTag(priority: ApplicationPriority | null | undefined): { label: string; bg: string; fg: string } {
+  switch (priority) {
+    case 'urgent':
+      return { label: '紧急', bg: '#fbe0d8', fg: '#a23d24' };
+    case 'high':
+      return { label: '高优先级', bg: '#fbeec2', fg: '#7a5a12' };
+    case 'low':
+      return { label: '低优先级', bg: '#eef0e8', fg: '#6b665c' };
+    default:
+      return { label: '普通', bg: '#e4e0f7', fg: '#4a3f96' };
+  }
+}
+
+function formatDateTime(value: string | null) {
+  if (!value) return '';
+  const d = new Date(value);
+  if (Number.isNaN(d.getTime())) return value;
+  return d.toLocaleString('zh-CN', { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit', hour12: false });
+}
+
+function toDateTimeLocal(value: string | null) {
+  if (!value) return '';
+  const d = new Date(value);
+  if (Number.isNaN(d.getTime())) return '';
+  const p = (n: number) => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}T${p(d.getHours())}:${p(d.getMinutes())}`;
+}
+
+function parseKeywords(value: string) {
+  return value.split(/[,，]/).map((item) => item.trim()).filter(Boolean);
+}
+
+type ViewMode = 'list' | 'kanban';
 
 function errorText(error: unknown) {
   if (error instanceof Error) return error.message;
@@ -39,6 +88,7 @@ export default function Applications() {
   const { query, registerAdd } = useAppShell();
   const { theme } = useTheme();
   const [statusFilter, setStatusFilter] = useState<'all' | ApplicationStatus>('all');
+  const [viewMode, setViewMode] = useState<ViewMode>('list');
   const [modalOpen, setModalOpen] = useState(false);
   const [editing, setEditing] = useState<Application | null>(null);
   const [form, setForm] = useState<NewRecord<Application>>(empty);
@@ -74,6 +124,14 @@ export default function Applications() {
       job_url: application.job_url ?? '',
       notes: application.notes ?? '',
       resume_id: application.resume_id ?? null,
+      jd_text: application.jd_text ?? '',
+      jd_keywords: application.jd_keywords ?? [],
+      match_score: application.match_score ?? null,
+      match_summary: application.match_summary ?? '',
+      next_action: application.next_action ?? '',
+      next_action_at: toDateTimeLocal(application.next_action_at),
+      deadline_at: toDateTimeLocal(application.deadline_at),
+      priority: application.priority ?? 'normal',
     });
     setFormError('');
     setModalOpen(true);
@@ -93,6 +151,9 @@ export default function Applications() {
       const payload = {
         ...form,
         apply_date: form.apply_date || null,
+        match_score: form.match_score === null ? null : Number(form.match_score),
+        next_action_at: form.next_action_at ? new Date(form.next_action_at).toISOString() : null,
+        deadline_at: form.deadline_at ? new Date(form.deadline_at).toISOString() : null,
         resume_id: form.resume_id || null,
       };
 
@@ -103,6 +164,14 @@ export default function Applications() {
       setFormError('保存失败：' + errorText(error));
     } finally {
       setSaving(false);
+    }
+  };
+
+  const quickUpdateStatus = async (application: Application, status: ApplicationStatus) => {
+    try {
+      await update(application.id, { status });
+    } catch (error) {
+      alert('状态更新失败：' + errorText(error));
     }
   };
 
@@ -129,7 +198,7 @@ export default function Applications() {
         <FormError message={applicationsError || resumesError || ''} />
       )}
 
-      <div className="grid grid-cols-1 sm:grid-cols-[1fr_auto_auto] gap-3 p-4" style={{ ...CARD, borderRadius: 20 }}>
+      <div className="grid grid-cols-1 lg:grid-cols-[1fr_auto_auto_auto] gap-3 p-4" style={{ ...CARD, borderRadius: 20 }}>
         <Select value={statusFilter} onChange={(event) => setStatusFilter(event.target.value as 'all' | ApplicationStatus)}>
           <option value="all">全部状态</option>
           {STATUS_OPTIONS.map((status) => (
@@ -140,6 +209,28 @@ export default function Applications() {
         </Select>
         <div className="hidden sm:block" style={{ fontSize: 13, color: '#9a9488', alignSelf: 'center' }}>
           共 {filtered.length} 条
+        </div>
+        <div style={{ display: 'flex', background: '#f5f0e7', border: '1px solid #e4ddcf', borderRadius: 12, padding: 3, height: 44 }}>
+          {(['list', 'kanban'] as const).map((mode) => (
+            <button
+              key={mode}
+              type="button"
+              onClick={() => setViewMode(mode)}
+              style={{
+                border: 'none',
+                borderRadius: 9,
+                padding: '0 13px',
+                background: viewMode === mode ? '#fffdf8' : 'transparent',
+                color: viewMode === mode ? '#1b1a17' : '#8a8478',
+                fontSize: 13,
+                fontWeight: 700,
+                cursor: 'pointer',
+                boxShadow: viewMode === mode ? '0 2px 7px rgba(60,50,35,.08)' : 'none',
+              }}
+            >
+              {mode === 'list' ? '列表视图' : '看板视图'}
+            </button>
+          ))}
         </div>
         <div style={{ display: 'flex', gap: 8 }}>
           <button
@@ -185,9 +276,16 @@ export default function Applications() {
           onAction={items.length === 0 ? openCreate : undefined}
         />
       ) : (
-        filtered.map((application) => {
+        viewMode === 'kanban' ? (
+          <KanbanBoard
+            applications={filtered}
+            onEdit={openEdit}
+            onStatusChange={quickUpdateStatus}
+          />
+        ) : filtered.map((application) => {
           const tag = statusTag(application.status);
           const steps = buildSteps(application.status);
+          const priority = priorityTag(application.priority);
           return (
             <div key={application.id} className="card-hover" style={{ ...CARD, padding: '22px 24px' }}>
               <div className="flex items-start justify-between gap-4 flex-wrap">
@@ -197,12 +295,15 @@ export default function Applications() {
                       {application.company_name} · {application.position_name}
                     </h3>
                     <span style={pill(tag.bg, tag.fg)}>{application.status}</span>
+                    <span style={pill(priority.bg, priority.fg)}>{priority.label}</span>
                   </div>
                   <div className="flex flex-wrap mt-[9px]" style={{ gap: '6px 18px', fontSize: 13, color: '#8a8478' }}>
                     {application.city && <span>{application.city}</span>}
                     {application.channel && <span>{application.channel}</span>}
                     {application.salary_range && <span>{application.salary_range}</span>}
                     {application.apply_date && <span>投递：{application.apply_date}</span>}
+                    {application.next_action && <span>下一步：{application.next_action}</span>}
+                    {application.deadline_at && <span>截止：{formatDateTime(application.deadline_at)}</span>}
                     {application.job_url && (
                       <a
                         href={application.job_url}
@@ -268,6 +369,25 @@ export default function Applications() {
                   }}
                 >
                   备注：{application.notes}
+                </div>
+              )}
+              {(application.jd_text || application.match_score !== null || application.match_summary) && (
+                <div
+                  style={{
+                    background: '#faf7f0',
+                    border: '1px solid #f0ebe0',
+                    borderRadius: 14,
+                    padding: '12px 16px',
+                    fontSize: 13,
+                    color: '#5d584d',
+                    marginTop: 12,
+                  }}
+                >
+                  {application.match_score !== null && <div style={{ fontWeight: 700 }}>匹配度：{application.match_score}/100</div>}
+                  {application.jd_keywords && application.jd_keywords.length > 0 && (
+                    <div style={{ marginTop: 4 }}>关键词：{application.jd_keywords.join('、')}</div>
+                  )}
+                  {application.match_summary && <div style={{ marginTop: 4 }}>匹配分析：{application.match_summary}</div>}
                 </div>
               )}
             </div>
@@ -360,10 +480,189 @@ export default function Applications() {
             ))}
           </Select>
         </Field>
+        <div
+          style={{
+            background: '#fbf6ec',
+            border: '1px solid #f0e6cf',
+            borderRadius: 16,
+            padding: '14px 16px 2px',
+            marginBottom: 16,
+          }}
+        >
+          <div style={{ fontSize: 12, fontWeight: 700, color: '#a23d24', marginBottom: 10, letterSpacing: '.02em' }}>
+            JD 与匹配分析
+          </div>
+          <Field label="JD 原文">
+            <TextArea
+              value={form.jd_text ?? ''}
+              onChange={(event) => setForm({ ...form, jd_text: event.target.value })}
+              placeholder="粘贴岗位 JD 原文，方便后续复盘和 AI 分析"
+            />
+          </Field>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-3">
+            <Field label="岗位关键词">
+              <TextInput
+                value={(form.jd_keywords ?? []).join('，')}
+                onChange={(event) => setForm({ ...form, jd_keywords: parseKeywords(event.target.value) })}
+                placeholder="如：供应链，数据分析，Python"
+              />
+            </Field>
+            <Field label="匹配度评分">
+              <TextInput
+                type="number"
+                min={0}
+                max={100}
+                value={form.match_score ?? ''}
+                onChange={(event) => {
+                  const raw = event.target.value;
+                  const next = raw === '' ? null : Math.max(0, Math.min(100, Number(raw)));
+                  setForm({ ...form, match_score: next });
+                }}
+                placeholder="0-100"
+              />
+            </Field>
+          </div>
+          <Field label="匹配分析摘要">
+            <TextArea
+              value={form.match_summary ?? ''}
+              onChange={(event) => setForm({ ...form, match_summary: event.target.value })}
+              placeholder="记录人工或 AI 分析结果"
+            />
+          </Field>
+          <button type="button" disabled style={{ ...iconBtnText, opacity: 0.55, cursor: 'not-allowed', marginBottom: 14 }}>
+            AI 分析 JD（待接入）
+          </button>
+        </div>
+        <div
+          style={{
+            background: '#f7fbf4',
+            border: '1px solid #ddebd6',
+            borderRadius: 16,
+            padding: '14px 16px 2px',
+            marginBottom: 16,
+          }}
+        >
+          <div style={{ fontSize: 12, fontWeight: 700, color: '#2f5d36', marginBottom: 10, letterSpacing: '.02em' }}>
+            下一步与提醒
+          </div>
+          <Field label="下一步动作">
+            <TextInput
+              value={form.next_action ?? ''}
+              onChange={(event) => setForm({ ...form, next_action: event.target.value })}
+              placeholder="如：补投简历 / 3 天后跟进 HR / 准备笔试"
+            />
+          </Field>
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-x-3">
+            <Field label="下一步时间">
+              <TextInput type="datetime-local" value={form.next_action_at ?? ''} onChange={(event) => setForm({ ...form, next_action_at: event.target.value })} />
+            </Field>
+            <Field label="截止时间">
+              <TextInput type="datetime-local" value={form.deadline_at ?? ''} onChange={(event) => setForm({ ...form, deadline_at: event.target.value })} />
+            </Field>
+            <Field label="优先级">
+              <Select value={form.priority} onChange={(event) => setForm({ ...form, priority: event.target.value as ApplicationPriority })}>
+                {PRIORITY_OPTIONS.map((item) => (
+                  <option key={item.value} value={item.value}>{item.label}</option>
+                ))}
+              </Select>
+            </Field>
+          </div>
+        </div>
         <Field label="备注">
-          <TextArea value={form.notes ?? ''} onChange={(event) => setForm({ ...form, notes: event.target.value })} placeholder="下一步、HR 信息、截止时间等" />
+          <TextArea value={form.notes ?? ''} onChange={(event) => setForm({ ...form, notes: event.target.value })} placeholder="补充 HR 信息、沟通记录、复盘备注等" />
         </Field>
       </Modal>
+    </div>
+  );
+}
+
+function KanbanBoard({
+  applications,
+  onEdit,
+  onStatusChange,
+}: {
+  applications: Application[];
+  onEdit: (application: Application) => void;
+  onStatusChange: (application: Application, status: ApplicationStatus) => void;
+}) {
+  const grouped = STATUS_OPTIONS.map((status) => ({
+    status,
+    items: applications.filter((application) => application.status === status),
+  }));
+
+  return (
+    <div style={{ overflowX: 'auto', paddingBottom: 4 }}>
+      <div style={{ display: 'grid', gridAutoFlow: 'column', gridAutoColumns: 'minmax(260px, 1fr)', gap: 14, minWidth: 980 }}>
+        {grouped.map((column) => {
+          const tag = statusTag(column.status);
+          return (
+            <div key={column.status} style={{ background: '#f5f0e7', borderRadius: 18, padding: 12, minHeight: 240 }}>
+              <div className="flex items-center justify-between" style={{ marginBottom: 10 }}>
+                <span style={pill(tag.bg, tag.fg)}>{column.status}</span>
+                <span style={{ fontSize: 12, color: '#8a8478', fontWeight: 700 }}>{column.items.length}</span>
+              </div>
+              <div className="flex flex-col gap-2">
+                {column.items.length === 0 ? (
+                  <div style={{ border: '1px dashed #d8cfbd', borderRadius: 13, padding: 14, color: '#a39d90', fontSize: 12.5, textAlign: 'center' }}>
+                    暂无记录
+                  </div>
+                ) : column.items.map((application) => {
+                  const priority = priorityTag(application.priority);
+                  return (
+                    <button
+                      key={application.id}
+                      type="button"
+                      onClick={() => onEdit(application)}
+                      className="btn-press"
+                      style={{
+                        ...CARD,
+                        border: '1px solid #f0ebe0',
+                        borderRadius: 14,
+                        padding: 14,
+                        textAlign: 'left',
+                        cursor: 'pointer',
+                      }}
+                    >
+                      <div style={{ fontSize: 14, fontWeight: 700, color: '#1b1a17', lineHeight: 1.35 }}>
+                        {application.company_name}
+                      </div>
+                      <div style={{ fontSize: 12.5, fontWeight: 600, color: '#5d584d', marginTop: 3 }}>
+                        {application.position_name}
+                      </div>
+                      <div className="flex flex-wrap" style={{ gap: '5px 8px', marginTop: 9, fontSize: 11.5, color: '#8a8478' }}>
+                        {application.city && <span>{application.city}</span>}
+                        {application.salary_range && <span>{application.salary_range}</span>}
+                        {application.channel && <span>{application.channel}</span>}
+                      </div>
+                      <div className="flex flex-wrap gap-1" style={{ marginTop: 10 }}>
+                        <span style={pill(tag.bg, tag.fg)}>{application.status}</span>
+                        <span style={pill(priority.bg, priority.fg)}>{priority.label}</span>
+                      </div>
+                      {(application.next_action || application.deadline_at) && (
+                        <div style={{ marginTop: 10, fontSize: 12, color: '#6b665c', lineHeight: 1.55 }}>
+                          {application.next_action && <div>下一步：{application.next_action}</div>}
+                          {application.deadline_at && <div>截止：{formatDateTime(application.deadline_at)}</div>}
+                        </div>
+                      )}
+                      <div onClick={(event) => event.stopPropagation()} style={{ marginTop: 10 }}>
+                        <Select
+                          value={application.status}
+                          onChange={(event) => onStatusChange(application, event.target.value as ApplicationStatus)}
+                          style={{ height: 34, fontSize: 12.5 }}
+                        >
+                          {STATUS_OPTIONS.map((status) => (
+                            <option key={status} value={status}>{status}</option>
+                          ))}
+                        </Select>
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          );
+        })}
+      </div>
     </div>
   );
 }

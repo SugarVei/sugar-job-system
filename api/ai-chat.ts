@@ -1,15 +1,55 @@
 export const config = { runtime: 'edge' };
 
-const CORS = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Methods': 'POST, OPTIONS',
-  'Access-Control-Allow-Headers': 'Content-Type',
-};
+const PROVIDER_CONFIG = {
+  deepseek: {
+    baseUrl: 'https://api.deepseek.com/v1',
+    type: 'openai-compatible',
+    defaultModel: 'deepseek-chat',
+  },
+  openai: {
+    baseUrl: 'https://api.openai.com/v1',
+    type: 'openai-compatible',
+    defaultModel: 'gpt-4o-mini',
+  },
+  kimi: {
+    baseUrl: 'https://api.moonshot.cn/v1',
+    type: 'openai-compatible',
+    defaultModel: 'moonshot-v1-8k',
+  },
+  claude: {
+    baseUrl: 'https://api.anthropic.com',
+    type: 'claude',
+    defaultModel: 'claude-haiku-4-5-20251001',
+  },
+} as const;
 
-function sseError(msg: string): Response {
+type ProviderId = keyof typeof PROVIDER_CONFIG;
+
+function getCorsHeaders(req: Request) {
+  const origin = req.headers.get('origin') ?? '';
+  const allowed = new Set<string>(['http://localhost:5173']);
+  const envOrigin = process.env.ALLOWED_ORIGIN;
+  const vercelUrl = process.env.VERCEL_URL;
+  if (envOrigin) allowed.add(envOrigin);
+  if (vercelUrl) allowed.add(`https://${vercelUrl}`);
+
+  const headers: Record<string, string> = {
+    'Access-Control-Allow-Methods': 'POST, OPTIONS',
+    'Access-Control-Allow-Headers': 'Content-Type',
+    Vary: 'Origin',
+  };
+  if (allowed.has(origin)) headers['Access-Control-Allow-Origin'] = origin;
+  return headers;
+}
+
+function isProviderId(value: string): value is ProviderId {
+  return value in PROVIDER_CONFIG;
+}
+
+function sseError(msg: string, corsHeaders: Record<string, string>): Response {
   return new Response(
     `data: ${JSON.stringify({ error: msg })}\n\ndata: [DONE]\n\n`,
-    { status: 200, headers: { ...CORS, 'Content-Type': 'text/event-stream' } },
+    { status: 200, headers: { ...corsHeaders, 'Content-Type': 'text/event-stream' } },
   );
 }
 
@@ -19,6 +59,7 @@ async function handleClaude(
   maxTokens: number,
   apiKey: string,
   model: string,
+  corsHeaders: Record<string, string>,
 ): Promise<Response> {
   const systemMsg = messages.find(m => m.role === 'system');
   const chatMessages = messages.filter(m => m.role !== 'system');
@@ -40,8 +81,8 @@ async function handleClaude(
   });
 
   if (!upstream.ok) {
-    const err = await upstream.text();
-    return sseError(`Claude API 错误：${err}`);
+    console.error('[ai-chat] claude upstream error:', await upstream.text());
+    return sseError('AI 服务请求失败，请检查 API Key 或余额。', corsHeaders);
   }
 
   // Transform Claude SSE events → OpenAI SSE format
@@ -81,7 +122,7 @@ async function handleClaude(
   })();
 
   return new Response(readable, {
-    headers: { ...CORS, 'Content-Type': 'text/event-stream', 'Cache-Control': 'no-cache' },
+    headers: { ...corsHeaders, 'Content-Type': 'text/event-stream', 'Cache-Control': 'no-cache' },
   });
 }
 
@@ -92,6 +133,7 @@ async function handleOpenAICompatible(
   apiKey: string,
   baseUrl: string,
   model: string,
+  corsHeaders: Record<string, string>,
 ): Promise<Response> {
   const upstream = await fetch(`${baseUrl}/chat/completions`, {
     method: 'POST',
@@ -100,17 +142,18 @@ async function handleOpenAICompatible(
   });
 
   if (!upstream.ok) {
-    const err = await upstream.text();
-    return sseError(`API 错误（${model}）：${err}`);
+    console.error('[ai-chat] openai-compatible upstream error:', await upstream.text());
+    return sseError('AI 服务请求失败，请检查 API Key 或余额。', corsHeaders);
   }
 
   return new Response(upstream.body, {
-    headers: { ...CORS, 'Content-Type': 'text/event-stream', 'Cache-Control': 'no-cache' },
+    headers: { ...corsHeaders, 'Content-Type': 'text/event-stream', 'Cache-Control': 'no-cache' },
   });
 }
 
 export default async function handler(req: Request): Promise<Response> {
-  if (req.method === 'OPTIONS') return new Response(null, { headers: CORS });
+  const corsHeaders = getCorsHeaders(req);
+  if (req.method === 'OPTIONS') return new Response(null, { headers: corsHeaders });
   if (req.method !== 'POST') return new Response('Method not allowed', { status: 405 });
 
   const body = await req.json() as {
@@ -122,18 +165,20 @@ export default async function handler(req: Request): Promise<Response> {
     model?: string;
   };
 
-  const { messages, maxTokens = 2048, provider, apiKey, baseUrl, model } = body;
-
-  // If the caller supplies their own key, use it; otherwise fall back to server env var (DeepSeek only)
-  const resolvedKey = apiKey || process.env.DEEPSEEK_API_KEY;
-  if (!resolvedKey) return sseError('未配置 API Key，请在 ⚙️ AI 设置 中填入你的 API Key');
-
-  const resolvedProvider = provider ?? 'deepseek';
-  const resolvedBase = baseUrl ?? 'https://api.deepseek.com/v1';
-  const resolvedModel = model ?? 'deepseek-chat';
-
-  if (resolvedProvider === 'claude') {
-    return handleClaude(messages, maxTokens, resolvedKey, resolvedModel);
+  const { messages, maxTokens = 2048, provider, apiKey, model } = body;
+  const requestedProvider = provider ?? 'deepseek';
+  if (!isProviderId(requestedProvider)) {
+    return sseError('不支持的 AI 服务商。', corsHeaders);
   }
-  return handleOpenAICompatible(messages, maxTokens, resolvedKey, resolvedBase, resolvedModel);
+
+  const providerConfig = PROVIDER_CONFIG[requestedProvider];
+  const resolvedKey = apiKey || (requestedProvider === 'deepseek' ? process.env.DEEPSEEK_API_KEY : undefined);
+  if (!resolvedKey) return sseError('当前服务商未配置 API Key。', corsHeaders);
+
+  const resolvedModel = model ?? providerConfig.defaultModel;
+
+  if (providerConfig.type === 'claude') {
+    return handleClaude(messages, maxTokens, resolvedKey, resolvedModel, corsHeaders);
+  }
+  return handleOpenAICompatible(messages, maxTokens, resolvedKey, providerConfig.baseUrl, resolvedModel, corsHeaders);
 }

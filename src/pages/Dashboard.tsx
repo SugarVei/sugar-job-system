@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import type { Application, Interview } from '../types';
+import type { Application, ApplicationPriority, Interview } from '../types';
 import { useCollection } from '../hooks/useCollection';
 import { useAppShell } from '../contexts/AppShellContext';
 import { useTheme } from '../contexts/ThemeContext';
@@ -10,7 +10,7 @@ import {
   IconTrophy,
   IconChevronRight,
 } from '../components/icons';
-import { initialOf, avatarColor, CARD } from '../lib/appHelpers';
+import { initialOf, avatarColor, CARD, statusTag } from '../lib/appHelpers';
 
 // ── 行动队列卡片色板（暖色调，匹配网页风格）──────────────────────
 const AQ_PALETTES: { bg: string; fg: string }[] = [
@@ -27,6 +27,49 @@ const AQ_PALETTES: { bg: string; fg: string }[] = [
   { bg: '#f4e0c0', fg: '#6a3808' },
   { bg: '#d8d4e8', fg: '#382e60' },
 ];
+
+function priorityLabel(priority: ApplicationPriority | null | undefined) {
+  switch (priority) {
+    case 'urgent': return '紧急';
+    case 'high': return '高';
+    case 'low': return '低';
+    default: return '普通';
+  }
+}
+
+function priorityRank(priority: ApplicationPriority | null | undefined) {
+  return priority === 'urgent' ? 4 : priority === 'high' ? 3 : priority === 'normal' ? 2 : 1;
+}
+
+function timeValue(value: string | null) {
+  if (!value) return Number.POSITIVE_INFINITY;
+  const t = new Date(value).getTime();
+  return Number.isNaN(t) ? Number.POSITIVE_INFINITY : t;
+}
+
+function formatDateTime(value: string | null) {
+  if (!value) return '';
+  const d = new Date(value);
+  if (Number.isNaN(d.getTime())) return value;
+  return d.toLocaleString('zh-CN', { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit', hour12: false });
+}
+
+function isClosedStatus(status: string) {
+  return ['Offer', '已拒绝', '已放弃', '人才库'].includes(status);
+}
+
+function urgencyScore(app: Application, now: Date) {
+  const nowTime = now.getTime();
+  const deadline = timeValue(app.deadline_at);
+  const nextAction = timeValue(app.next_action_at);
+  const overdue = deadline < nowTime || nextAction < nowTime;
+  return (
+    (overdue ? 1000 : 0) +
+    priorityRank(app.priority) * 100 +
+    (app.status === '待跟进' ? 50 : 0) -
+    Math.min(deadline, nextAction, nowTime + 365 * 86400000) / 100000000000
+  );
+}
 
 // ── 行动队列卡片 ──────────────────────────────────────────────────
 function AQCard({
@@ -67,7 +110,7 @@ function AQCard({
         <div style={{ fontSize: 11.5, fontWeight: 700, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
           {app.company_name}
         </div>
-        <div style={{ fontSize: 10, marginTop: 2, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', opacity: 0.72 }}>
+          <div style={{ fontSize: 10, marginTop: 2, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', opacity: 0.72 }}>
           {app.position_name}
         </div>
         <span style={{ display: 'inline-block', fontSize: 9, fontWeight: 700, padding: '2px 6px', borderRadius: 999, background: 'rgba(0,0,0,.1)', marginTop: 4 }}>
@@ -92,6 +135,15 @@ function AQCard({
             <span style={{ display: 'inline-block', fontSize: 9, fontWeight: 700, padding: '2px 6px', borderRadius: 999, background: 'rgba(0,0,0,.1)' }}>
               {app.status}
             </span>
+            <span style={{ display: 'inline-block', fontSize: 9, fontWeight: 700, padding: '2px 6px', borderRadius: 999, background: 'rgba(0,0,0,.1)', marginLeft: 4 }}>
+              {priorityLabel(app.priority)}
+            </span>
+            {(app.next_action || app.deadline_at) && (
+              <>
+                <br />
+                {app.next_action || '待处理'}{app.deadline_at ? ` · ${formatDateTime(app.deadline_at)}` : ''}
+              </>
+            )}
           </div>
         </div>
         <button
@@ -240,7 +292,7 @@ export default function Dashboard() {
   const stats = useMemo(() => {
     const total = apps.length;
     const offers = apps.filter((a) => a.status === 'Offer').length;
-    const inProgress = apps.filter((a) => !['Offer', '拒绝'].includes(a.status)).length;
+    const inProgress = apps.filter((a) => !isClosedStatus(a.status)).length;
     const followUps = apps.filter((a) => a.status === '待跟进').length;
 
     const weekStart = new Date(now);
@@ -269,9 +321,32 @@ export default function Dashboard() {
 
   // 进行中的投递（无数量上限），按行数动态解锁
   const activeApps = useMemo(
-    () => apps.filter((a) => ['待跟进', '笔试', '面试'].includes(a.status)),
+    () => apps
+      .filter((a) => !isClosedStatus(a.status))
+      .sort((a, b) => urgencyScore(b, now) - urgencyScore(a, now)),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     [apps],
   );
+
+  const todoApps = useMemo(() => {
+    const start = new Date(now);
+    start.setHours(0, 0, 0, 0);
+    const tomorrow = new Date(start);
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    const threeDays = new Date(now);
+    threeDays.setDate(threeDays.getDate() + 3);
+
+    return apps
+      .filter((app) => {
+        if (isClosedStatus(app.status)) return false;
+        const next = timeValue(app.next_action_at);
+        const deadline = timeValue(app.deadline_at);
+        return next < tomorrow.getTime() || deadline <= threeDays.getTime();
+      })
+      .sort((a, b) => urgencyScore(b, now) - urgencyScore(a, now))
+      .slice(0, 6);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [apps]);
 
   const monthDays = useMemo(() => buildMonth(now, interviews), [interviews]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -334,7 +409,7 @@ export default function Dashboard() {
         <Metric label="已获 Offer" value={stats.offers} bg="#fbe0d8" fg="#a23d24" icon={<IconTrophy size={22} />} />
       </div>
 
-      {/* 进度 + 近期面试 */}
+      {/* 待办 + 近期面试 */}
       <div className="grid grid-cols-1 lg:grid-cols-[1fr_1.7fr] gap-[22px]">
         <div className="flex flex-col gap-[18px]">
           <div style={{ ...CARD, padding: 22 }}>
@@ -361,6 +436,40 @@ export default function Dashboard() {
             <div style={{ height: 10, borderRadius: 999, background: 'rgba(255,255,255,.12)', overflow: 'hidden' }}>
               <div style={{ height: '100%', width: `${stats.total ? Math.round((stats.followUps / stats.total) * 100) : 0}%`, borderRadius: 999, background: 'linear-gradient(90deg,#f4c84a,#f0613f)' }} />
             </div>
+          </div>
+          <div style={{ ...CARD, padding: 22 }}>
+            <div style={{ fontFamily: 'Poppins', fontSize: 16, fontWeight: 600 }}>今日待办 / 临近截止</div>
+            <div style={{ fontSize: 12.5, color: '#8a8478', margin: '3px 0 14px' }}>下一步到期或 3 天内截止</div>
+            {todoApps.length === 0 ? (
+              <div style={{ fontSize: 13, color: '#a39d90', padding: '8px 0' }}>暂无临近事项。</div>
+            ) : (
+              <div className="flex flex-col gap-2">
+                {todoApps.map((app) => {
+                  const tag = statusTag(app.status);
+                  const deadlineTime = timeValue(app.deadline_at);
+                  const overdue = Math.min(deadlineTime, timeValue(app.next_action_at)) < now.getTime();
+                  return (
+                    <button
+                      key={app.id}
+                      onClick={() => handleViewDetail(app)}
+                      className="btn-press"
+                      style={{ border: '1px solid #f0ebe0', background: overdue ? '#fff3ee' : '#faf7f0', borderRadius: 13, padding: 12, textAlign: 'left', cursor: 'pointer' }}
+                    >
+                      <div className="flex items-center justify-between gap-2">
+                        <strong style={{ fontSize: 13.5, color: '#1b1a17' }}>{app.company_name}</strong>
+                        <span style={{ background: tag.bg, color: tag.fg, fontSize: 11, fontWeight: 700, padding: '3px 8px', borderRadius: 999 }}>{app.status}</span>
+                      </div>
+                      <div style={{ fontSize: 12, color: '#6b665c', marginTop: 4 }}>{app.position_name}</div>
+                      <div style={{ fontSize: 11.5, color: overdue ? '#a23d24' : '#8a8478', marginTop: 6, lineHeight: 1.5 }}>
+                        {app.next_action && <>下一步：{app.next_action}<br /></>}
+                        {app.next_action_at && <>时间：{formatDateTime(app.next_action_at)}<br /></>}
+                        {app.deadline_at && <>截止：{formatDateTime(app.deadline_at)}</>}
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+            )}
           </div>
         </div>
 

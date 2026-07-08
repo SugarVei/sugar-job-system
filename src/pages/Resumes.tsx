@@ -21,6 +21,19 @@ const empty: NewRecord<Resume> = {
   notes: '',
 };
 
+const SUPPORTED_UPLOAD_ACCEPT = '.pdf,.docx,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document';
+const SUPPORTED_UPLOAD_EXTENSIONS = new Set(['pdf', 'docx']);
+const SUPPORTED_UPLOAD_MIME_TYPES = new Set([
+  'application/pdf',
+  'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+]);
+
+function validateUploadFile(file: File) {
+  const ext = file.name.split('.').pop()?.toLowerCase() ?? '';
+  if (!SUPPORTED_UPLOAD_EXTENSIONS.has(ext)) return false;
+  return !file.type || SUPPORTED_UPLOAD_MIME_TYPES.has(file.type);
+}
+
 function fmtDateTime(iso: string) {
   try {
     const d = new Date(iso);
@@ -213,7 +226,7 @@ export default function Resumes() {
           />
         </Field>
         <p style={{ fontSize: 12.5, color: '#a39d90', margin: '4px 0 0' }}>
-          保存后，可在卡片上的“上传简历 / 上传面试稿件”区域上传 PDF/Word 文件。
+          保存后，可在卡片上的“上传简历 / 上传面试稿件”区域上传 PDF / DOCX 文件。
         </p>
       </Modal>
     </div>
@@ -278,6 +291,9 @@ function ResumeCard({
     setUploadingKind(kind);
     try {
       for (const file of Array.from(list)) {
+        if (!validateUploadFile(file)) {
+          throw new Error('暂不支持该格式，请上传 PDF 或 DOCX 文件。');
+        }
         await fileApi.upload(resume.id, kind, file);
       }
     } catch (e) {
@@ -339,7 +355,7 @@ function ResumeCard({
         .trim();
     }
 
-    throw new Error(`不支持的格式 .${ext}，请上传 PDF 或 DOCX`);
+    throw new Error('暂不支持该格式，请上传 PDF 或 DOCX 文件。');
   };
 
   const startGeneration = async (fileId?: string) => {
@@ -512,7 +528,7 @@ function ResumeCard({
         <input
           ref={resumeInputRef}
           type="file"
-          accept=".pdf,.doc,.docx,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+          accept={SUPPORTED_UPLOAD_ACCEPT}
           style={{ display: 'none' }}
           onChange={(e) => {
             handleFiles('resume', e.target.files);
@@ -523,6 +539,7 @@ function ResumeCard({
           ref={scriptInputRef}
           type="file"
           multiple
+          accept={SUPPORTED_UPLOAD_ACCEPT}
           style={{ display: 'none' }}
           onChange={(e) => {
             handleFiles('script', e.target.files);
@@ -531,7 +548,7 @@ function ResumeCard({
         />
         <UploadZone
           title="上传简历"
-          hint="PDF / DOC / DOCX"
+          hint="PDF / DOCX"
           busy={uploadingKind === 'resume'}
           onClick={() => resumeInputRef.current?.click()}
           onFiles={(files) => handleFiles('resume', files)}

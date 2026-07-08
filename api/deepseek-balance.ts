@@ -1,12 +1,24 @@
 export const config = { runtime: 'edge' };
 
-export default async function handler(req: Request): Promise<Response> {
-  const cors = {
-    'Access-Control-Allow-Origin': '*',
+function getCorsHeaders(req: Request) {
+  const origin = req.headers.get('origin') ?? '';
+  const allowed = new Set<string>(['http://localhost:5173']);
+  const envOrigin = process.env.ALLOWED_ORIGIN;
+  const vercelUrl = process.env.VERCEL_URL;
+  if (envOrigin) allowed.add(envOrigin);
+  if (vercelUrl) allowed.add(`https://${vercelUrl}`);
+
+  const headers: Record<string, string> = {
     'Access-Control-Allow-Methods': 'POST, OPTIONS',
     'Access-Control-Allow-Headers': 'Content-Type',
+    Vary: 'Origin',
   };
+  if (allowed.has(origin)) headers['Access-Control-Allow-Origin'] = origin;
+  return headers;
+}
 
+export default async function handler(req: Request): Promise<Response> {
+  const cors = getCorsHeaders(req);
   if (req.method === 'OPTIONS') return new Response(null, { headers: cors });
   if (req.method !== 'POST') return new Response('Method not allowed', { status: 405, headers: cors });
 

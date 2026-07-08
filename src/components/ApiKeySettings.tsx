@@ -332,7 +332,7 @@ export default function ApiKeySettings() {
           )}
 
           <div style={{ marginTop: 16, fontSize: 12, color: '#a39d90', lineHeight: 1.7 }}>
-            💡 API Key 加密存储在你的账号中，只能由你自己访问。所有充值和账号登录都应在服务商官方页面完成，Sugar 不会收集第三方平台账号密码。
+            💡 API Key 受账号权限保护存储，只有当前登录用户可以访问。所有充值和账号登录都应在服务商官方页面完成，Sugar 不会收集第三方平台账号密码。
           </div>
         </div>
       </div>

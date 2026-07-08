@@ -21,18 +21,24 @@ const C = {
   purple: { bg: 'E4E0F7', fg: '4A3F96' },
   // 网页状态颜色（来自 Overview.tsx STATUS_COLOR）
   status: {
+    '待投递': { bg: 'CFC6B4', fg: '5D584D' },
     '已投递': { bg: 'CFC6B4', fg: '5D584D' },
+    '简历筛选': { bg: 'E4D7A8', fg: '7A5A12' },
     '笔试':   { bg: 'F4C84A', fg: '7A5A12' },
-    '面试':   { bg: '7CC4A0', fg: '1B4D35' },
+    '一面':   { bg: '7CC4A0', fg: '1B4D35' },
+    '二面':   { bg: '6BB7B1', fg: '1B4D35' },
+    'HR面':   { bg: '7AA7D8', fg: '1B4D35' },
     'Offer':  { bg: '5FA86B', fg: 'FFFFFF' },
-    '拒绝':   { bg: 'F0613F', fg: 'FFFFFF' },
+    '已拒绝': { bg: 'F0613F', fg: 'FFFFFF' },
+    '已放弃': { bg: 'C56C5A', fg: 'FFFFFF' },
+    '人才库': { bg: 'A89B82', fg: 'FFFFFF' },
     '待跟进': { bg: 'A89CF0', fg: '2D2473' },
   } as Record<string, { bg: string; fg: string }>,
   chartLine:  '5FA86B',
   chartDark:  '2F5D36',
 };
 
-const STATUS_ORDER: ApplicationStatus[] = ['已投递', '笔试', '面试', 'Offer', '待跟进', '拒绝'];
+const STATUS_ORDER: ApplicationStatus[] = ['待投递', '已投递', '简历筛选', '笔试', '一面', '二面', 'HR面', 'Offer', '待跟进', '已拒绝', '已放弃', '人才库'];
 
 // ── 样式工厂 ─────────────────────────────────────────────────
 function border(rgb = C.border) {
@@ -108,7 +114,7 @@ function buildOverviewSheet(items: Application[]): any {
   const COLS = ['A','B','C','D','E','F'];
 
   const total = items.length;
-  const interviewing = items.filter(a => ['面试','Offer'].includes(a.status)).length;
+  const interviewing = items.filter(a => ['一面','二面','HR面','Offer'].includes(a.status)).length;
   const offers = items.filter(a => a.status === 'Offer').length;
   const followUps = items.filter(a => a.status === '待跟进').length;
 
@@ -283,8 +289,8 @@ function buildOverviewSheet(items: Application[]): any {
 // ── Sheet 2：投递明细 ─────────────────────────────────────────
 function buildDetailSheet(items: Application[]): any {
   const ws: any = {};
-  const COLS = 'ABCDEFGHI';
-  const headers = ['公司名称','岗位名称','城市','投递渠道','投递日期','当前状态','薪资范围','备注','录入时间'];
+  const COLS = 'ABCDEFGHIJKLMNO';
+  const headers = ['公司名称','岗位名称','城市','投递渠道','投递日期','当前状态','薪资范围','优先级','下一步动作','下一步时间','截止时间','匹配度','JD关键词','备注','录入时间'];
 
   headers.forEach((_, i) =>
     setCell(ws, `${COLS[i]}1`, i === 0 ? 'Sugar 求职系统 · 投递明细' : '', 's', titleSt(C.titleBg, C.titleFg, 14))
@@ -298,7 +304,10 @@ function buildDetailSheet(items: Application[]): any {
     const vals = [
       app.company_name, app.position_name, app.city ?? '',
       app.channel ?? '', app.apply_date ?? '', app.status,
-      app.salary_range ?? '', app.notes ?? '', app.created_at?.slice(0,10) ?? '',
+      app.salary_range ?? '', app.priority ?? 'normal', app.next_action ?? '',
+      app.next_action_at?.slice(0, 16) ?? '', app.deadline_at?.slice(0, 16) ?? '',
+      app.match_score ?? '', app.jd_keywords?.join('、') ?? '',
+      app.notes ?? '', app.created_at?.slice(0,10) ?? '',
     ];
     vals.forEach((val, i) => {
       if (i === 5) {
@@ -310,18 +319,19 @@ function buildDetailSheet(items: Application[]): any {
         });
       } else {
         const bold = i < 2;
-        const align = (i >= 2 && i <= 4) ? 'center' : 'left';
+        const align = (i >= 2 && i <= 7) || i === 11 ? 'center' : 'left';
         setCell(ws, `${COLS[i]}${row}`, val, 's', dataSt(altBg, C.text, bold, align));
       }
     });
   });
 
   const last = Math.max(3, items.length + 2);
-  ws['!ref'] = `A1:I${last}`;
-  ws['!merges'] = [{ s:{r:0,c:0}, e:{r:0,c:8} }];
+  ws['!ref'] = `A1:O${last}`;
+  ws['!merges'] = [{ s:{r:0,c:0}, e:{r:0,c:14} }];
   ws['!cols'] = [
     {wch:18},{wch:18},{wch:10},{wch:14},
-    {wch:12},{wch:10},{wch:12},{wch:30},{wch:12},
+    {wch:12},{wch:10},{wch:12},{wch:10},{wch:18},
+    {wch:18},{wch:18},{wch:10},{wch:24},{wch:30},{wch:12},
   ];
   ws['!rows'] = [{ hpt: 36 }, { hpt: 28 }];
   return ws;

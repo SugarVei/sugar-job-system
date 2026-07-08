@@ -24,7 +24,7 @@ create table if not exists public.applications (
   city          text,
   channel       text,
   apply_date    date,
-  status        text not null default '已投递',
+  status        text not null default '待投递',
   salary_range  text,
   job_url       text,
   notes         text,
@@ -231,12 +231,13 @@ values (
   'resumes', 'resumes', false, 10485760,
   array[
     'application/pdf',
-    'application/msword',
-    'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-    'image/png', 'image/jpeg', 'text/plain'
+    'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
   ]
 )
-on conflict (id) do nothing;
+on conflict (id) do update set
+  public = excluded.public,
+  file_size_limit = excluded.file_size_limit,
+  allowed_mime_types = excluded.allowed_mime_types;
 
 -- ── 14. Storage 桶 RLS ───────────────────────────────────────
 drop policy if exists "resumes_obj_select_own"  on storage.objects;

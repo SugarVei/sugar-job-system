@@ -70,12 +70,13 @@ values (
   'resumes', 'resumes', false, 10485760,
   array[
     'application/pdf',
-    'application/msword',
-    'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-    'image/png', 'image/jpeg', 'text/plain'
+    'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
   ]
 )
-on conflict (id) do nothing;
+on conflict (id) do update set
+  public = excluded.public,
+  file_size_limit = excluded.file_size_limit,
+  allowed_mime_types = excluded.allowed_mime_types;
 
 -- 5) 存储桶 RLS：路径第一段必须是当前用户 id
 drop policy if exists "resumes_obj_select_own" on storage.objects;

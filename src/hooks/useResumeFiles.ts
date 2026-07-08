@@ -64,7 +64,7 @@ function readableSupabaseError(error: unknown) {
   }
 
   if (/relation.*does not exist|schema cache/i.test(message)) {
-    return 'Supabase 数据库缺少简历文件表，请在 Supabase SQL Editor 执行 supabase/migration_resume_files.sql 后再上传。';
+    return 'Supabase 数据库缺少简历文件表或最新字段，请在 Supabase SQL Editor 执行 supabase/migration_resume_files.sql 和 supabase/migration_resume_files_ai_scripts.sql 后再上传。';
   }
 
   if (/failed to fetch|network/i.test(message)) {
@@ -130,6 +130,7 @@ export function useResumeFiles() {
           file_path: path,
           kind,
           size: file.size,
+          source: 'upload',
         })
         .select()
         .single();

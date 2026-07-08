@@ -23,10 +23,18 @@ create table if not exists public.applications (
   city          text,
   channel       text,
   apply_date    date,
-  status        text not null default '已投递',
+  status        text not null default '待投递',
   salary_range  text,
   job_url       text,
   notes         text,
+  jd_text       text,
+  jd_keywords   text[],
+  match_score   int check (match_score is null or (match_score >= 0 and match_score <= 100)),
+  match_summary text,
+  next_action   text,
+  next_action_at timestamptz,
+  deadline_at   timestamptz,
+  priority      text not null default 'normal' check (priority in ('low', 'normal', 'high', 'urgent')),
   created_at    timestamptz not null default now(),
   updated_at    timestamptz not null default now()
 );
@@ -71,15 +79,29 @@ create table if not exists public.resume_files (
   user_id    uuid not null references auth.users (id) on delete cascade,
   resume_id  uuid not null references public.resumes (id) on delete cascade,
   file_name  text not null,
-  file_path  text not null,
+  file_path  text,
   kind       text not null check (kind in ('resume', 'script')),
   size       bigint,
+  content    text,
+  source     text not null default 'upload' check (source in ('upload', 'ai')),
   created_at timestamptz not null default now()
 );
 create index if not exists resume_files_user_id_idx on public.resume_files (user_id);
 create index if not exists resume_files_resume_id_idx on public.resume_files (resume_id);
 
--- 5. 面试日历
+-- 5. AI 服务商 API Key。API Key 受账号权限保护，不在前端写入 service_role key。
+create table if not exists public.user_api_keys (
+  id         uuid primary key default gen_random_uuid(),
+  user_id    uuid not null references auth.users (id) on delete cascade,
+  provider   text not null,
+  api_key    text not null,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now(),
+  unique (user_id, provider)
+);
+create index if not exists user_api_keys_user_id_idx on public.user_api_keys (user_id);
+
+-- 6. 面试日历
 create table if not exists public.interviews (
   id             uuid primary key default gen_random_uuid(),
   user_id        uuid not null references auth.users (id) on delete cascade,
@@ -111,11 +133,16 @@ drop trigger if exists trg_interviews_updated on public.interviews;
 create trigger trg_interviews_updated before update on public.interviews
   for each row execute function public.set_updated_at();
 
+drop trigger if exists trg_user_api_keys_updated on public.user_api_keys;
+create trigger trg_user_api_keys_updated before update on public.user_api_keys
+  for each row execute function public.set_updated_at();
+
 -- Row Level Security
 alter table public.applications enable row level security;
 alter table public.companies enable row level security;
 alter table public.resumes enable row level security;
 alter table public.resume_files enable row level security;
+alter table public.user_api_keys enable row level security;
 alter table public.interviews enable row level security;
 
 -- applications
@@ -158,6 +185,16 @@ create policy "resume_files_update_own" on public.resume_files for update using 
 drop policy if exists "resume_files_delete_own" on public.resume_files;
 create policy "resume_files_delete_own" on public.resume_files for delete using (auth.uid() = user_id);
 
+-- user_api_keys
+drop policy if exists "user_api_keys_select_own" on public.user_api_keys;
+create policy "user_api_keys_select_own" on public.user_api_keys for select using (auth.uid() = user_id);
+drop policy if exists "user_api_keys_insert_own" on public.user_api_keys;
+create policy "user_api_keys_insert_own" on public.user_api_keys for insert with check (auth.uid() = user_id);
+drop policy if exists "user_api_keys_update_own" on public.user_api_keys;
+create policy "user_api_keys_update_own" on public.user_api_keys for update using (auth.uid() = user_id) with check (auth.uid() = user_id);
+drop policy if exists "user_api_keys_delete_own" on public.user_api_keys;
+create policy "user_api_keys_delete_own" on public.user_api_keys for delete using (auth.uid() = user_id);
+
 -- interviews
 drop policy if exists "interviews_select_own" on public.interviews;
 create policy "interviews_select_own" on public.interviews for select using (auth.uid() = user_id);
@@ -169,9 +206,21 @@ drop policy if exists "interviews_delete_own" on public.interviews;
 create policy "interviews_delete_own" on public.interviews for delete using (auth.uid() = user_id);
 
 -- Private storage bucket for uploaded resumes and interview scripts.
-insert into storage.buckets (id, name, public)
-values ('resumes', 'resumes', false)
-on conflict (id) do nothing;
+insert into storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
+values (
+  'resumes',
+  'resumes',
+  false,
+  10485760,
+  array[
+    'application/pdf',
+    'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+  ]
+)
+on conflict (id) do update set
+  public = excluded.public,
+  file_size_limit = excluded.file_size_limit,
+  allowed_mime_types = excluded.allowed_mime_types;
 
 drop policy if exists "resumes_storage_select_own" on storage.objects;
 create policy "resumes_storage_select_own" on storage.objects

@@ -50,6 +50,10 @@ function readableDbError(error: unknown, table: string) {
     return 'Supabase 数据库缺少最新简历关联字段/文件表，请在 Supabase SQL Editor 执行 supabase/migration_resume_files.sql。';
   }
 
+  if (/jd_text|jd_keywords|match_score|next_action|deadline_at|priority/i.test(message)) {
+    return 'Supabase 数据库缺少投递看板/JD/提醒字段，请在 Supabase SQL Editor 执行 supabase/migration_application_status_and_p0_fields.sql。';
+  }
+
   if (/failed to fetch|network/i.test(message)) {
     return '无法连接 Supabase，请检查 Vercel 环境变量和 Supabase 项目状态。';
   }

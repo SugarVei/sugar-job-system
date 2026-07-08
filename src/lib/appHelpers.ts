@@ -1,39 +1,57 @@
 import type { Application, ApplicationStatus } from '../types';
 
 export const STATUS_OPTIONS: ApplicationStatus[] = [
+  '待投递',
   '已投递',
+  '简历筛选',
   '笔试',
-  '面试',
+  '一面',
+  '二面',
+  'HR面',
   'Offer',
-  '拒绝',
+  '已拒绝',
+  '已放弃',
+  '人才库',
   '待跟进',
 ];
 
-export const PIPELINE: ApplicationStatus[] = ['已投递', '笔试', '面试', 'Offer'];
+export const PIPELINE: ApplicationStatus[] = ['待投递', '已投递', '简历筛选', '笔试', '一面', '二面', 'HR面', 'Offer'];
 
 export function statusTag(status: ApplicationStatus): { bg: string; fg: string } {
   switch (status) {
+    case '待投递':
+      return { bg: '#ece4d6', fg: '#5d584d' };
     case 'Offer':
       return { bg: '#dcebd5', fg: '#2f5d36' };
-    case '拒绝':
+    case '已拒绝':
+    case '已放弃':
       return { bg: '#fbe0d8', fg: '#a23d24' };
     case '待跟进':
-      return { bg: '#ece4d6', fg: '#8a8478' };
-    case '面试':
+      return { bg: '#e4e0f7', fg: '#4a3f96' };
+    case '一面':
+    case '二面':
+    case 'HR面':
       return { bg: '#dde8fb', fg: '#345b9a' };
     case '笔试':
       return { bg: '#fbeec2', fg: '#7a5a12' };
+    case '简历筛选':
+      return { bg: '#f5f0e7', fg: '#7a5a12' };
+    case '人才库':
+      return { bg: '#e0dcc8', fg: '#5a4018' };
     default:
       return { bg: '#fbeec2', fg: '#7a5a12' };
   }
 }
 
 export function buildSteps(status: ApplicationStatus) {
-  const terminal = status === '拒绝' || status === '待跟进';
-  const progress: ApplicationStatus = status === '拒绝' ? '面试' : status === '待跟进' ? '已投递' : status;
+  const terminal = ['已拒绝', '已放弃', '人才库', '待跟进'].includes(status);
+  const progress: ApplicationStatus =
+    status === '已拒绝' || status === '已放弃' ? '一面' :
+    status === '人才库' || status === '待跟进' ? '已投递' :
+    status;
   const activeIndex = PIPELINE.indexOf(progress);
   const offer = status === 'Offer';
-  const rejected = status === '拒绝';
+  const rejected = status === '已拒绝' || status === '已放弃';
 
   return PIPELINE.map((label, index) => {
     const reached = terminal ? index <= activeIndex : index <= activeIndex;
@@ -95,6 +113,10 @@ export function matchApp(application: Application, query: string): boolean {
     application.position_name,
     application.city,
     application.channel,
+    application.jd_text,
+    application.jd_keywords?.join(' '),
+    application.match_summary,
+    application.next_action,
     application.notes,
   ]
     .filter(Boolean)

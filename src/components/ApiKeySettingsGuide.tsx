@@ -202,7 +202,7 @@ export default function ApiKeySettingsGuide() {
             })}
           </div>
           {error && <div style={errorBox}>{error}</div>}
-          <div style={{ marginTop: 16, fontSize: 12, color: '#a39d90', lineHeight: 1.7 }}>💡 API Key 加密存储在你的账号中，只有你自己可以访问。每次 AI 调用都使用你配置的 Key，不消耗系统资源。</div>
+          <div style={{ marginTop: 16, fontSize: 12, color: '#a39d90', lineHeight: 1.7 }}>💡 API Key 存储在你的 Supabase 账号数据中，并受 RLS 行级权限保护。每次 AI 调用都使用你配置的 Key，不消耗系统资源。</div>
         </div>
       </div>
     </div>,

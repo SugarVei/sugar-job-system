@@ -1,10 +1,18 @@
 export type ApplicationStatus =
+  | '待投递'
   | '已投递'
+  | '简历筛选'
   | '笔试'
-  | '面试'
+  | '一面'
+  | '二面'
+  | 'HR面'
   | 'Offer'
-  | '拒绝'
+  | '已拒绝'
+  | '已放弃'
+  | '人才库'
   | '待跟进';
+
+export type ApplicationPriority = 'low' | 'normal' | 'high' | 'urgent';
 
 export type InterviewType = '电话' | '视频' | '现场';
 
@@ -21,6 +29,14 @@ export interface Application {
   job_url: string | null;
   notes: string | null;
   resume_id: string | null;
+  jd_text: string | null;
+  jd_keywords: string[] | null;
+  match_score: number | null;
+  match_summary: string | null;
+  next_action: string | null;
+  next_action_at: string | null;
+  deadline_at: string | null;
+  priority: ApplicationPriority;
   created_at: string;
   updated_at: string;
 }

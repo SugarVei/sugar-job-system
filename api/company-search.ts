@@ -1,10 +1,29 @@
 export const config = { runtime: 'edge' };
 
-const CORS = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Methods': 'POST, OPTIONS',
-  'Access-Control-Allow-Headers': 'Content-Type',
-};
+const PROVIDER_CONFIG = {
+  deepseek: {
+    baseUrl: 'https://api.deepseek.com/v1',
+    type: 'openai-compatible',
+    defaultModel: 'deepseek-chat',
+  },
+  openai: {
+    baseUrl: 'https://api.openai.com/v1',
+    type: 'openai-compatible',
+    defaultModel: 'gpt-4o-mini',
+  },
+  kimi: {
+    baseUrl: 'https://api.moonshot.cn/v1',
+    type: 'openai-compatible',
+    defaultModel: 'moonshot-v1-8k',
+  },
+  claude: {
+    baseUrl: 'https://api.anthropic.com',
+    type: 'claude',
+    defaultModel: 'claude-haiku-4-5-20251001',
+  },
+} as const;
+
+type ProviderId = keyof typeof PROVIDER_CONFIG;
 
 type ChatMessage = { role: 'system' | 'user' | 'assistant'; content: string };
 
@@ -18,8 +37,29 @@ type CompanyCandidate = {
   sourceNote: string;
 };
 
-function json(data: unknown, status = 200) {
-  return Response.json(data, { status, headers: CORS });
+function getCorsHeaders(req: Request) {
+  const origin = req.headers.get('origin') ?? '';
+  const allowed = new Set<string>(['http://localhost:5173']);
+  const envOrigin = process.env.ALLOWED_ORIGIN;
+  const vercelUrl = process.env.VERCEL_URL;
+  if (envOrigin) allowed.add(envOrigin);
+  if (vercelUrl) allowed.add(`https://${vercelUrl}`);
+
+  const headers: Record<string, string> = {
+    'Access-Control-Allow-Methods': 'POST, OPTIONS',
+    'Access-Control-Allow-Headers': 'Content-Type',
+    Vary: 'Origin',
+  };
+  if (allowed.has(origin)) headers['Access-Control-Allow-Origin'] = origin;
+  return headers;
+}
+
+function isProviderId(value: string): value is ProviderId {
+  return value in PROVIDER_CONFIG;
+}
+
+function json(data: unknown, status: number, corsHeaders: Record<string, string>) {
+  return Response.json(data, { status, headers: corsHeaders });
 }
 
 function extractJsonObject(text: string) {
@@ -93,8 +133,9 @@ async function callOpenAICompatible(messages: ChatMessage[], apiKey: string, bas
 }
 
 export default async function handler(req: Request): Promise<Response> {
-  if (req.method === 'OPTIONS') return new Response(null, { headers: CORS });
-  if (req.method !== 'POST') return json({ error: 'Method not allowed' }, 405);
+  const corsHeaders = getCorsHeaders(req);
+  if (req.method === 'OPTIONS') return new Response(null, { headers: corsHeaders });
+  if (req.method !== 'POST') return json({ error: 'Method not allowed' }, 405, corsHeaders);
 
   try {
     const body = await req.json() as {
@@ -107,13 +148,17 @@ export default async function handler(req: Request): Promise<Response> {
     };
 
     const prompt = body.prompt?.trim();
-    if (!prompt) return json({ error: '请输入你想找的公司需求' }, 400);
+    if (!prompt) return json({ error: '请输入你想找的公司需求' }, 400, corsHeaders);
 
-    const resolvedProvider = body.provider ?? 'deepseek';
-    const resolvedKey = body.apiKey || process.env.DEEPSEEK_API_KEY;
-    const resolvedBase = body.baseUrl ?? 'https://api.deepseek.com/v1';
-    const resolvedModel = body.model ?? 'deepseek-chat';
-    if (!resolvedKey) return json({ error: '未配置 API Key，请先在 AI 设置里配置 DeepSeek/OpenAI/Claude/Kimi，或在 Vercel 配置 DEEPSEEK_API_KEY' }, 400);
+    const requestedProvider = body.provider ?? 'deepseek';
+    if (!isProviderId(requestedProvider)) {
+      return json({ error: '不支持的 AI 服务商。' }, 400, corsHeaders);
+    }
+
+    const providerConfig = PROVIDER_CONFIG[requestedProvider];
+    const resolvedKey = body.apiKey || (requestedProvider === 'deepseek' ? process.env.DEEPSEEK_API_KEY : undefined);
+    const resolvedModel = body.model ?? providerConfig.defaultModel;
+    if (!resolvedKey) return json({ error: '当前服务商未配置 API Key。' }, 400, corsHeaders);
 
     const existing = (body.existingCompanies ?? []).slice(0, 180).join('、');
     const messages: ChatMessage[] = [
@@ -124,15 +169,15 @@ export default async function handler(req: Request): Promise<Response> {
       { role: 'user', content: prompt },
     ];
 
-    const text = resolvedProvider === 'claude'
+    const text = providerConfig.type === 'claude'
       ? await callClaude(messages, resolvedKey, resolvedModel, 1800)
-      : await callOpenAICompatible(messages, resolvedKey, resolvedBase, resolvedModel, 1800);
+      : await callOpenAICompatible(messages, resolvedKey, providerConfig.baseUrl, resolvedModel, 1800);
 
     const parsed = extractJsonObject(text);
     const companies = normalizeCompanies(parsed);
-    return json({ companies, raw: text });
+    return json({ companies, raw: text }, 200, corsHeaders);
   } catch (error) {
-    const message = error instanceof Error ? error.message : String(error);
-    return json({ error: `AI 公司搜索失败：${message}` }, 500);
+    console.error('[company-search] request failed:', error);
+    return json({ error: 'AI 服务请求失败，请检查 API Key 或余额。' }, 500, corsHeaders);
   }
 }
