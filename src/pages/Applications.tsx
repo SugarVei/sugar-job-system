@@ -591,17 +591,59 @@ function KanbanBoard({
   }));
 
   return (
-    <div style={{ overflowX: 'auto', paddingBottom: 4 }}>
-      <div style={{ display: 'grid', gridAutoFlow: 'column', gridAutoColumns: 'minmax(260px, 1fr)', gap: 14, minWidth: 980 }}>
+    <div className="kanban-board-scroll" style={{ overflowX: 'auto', paddingBottom: 8 }}>
+      <style>{`
+        .kanban-board-scroll::-webkit-scrollbar,
+        .kanban-column-scroll::-webkit-scrollbar {
+          height: 10px;
+          width: 10px;
+        }
+        .kanban-board-scroll::-webkit-scrollbar-track,
+        .kanban-column-scroll::-webkit-scrollbar-track {
+          background: rgba(255, 253, 248, .45);
+          border-radius: 999px;
+        }
+        .kanban-board-scroll::-webkit-scrollbar-thumb,
+        .kanban-column-scroll::-webkit-scrollbar-thumb {
+          background: #d2c7b5;
+          border-radius: 999px;
+          border: 2px solid rgba(255, 253, 248, .55);
+        }
+        .kanban-column-scroll {
+          scrollbar-color: #d2c7b5 rgba(255, 253, 248, .45);
+          scrollbar-width: thin;
+        }
+      `}</style>
+      <div style={{ display: 'grid', gridAutoFlow: 'column', gridAutoColumns: 'minmax(260px, 1fr)', gap: 14, minWidth: 980, alignItems: 'stretch' }}>
         {grouped.map((column) => {
           const tag = statusTag(column.status);
           return (
-            <div key={column.status} style={{ background: '#f5f0e7', borderRadius: 18, padding: 12, minHeight: 240 }}>
-              <div className="flex items-center justify-between" style={{ marginBottom: 10 }}>
+            <div
+              key={column.status}
+              style={{
+                background: '#f5f0e7',
+                borderRadius: 18,
+                padding: 12,
+                height: 'min(58vh, 520px)',
+                minHeight: 280,
+                display: 'flex',
+                flexDirection: 'column',
+              }}
+            >
+              <div className="flex items-center justify-between" style={{ marginBottom: 10, flex: 'none' }}>
                 <span style={pill(tag.bg, tag.fg)}>{column.status}</span>
                 <span style={{ fontSize: 12, color: '#8a8478', fontWeight: 700 }}>{column.items.length}</span>
               </div>
-              <div className="flex flex-col gap-2">
+              <div
+                className="kanban-column-scroll flex flex-col gap-2"
+                style={{
+                  overflowY: 'auto',
+                  overscrollBehavior: 'contain',
+                  paddingRight: 4,
+                  minHeight: 0,
+                  flex: 1,
+                }}
+              >
                 {column.items.length === 0 ? (
                   <div style={{ border: '1px dashed #d8cfbd', borderRadius: 13, padding: 14, color: '#a39d90', fontSize: 12.5, textAlign: 'center' }}>
                     暂无记录
