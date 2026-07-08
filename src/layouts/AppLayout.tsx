@@ -5,7 +5,7 @@ import { useAppShell } from '../contexts/AppShellContext';
 import { useProfile } from '../hooks/useProfile';
 import { NAV_ITEMS, greetFor } from '../components/navConfig';
 import ThemeSwitcher from '../components/ThemeSwitcher';
-import ApiKeySettings from '../components/ApiKeySettings';
+import ApiKeySettings from '../components/ApiKeySettingsGuide';
 import {
   SugarMark,
   IconSearch,
