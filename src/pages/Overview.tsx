@@ -50,6 +50,7 @@ export default function Overview() {
     [items],
   );
   const cityBars = useMemo(() => countBy(items, (a) => a.city).slice(0, 6), [items]);
+  const positionBars = useMemo(() => countBy(items, (a) => a.position_name).slice(0, 6), [items]);
   const channelBars = useMemo(() => countBy(items, (a) => a.channel).slice(0, 6), [items]);
 
   // 环形图分段
@@ -68,6 +69,7 @@ export default function Overview() {
   }, [statusCounts, items.length]);
 
   const cMax = Math.max(1, ...cityBars.map((c) => c[1]));
+  const pMax = Math.max(1, ...positionBars.map((p) => p[1]));
   const chMax = Math.max(1, ...channelBars.map((c) => c[1]));
 
   const listForStatus = activeStatus ? items.filter((a) => a.status === activeStatus) : [];
@@ -185,6 +187,44 @@ Offer 转化率：${items.length > 0 ? Math.round((byStatus['Offer']/items.lengt
             </div>
           )}
         </div>
+      </div>
+
+      {/* 岗位分布 */}
+      <div style={{ ...CARD, padding: 24 }}>
+        <div style={{ fontFamily: 'Poppins', fontSize: 17, fontWeight: 600 }}>投递岗位分布</div>
+        <div style={{ fontSize: 13, color: '#8a8478', marginTop: 3 }}>按岗位名称统计全部 {stats.total} 份投递</div>
+        {positionBars.length === 0 ? (
+          <div style={{ fontSize: 13, color: '#a39d90', marginTop: 20 }}>暂无岗位信息</div>
+        ) : (
+          <div className="flex items-end justify-between gap-[18px]" style={{ height: 220, marginTop: 22, overflowX: 'auto', paddingBottom: 4 }}>
+            {positionBars.map(([position, v]) => (
+              <div key={position} className="flex flex-col items-center gap-[10px]" style={{ flex: '1 0 82px', height: '100%', justifyContent: 'flex-end', minWidth: 72 }}>
+                <div style={{ fontFamily: 'Poppins', fontSize: 14, fontWeight: 700, color: '#1b1a17' }}>{v}</div>
+                <div style={{ position: 'relative', width: 46, flex: 1, background: '#efe9dd', borderRadius: 999 }}>
+                  <div style={{ position: 'absolute', left: 0, right: 0, bottom: 0, borderRadius: 999, background: '#1b1a17', minHeight: 28, height: `${Math.round((v / pMax) * 100)}%` }} />
+                </div>
+                <div
+                  title={position}
+                  style={{
+                    maxWidth: 96,
+                    minHeight: 34,
+                    fontSize: 12.5,
+                    lineHeight: 1.35,
+                    color: '#6b665c',
+                    fontWeight: 600,
+                    textAlign: 'center',
+                    overflow: 'hidden',
+                    display: '-webkit-box',
+                    WebkitLineClamp: 2,
+                    WebkitBoxOrient: 'vertical',
+                  }}
+                >
+                  {position}
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
 
       {/* 渠道分布 + 按状态查看列表 */}

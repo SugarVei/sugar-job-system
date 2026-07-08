@@ -184,19 +184,19 @@ export const IconKey = ({ size = 16, ...p }: IconProps) => (
   </svg>
 );
 
-/** Sugar 品牌 Logo（描边版 "Y" 标志，移植自原设计） */
-export const SugarMark = ({ size = 26, color = '#fff' }: { size?: number; color?: string }) => (
-  <svg
+/** Sugar 品牌 Logo（使用 public/sugar-logo.png，和 favicon 保持一致） */
+export const SugarMark = ({ size = 26 }: { size?: number; color?: string }) => (
+  <img
+    src="/sugar-logo.png"
+    alt="Sugar"
     width={size}
     height={size}
-    viewBox="0 0 100 100"
-    fill="none"
-    stroke={color}
-    strokeWidth={8.5}
-    strokeLinecap="round"
-    strokeLinejoin="round"
-  >
-    <path d="M34 30 H66 M50 30 V63" />
-    <path d="M32 45 V57 Q32 75 41 75 Q50 75 50 63 Q50 75 59 75 Q68 75 68 57 V45" />
-  </svg>
+    style={{
+      width: size,
+      height: size,
+      borderRadius: Math.max(6, Math.round(size * 0.24)),
+      objectFit: 'cover',
+      display: 'block',
+    }}
+  />
 );

@@ -25,10 +25,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
 
     // 启动时取一次当前会话
-    supabase.auth.getSession().then(({ data }) => {
-      setSession(data.session);
-      setLoading(false);
-    });
+    supabase.auth.getSession()
+      .then(({ data }) => {
+        setSession(data.session);
+      })
+      .finally(() => {
+        setLoading(false);
+      });
 
     // 监听登录/登出/刷新
     const {
@@ -41,13 +44,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const signIn = async (email: string, password: string) => {
-    const { error } = await supabase.auth.signInWithPassword({ email, password });
+    const { data, error } = await supabase.auth.signInWithPassword({ email, password });
     if (error) throw error;
+    setSession(data.session);
   };
 
   const signUp = async (email: string, password: string) => {
     const { data, error } = await supabase.auth.signUp({ email, password });
     if (error) throw error;
+    if (data.session) setSession(data.session);
     // 若项目开启了邮箱确认，session 为空，需用户去邮箱点确认
     return { needsConfirm: !data.session };
   };
