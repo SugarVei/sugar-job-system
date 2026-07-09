@@ -74,7 +74,6 @@ export default function Resumes() {
   useEffect(() => {
     registerAdd(() => openCreate());
     return () => registerAdd(null);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [registerAdd]);
 
   const linkCount = useMemo(() => {
@@ -282,7 +281,6 @@ function ResumeCard({
     const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') closeAiModal(); };
     document.addEventListener('keydown', onKey);
     return () => { document.removeEventListener('keydown', onKey); document.body.style.overflow = ''; };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [aiOpen]);
 
   const handleFiles = async (kind: ResumeFileKind, list: FileList | null) => {
@@ -438,7 +436,6 @@ function ResumeCard({
           maxTokens: 8192,
           provider: aiConfig.provider,
           apiKey: aiConfig.apiKey,
-          baseUrl: aiConfig.baseUrl,
           model: aiConfig.model,
         }),
       });

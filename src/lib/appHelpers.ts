@@ -1,46 +1,17 @@
 import type { Application, ApplicationStatus } from '../types';
+import {
+  APPLICATION_STATUSES,
+  APPLICATION_STATUS_FLOW,
+  getApplicationStatusColor,
+} from './applicationStatus';
 
-export const STATUS_OPTIONS: ApplicationStatus[] = [
-  '待投递',
-  '已投递',
-  '简历筛选',
-  '笔试',
-  '一面',
-  '二面',
-  'HR面',
-  'Offer',
-  '已拒绝',
-  '已放弃',
-  '人才库',
-  '待跟进',
-];
+export const STATUS_OPTIONS: ApplicationStatus[] = [...APPLICATION_STATUSES];
 
-export const PIPELINE: ApplicationStatus[] = ['待投递', '已投递', '简历筛选', '笔试', '一面', '二面', 'HR面', 'Offer'];
+export const PIPELINE: ApplicationStatus[] = [...APPLICATION_STATUS_FLOW];
 
 export function statusTag(status: ApplicationStatus): { bg: string; fg: string } {
-  switch (status) {
-    case '待投递':
-      return { bg: '#ece4d6', fg: '#5d584d' };
-    case 'Offer':
-      return { bg: '#dcebd5', fg: '#2f5d36' };
-    case '已拒绝':
-    case '已放弃':
-      return { bg: '#fbe0d8', fg: '#a23d24' };
-    case '待跟进':
-      return { bg: '#e4e0f7', fg: '#4a3f96' };
-    case '一面':
-    case '二面':
-    case 'HR面':
-      return { bg: '#dde8fb', fg: '#345b9a' };
-    case '笔试':
-      return { bg: '#fbeec2', fg: '#7a5a12' };
-    case '简历筛选':
-      return { bg: '#f5f0e7', fg: '#7a5a12' };
-    case '人才库':
-      return { bg: '#e0dcc8', fg: '#5a4018' };
-    default:
-      return { bg: '#fbeec2', fg: '#7a5a12' };
-  }
+  const { bg, fg } = getApplicationStatusColor(status);
+  return { bg, fg };
 }
 
 export function buildSteps(status: ApplicationStatus) {

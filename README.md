@@ -5,7 +5,8 @@
 - **技术栈**：React 18 + Vite 5 + TypeScript + Tailwind CSS + Vercel Serverless/Edge Functions
 - **后端 / 登录**：Supabase（Auth 邮箱登录注册 + Postgres 云端存储 + Storage 文件上传 + 行级安全 RLS）
 - **响应式**：电脑（侧边栏）/ 平板（两列）/ 手机（底部导航、卡片单列），最低适配 360px
-- **页面**：登录、总览仪表盘、投递总览、投递记录、公司库、热门公司、简历库、面试日历、AI 找公司、AI 投递分析、AI 生成面试稿件、Supabase Storage 简历上传
+- **页面**：登录、总览仪表盘、投递总览、投递记录、公司库、热门公司、简历库、面试日历
+- **内嵌 AI 能力**：热门公司页找公司、投递总览分析、简历库生成面试稿件（当前不是独立导航页面）
 - **主题**：粉 / 蓝 / 绿 / 灰 / 米白 5 套配色，弥散流光动态背景，磨砂玻璃质感
 
 ---
@@ -50,7 +51,7 @@ npm run preview    # 本地预览打包结果
    - 第二步：[`supabase/migration_resume_files.sql`](./supabase/migration_resume_files.sql)。如果 `schema.sql` 已是最新版，此步骤可作为兼容旧库使用。
    - 第三步：[`supabase/migration_resume_files_ai_scripts.sql`](./supabase/migration_resume_files_ai_scripts.sql)
    - 第四步：[`supabase/migration_api_keys.sql`](./supabase/migration_api_keys.sql)
-   - 第五步：[`supabase/migration_application_status_and_p0_fields.sql`](./supabase/migration_application_status_and_p0_fields.sql)
+   - 对已有数据库，直接执行第一阶段统一迁移：[`supabase/migration_phase1_foundation_fix.sql`](./supabase/migration_phase1_foundation_fix.sql)。它会兼容旧字段并补齐状态约束、索引、RLS 与 Storage policy，不删除业务数据。
 3. `schema.sql` 会创建 `applications` / `companies` / `resumes` / `resume_files` / `user_api_keys` / `interviews`，自动维护 `updated_at`，并为业务表开启 RLS + select/insert/update/delete 策略，保证**每个用户只能读写自己的数据**。
 
 ### 3. 安全说明
@@ -138,7 +139,7 @@ sugar-job-system/
 │  ├─ hooks/                    # useCollection(通用 CRUD) / useProfile / useResumeFiles
 │  ├─ layouts/AppLayout.tsx     # 响应式主框架（侧边栏 + 顶栏 + 底部导航）
 │  ├─ lib/                      # supabase 客户端 / 业务助手
-│  ├─ pages/                    # 6 个页面
+│  ├─ pages/                    # 7 个业务页面
 │  ├─ styles/theme.ts           # 5 套主题配色
 │  └─ types/                    # TypeScript 类型定义
 ├─ .env.example                 # 环境变量模板

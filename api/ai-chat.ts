@@ -161,7 +161,6 @@ export default async function handler(req: Request): Promise<Response> {
     maxTokens?: number;
     provider?: string;
     apiKey?: string;
-    baseUrl?: string;
     model?: string;
   };
 

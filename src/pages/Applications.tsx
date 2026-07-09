@@ -101,7 +101,6 @@ export default function Applications() {
   useEffect(() => {
     registerAdd(() => openCreate());
     return () => registerAdd(null);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [registerAdd]);
 
   const openCreate = () => {

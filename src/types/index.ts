@@ -94,6 +94,10 @@ export interface Interview {
 }
 
 export type NewRecord<T> = Omit<T, 'id' | 'user_id' | 'created_at' | 'updated_at'>;
+export type NewApplication = NewRecord<Application>;
+export type NewResume = NewRecord<Resume>;
+export type NewCompany = NewRecord<Company>;
+export type NewInterview = NewRecord<Interview>;
 
 export type ScreenKey =
   | 'dashboard'

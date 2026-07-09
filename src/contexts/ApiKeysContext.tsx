@@ -9,7 +9,6 @@ const STORAGE_KEY = 'sugar_active_provider';
 
 export interface ActiveConfig {
   apiKey: string;
-  baseUrl: string;
   model: string;
   provider: ProviderId;
 }
@@ -71,8 +70,8 @@ export function ApiKeysProvider({ children }: { children: ReactNode }) {
   const getActiveConfig = useCallback((): ActiveConfig | null => {
     const apiKey = keys[activeProvider];
     if (!apiKey) return null;
-    const { baseUrl, model } = PROVIDERS[activeProvider];
-    return { apiKey, baseUrl, model, provider: activeProvider };
+    const { model } = PROVIDERS[activeProvider];
+    return { apiKey, model, provider: activeProvider };
   }, [keys, activeProvider]);
 
   return (

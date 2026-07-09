@@ -7,12 +7,15 @@
 create extension if not exists "pgcrypto";
 
 create or replace function public.set_updated_at()
-returns trigger as $$
+returns trigger
+language plpgsql
+set search_path = public
+as $$
 begin
   new.updated_at = now();
   return new;
 end;
-$$ language plpgsql;
+$$;
 
 -- 1. 投递记录
 create table if not exists public.applications (

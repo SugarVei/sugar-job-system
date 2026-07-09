@@ -45,7 +45,6 @@ export default function Companies() {
   useEffect(() => {
     registerAdd(() => openCreate());
     return () => registerAdd(null);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [registerAdd]);
 
   const industries = useMemo(

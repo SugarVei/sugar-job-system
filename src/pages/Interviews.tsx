@@ -71,7 +71,6 @@ export default function Interviews() {
   useEffect(() => {
     registerAdd(() => openCreate());
     return () => registerAdd(null);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [registerAdd]);
 
   const weekDays = useMemo(() => Array.from({ length: 7 }, (_, i) => addDays(weekStart, i)), [weekStart]);

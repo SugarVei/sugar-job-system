@@ -142,7 +142,6 @@ export default async function handler(req: Request): Promise<Response> {
       prompt?: string;
       provider?: string;
       apiKey?: string;
-      baseUrl?: string;
       model?: string;
       existingCompanies?: string[];
     };

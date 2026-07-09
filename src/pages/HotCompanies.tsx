@@ -111,7 +111,6 @@ export default function HotCompanies() {
           ...(providerConfig ? {
             provider: providerConfig.provider,
             apiKey: providerConfig.apiKey,
-            baseUrl: providerConfig.baseUrl,
             model: providerConfig.model,
           } : {}),
         }),

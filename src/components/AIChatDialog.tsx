@@ -17,7 +17,7 @@ interface Props {
 async function streamChat(
   messages: Message[],
   systemPrompt: string,
-  providerConfig: { apiKey: string; baseUrl: string; model: string; provider: string } | null,
+  providerConfig: { apiKey: string; model: string; provider: string } | null,
   onToken: (t: string) => void,
   onError: (e: string) => void,
 ) {
@@ -33,7 +33,6 @@ async function streamChat(
         ...(providerConfig ? {
           provider: providerConfig.provider,
           apiKey: providerConfig.apiKey,
-          baseUrl: providerConfig.baseUrl,
           model: providerConfig.model,
         } : {}),
       }),

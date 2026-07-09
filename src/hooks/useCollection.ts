@@ -67,7 +67,8 @@ function isMissingResumeId(error: unknown) {
 }
 
 function stripResumeId(payload: Record<string, unknown>) {
-  const { resume_id: _resumeId, ...rest } = payload;
+  const rest = { ...payload };
+  delete rest.resume_id;
   return rest;
 }
 

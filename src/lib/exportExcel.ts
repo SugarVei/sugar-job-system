@@ -1,7 +1,8 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
+
 import * as XLSX from 'xlsx-js-style';
 import JSZip from 'jszip';
 import type { Application, ApplicationStatus } from '../types';
+import { APPLICATION_STATUSES } from './applicationStatus';
 
 // ── 颜色：完全对应网页主题 ────────────────────────────────────
 const C = {
@@ -38,7 +39,7 @@ const C = {
   chartDark:  '2F5D36',
 };
 
-const STATUS_ORDER: ApplicationStatus[] = ['待投递', '已投递', '简历筛选', '笔试', '一面', '二面', 'HR面', 'Offer', '待跟进', '已拒绝', '已放弃', '人才库'];
+const STATUS_ORDER: ApplicationStatus[] = [...APPLICATION_STATUSES];
 
 // ── 样式工厂 ─────────────────────────────────────────────────
 function border(rgb = C.border) {

@@ -7,27 +7,13 @@ import EmptyState from '../components/EmptyState';
 import AIChatDialog from '../components/AIChatDialog';
 import { useApiKeys } from '../contexts/ApiKeysContext';
 import { PROVIDERS } from '../lib/providers';
+import { APPLICATION_STATUS_COLORS } from '../lib/applicationStatus';
 
 // ============================================================
 // 投递总览 —— 按状态/城市/渠道的真实数据概览，支持按状态查看
 // ============================================================
 
 // 各状态在环形图中的颜色
-const STATUS_COLOR: Record<ApplicationStatus, string> = {
-  待投递: '#cfc6b4',
-  已投递: '#cfc6b4',
-  简历筛选: '#e4d7a8',
-  笔试: '#f4c84a',
-  一面: '#7cc4a0',
-  二面: '#6bb7b1',
-  HR面: '#7aa7d8',
-  Offer: '#5fa86b',
-  已拒绝: '#f0613f',
-  已放弃: '#c56c5a',
-  人才库: '#a89b82',
-  待跟进: '#a89cf0',
-};
-
 function countBy<T>(arr: T[], key: (x: T) => string | null | undefined) {
   const m = new Map<string, number>();
   arr.forEach((x) => {
@@ -78,7 +64,7 @@ export default function Overview() {
         const start = (acc / total) * 360;
         acc += s.count;
         const end = (acc / total) * 360;
-        return `${STATUS_COLOR[s.status]} ${start}deg ${end}deg`;
+        return `${APPLICATION_STATUS_COLORS[s.status].chart} ${start}deg ${end}deg`;
       });
     return segs.length ? `conic-gradient(${segs.join(',')})` : '#efe9dd';
   }, [statusCounts, items.length]);
@@ -174,7 +160,7 @@ Offer 转化率：${items.length > 0 ? Math.round((byStatus['Offer']/items.lengt
                     textAlign: 'left',
                   }}
                 >
-                  <span style={{ width: 11, height: 11, borderRadius: 3, background: STATUS_COLOR[s.status], flex: 'none' }} />
+                  <span style={{ width: 11, height: 11, borderRadius: 3, background: APPLICATION_STATUS_COLORS[s.status].chart, flex: 'none' }} />
                   <span style={{ flex: 1, color: '#5d584d' }}>{s.status}</span>
                   <strong style={{ fontFamily: 'Poppins' }}>{s.count}</strong>
                 </button>

@@ -12,7 +12,6 @@ export const isSupabaseConfigured = Boolean(supabaseUrl && supabaseAnonKey);
 
 if (!isSupabaseConfigured) {
   // 仅在开发期提醒，方便排查“没填 .env”的情况
-  // eslint-disable-next-line no-console
   console.warn(
     '[Sugar] 未检测到 Supabase 环境变量。请复制 .env.example 为 .env 并填写 VITE_SUPABASE_URL / VITE_SUPABASE_ANON_KEY。',
   );
