@@ -73,7 +73,7 @@ function stripResumeId(payload: Record<string, unknown>) {
 }
 
 export function useCollection<T extends BaseRow>(
-  table: 'applications' | 'companies' | 'resumes' | 'interviews',
+  table: 'applications' | 'companies' | 'resumes' | 'interviews' | 'offers' | 'interview_reviews' | 'interview_review_questions' | 'jd_matches',
   orderBy: { column: string; ascending?: boolean } = { column: 'created_at', ascending: false },
 ) {
   const { user } = useAuth();

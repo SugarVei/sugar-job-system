@@ -12,6 +12,9 @@ import Companies from './pages/Companies';
 import HotCompanies from './pages/HotCompanies';
 import Resumes from './pages/Resumes';
 import Interviews from './pages/Interviews';
+import Offers from './pages/Offers';
+import InterviewReviews from './pages/InterviewReviews';
+import JdMatches from './pages/JdMatches';
 
 // 根据当前 screen 渲染对应页面
 function CurrentPage() {
@@ -31,6 +34,12 @@ function CurrentPage() {
       return <Resumes />;
     case 'interviews':
       return <Interviews />;
+    case 'offers':
+      return <Offers />;
+    case 'interviewReviews':
+      return <InterviewReviews />;
+    case 'jdMatches':
+      return <JdMatches />;
     default:
       return <Dashboard />;
   }

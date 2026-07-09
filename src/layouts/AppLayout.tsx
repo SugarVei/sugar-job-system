@@ -314,7 +314,8 @@ export default function AppLayout({ children }: { children: ReactNode }) {
           borderRadius: 20,
           boxShadow: '0 12px 30px rgba(60,50,35,.18)',
           alignItems: 'center',
-          justifyContent: 'space-around',
+          justifyContent: 'flex-start',
+          overflowX: 'auto',
           padding: '0 6px',
           zIndex: 50,
         }}
@@ -334,7 +335,7 @@ export default function AppLayout({ children }: { children: ReactNode }) {
                 border: 'none',
                 cursor: 'pointer',
                 color: active ? theme.accent : '#9a9488',
-                flex: 1,
+                flex: '0 0 66px',
                 padding: '6px 0',
               }}
             >

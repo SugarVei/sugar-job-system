@@ -1,17 +1,9 @@
 import type { ScreenKey } from '../types';
 import {
-  IconDashboard,
-  IconOverview,
-  IconApplications,
-  IconCompanies,
-  IconResumes,
-  IconInterviews,
-  IconTrophy,
+  IconDashboard, IconOverview, IconApplications, IconCompanies, IconResumes,
+  IconInterviews, IconTrophy,
 } from './icons';
 
-// ============================================================
-// 导航定义 + 各页面顶栏问候语（移植自原设计 greetMap / navDefs）
-// ============================================================
 export const NAV_ITEMS: {
   key: ScreenKey;
   label: string;
@@ -24,6 +16,9 @@ export const NAV_ITEMS: {
   { key: 'hotCompanies', label: '热门公司', Icon: IconTrophy },
   { key: 'resumes', label: '简历库', Icon: IconResumes },
   { key: 'interviews', label: '面试日历', Icon: IconInterviews },
+  { key: 'offers', label: 'Offer 管理', Icon: IconTrophy },
+  { key: 'interviewReviews', label: '面试复盘', Icon: IconOverview },
+  { key: 'jdMatches', label: 'JD 匹配', Icon: IconApplications },
 ];
 
 export function greetFor(screen: ScreenKey, name: string): { title: string; sub: string } {
@@ -32,9 +27,12 @@ export function greetFor(screen: ScreenKey, name: string): { title: string; sub:
     overview: { title: '投递总览', sub: '投递的城市、薪资、岗位与渠道，一屏看全' },
     applications: { title: '投递记录', sub: '记录每次投递，按公司、状态、渠道筛选' },
     companies: { title: '公司库', sub: '汇总目标公司，避免重复记录' },
-    hotCompanies: { title: '热门公司', sub: '精选大陆知名企业，一键直达校招官网' },
-    resumes: { title: '简历库', sub: '多版本简历与面试稿件，安全存储' },
+    hotCompanies: { title: '热门公司', sub: '精选知名企业，一键直达招聘官网' },
+    resumes: { title: '简历库', sub: '多版本简历与面试稿件，按账号保存' },
     interviews: { title: '面试日历', sub: '一眼看清本周面试安排' },
+    offers: { title: 'Offer 管理', sub: '统一比较薪资、截止时间与决策风险' },
+    interviewReviews: { title: '面试复盘', sub: '记录问题与表现，把每次面试变成题库' },
+    jdMatches: { title: 'JD 匹配分析', sub: '粘贴岗位 JD，评估简历匹配度并生成建议' },
   };
   return map[screen];
 }

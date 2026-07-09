@@ -99,6 +99,62 @@ export type NewResume = NewRecord<Resume>;
 export type NewCompany = NewRecord<Company>;
 export type NewInterview = NewRecord<Interview>;
 
+export type OfferStatus = '待考虑' | '谈薪中' | '已接受' | '已拒绝' | '已过期';
+export interface Offer {
+  id: string; user_id: string; application_id: string | null; company_name: string; position_name: string;
+  city: string | null; department: string | null; manager_or_contact: string | null; workplace: string | null;
+  work_schedule: string | null; join_date: string | null; reply_deadline: string | null; offer_status: OfferStatus;
+  base_salary: number | null; salary_months: number | null; bonus: number | null; subsidy: number | null;
+  annual_package: number | null; social_security: string | null; housing_fund: string | null;
+  stock_or_options: string | null; probation_months: number | null; probation_ratio: number | null;
+  overtime_policy: string | null; salary_score: number | null; match_score: number | null;
+  growth_score: number | null; stability_score: number | null; city_score: number | null;
+  workload_score: number | null; total_score: number | null; hr_offer: string | null; expect: string | null;
+  negotiation_notes: string | null; next_action: string | null; next_action_at: string | null;
+  is_big_week: boolean; is_overtime: boolean; is_remote: boolean; probation_cut: boolean; has_penalty: boolean;
+  risk_notes: string | null; decision_notes: string | null; final_decision: string | null; notes: string | null;
+  created_at: string; updated_at: string;
+}
+export type InterviewRound = '一面' | '二面' | '技术面' | '主管面' | 'HR面';
+export type InterviewReviewResult = '通过' | '未通过' | '待通知' | '主动放弃';
+export type QuestionType = '自我介绍' | '项目经历' | '实习经历' | '专业问题' | '行为面试' | 'HR问题' | '反问' | '其他';
+export type MasteryStatus = '需练习' | '已掌握' | '高频题';
+export interface InterviewReview {
+  id: string; user_id: string; application_id: string | null; interview_id: string | null; company_name: string;
+  position_name: string | null; round: InterviewRound | null; interviewer_role: string | null;
+  interview_time: string | null; interview_form: InterviewType | null; result: InterviewReviewResult;
+  reviewed: boolean; mistake_tags: string[] | null; performance_score: number | null; clarity_score: number | null;
+  matching_score: number | null; storytelling_score: number | null; logic_score: number | null;
+  confidence_score: number | null; question_quality_score: number | null; star_s: string | null; star_t: string | null;
+  star_a: string | null; star_r: string | null; star_resume_ref: string | null; good_points: string | null;
+  weak_points: string | null; improve_knowledge: string | null; improve_answers: string | null;
+  improve_prep: string | null; improvement_plan: string | null; next_action: string | null;
+  next_action_at: string | null; notes: string | null; created_at: string; updated_at: string;
+}
+export interface InterviewReviewQuestion {
+  id: string; user_id: string; review_id: string; question_text: string; question_type: QuestionType | null;
+  my_answer: string | null; better_answer: string | null; answer_score: number | null; problem: string | null;
+  issue_tags: string[] | null; add_to_question_bank: boolean; mastery_status: MasteryStatus;
+  star_situation: string | null; star_task: string | null; star_action: string | null; star_result: string | null;
+  created_at: string; updated_at: string;
+}
+export type MatchLevel = '高匹配' | '中匹配' | '低匹配';
+export type RecommendAction = '建议投递' | '建议修改后投递' | '不建议优先投递';
+export interface JdMatch {
+  id: string; user_id: string; application_id: string | null; resume_id: string | null; company_name: string | null;
+  position_name: string | null; city: string | null; salary_range: string | null; jd_text: string;
+  job_url: string | null; channel: string | null; jd_duties: string[] | null; jd_requirements: string[] | null;
+  skill_keywords: string[] | null; industry_keywords: string[] | null; exp_required: string | null;
+  edu_required: string | null; hidden_requirements: string[] | null; match_score: number | null;
+  match_level: MatchLevel | null; recommend_action: RecommendAction | null; matched_keywords: string[] | null;
+  missing_keywords: string[] | null; strong_exp: string[] | null; weak_exp: string[] | null; risk_note: string | null;
+  suggestions: unknown; interview_prep: unknown; analysis_summary: string | null; analysis_method: string;
+  applied: boolean; created_at: string; updated_at: string;
+}
+export type NewOffer = NewRecord<Offer>;
+export type NewInterviewReview = NewRecord<InterviewReview>;
+export type NewJdMatch = NewRecord<JdMatch>;
+
 export type ScreenKey =
   | 'dashboard'
   | 'overview'
@@ -106,4 +162,7 @@ export type ScreenKey =
   | 'companies'
   | 'hotCompanies'
   | 'resumes'
-  | 'interviews';
+  | 'interviews'
+  | 'offers'
+  | 'interviewReviews'
+  | 'jdMatches';
