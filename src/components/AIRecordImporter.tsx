@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useRef, useState, type ChangeEvent, type DragEvent } from 'react';
 import { useApiKeys } from '../contexts/ApiKeysContext';
 import { useTheme } from '../contexts/ThemeContext';
 import { PROVIDERS } from '../lib/providers';
@@ -64,6 +64,45 @@ interface Props<T> {
   onApply: (data: T) => void;
 }
 
+interface Screenshot {
+  id: string;
+  name: string;
+  dataUrl: string;
+}
+
+const MAX_SCREENSHOTS = 3;
+const MAX_FILE_SIZE = 10 * 1024 * 1024;
+
+function compressScreenshot(file: File): Promise<Screenshot> {
+  return new Promise((resolve, reject) => {
+    if (!file.type.startsWith('image/')) return reject(new Error('只能上传 PNG、JPG 或 WebP 图片。'));
+    if (file.size > MAX_FILE_SIZE) return reject(new Error(`${file.name} 超过 10MB，请先压缩后再上传。`));
+    const reader = new FileReader();
+    reader.onerror = () => reject(new Error(`读取 ${file.name} 失败。`));
+    reader.onload = () => {
+      const image = new Image();
+      image.onerror = () => reject(new Error(`${file.name} 不是可识别的图片。`));
+      image.onload = () => {
+        const maxSide = 2200;
+        const scale = Math.min(1, maxSide / Math.max(image.width, image.height));
+        const canvas = document.createElement('canvas');
+        canvas.width = Math.max(1, Math.round(image.width * scale));
+        canvas.height = Math.max(1, Math.round(image.height * scale));
+        const context = canvas.getContext('2d');
+        if (!context) return reject(new Error('浏览器暂时无法处理这张图片。'));
+        context.drawImage(image, 0, 0, canvas.width, canvas.height);
+        resolve({
+          id: `${file.name}-${file.lastModified}-${crypto.randomUUID()}`,
+          name: file.name,
+          dataUrl: canvas.toDataURL('image/jpeg', 0.88),
+        });
+      };
+      image.src = String(reader.result);
+    };
+    reader.readAsDataURL(file);
+  });
+}
+
 export default function AIRecordImporter<T extends ApplicationExtraction | OfferExtraction>({ kind, onApply }: Props<T>) {
   const { getActiveConfig, activeProvider } = useApiKeys();
   const { theme } = useTheme();
@@ -71,14 +110,49 @@ export default function AIRecordImporter<T extends ApplicationExtraction | Offer
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
+  const [screenshots, setScreenshots] = useState<Screenshot[]>([]);
+  const [dragging, setDragging] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const isApplication = kind === 'application';
+
+  const addScreenshots = async (files: File[]) => {
+    setError('');
+    setSuccess('');
+    const remaining = MAX_SCREENSHOTS - screenshots.length;
+    if (remaining <= 0) return setError(`最多上传 ${MAX_SCREENSHOTS} 张截图。`);
+    try {
+      const next = await Promise.all(files.slice(0, remaining).map(compressScreenshot));
+      const totalPayload = [...screenshots, ...next].reduce((sum, item) => sum + item.dataUrl.length, 0);
+      if (totalPayload > 4_000_000) throw new Error('截图总大小过大，请减少图片数量或先裁剪无关区域。');
+      setScreenshots(current => [...current, ...next].slice(0, MAX_SCREENSHOTS));
+      if (files.length > remaining) setError(`最多上传 ${MAX_SCREENSHOTS} 张截图，多余图片未添加。`);
+    } catch (uploadError) {
+      setError(uploadError instanceof Error ? uploadError.message : String(uploadError));
+    }
+  };
+
+  const handleFiles = (event: ChangeEvent<HTMLInputElement>) => {
+    void addScreenshots(Array.from(event.target.files ?? []));
+    event.target.value = '';
+  };
+
+  const handleDrop = (event: DragEvent<HTMLDivElement>) => {
+    event.preventDefault();
+    setDragging(false);
+    void addScreenshots(Array.from(event.dataTransfer.files));
+  };
 
   const recognize = async () => {
     const text = sourceText.trim();
-    if (!text || loading) return;
+    if ((!text && screenshots.length === 0) || loading) return;
     const config = getActiveConfig();
     if (!config) {
       setError('请先在左侧“AI 设置”中配置并选中一个可用的 API Key。');
+      setSuccess('');
+      return;
+    }
+    if (screenshots.length > 0 && !PROVIDERS[config.provider].supportsVision) {
+      setError(`当前 ${PROVIDERS[config.provider].label} 配置不支持图片识别，请切换到 OpenAI、Claude、豆包或通义千问。`);
       setSuccess('');
       return;
     }
@@ -92,6 +166,7 @@ export default function AIRecordImporter<T extends ApplicationExtraction | Offer
         body: JSON.stringify({
           kind,
           sourceText: text,
+          images: screenshots.map(item => item.dataUrl),
           provider: config.provider,
           apiKey: config.apiKey,
           model: config.model,
@@ -127,13 +202,44 @@ export default function AIRecordImporter<T extends ApplicationExtraction | Offer
           : '粘贴 Offer 邮件、录用通知、薪资说明或 HR 聊天内容…'}
         style={{ minHeight: 104, background: '#fffdf8', resize: 'vertical' }}
       />
+      <div
+        className={`ai-record-importer__dropzone${dragging ? ' is-dragging' : ''}`}
+        style={{ borderColor: dragging ? theme.accent : `${theme.accent}55` }}
+        onDragEnter={event => { event.preventDefault(); setDragging(true); }}
+        onDragOver={event => event.preventDefault()}
+        onDragLeave={event => { if (event.currentTarget === event.target) setDragging(false); }}
+        onDrop={handleDrop}
+        onClick={() => fileInputRef.current?.click()}
+        role="button"
+        tabIndex={0}
+        onKeyDown={event => { if (event.key === 'Enter' || event.key === ' ') fileInputRef.current?.click(); }}
+      >
+        <input ref={fileInputRef} type="file" accept="image/png,image/jpeg,image/webp" multiple hidden onChange={handleFiles} />
+        <span className="ai-record-importer__upload-icon">▣</span>
+        <span><strong>拖入岗位或 Offer 截图</strong><small>也可以点击选择图片，最多 {MAX_SCREENSHOTS} 张</small></span>
+      </div>
+      {screenshots.length > 0 && (
+        <div className="ai-record-importer__previews">
+          {screenshots.map(item => (
+            <div key={item.id} className="ai-record-importer__preview">
+              <img src={item.dataUrl} alt={item.name} />
+              <span title={item.name}>{item.name}</span>
+              <button
+                type="button"
+                aria-label={`删除 ${item.name}`}
+                onClick={() => setScreenshots(current => current.filter(image => image.id !== item.id))}
+              >×</button>
+            </div>
+          ))}
+        </div>
+      )}
       <div className="ai-record-importer__actions">
-        <span>AI 可能识别不完整，保存前请核对关键金额和日期。</span>
+        <span>支持“文字 + 截图”一起识别；保存前请核对关键金额和日期。</span>
         <PrimaryButton
           type="button"
           accent={theme.accent}
           onClick={() => void recognize()}
-          disabled={!sourceText.trim() || loading}
+          disabled={(!sourceText.trim() && screenshots.length === 0) || loading}
           style={{ minWidth: 168 }}
         >
           {loading ? '正在识别…' : '智能识别并填充'}

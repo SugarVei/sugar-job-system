@@ -1,15 +1,20 @@
 export const config = { runtime: 'edge' };
 
 const PROVIDER_CONFIG = {
-  deepseek: { baseUrl: 'https://api.deepseek.com/v1', type: 'openai-compatible', defaultModel: 'deepseek-chat' },
-  openai: { baseUrl: 'https://api.openai.com/v1', type: 'openai-compatible', defaultModel: 'gpt-4o-mini' },
-  kimi: { baseUrl: 'https://api.moonshot.cn/v1', type: 'openai-compatible', defaultModel: 'moonshot-v1-8k' },
-  claude: { baseUrl: 'https://api.anthropic.com', type: 'claude', defaultModel: 'claude-haiku-4-5-20251001' },
+  deepseek: { baseUrl: 'https://api.deepseek.com/v1', type: 'openai-compatible', defaultModel: 'deepseek-chat', supportsVision: false, structuredOutput: true },
+  openai: { baseUrl: 'https://api.openai.com/v1', type: 'openai-compatible', defaultModel: 'gpt-4o-mini', supportsVision: true, structuredOutput: true },
+  kimi: { baseUrl: 'https://api.moonshot.cn/v1', type: 'openai-compatible', defaultModel: 'moonshot-v1-8k', supportsVision: false, structuredOutput: true },
+  claude: { baseUrl: 'https://api.anthropic.com', type: 'claude', defaultModel: 'claude-haiku-4-5-20251001', supportsVision: true, structuredOutput: false },
+  doubao: { baseUrl: 'https://ark.cn-beijing.volces.com/api/v3', type: 'openai-compatible', defaultModel: 'doubao-seed-1-6-vision-250815', supportsVision: true, structuredOutput: false },
+  qwen: { baseUrl: 'https://dashscope.aliyuncs.com/compatible-mode/v1', type: 'openai-compatible', defaultModel: 'qwen-vl-max', supportsVision: true, structuredOutput: false },
+  minimax: { baseUrl: 'https://api.minimax.io/v1', type: 'openai-compatible', defaultModel: 'MiniMax-M2.5', supportsVision: false, structuredOutput: false },
 } as const;
 
 type ProviderId = keyof typeof PROVIDER_CONFIG;
 type RecordKind = 'application' | 'offer';
-type ChatMessage = { role: 'system' | 'user' | 'assistant'; content: string };
+type ImagePart = { type: 'image_url'; image_url: { url: string } };
+type TextPart = { type: 'text'; text: string };
+type ChatMessage = { role: 'system' | 'user' | 'assistant'; content: string | Array<TextPart | ImagePart> };
 
 const APPLICATION_STATUSES = ['待投递','已投递','简历筛选','笔试','一面','二面','HR面','Offer','已拒绝','已放弃','人才库','待跟进'] as const;
 const APPLICATION_PRIORITIES = ['low','normal','high','urgent'] as const;
@@ -128,7 +133,17 @@ function promptFor(kind: RecordKind) {
 
 async function callClaude(messages: ChatMessage[], apiKey: string, model: string, maxTokens: number) {
   const systemMsg = messages.find(message => message.role === 'system');
-  const chatMessages = messages.filter(message => message.role !== 'system');
+  const chatMessages = messages.filter(message => message.role !== 'system').map(message => ({
+    role: message.role,
+    content: typeof message.content === 'string'
+      ? message.content
+      : message.content.map(part => {
+        if (part.type === 'text') return part;
+        const match = part.image_url.url.match(/^data:(image\/(?:jpeg|png|webp));base64,(.+)$/);
+        if (!match) throw new Error('图片格式无效');
+        return { type: 'image', source: { type: 'base64', media_type: match[1], data: match[2] } };
+      }),
+  }));
   const upstream = await fetch('https://api.anthropic.com/v1/messages', {
     method: 'POST',
     headers: { 'x-api-key': apiKey, 'anthropic-version': '2023-06-01', 'content-type': 'application/json' },
@@ -139,11 +154,18 @@ async function callClaude(messages: ChatMessage[], apiKey: string, model: string
   return data.content?.map(part => part.text ?? '').join('\n') ?? '';
 }
 
-async function callOpenAICompatible(messages: ChatMessage[], apiKey: string, baseUrl: string, model: string, maxTokens: number) {
+async function callOpenAICompatible(messages: ChatMessage[], apiKey: string, baseUrl: string, model: string, maxTokens: number, structuredOutput: boolean) {
   const upstream = await fetch(`${baseUrl}/chat/completions`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${apiKey}` },
-    body: JSON.stringify({ model, messages, stream: false, max_tokens: maxTokens, temperature: 0.1, response_format: { type: 'json_object' } }),
+    body: JSON.stringify({
+      model,
+      messages,
+      stream: false,
+      max_tokens: maxTokens,
+      temperature: 0.1,
+      ...(structuredOutput ? { response_format: { type: 'json_object' } } : {}),
+    }),
   });
   if (!upstream.ok) throw new Error(await upstream.text());
   const data = await upstream.json() as { choices?: Array<{ message?: { content?: string } }> };
@@ -156,25 +178,41 @@ export default async function handler(req: Request): Promise<Response> {
   if (req.method !== 'POST') return json({ error: 'Method not allowed' }, 405, corsHeaders);
 
   try {
-    const body = await req.json() as { kind?: RecordKind; sourceText?: string; provider?: string; apiKey?: string; model?: string };
+    const body = await req.json() as { kind?: RecordKind; sourceText?: string; images?: string[]; provider?: string; apiKey?: string; model?: string };
     const kind = body.kind;
     const sourceText = body.sourceText?.trim().slice(0, 18000);
     if (kind !== 'application' && kind !== 'offer') return json({ error: '不支持的识别类型。' }, 400, corsHeaders);
-    if (!sourceText) return json({ error: '请先粘贴需要识别的原始内容。' }, 400, corsHeaders);
+    const images = Array.isArray(body.images) ? body.images.slice(0, 3) : [];
+    if (!sourceText && images.length === 0) return json({ error: '请粘贴文字或上传需要识别的截图。' }, 400, corsHeaders);
+    if (Array.isArray(body.images) && body.images.length > 3) return json({ error: '一次最多识别 3 张截图。' }, 400, corsHeaders);
+    const validImage = /^data:image\/(?:jpeg|png|webp);base64,[A-Za-z0-9+/=]+$/;
+    if (images.some(image => typeof image !== 'string' || image.length > 5_000_000 || !validImage.test(image))) {
+      return json({ error: '截图格式或大小不符合要求，请使用 PNG、JPG 或 WebP 图片。' }, 400, corsHeaders);
+    }
+    if (images.reduce((total, image) => total + image.length, 0) > 4_000_000) {
+      return json({ error: '截图总大小过大，请减少图片数量或裁剪后重试。' }, 400, corsHeaders);
+    }
 
     const requestedProvider = body.provider ?? 'deepseek';
     if (!isProviderId(requestedProvider)) return json({ error: '不支持的 AI 服务商。' }, 400, corsHeaders);
     const providerConfig = PROVIDER_CONFIG[requestedProvider];
+    if (images.length > 0 && !providerConfig.supportsVision) {
+      return json({ error: '当前 AI 模型不支持图片识别，请切换到 OpenAI、Claude、豆包或通义千问。' }, 400, corsHeaders);
+    }
     const resolvedKey = body.apiKey || (requestedProvider === 'deepseek' ? process.env.DEEPSEEK_API_KEY : undefined);
     if (!resolvedKey) return json({ error: '当前服务商未配置 API Key。' }, 400, corsHeaders);
     const resolvedModel = body.model ?? providerConfig.defaultModel;
+    const contentParts: Array<TextPart | ImagePart> = [];
+    if (sourceText) contentParts.push({ type: 'text', text: `<source_text>\n${sourceText}\n</source_text>` });
+    else contentParts.push({ type: 'text', text: '请从以下截图中提取信息。' });
+    for (const image of images) contentParts.push({ type: 'image_url', image_url: { url: image } });
     const messages: ChatMessage[] = [
       { role: 'system', content: promptFor(kind) },
-      { role: 'user', content: `<source_text>\n${sourceText}\n</source_text>` },
+      { role: 'user', content: contentParts },
     ];
     const output = providerConfig.type === 'claude'
       ? await callClaude(messages, resolvedKey, resolvedModel, 2200)
-      : await callOpenAICompatible(messages, resolvedKey, providerConfig.baseUrl, resolvedModel, 2200);
+      : await callOpenAICompatible(messages, resolvedKey, providerConfig.baseUrl, resolvedModel, 2200, providerConfig.structuredOutput);
     const parsed = extractJsonObject(output);
     const data = kind === 'application' ? normalizeApplication(parsed) : normalizeOffer(parsed);
     return json({ data }, 200, corsHeaders);

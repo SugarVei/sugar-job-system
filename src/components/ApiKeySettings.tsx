@@ -141,7 +141,7 @@ export default function ApiKeySettings() {
               </div>
 
               <div style={safeNote}>
-                Sugar 不会要求你输入 DeepSeek、OpenAI、Claude、Kimi 等平台的账号密码。账号登录和充值都应在官方页面完成。
+                Sugar 不会要求你输入任何 AI 平台的账号密码。账号登录和充值都应在官方页面完成。
               </div>
             </div>
           )}

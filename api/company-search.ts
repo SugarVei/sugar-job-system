@@ -21,6 +21,21 @@ const PROVIDER_CONFIG = {
     type: 'claude',
     defaultModel: 'claude-haiku-4-5-20251001',
   },
+  doubao: {
+    baseUrl: 'https://ark.cn-beijing.volces.com/api/v3',
+    type: 'openai-compatible',
+    defaultModel: 'doubao-seed-1-6-vision-250815',
+  },
+  qwen: {
+    baseUrl: 'https://dashscope.aliyuncs.com/compatible-mode/v1',
+    type: 'openai-compatible',
+    defaultModel: 'qwen-vl-max',
+  },
+  minimax: {
+    baseUrl: 'https://api.minimax.io/v1',
+    type: 'openai-compatible',
+    defaultModel: 'MiniMax-M2.5',
+  },
 } as const;
 
 type ProviderId = keyof typeof PROVIDER_CONFIG;
@@ -123,7 +138,6 @@ async function callOpenAICompatible(messages: ChatMessage[], apiKey: string, bas
       stream: false,
       max_tokens: maxTokens,
       temperature: 0.35,
-      response_format: { type: 'json_object' },
     }),
   });
 

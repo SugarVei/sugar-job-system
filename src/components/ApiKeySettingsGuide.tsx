@@ -12,6 +12,9 @@ const providerStyle: Record<ProviderId, { initial: string; color: string }> = {
   openai: { initial: 'O', color: '#2f4b46' },
   claude: { initial: 'C', color: '#c45f3b' },
   kimi: { initial: 'K', color: '#6c46b5' },
+  doubao: { initial: '豆', color: '#e05252' },
+  qwen: { initial: '千', color: '#615ced' },
+  minimax: { initial: 'M', color: '#e08632' },
 };
 
 export default function ApiKeySettingsGuide() {
@@ -99,7 +102,7 @@ export default function ApiKeySettingsGuide() {
               <TimelineStep index={2} title="进入充值页面，按需充值" body="充值金额由你自行决定，直接在官方页面完成支付。" button="打开官方充值页面 ↗" href={guideProvider.topUpUrl} />
               <TimelineStep index={3} title="创建 API Key 并复制" body="在 API Key 页面新建一个 Key，创建后请立即复制，多数平台只显示一次。" button="打开 API Key 创建页面 ↗" href={guideProvider.keyUrl} />
               <TimelineStep index={4} title="回到 Sugar，粘贴保存" body={`把刚才复制的 Key 粘贴到 ${guideProvider.label} 卡片的输入框中并保存。`} button="返回导入 API Key" onClick={closeGuide} done />
-              <div style={safeNotice}><span style={{ flex: 'none' }}>🔒</span><p style={{ margin: 0 }}>Sugar 不会要求你输入 DeepSeek、OpenAI、Claude、Kimi 等平台的账号密码。账号登录和充值都应在官方页面完成。</p></div>
+              <div style={safeNotice}><span style={{ flex: 'none' }}>🔒</span><p style={{ margin: 0 }}>Sugar 不会要求你输入任何 AI 平台的账号密码。账号登录和充值都应在官方页面完成。</p></div>
             </div>
           )}
 
@@ -113,7 +116,7 @@ export default function ApiKeySettingsGuide() {
                 )}
                 <div>
                   <div style={{ fontSize: 13.5, fontWeight: 700, color: '#1b1a17', marginBottom: 4 }}>扫码添加站长微信</div>
-                  <p style={{ fontSize: 12, color: '#6b665c', margin: 0, lineHeight: 1.6 }}>备注“服务商名称 + 配置”，工作时间内 30 分钟内响应，适用于 DeepSeek / OpenAI / Claude / Kimi 全部服务商。</p>
+                  <p style={{ fontSize: 12, color: '#6b665c', margin: 0, lineHeight: 1.6 }}>备注“服务商名称 + 配置”，工作时间内 30 分钟内响应，适用于设置页内的全部 AI 服务商。</p>
                 </div>
               </div>
               <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', marginBottom: 16 }}>

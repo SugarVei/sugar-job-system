@@ -399,6 +399,42 @@ select {
   font-size: 11.5px;
   margin-top: 2px;
 }
+.ai-record-importer__dropzone {
+  min-height: 76px;
+  margin-top: 10px;
+  border: 1.5px dashed;
+  border-radius: 14px;
+  background: rgba(255, 253, 248, 0.76);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  color: #4a463e;
+  cursor: pointer;
+  transition: transform .16s ease, background .16s ease, border-color .16s ease;
+}
+.ai-record-importer__dropzone:hover,
+.ai-record-importer__dropzone.is-dragging {
+  background: #fffdf8;
+  transform: translateY(-1px);
+}
+.ai-record-importer__upload-icon { font-size: 24px; opacity: .72; }
+.ai-record-importer__dropzone strong { display: block; font-size: 13px; }
+.ai-record-importer__dropzone small { display: block; margin-top: 3px; color: #8a8478; font-size: 11px; }
+.ai-record-importer__previews { display: grid; gap: 8px; margin-top: 9px; }
+.ai-record-importer__preview {
+  height: 48px;
+  padding: 5px 8px 5px 5px;
+  border: 1px solid #e8dfd1;
+  border-radius: 12px;
+  background: #fffdf8;
+  display: flex;
+  align-items: center;
+  gap: 9px;
+}
+.ai-record-importer__preview img { width: 40px; height: 38px; border-radius: 8px; object-fit: cover; }
+.ai-record-importer__preview span { min-width: 0; flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 11.5px; color: #6b665c; }
+.ai-record-importer__preview button { width: 26px; height: 26px; border: 0; border-radius: 9px; background: #f3ede4; color: #6b665c; cursor: pointer; font-size: 16px; }
 .ai-record-importer__actions {
   display: flex;
   align-items: center;
