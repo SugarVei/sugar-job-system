@@ -1,0 +1,67 @@
+[aria-label="行动队列"] {
+  pointer-events: none;
+}
+
+[aria-label="行动队列"] > header,
+[aria-label="行动队列"] [role="button"] {
+  pointer-events: auto;
+}
+
+[aria-label="行动队列"] > div[style*="perspective"] {
+  transform: translateY(34px);
+}
+
+[aria-label="行动队列"] [role="button"] {
+  transition:
+    opacity 180ms linear,
+    box-shadow 280ms ease,
+    border-color 240ms ease,
+    filter 240ms ease,
+    transform 440ms cubic-bezier(.22, 1.35, .36, 1) !important;
+}
+
+[aria-label="行动队列"] [role="button"][aria-pressed="true"] {
+  filter: saturate(1.08) brightness(1.02);
+  box-shadow:
+    0 24px 42px rgba(44, 39, 31, .28),
+    0 0 0 5px rgba(255, 255, 255, .22) !important;
+  animation: aq-preview-jelly 520ms cubic-bezier(.22, 1.35, .36, 1);
+}
+
+[aria-label="行动队列"] [role="button"][aria-pressed="false"] {
+  filter: none;
+}
+
+[aria-label="行动队列"] .aq-preview-city {
+  margin-top: 4px;
+  font-size: 10px;
+  line-height: 1.3;
+  opacity: .64;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+@keyframes aq-preview-jelly {
+  0% { scale: 1; }
+  38% { scale: 1.08 .96; }
+  64% { scale: .985 1.035; }
+  82% { scale: 1.018 .994; }
+  100% { scale: 1; }
+}
+
+@media (max-width: 560px) {
+  [aria-label="行动队列"] > div[style*="perspective"] {
+    transform: translateY(24px);
+  }
+
+  [aria-label="行动队列"] .aq-preview-city {
+    font-size: 9px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  [aria-label="行动队列"] [role="button"] {
+    animation: none !important;
+  }
+}
