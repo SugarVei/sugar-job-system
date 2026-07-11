@@ -388,12 +388,9 @@ export default function AppLayout({ children }: { children: ReactNode }) {
 const brandMark: React.CSSProperties = {
   width: 42,
   height: 42,
-  borderRadius: 13,
-  background: '#1b1a17',
   display: 'flex',
   alignItems: 'center',
   justifyContent: 'center',
-  boxShadow: '0 3px 10px rgba(60,50,35,.12)',
   flex: 'none',
 };
 

@@ -184,18 +184,17 @@ export const IconKey = ({ size = 16, ...p }: IconProps) => (
   </svg>
 );
 
-/** Sugar 品牌 Logo（使用 public/sugar-logo.png，和 favicon 保持一致） */
+/** Sugar 品牌 Logo（透明背景，与 favicon 保持一致） */
 export const SugarMark = ({ size = 26 }: { size?: number; color?: string }) => (
   <img
-    src="/sugar-logo.png"
+    src="/sugar-logo-v2.png"
     alt="Sugar"
     width={size}
     height={size}
     style={{
       width: size,
       height: size,
-      borderRadius: Math.max(6, Math.round(size * 0.24)),
-      objectFit: 'cover',
+      objectFit: 'contain',
       display: 'block',
     }}
   />

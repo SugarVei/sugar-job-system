@@ -83,15 +83,12 @@ export default function Login() {
               style={{
                 width: 48,
                 height: 48,
-                borderRadius: 14,
-                background: '#1b1a17',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
-                boxShadow: '0 3px 10px rgba(60,50,35,.12)',
               }}
             >
-              <SugarMark size={30} />
+              <SugarMark size={44} />
             </div>
           </div>
           <h1 style={{ fontFamily: 'Poppins', fontSize: 30, fontWeight: 700, textAlign: 'center', margin: '0 0 6px' }}>
