@@ -65,10 +65,15 @@ export default function AppLayout({ children }: { children: ReactNode }) {
   return (
     <div
       style={{
-        minHeight: '100vh',
+        position: 'fixed',
+        inset: 0,
+        height: '100dvh',
+        maxHeight: '100dvh',
+        minHeight: 0,
         width: '100%',
         display: 'flex',
         color: '#1b1a17',
+        overflow: 'hidden',
       }}
       className="p-3 sm:p-4 lg:p-[26px]"
     >
@@ -83,24 +88,26 @@ export default function AppLayout({ children }: { children: ReactNode }) {
           boxShadow: '0 30px 80px rgba(120,40,70,.18)',
           display: 'flex',
           overflow: 'hidden',
-          height: 'calc(100vh - 24px)',
-          maxHeight: 'calc(100vh - 24px)',
+          height: '100%',
+          maxHeight: '100%',
+          minHeight: 0,
         }}
       >
         {/* ===== 桌面侧边栏（≥ lg 显示） ===== */}
         <aside
-          className="scrolly hidden lg:flex"
+          className="hidden lg:flex"
           style={{
             width: 248,
             flex: 'none',
             flexDirection: 'column',
-            padding: '24px 18px',
+            padding: '18px 18px 0',
             borderRight: '1px solid rgba(120,105,80,.1)',
-            overflowY: 'auto',
+            overflow: 'hidden',
+            minHeight: 0,
           }}
         >
           {/* 品牌 */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: 11, padding: '6px 8px', marginBottom: 26 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 11, minHeight: 62, padding: '6px 8px', flex: 'none' }}>
             <div style={brandMark}>
               <SugarMark size={26} />
             </div>
@@ -114,60 +121,75 @@ export default function AppLayout({ children }: { children: ReactNode }) {
           <div
             style={{
               display: 'flex',
-              flexDirection: 'column',
               alignItems: 'center',
-              gap: 6,
-              padding: '4px 8px 18px',
-              marginBottom: 12,
+              gap: 12,
+              minHeight: 88,
+              padding: '10px 8px 14px',
               borderBottom: '1px solid rgba(120,105,80,.12)',
+              flex: 'none',
             }}
           >
-            <label title="点击更换头像" style={{ position: 'relative', cursor: 'pointer', width: 84, height: 84 }}>
+            <label title="点击更换头像" style={{ position: 'relative', cursor: 'pointer', width: 56, height: 56, flex: 'none' }}>
               <input ref={fileRef} type="file" accept="image/*" onChange={onAvatarChange} style={{ display: 'none' }} />
-              {avatarBox(84)}
+              {avatarBox(56)}
               <span
                 style={{
                   position: 'absolute',
                   right: -2,
                   bottom: -2,
-                  width: 28,
-                  height: 28,
+                  width: 22,
+                  height: 22,
                   borderRadius: '50%',
                   background: '#f4c84a',
-                  border: '3px solid #f3efe7',
+                  border: '2px solid #f3efe7',
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
                 }}
               >
-                <IconCamera size={13} color="#1b1a17" />
+                <IconCamera size={11} color="#1b1a17" />
               </span>
             </label>
-            <div style={{ fontSize: 12, color: '#9a9488', marginTop: 6 }}>欢迎回来，</div>
-            <input
-              className="nameedit"
-              value={name}
-              onChange={(e) => updateName(e.target.value)}
-              placeholder="你的名字"
-              style={{
-                width: '100%',
-                textAlign: 'center',
-                border: 'none',
-                background: 'transparent',
-                outline: 'none',
-                fontSize: 18,
-                fontWeight: 600,
-                color: '#1b1a17',
-                borderRadius: 8,
-                padding: '4px 6px',
-                cursor: 'text',
-                transition: 'background .15s',
-              }}
-            />
+            <div style={{ minWidth: 0, flex: 1 }}>
+              <div style={{ fontSize: 11.5, color: '#9a9488', margin: '0 0 4px 7px' }}>个人账号</div>
+              <input
+                className="nameedit"
+                value={name}
+                onChange={(e) => updateName(e.target.value)}
+                placeholder="你的名字"
+                aria-label="编辑昵称"
+                title="点击编辑昵称"
+                style={{
+                  width: '100%',
+                  border: '1px solid transparent',
+                  background: 'rgba(255,253,248,.42)',
+                  outline: 'none',
+                  fontSize: 16,
+                  fontWeight: 600,
+                  color: '#1b1a17',
+                  borderRadius: 10,
+                  padding: '7px 8px',
+                  cursor: 'text',
+                  transition: 'background .15s, border-color .15s, box-shadow .15s',
+                }}
+              />
+            </div>
           </div>
 
-          {/* 导航 */}
-          <nav style={{ display: 'flex', flexDirection: 'column', gap: 6, flex: 1 }}>
+          {/* 导航：仅此区域滚动，底部操作保持固定 */}
+          <nav
+            className="scrolly sidebar-nav-scroll"
+            style={{
+              display: 'flex',
+              flexDirection: 'column',
+              gap: 5,
+              flex: 1,
+              minHeight: 0,
+              overflowY: 'auto',
+              overscrollBehaviorY: 'contain',
+              padding: '18px 0',
+            }}
+          >
             {NAV_ITEMS.map(({ key, label, Icon }) => {
               const active = screen === key;
               return (
@@ -181,14 +203,16 @@ export default function AppLayout({ children }: { children: ReactNode }) {
                     display: 'flex',
                     alignItems: 'center',
                     gap: 12,
-                    height: 46,
+                    minHeight: 44,
                     padding: '0 14px',
                     border: 'none',
-                    borderRadius: 14,
+                    borderRadius: 13,
                     fontSize: 14.5,
                     fontWeight: 600,
                     cursor: 'pointer',
                     textAlign: 'left',
+                    whiteSpace: 'nowrap',
+                    flex: 'none',
                   }}
                 >
                   <span style={{ width: 22, height: 22, display: 'flex', alignItems: 'center', justifyContent: 'center', flex: 'none' }}>
@@ -200,15 +224,26 @@ export default function AppLayout({ children }: { children: ReactNode }) {
             })}
           </nav>
 
-          <ApiKeySettings />
-          <button onClick={() => signOut()} className="btn-press" style={logoutBtn}>
-            <IconLogout size={17} />
-            退出登录
-          </button>
+          <div
+            style={{
+              flex: 'none',
+              borderTop: '1px solid rgba(120,105,80,.12)',
+              padding: '12px 0 16px',
+              display: 'grid',
+              gap: 8,
+              background: 'transparent',
+            }}
+          >
+            <ApiKeySettings />
+            <button onClick={() => signOut()} className="btn-press sidebar-logout" style={logoutBtn}>
+              <IconLogout size={17} />
+              退出登录
+            </button>
+          </div>
         </aside>
 
         {/* ===== 主区 ===== */}
-        <main style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column' }}>
+        <main style={{ flex: 1, minWidth: 0, minHeight: 0, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
           {/* 移动端顶部条（< lg 显示） */}
           <div
             className="flex lg:hidden"
@@ -241,6 +276,7 @@ export default function AppLayout({ children }: { children: ReactNode }) {
               justifyContent: 'space-between',
               gap: 16,
               flexWrap: 'wrap',
+              flex: 'none',
             }}
             className="px-4 lg:px-[34px] pt-3 lg:pt-[26px] pb-3 lg:pb-[18px]"
           >
@@ -292,7 +328,7 @@ export default function AppLayout({ children }: { children: ReactNode }) {
           {/* 内容区（可滚动） */}
           <div
             className="scrolly px-4 lg:px-[34px] pb-24 lg:pb-[34px]"
-            style={{ flex: 1, overflowY: 'auto', paddingTop: 8 }}
+            style={{ flex: 1, minHeight: 0, overflowY: 'auto', overscrollBehaviorY: 'contain', paddingTop: 8 }}
           >
             {children}
           </div>
@@ -365,16 +401,18 @@ const logoutBtn: React.CSSProperties = {
   display: 'flex',
   alignItems: 'center',
   gap: 10,
-  height: 44,
+  width: '100%',
+  height: 46,
   padding: '0 14px',
   border: '1px solid #e0d8c9',
   background: '#fffdf8',
-  borderRadius: 13,
+  borderRadius: 14,
   fontSize: 14,
   fontWeight: 600,
   color: '#4a463e',
   cursor: 'pointer',
-  marginTop: 12,
+  marginTop: 0,
+  whiteSpace: 'nowrap',
 };
 
 const addBtn: React.CSSProperties = {

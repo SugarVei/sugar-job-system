@@ -211,7 +211,7 @@ export default function ApiKeySettingsGuide() {
 
   return (
     <>
-      <button onClick={openModal} className="btn-press" title="AI 模型设置" style={settingsBtn}>
+      <button onClick={openModal} className="btn-press sidebar-bottom-button" title="AI 模型设置" style={settingsBtn}>
         <IconSettings size={17} />AI 设置
       </button>
       {modal}
@@ -273,7 +273,7 @@ const mainHeader: React.CSSProperties = { padding: '18px 22px 14px', borderBotto
 const guideHeader: React.CSSProperties = { padding: '26px 26px 8px', display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 14, flexShrink: 0 };
 const guideSub: React.CSSProperties = { fontSize: 12.5, color: '#8a8478', margin: '8px 0 0' };
 const sectionLabel: React.CSSProperties = { fontSize: 12, fontWeight: 700, color: '#6b665c', marginBottom: 8, textTransform: 'uppercase', letterSpacing: '.04em' };
-const settingsBtn: React.CSSProperties = { display: 'flex', alignItems: 'center', gap: 10, height: 44, padding: '0 14px', border: '1px solid #e0d8c9', background: '#fffdf8', borderRadius: 13, fontSize: 14, fontWeight: 600, color: '#4a463e', cursor: 'pointer', marginTop: 8 };
+const settingsBtn: React.CSSProperties = { width: '100%', display: 'flex', alignItems: 'center', gap: 10, height: 46, padding: '0 14px', border: '1px solid #e0d8c9', background: '#fffdf8', borderRadius: 14, fontSize: 14, fontWeight: 600, color: '#4a463e', cursor: 'pointer', marginTop: 0, whiteSpace: 'nowrap' };
 const iconBtn: React.CSSProperties = { width: 34, height: 34, borderRadius: 10, border: '1px solid #e4ddcf', background: '#faf7f0', color: '#8a8478', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 18, flexShrink: 0 };
 const backBtn: React.CSSProperties = { width: 26, height: 26, border: 'none', background: 'transparent', color: '#8a8478', cursor: 'pointer', fontSize: 15, padding: 0, flex: 'none' };
 const providerCard: React.CSSProperties = { background: '#fffdf8', border: '1px solid #eee4d5', borderRadius: 18, padding: '20px 22px' };

@@ -62,7 +62,7 @@ export function Field({
 
 export const TextInput = forwardRef<HTMLInputElement, React.InputHTMLAttributes<HTMLInputElement>>(
   function TextInput(props, ref) {
-    return <input ref={ref} {...props} className="field-input" style={{ ...controlStyle, ...props.style }} />;
+    return <input ref={ref} {...props} className={`field-input ${props.className ?? ''}`.trim()} style={{ ...controlStyle, ...props.style }} />;
   },
 );
 
@@ -72,7 +72,7 @@ export function TextArea(
   return (
     <textarea
       {...props}
-      className="field-input"
+      className={`field-input ${props.className ?? ''}`.trim()}
       style={{ ...controlStyle, padding: '12px 14px', minHeight: 88, resize: 'vertical', ...props.style }}
     />
   );
@@ -84,7 +84,7 @@ export function Select(
   return (
     <select
       {...props}
-      className="field-input"
+      className={`field-input ${props.className ?? ''}`.trim()}
       style={{ ...controlStyle, cursor: 'pointer', appearance: 'none', ...props.style }}
     />
   );
@@ -103,6 +103,7 @@ export function PrimaryButton({
       style={{
         height: 44,
         padding: '0 22px',
+        minWidth: 96,
         border: 'none',
         borderRadius: 12,
         background: accent ?? '#1b1a17',
@@ -110,6 +111,9 @@ export function PrimaryButton({
         fontSize: 14.5,
         fontWeight: 600,
         cursor: 'pointer',
+        whiteSpace: 'nowrap',
+        flexShrink: 0,
+        opacity: props.disabled ? 0.5 : 1,
         ...props.style,
       }}
     >
@@ -129,6 +133,7 @@ export function GhostButton({
       style={{
         height: 44,
         padding: '0 18px',
+        minWidth: 84,
         border: '1px solid #e4ddcf',
         background: '#faf7f0',
         borderRadius: 12,
@@ -136,6 +141,9 @@ export function GhostButton({
         fontWeight: 600,
         color: '#4a463e',
         cursor: 'pointer',
+        whiteSpace: 'nowrap',
+        flexShrink: 0,
+        opacity: props.disabled ? 0.42 : 1,
         ...props.style,
       }}
     >

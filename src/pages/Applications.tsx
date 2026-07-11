@@ -9,6 +9,7 @@ import { IconEdit, IconTrash, IconPlus, IconExternalLink } from '../components/i
 import { STATUS_OPTIONS, statusTag, buildSteps, matchApp, CARD } from '../lib/appHelpers';
 import EmptyState from '../components/EmptyState';
 import { exportApplicationsToExcel } from '../lib/exportExcel';
+import AIRecordImporter, { type ApplicationExtraction } from '../components/AIRecordImporter';
 
 const empty: NewRecord<Application> = {
   company_name: '',
@@ -134,6 +135,28 @@ export default function Applications() {
     });
     setFormError('');
     setModalOpen(true);
+  };
+
+  const applyAIExtraction = (data: ApplicationExtraction) => {
+    setForm(current => ({
+      ...current,
+      company_name: data.company_name ?? current.company_name,
+      position_name: data.position_name ?? current.position_name,
+      city: data.city ?? current.city,
+      channel: data.channel ?? current.channel,
+      apply_date: data.apply_date ?? current.apply_date,
+      status: STATUS_OPTIONS.includes(data.status as ApplicationStatus) ? data.status as ApplicationStatus : current.status,
+      salary_range: data.salary_range ?? current.salary_range,
+      job_url: data.job_url ?? current.job_url,
+      jd_text: data.jd_text ?? current.jd_text,
+      jd_keywords: data.jd_keywords.length ? data.jd_keywords : current.jd_keywords,
+      next_action: data.next_action ?? current.next_action,
+      next_action_at: data.next_action_at ?? current.next_action_at,
+      deadline_at: data.deadline_at ?? current.deadline_at,
+      priority: PRIORITY_OPTIONS.some(item => item.value === data.priority) ? data.priority as ApplicationPriority : current.priority,
+      notes: data.notes ?? current.notes,
+    }));
+    setFormError('');
   };
 
   const save = async () => {
@@ -409,6 +432,7 @@ export default function Applications() {
         }
       >
         <FormError message={formError} />
+        {!editing && <AIRecordImporter<ApplicationExtraction> kind="application" onApply={applyAIExtraction} />}
 
         <div
           style={{
