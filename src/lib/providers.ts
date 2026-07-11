@@ -113,6 +113,22 @@ export const PROVIDERS = {
     supportsBalance: false,
     supportsVision: false,
   },
+  gemini: {
+    label: 'Google Gemini',
+    emoji: '✦',
+    baseUrl: 'https://generativelanguage.googleapis.com/v1beta/openai',
+    model: 'gemini-2.5-flash',
+    keyHint: 'AIzaSyxxxxxxxxxxxxxxxx',
+    keyUrl: 'https://aistudio.google.com/apikey',
+    topUpUrl: 'https://console.cloud.google.com/billing',
+    officialSite: 'https://aistudio.google.com',
+    guideDesc: 'Google 多模态模型，支持长文本、岗位截图和 Offer 图片识别',
+    recommendLevel: '推荐',
+    difficulty: '低',
+    pricingNote: '按 Google AI Studio 官方实际价格为准',
+    supportsBalance: false,
+    supportsVision: true,
+  },
 } as const;
 
 export type ProviderId = keyof typeof PROVIDERS;

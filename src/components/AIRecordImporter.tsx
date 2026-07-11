@@ -152,7 +152,7 @@ export default function AIRecordImporter<T extends ApplicationExtraction | Offer
       return;
     }
     if (screenshots.length > 0 && !PROVIDERS[config.provider].supportsVision) {
-      setError(`当前 ${PROVIDERS[config.provider].label} 配置不支持图片识别，请切换到 OpenAI、Claude、豆包或通义千问。`);
+      setError(`当前 ${PROVIDERS[config.provider].label} 配置不支持图片识别，请切换到 OpenAI、Claude、豆包、通义千问或 Gemini。`);
       setSuccess('');
       return;
     }

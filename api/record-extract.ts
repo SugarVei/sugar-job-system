@@ -8,6 +8,7 @@ const PROVIDER_CONFIG = {
   doubao: { baseUrl: 'https://ark.cn-beijing.volces.com/api/v3', type: 'openai-compatible', defaultModel: 'doubao-seed-1-6-vision-250815', supportsVision: true, structuredOutput: false },
   qwen: { baseUrl: 'https://dashscope.aliyuncs.com/compatible-mode/v1', type: 'openai-compatible', defaultModel: 'qwen-vl-max', supportsVision: true, structuredOutput: false },
   minimax: { baseUrl: 'https://api.minimax.io/v1', type: 'openai-compatible', defaultModel: 'MiniMax-M2.5', supportsVision: false, structuredOutput: false },
+  gemini: { baseUrl: 'https://generativelanguage.googleapis.com/v1beta/openai', type: 'openai-compatible', defaultModel: 'gemini-2.5-flash', supportsVision: true, structuredOutput: false },
 } as const;
 
 type ProviderId = keyof typeof PROVIDER_CONFIG;
@@ -197,7 +198,7 @@ export default async function handler(req: Request): Promise<Response> {
     if (!isProviderId(requestedProvider)) return json({ error: '不支持的 AI 服务商。' }, 400, corsHeaders);
     const providerConfig = PROVIDER_CONFIG[requestedProvider];
     if (images.length > 0 && !providerConfig.supportsVision) {
-      return json({ error: '当前 AI 模型不支持图片识别，请切换到 OpenAI、Claude、豆包或通义千问。' }, 400, corsHeaders);
+      return json({ error: '当前 AI 模型不支持图片识别，请切换到 OpenAI、Claude、豆包、通义千问或 Gemini。' }, 400, corsHeaders);
     }
     const resolvedKey = body.apiKey || (requestedProvider === 'deepseek' ? process.env.DEEPSEEK_API_KEY : undefined);
     if (!resolvedKey) return json({ error: '当前服务商未配置 API Key。' }, 400, corsHeaders);

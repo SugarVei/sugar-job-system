@@ -15,6 +15,7 @@ const providerStyle: Record<ProviderId, { initial: string; color: string }> = {
   doubao: { initial: '豆', color: '#e05252' },
   qwen: { initial: '千', color: '#615ced' },
   minimax: { initial: 'M', color: '#e08632' },
+  gemini: { initial: 'G', color: '#4285f4' },
 };
 
 export default function ApiKeySettingsGuide() {

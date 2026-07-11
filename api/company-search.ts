@@ -36,6 +36,11 @@ const PROVIDER_CONFIG = {
     type: 'openai-compatible',
     defaultModel: 'MiniMax-M2.5',
   },
+  gemini: {
+    baseUrl: 'https://generativelanguage.googleapis.com/v1beta/openai',
+    type: 'openai-compatible',
+    defaultModel: 'gemini-2.5-flash',
+  },
 } as const;
 
 type ProviderId = keyof typeof PROVIDER_CONFIG;
