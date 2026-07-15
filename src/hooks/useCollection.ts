@@ -42,6 +42,10 @@ function readableDbError(error: unknown, table: string) {
     return `Supabase 权限策略拒绝了 ${table} 操作。原始错误：${message}`;
   }
 
+  if (table === 'referral_codes' && /relation.*does not exist|schema cache|referral_codes/i.test(message)) {
+    return '数据库缺少内推码表，请在 Supabase SQL Editor 执行 supabase/migration_referral_codes.sql。';
+  }
+
   if (/relation.*does not exist/i.test(message)) {
     return `数据库表不存在，请检查 Supabase 数据库配置。原始错误：${message}`;
   }
@@ -73,7 +77,7 @@ function stripResumeId(payload: Record<string, unknown>) {
 }
 
 export function useCollection<T extends BaseRow>(
-  table: 'applications' | 'companies' | 'resumes' | 'interviews' | 'offers' | 'interview_reviews' | 'interview_review_questions' | 'jd_matches',
+  table: 'applications' | 'companies' | 'resumes' | 'interviews' | 'offers' | 'interview_reviews' | 'interview_review_questions' | 'jd_matches' | 'referral_codes',
   orderBy: { column: string; ascending?: boolean } = { column: 'created_at', ascending: false },
 ) {
   const { user } = useAuth();
@@ -143,7 +147,7 @@ export function useCollection<T extends BaseRow>(
       }
 
       if (err) {
-        console.error(`[${table}] create error:`, err);
+        if (table !== 'referral_codes') console.error(`[${table}] create error:`, err);
         throw new Error(readableDbError(err, table));
       }
 
@@ -155,11 +159,13 @@ export function useCollection<T extends BaseRow>(
 
   const update = useCallback(
     async (id: string, payload: Record<string, unknown>) => {
+      if (!user) throw new Error('未登录');
       const updatePayload = { ...payload, updated_at: new Date().toISOString() };
       const { data, error: err } = await supabase
         .from(table)
         .update(updatePayload)
         .eq('id', id)
+        .eq('user_id', user.id)
         .select()
         .single();
 
@@ -168,6 +174,7 @@ export function useCollection<T extends BaseRow>(
           .from(table)
           .update({ ...stripResumeId(payload), updated_at: updatePayload.updated_at })
           .eq('id', id)
+          .eq('user_id', user.id)
           .select()
           .single();
 
@@ -183,16 +190,17 @@ export function useCollection<T extends BaseRow>(
       setItems((prev) => prev.map((it) => (it.id === id ? (data as T) : it)));
       return data as T;
     },
-    [table],
+    [table, user],
   );
 
   const remove = useCallback(
     async (id: string) => {
-      const { error: err } = await supabase.from(table).delete().eq('id', id);
+      if (!user) throw new Error('未登录');
+      const { error: err } = await supabase.from(table).delete().eq('id', id).eq('user_id', user.id);
       if (err) throw new Error(readableDbError(err, table));
       setItems((prev) => prev.filter((it) => it.id !== id));
     },
-    [table],
+    [table, user],
   );
 
   return { items, loading, error, refresh: fetchAll, create, update, remove };

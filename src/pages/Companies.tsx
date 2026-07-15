@@ -31,7 +31,7 @@ function errorText(error: unknown) {
 
 export default function Companies() {
   const { items, loading, error: companiesError, create, update, remove } = useCollection<Company>('companies');
-  const { query, registerAdd } = useAppShell();
+  const { query, registerAdd, setScreen } = useAppShell();
   const { theme } = useTheme();
   const [industryFilter, setIndustryFilter] = useState('all');
   const [modalOpen, setModalOpen] = useState(false);
@@ -135,8 +135,8 @@ export default function Companies() {
     <div className="flex flex-col gap-[18px] animate-rise">
       {companiesError && <FormError message={companiesError} />}
 
-      <div className="grid grid-cols-1 sm:grid-cols-[1fr_auto_auto] gap-3 p-4" style={{ ...CARD, borderRadius: 20 }}>
-        <Select value={industryFilter} onChange={(event) => setIndustryFilter(event.target.value)}>
+      <div className="flex flex-col lg:flex-row lg:items-center gap-3 p-4" style={{ ...CARD, borderRadius: 20 }}>
+        <Select value={industryFilter} onChange={(event) => setIndustryFilter(event.target.value)} style={{ flex: 1 }} aria-label="按行业筛选公司">
           <option value="all">全部行业</option>
           {industries.map((industry) => (
             <option key={industry} value={industry}>
@@ -144,18 +144,23 @@ export default function Companies() {
             </option>
           ))}
         </Select>
-        {items.length > 0 && (
-          <AIChatDialog
-            systemPrompt={aiSystemPrompt}
-            placeholder="问我关于你的目标公司分析…"
-            buttonLabel="🤖 AI 分析"
-          />
-        )}
-        <PrimaryButton accent={theme.accent} onClick={openCreate} style={{ height: 44 }}>
-          <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
-            <IconPlus size={16} /> 新增公司
-          </span>
-        </PrimaryButton>
+        <div className="flex flex-wrap gap-3">
+          {items.length > 0 && (
+            <AIChatDialog
+              systemPrompt={aiSystemPrompt}
+              placeholder="问我关于你的目标公司分析…"
+              buttonLabel="🤖 AI 分析"
+            />
+          )}
+          <GhostButton onClick={() => setScreen('referralCodes')} aria-label="进入内推码管理" style={{ height: 44 }}>
+            内推码管理
+          </GhostButton>
+          <PrimaryButton accent={theme.accent} onClick={openCreate} style={{ height: 44 }}>
+            <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+              <IconPlus size={16} /> 新增公司
+            </span>
+          </PrimaryButton>
+        </div>
       </div>
 
       {loading ? (
