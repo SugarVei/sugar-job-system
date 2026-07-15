@@ -54,6 +54,25 @@ export interface Company {
   updated_at: string;
 }
 
+export type ReferralCodeStatus = '可用' | '即将过期' | '已使用';
+
+export interface ReferralCode {
+  id: string;
+  user_id: string;
+  company_id: string | null;
+  company_name: string;
+  industry: string | null;
+  position_name: string;
+  city: string | null;
+  referral_code: string;
+  source: string | null;
+  status: ReferralCodeStatus;
+  expires_at: string | null;
+  notes: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
 export interface Resume {
   id: string;
   user_id: string;
@@ -97,6 +116,7 @@ export type NewRecord<T> = Omit<T, 'id' | 'user_id' | 'created_at' | 'updated_at
 export type NewApplication = NewRecord<Application>;
 export type NewResume = NewRecord<Resume>;
 export type NewCompany = NewRecord<Company>;
+export type NewReferralCode = NewRecord<ReferralCode>;
 export type NewInterview = NewRecord<Interview>;
 
 export type OfferStatus = '待考虑' | '谈薪中' | '已接受' | '已拒绝' | '已过期';
@@ -160,6 +180,7 @@ export type ScreenKey =
   | 'overview'
   | 'applications'
   | 'companies'
+  | 'referralCodes'
   | 'hotCompanies'
   | 'resumes'
   | 'interviews'

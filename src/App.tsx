@@ -9,6 +9,7 @@ import Dashboard from './pages/Dashboard';
 import Overview from './pages/Overview';
 import Applications from './pages/Applications';
 import Companies from './pages/Companies';
+import ReferralCodes from './pages/ReferralCodes';
 import HotCompanies from './pages/HotCompanies';
 import Resumes from './pages/Resumes';
 import Interviews from './pages/Interviews';
@@ -28,6 +29,8 @@ function CurrentPage() {
       return <Applications />;
     case 'companies':
       return <Companies />;
+    case 'referralCodes':
+      return <ReferralCodes />;
     case 'hotCompanies':
       return <HotCompanies />;
     case 'resumes':

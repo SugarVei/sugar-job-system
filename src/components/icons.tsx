@@ -158,6 +158,33 @@ export const IconEye = ({ size = 18, ...p }: IconProps) => (
   </svg>
 );
 
+export const IconEyeOff = ({ size = 18, ...p }: IconProps) => (
+  <svg {...base(size, p)}>
+    <path d="m3 3 18 18" />
+    <path d="M10.6 10.6a2 2 0 0 0 2.8 2.8M9.9 4.2A10.8 10.8 0 0 1 12 4c6 0 10 8 10 8a17 17 0 0 1-2.1 3.2M6.6 6.6C3.7 8.4 2 12 2 12s4 8 10 8a9.8 9.8 0 0 0 4.1-.9" />
+  </svg>
+);
+
+export const IconCopy = ({ size = 16, ...p }: IconProps) => (
+  <svg {...base(size, p)}>
+    <rect x="8" y="8" width="12" height="12" rx="2" />
+    <path d="M16 8V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h2" />
+  </svg>
+);
+
+export const IconClock = ({ size = 18, ...p }: IconProps) => (
+  <svg {...base(size, p)}>
+    <circle cx="12" cy="12" r="9" />
+    <path d="M12 7v5l3 2" />
+  </svg>
+);
+
+export const IconCheck = ({ size = 18, ...p }: IconProps) => (
+  <svg {...base(size, p)}>
+    <path d="m5 12 4 4L19 6" />
+  </svg>
+);
+
 export const IconTrophy = ({ size = 22, ...p }: IconProps) => (
   <svg {...base(size, p)}>
     <path d="M6 9V2h12v7a6 6 0 0 1-12 0ZM6 9H3a3 3 0 0 0 3 3M18 9h3a3 3 0 0 1-3 3M9 20h6M12 15v5" />
