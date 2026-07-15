@@ -315,8 +315,8 @@ export default function AppLayout({ children }: { children: ReactNode }) {
                 <input
                   value={query}
                   onChange={(e) => setQuery(e.target.value)}
-                  placeholder={screen === 'referralCodes' ? '搜索公司、岗位、内推码…' : '搜索公司、岗位…'}
-                  aria-label={screen === 'referralCodes' ? '搜索公司、岗位、内推码' : '搜索公司、岗位'}
+                  placeholder={screen === 'referralCodes' ? '搜索公司、推荐人、内推码…' : '搜索公司、岗位…'}
+                  aria-label={screen === 'referralCodes' ? '搜索公司、推荐人、内推码' : '搜索公司、岗位'}
                   className="sm:w-[180px]"
                   style={{ border: 'none', background: 'none', outline: 'none', fontSize: 14, width: '100%', color: '#1b1a17' }}
                 />
