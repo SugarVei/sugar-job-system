@@ -9,9 +9,10 @@ create table if not exists public.referral_codes (
   company_id    uuid references public.companies (id) on delete set null,
   company_name  text not null,
   industry      text,
-  position_name text not null,
+  position_name text,
   city          text,
   referral_code text not null,
+  referrer_name text,
   source         text,
   status         text not null default '可用',
   expires_at     date,
@@ -29,6 +30,7 @@ alter table public.referral_codes add column if not exists industry text;
 alter table public.referral_codes add column if not exists position_name text;
 alter table public.referral_codes add column if not exists city text;
 alter table public.referral_codes add column if not exists referral_code text;
+alter table public.referral_codes add column if not exists referrer_name text;
 alter table public.referral_codes add column if not exists source text;
 alter table public.referral_codes add column if not exists status text default '可用';
 alter table public.referral_codes add column if not exists expires_at date;
@@ -40,7 +42,7 @@ alter table public.referral_codes alter column id set default gen_random_uuid();
 alter table public.referral_codes alter column id set not null;
 alter table public.referral_codes alter column user_id set not null;
 alter table public.referral_codes alter column company_name set not null;
-alter table public.referral_codes alter column position_name set not null;
+alter table public.referral_codes alter column position_name drop not null;
 alter table public.referral_codes alter column referral_code set not null;
 alter table public.referral_codes alter column status set default '可用';
 alter table public.referral_codes alter column status set not null;

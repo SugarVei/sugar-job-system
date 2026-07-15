@@ -62,9 +62,10 @@ export interface ReferralCode {
   company_id: string | null;
   company_name: string;
   industry: string | null;
-  position_name: string;
+  position_name: string | null;
   city: string | null;
   referral_code: string;
+  referrer_name: string | null;
   source: string | null;
   status: ReferralCodeStatus;
   expires_at: string | null;
@@ -116,7 +117,8 @@ export type NewRecord<T> = Omit<T, 'id' | 'user_id' | 'created_at' | 'updated_at
 export type NewApplication = NewRecord<Application>;
 export type NewResume = NewRecord<Resume>;
 export type NewCompany = NewRecord<Company>;
-export type NewReferralCode = NewRecord<ReferralCode>;
+export type NewReferralCode = Pick<ReferralCode, 'company_name' | 'referral_code'> &
+  Partial<Omit<NewRecord<ReferralCode>, 'company_name' | 'referral_code'>>;
 export type NewInterview = NewRecord<Interview>;
 
 export type OfferStatus = '待考虑' | '谈薪中' | '已接受' | '已拒绝' | '已过期';
