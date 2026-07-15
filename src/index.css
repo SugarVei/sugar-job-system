@@ -175,10 +175,6 @@ select {
   border-color: #e4ddcf !important;
 }
 
-.sidebar-nav-scroll {
-  mask-image: linear-gradient(to bottom, transparent 0, #000 18px, #000 calc(100% - 18px), transparent 100%);
-  -webkit-mask-image: linear-gradient(to bottom, transparent 0, #000 18px, #000 calc(100% - 18px), transparent 100%);
-}
 .sidebar-bottom-button:hover {
   background: #f5f0e7 !important;
 }

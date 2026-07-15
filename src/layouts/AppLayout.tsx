@@ -98,6 +98,8 @@ export default function AppLayout({ children }: { children: ReactNode }) {
           className="hidden lg:flex"
           style={{
             width: 248,
+            height: '100%',
+            maxHeight: '100%',
             flex: 'none',
             flexDirection: 'column',
             padding: '18px 18px 0',
@@ -176,18 +178,17 @@ export default function AppLayout({ children }: { children: ReactNode }) {
             </div>
           </div>
 
-          {/* 导航：仅此区域滚动，底部操作保持固定 */}
+          {/* 导航：在侧栏固定高度内均分空间，不产生独立滚动 */}
           <nav
-            className="scrolly sidebar-nav-scroll"
+            className="sidebar-nav"
             style={{
               display: 'flex',
               flexDirection: 'column',
-              gap: 5,
+              gap: 2,
               flex: 1,
               minHeight: 0,
-              overflowY: 'auto',
-              overscrollBehaviorY: 'contain',
-              padding: '18px 0',
+              overflow: 'hidden',
+              padding: '10px 0',
             }}
           >
             {NAV_ITEMS.map(({ key, label, Icon }) => {
@@ -203,7 +204,8 @@ export default function AppLayout({ children }: { children: ReactNode }) {
                     display: 'flex',
                     alignItems: 'center',
                     gap: 12,
-                    minHeight: 44,
+                    minHeight: 0,
+                    maxHeight: 44,
                     padding: '0 14px',
                     border: 'none',
                     borderRadius: 13,
@@ -212,7 +214,7 @@ export default function AppLayout({ children }: { children: ReactNode }) {
                     cursor: 'pointer',
                     textAlign: 'left',
                     whiteSpace: 'nowrap',
-                    flex: 'none',
+                    flex: '1 1 0',
                   }}
                 >
                   <span style={{ width: 22, height: 22, display: 'flex', alignItems: 'center', justifyContent: 'center', flex: 'none' }}>
