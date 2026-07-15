@@ -177,6 +177,30 @@ export type NewOffer = NewRecord<Offer>;
 export type NewInterviewReview = NewRecord<InterviewReview>;
 export type NewJdMatch = NewRecord<JdMatch>;
 
+export type EvidenceType = 'JD' | 'Offer' | 'HR沟通' | '面试反馈' | '薪资福利' | '公司信息' | '其他';
+export type EvidenceRelatedType = 'application' | 'offer' | 'interview' | 'company' | 'resume' | 'none';
+
+export interface EvidenceItem {
+  id: string;
+  user_id: string;
+  title: string;
+  evidence_type: EvidenceType;
+  related_type: EvidenceRelatedType;
+  related_id: string | null;
+  company_name: string | null;
+  position_name: string | null;
+  source: string | null;
+  evidence_date: string | null;
+  content: string | null;
+  file_url: string | null;
+  tags: string[] | null;
+  credibility_score: number | null;
+  notes: string | null;
+  created_at: string;
+  updated_at: string;
+}
+export type NewEvidenceItem = NewRecord<EvidenceItem>;
+
 export type ScreenKey =
   | 'dashboard'
   | 'overview'
@@ -188,4 +212,5 @@ export type ScreenKey =
   | 'interviews'
   | 'offers'
   | 'interviewReviews'
-  | 'jdMatches';
+  | 'jdMatches'
+  | 'evidence';

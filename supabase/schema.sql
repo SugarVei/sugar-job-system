@@ -250,6 +250,23 @@ create policy "interviews_update_own" on public.interviews for update using (aut
 drop policy if exists "interviews_delete_own" on public.interviews;
 create policy "interviews_delete_own" on public.interviews for delete using (auth.uid() = user_id);
 
+-- Explicit Data API privileges for new Supabase projects.
+-- anon remains blocked; authenticated users are still restricted by RLS.
+revoke all on table public.applications from anon, authenticated;
+revoke all on table public.companies from anon, authenticated;
+revoke all on table public.referral_codes from anon, authenticated;
+revoke all on table public.resumes from anon, authenticated;
+revoke all on table public.resume_files from anon, authenticated;
+revoke all on table public.user_api_keys from anon, authenticated;
+revoke all on table public.interviews from anon, authenticated;
+grant select, insert, update, delete on table public.applications to authenticated;
+grant select, insert, update, delete on table public.companies to authenticated;
+grant select, insert, update, delete on table public.referral_codes to authenticated;
+grant select, insert, update, delete on table public.resumes to authenticated;
+grant select, insert, update, delete on table public.resume_files to authenticated;
+grant select, insert, update, delete on table public.user_api_keys to authenticated;
+grant select, insert, update, delete on table public.interviews to authenticated;
+
 -- Private storage bucket for uploaded resumes and interview scripts.
 insert into storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
 values (

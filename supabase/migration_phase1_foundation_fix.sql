@@ -163,6 +163,21 @@ begin
 end;
 $$;
 
+-- Explicit Data API privileges for Supabase projects where public tables are
+-- not exposed automatically. anon remains blocked; RLS still restricts rows.
+revoke all on table public.applications from anon, authenticated;
+revoke all on table public.companies from anon, authenticated;
+revoke all on table public.resumes from anon, authenticated;
+revoke all on table public.resume_files from anon, authenticated;
+revoke all on table public.user_api_keys from anon, authenticated;
+revoke all on table public.interviews from anon, authenticated;
+grant select, insert, update, delete on table public.applications to authenticated;
+grant select, insert, update, delete on table public.companies to authenticated;
+grant select, insert, update, delete on table public.resumes to authenticated;
+grant select, insert, update, delete on table public.resume_files to authenticated;
+grant select, insert, update, delete on table public.user_api_keys to authenticated;
+grant select, insert, update, delete on table public.interviews to authenticated;
+
 -- Keep the unexpected legacy table, but deny access by default if it exists.
 do $$
 begin
