@@ -58,7 +58,7 @@ export default function Dashboard() {
     column: 'interview_time',
     ascending: true,
   });
-  const { setScreen, setQuery } = useAppShell();
+  const { setScreen, setQuery, triggerAdd } = useAppShell();
   const { theme } = useTheme();
 
   const now = new Date();
@@ -138,7 +138,12 @@ export default function Dashboard() {
       {/* 顶部：行动队列 + 月历 */}
       <div className="grid grid-cols-1 lg:grid-cols-[1.55fr_1fr] items-stretch gap-[22px]">
         {/* 行动队列 */}
-        <ActionQueueOrbit apps={activeApps} onViewDetail={handleViewDetail} fillHeight />
+        <ActionQueueOrbit
+          apps={activeApps}
+          onViewDetail={handleViewDetail}
+          onViewAll={() => setScreen('applications')}
+          onAddAction={triggerAdd}
+        />
 
         {/* 月历 */}
         <div style={{ height: '100%', background: '#dcebd5', borderRadius: 26, padding: 24 }}>
