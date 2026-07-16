@@ -60,4 +60,11 @@ final result: passed
 - The reference element screenshot originated on a half-CSS-pixel page coordinate and rendered at 861 × 401. The comparison used the best-aligned 860 × 400 crop at offset (1, 1). Mean absolute RGB difference after alignment: (0.757, 0.904, 0.924) on the 0–255 scale.
 - Remaining visible difference is subpixel font anti-aliasing from the reference's fractional page origin; no structural double edges remain in the stage, cards, navigation, mask, or glow.
 
-final result: passed
+## Literal source-port iteration
+
+- Earlier finding: the implementation still depended on component CSS and a native button formatting context, while the source prototype renders each orbit card as a plain normal-flow element with inline style objects.
+- Fix made: the stage, glow, header, ring origin, slot, card, mask, navigation, and expanded-card visual declarations are now copied into React inline styles from the unpacked prototype. Orbit cards now use the prototype's normal-flow `div` structure with keyboard-equivalent button semantics. The external stylesheet is limited to focus and keyframe behavior.
+- Post-fix code checks: `npm run lint` and `npm run build` pass.
+- Post-fix visual evidence is currently unavailable because the connected Chrome extension cannot establish a browser-control session and this Codex turn exposes no alternate in-app browser surface. The previous screenshot predates this literal source-port iteration and is not reused as new proof.
+
+final result: blocked

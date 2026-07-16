@@ -77,42 +77,55 @@ function formatDateTime(value: string | null) {
   return Number.isNaN(date.getTime()) ? value : date.toLocaleString('zh-CN', { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit', hour12: false });
 }
 
-const OrbitCard = memo(function OrbitCard({ app, index, compact, cardRef, onActivate, onKeyDown }: {
+const OrbitCard = memo(function OrbitCard({ app, index, cardWidth, cardRef, onActivate, onKeyDown }: {
   app: Application;
   index: number;
-  compact: boolean;
-  cardRef: (node: HTMLButtonElement | null) => void;
+  cardWidth: number;
+  cardRef: (node: HTMLDivElement | null) => void;
   onActivate: () => void;
-  onKeyDown: (event: React.KeyboardEvent<HTMLButtonElement>) => void;
+  onKeyDown: (event: React.KeyboardEvent<HTMLDivElement>) => void;
 }) {
   const palette = PALETTES[index % PALETTES.length];
   return (
-    <button
+    <div
       ref={cardRef}
-      type="button"
       className="action-queue-card"
+      role="button"
+      tabIndex={0}
       aria-label={`${app.company_name} · ${app.position_name} · ${app.status}`}
       style={{
         '--aq-card-bg': palette.bg,
         '--aq-card-fg': palette.fg,
-        appearance: 'none',
-        WebkitAppearance: 'none',
-        display: 'block',
+        position: 'relative',
+        inset: 'auto',
+        width: '100%',
+        height: '100%',
+        borderRadius: 16,
+        boxSizing: 'border-box',
+        padding: cardWidth < 120 ? '10px 12px' : '13px 15px',
+        border: 0,
+        background: palette.bg,
+        backgroundImage: 'linear-gradient(160deg, rgba(255,255,255,.35), rgba(255,255,255,0) 55%)',
+        color: palette.fg,
         font: 'inherit',
-        padding: 0,
+        textAlign: 'left',
+        boxShadow: '0 8px 18px rgba(60,40,20,.08)',
+        backfaceVisibility: 'hidden',
+        WebkitBackfaceVisibility: 'hidden',
+        transformStyle: 'preserve-3d',
+        willChange: 'transform, opacity, filter',
+        cursor: 'pointer',
+        transition: 'box-shadow .25s ease',
+        userSelect: 'none',
       } as React.CSSProperties}
       onClick={(event) => { event.stopPropagation(); onActivate(); }}
       onKeyDown={onKeyDown}
     >
-      <span
-        style={{ position: 'absolute', top: compact ? 10 : 13, right: compact ? 12 : 15, left: compact ? 12 : 15 }}
-      >
-        <span className="action-queue-card__initial">{app.company_name.charAt(0)}</span>
-        <strong>{app.company_name}</strong>
-        <span className="action-queue-card__position">{app.position_name}</span>
-        <em>{app.status}</em>
-      </span>
-    </button>
+      <span style={{ display: 'block', fontSize: 15, fontWeight: 700, lineHeight: 1 }}>{app.company_name.charAt(0)}</span>
+      <strong style={{ display: 'block', marginTop: 4, overflow: 'hidden', fontSize: cardWidth < 120 ? 11 : 12, fontWeight: 700, textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{app.company_name}</strong>
+      <span style={{ display: 'block', marginTop: 2, overflow: 'hidden', fontSize: cardWidth < 120 ? 9.5 : 10.5, opacity: .72, textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{app.position_name}</span>
+      <em style={{ display: 'inline-block', marginTop: 4, borderRadius: 999, background: 'rgba(0,0,0,.1)', padding: '2px 6px', fontSize: 9, fontStyle: 'normal', fontWeight: 700 }}>{app.status}</em>
+    </div>
   );
 });
 
@@ -128,22 +141,41 @@ function ExpandedCard({ app, index, config, onClose, onViewDetail }: {
   return (
     <article
       className="action-queue-expanded"
-      style={{ '--aq-card-bg': palette.bg, '--aq-card-fg': palette.fg, '--aq-expanded-w': `${width}px` } as React.CSSProperties}
+      style={{
+        position: 'absolute',
+        zIndex: 50,
+        top: '50%',
+        left: '50%',
+        display: 'flex',
+        width,
+        minHeight: config.cardH + 46,
+        transform: 'translate(-50%,-50%)',
+        flexDirection: 'column',
+        justifyContent: 'space-between',
+        boxSizing: 'border-box',
+        borderRadius: 18,
+        padding: '18px 20px',
+        background: palette.bg,
+        backgroundImage: 'linear-gradient(160deg, rgba(255,255,255,.35), rgba(255,255,255,0) 55%)',
+        color: palette.fg,
+        boxShadow: '0 24px 50px rgba(60,40,20,.24)',
+        animation: 'action-queue-expand-in .28s cubic-bezier(.16,1,.3,1)',
+      }}
       onClick={(event) => event.stopPropagation()}
     >
-      <button className="action-queue-expanded__close" type="button" aria-label="关闭详情" onClick={onClose}>×</button>
+      <button className="action-queue-expanded__close" style={{ position: 'absolute', top: 9, right: 11, width: 23, height: 23, appearance: 'none', border: 0, borderRadius: '50%', background: 'rgba(0,0,0,.09)', color: 'inherit', fontSize: 18, lineHeight: 1, cursor: 'pointer' }} type="button" aria-label="关闭详情" onClick={onClose}>×</button>
       <div>
-        <strong>{app.company_name}</strong>
-        <span>{app.position_name}</span>
+        <strong style={{ display: 'block', maxWidth: '88%', overflow: 'hidden', fontSize: 18, textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{app.company_name}</strong>
+        <span style={{ display: 'block', overflow: 'hidden', marginTop: 3, fontSize: 12, opacity: .72, textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{app.position_name}</span>
       </div>
-      <div className="action-queue-expanded__tags"><em>{app.status}</em><em>{priorityLabel(app.priority)}</em></div>
-      <dl>
-        <div><dt>城市</dt><dd>{app.city || '未填写'}</dd></div>
-        <div><dt>渠道</dt><dd>{app.channel || '未填写'}</dd></div>
-        <div><dt>下一步行动</dt><dd>{app.next_action || '待处理'}</dd></div>
-        <div><dt>截止时间</dt><dd>{formatDateTime(app.deadline_at)}</dd></div>
+      <div style={{ display: 'flex', gap: 4, marginTop: 10 }}><em style={{ borderRadius: 999, background: 'rgba(0,0,0,.1)', padding: '2px 6px', fontSize: 9, fontStyle: 'normal', fontWeight: 700 }}>{app.status}</em><em style={{ borderRadius: 999, background: 'rgba(0,0,0,.1)', padding: '2px 6px', fontSize: 9, fontStyle: 'normal', fontWeight: 700 }}>{priorityLabel(app.priority)}</em></div>
+      <dl style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '9px 12px', margin: '15px 0 0', fontSize: 10 }}>
+        <div style={{ minWidth: 0 }}><dt style={{ opacity: .58 }}>城市</dt><dd style={{ overflow: 'hidden', margin: '2px 0 0', fontWeight: 700, textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{app.city || '未填写'}</dd></div>
+        <div style={{ minWidth: 0 }}><dt style={{ opacity: .58 }}>渠道</dt><dd style={{ overflow: 'hidden', margin: '2px 0 0', fontWeight: 700, textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{app.channel || '未填写'}</dd></div>
+        <div style={{ minWidth: 0 }}><dt style={{ opacity: .58 }}>下一步行动</dt><dd style={{ overflow: 'hidden', margin: '2px 0 0', fontWeight: 700, textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{app.next_action || '待处理'}</dd></div>
+        <div style={{ minWidth: 0 }}><dt style={{ opacity: .58 }}>截止时间</dt><dd style={{ overflow: 'hidden', margin: '2px 0 0', fontWeight: 700, textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{formatDateTime(app.deadline_at)}</dd></div>
       </dl>
-      <button className="action-queue-expanded__detail" type="button" onClick={onViewDetail}>查看详情 <span aria-hidden>→</span></button>
+      <button className="action-queue-expanded__detail" style={{ display: 'inline-flex', alignItems: 'center', gap: 4, alignSelf: 'flex-start', marginTop: 12, appearance: 'none', border: '1px solid rgba(0,0,0,.14)', borderRadius: 8, background: 'rgba(0,0,0,.1)', padding: '6px 12px', color: palette.fg, fontSize: 11.5, fontWeight: 700, cursor: 'pointer' }} type="button" onClick={onViewDetail}>查看详情 <span aria-hidden>→</span></button>
     </article>
   );
 }
@@ -152,7 +184,7 @@ export default function ActionQueueOrbit({ apps, onViewDetail }: ActionQueueOrbi
   const { theme } = useTheme();
   const shellRef = useRef<HTMLDivElement>(null);
   const ringRef = useRef<HTMLDivElement>(null);
-  const cardRefs = useRef<(HTMLButtonElement | null)[]>([]);
+  const cardRefs = useRef<(HTMLDivElement | null)[]>([]);
   const rotationRef = useRef(0);
   const velocityRef = useRef(0);
   const lastFrameRef = useRef<number>();
@@ -226,6 +258,7 @@ export default function ActionQueueOrbit({ apps, onViewDetail }: ActionQueueOrbi
       card.style.transform = `rotateZ(${tilt}deg) translateY(${verticalOffset + (front && hovered && !dimmed ? -6 : 0)}px) scale(${cardScale})`;
       card.style.opacity = String(dimmed ? Math.min(opacity, 0.35) : opacity);
       card.style.filter = !reducedMotion && distance > 4 ? `blur(${Math.min(1.4, distance / 130 * 1.4)}px)` : 'none';
+      card.style.boxShadow = front && hovered && !dimmed ? '0 16px 32px rgba(60,40,20,.18)' : '0 8px 18px rgba(60,40,20,.08)';
       card.style.pointerEvents = opacity < 0.12 || dimmed ? 'none' : 'auto';
       card.tabIndex = opacity < 0.12 || dimmed ? -1 : 0;
       card.dataset.front = String(front);
@@ -329,12 +362,22 @@ export default function ActionQueueOrbit({ apps, onViewDetail }: ActionQueueOrbi
       <div
         key={app.id}
         className="action-queue-slot"
-        style={{ width: config.cardW, height: config.cardH, marginLeft: -config.cardW / 2, marginTop: -config.cardH / 2, transform: `rotateY(${base}deg) translateZ(${config.radius}px)` }}
+        style={{
+          position: 'absolute',
+          top: '50%',
+          left: '50%',
+          width: config.cardW,
+          height: config.cardH,
+          marginLeft: -config.cardW / 2,
+          marginTop: -config.cardH / 2,
+          transform: `rotateY(${base}deg) translateZ(${config.radius}px)`,
+          transformStyle: 'preserve-3d',
+        }}
       >
         <OrbitCard
           app={app}
           index={index}
-          compact={viewport === 'mobile'}
+          cardWidth={config.cardW}
           cardRef={(node) => { cardRefs.current[index] = node; }}
           onActivate={() => activate(index)}
           onKeyDown={(event) => {
@@ -347,17 +390,51 @@ export default function ActionQueueOrbit({ apps, onViewDetail }: ActionQueueOrbi
         />
       </div>
     );
-  }), [activate, apps, config.cardH, config.cardW, config.radius, mode, stepBy, viewport]);
+  }), [activate, apps, config.cardH, config.cardW, config.radius, mode, stepBy]);
 
   const expandedIndex = apps.findIndex((app) => app.id === expandedId);
   const expandedApp = expandedIndex >= 0 ? apps[expandedIndex] : null;
+  const arcMaskHeight = Math.round(config.height * 0.36);
+  const navButtonStyle: React.CSSProperties = {
+    position: 'absolute',
+    top: '50%',
+    marginTop: 8,
+    transform: 'translateY(-50%)',
+    width: 34,
+    height: 34,
+    border: 0,
+    borderRadius: '50%',
+    background: 'rgba(255,253,248,.85)',
+    color: '#6b665c',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    fontSize: 18,
+    lineHeight: 1,
+    cursor: 'pointer',
+    boxShadow: '0 4px 12px rgba(60,50,35,.12)',
+    zIndex: 20,
+  };
 
   return (
-    <section className="action-queue-shell" ref={shellRef} style={{ '--aq-focus': theme.accent, height: scaledHeight } as React.CSSProperties}>
-      <div className="action-queue-canvas" style={{ width: config.width, height: config.height, transform: `scale(${scale})` }}>
+    <section ref={shellRef} style={{ position: 'relative', width: '100%', height: scaledHeight, overflow: 'hidden', '--aq-focus': theme.accent } as React.CSSProperties}>
+      <div style={{ position: 'absolute', top: 0, left: 0, width: config.width, height: config.height, transform: `scale(${scale})`, transformOrigin: 'top left' }}>
         <div
           className={`action-queue-stage action-queue-stage--${viewport}${expandedApp ? ' action-queue-stage--expanded' : ''}`}
-          style={{ perspective: config.perspective }}
+          style={{
+            position: 'relative',
+            width: '100%',
+            height: '100%',
+            overflow: 'hidden',
+            borderRadius: 26,
+            background: '#ece4d6',
+            perspective: config.perspective,
+            perspectiveOrigin: 'center center',
+            touchAction: 'pan-y',
+            userSelect: 'none',
+            cursor: mode === 'ring' || mode === 'fan' ? 'grab' : 'default',
+            outline: 'none',
+          }}
           tabIndex={0}
           onMouseEnter={() => setHovered(true)}
           onMouseLeave={() => { setHovered(false); dragRef.current = null; }}
@@ -372,19 +449,19 @@ export default function ActionQueueOrbit({ apps, onViewDetail }: ActionQueueOrbi
             if (event.key === 'Escape') { setExpandedId(null); setSelectedId(null); }
           }}
         >
-          <div className="action-queue-glow" aria-hidden />
-          <header className="action-queue-header">
-            <strong>行动队列</strong>
-            <span>进行中的投递 · 点击卡片展开详情</span>
+          <div aria-hidden style={{ position: 'absolute', right: -40, top: -40, width: 180, height: 180, borderRadius: '50%', background: 'radial-gradient(circle, rgba(244,200,74,.5), transparent 70%)', pointerEvents: 'none' }} />
+          <header style={{ position: 'relative', zIndex: 20, padding: '20px 22px 0' }}>
+            <strong style={{ display: 'block', color: '#a23d24', fontSize: 13, fontWeight: 700, letterSpacing: '.04em' }}>行动队列</strong>
+            <span style={{ display: 'block', marginTop: 4, color: '#7a7468', fontSize: 13 }}>进行中的投递 · 点击卡片展开详情</span>
           </header>
-          {mode === 'empty' ? <p className="action-queue-empty">暂无待办，去「投递记录」添加一条吧。</p> : (
+          {mode === 'empty' ? <p style={{ position: 'relative', zIndex: 1, margin: '105px 0 0', textAlign: 'center', color: '#7a7468', fontSize: 13 }}>暂无待办，去「投递记录」添加一条吧。</p> : (
             <>
               {mode === 'single' ? (
-                <div className="action-queue-single">
+                <div className="action-queue-single" style={{ position: 'absolute', top: config.height * .5 + 10, left: '50%', width: config.cardW, height: config.cardH, transform: 'translate(-50%,-50%)' }}>
                   <OrbitCard
                     app={apps[0]}
                     index={0}
-                    compact={viewport === 'mobile'}
+                    cardWidth={config.cardW}
                     cardRef={(node) => { cardRefs.current[0] = node; }}
                     onActivate={() => activate(0)}
                     onKeyDown={(event) => {
@@ -395,13 +472,15 @@ export default function ActionQueueOrbit({ apps, onViewDetail }: ActionQueueOrbi
                   />
                 </div>
               ) : (
-                <div className="action-queue-origin"><div className="action-queue-ring" ref={ringRef}>{cards}</div></div>
+                <div style={{ position: 'absolute', left: '50%', top: config.height * .5 + 26, width: 0, height: 0, transformStyle: 'preserve-3d' }}>
+                  <div ref={ringRef} style={{ position: 'absolute', width: 0, height: 0, transformStyle: 'preserve-3d', willChange: 'transform' }}>{cards}</div>
+                </div>
               )}
-              <div className="action-queue-mask" aria-hidden />
+              <div aria-hidden style={{ position: 'absolute', zIndex: 10, left: '50%', bottom: -Math.round(arcMaskHeight * .62), width: Math.round(config.width * 1.18), height: arcMaskHeight, transform: 'translateX(-50%)', borderRadius: '50%', background: '#ece4d6', boxShadow: 'inset 0 10px 18px rgba(60,40,20,.06), inset 0 -2px 0 rgba(255,255,255,.4)', pointerEvents: 'none' }} />
               {expandedApp && <ExpandedCard app={expandedApp} index={expandedIndex} config={config} onClose={() => setExpandedId(null)} onViewDetail={() => onViewDetail(expandedApp)} />}
               {mode !== 'single' && <>
-                <button className="action-queue-nav action-queue-nav--left" type="button" aria-label="上一条投递" onClick={(event) => { event.stopPropagation(); stepBy(-1); }}>‹</button>
-                <button className="action-queue-nav action-queue-nav--right" type="button" aria-label="下一条投递" onClick={(event) => { event.stopPropagation(); stepBy(1); }}>›</button>
+                <button className="action-queue-nav" style={{ ...navButtonStyle, left: 10 }} type="button" aria-label="上一条投递" onClick={(event) => { event.stopPropagation(); stepBy(-1); }}>‹</button>
+                <button className="action-queue-nav" style={{ ...navButtonStyle, right: 10 }} type="button" aria-label="下一条投递" onClick={(event) => { event.stopPropagation(); stepBy(1); }}>›</button>
               </>}
             </>
           )}
