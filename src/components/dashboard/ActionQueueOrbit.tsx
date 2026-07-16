@@ -6,7 +6,19 @@ import './ActionQueueOrbit.css';
 interface ActionQueueOrbitProps {
   apps: Application[];
   onViewDetail: (app: Application) => void;
+  fillHeight?: boolean;
 }
+
+type OrbitMode = 'empty' | 'single' | 'fan' | 'ring';
+type ViewportKey = 'desktop' | 'tablet' | 'mobile';
+type ViewportConfig = { width: number; height: number; cardW: number; cardH: number; radius: number; perspective: number; visMult: number; fanAngle: number };
+type Tween = { from: number; to: number; start: number; duration: number };
+
+const VIEWPORTS: Record<ViewportKey, ViewportConfig> = {
+  desktop: { width: 860, height: 400, cardW: 150, cardH: 204, radius: 250, perspective: 1300, visMult: 3.5, fanAngle: 38 },
+  tablet: { width: 640, height: 380, cardW: 122, cardH: 166, radius: 190, perspective: 1100, visMult: 2.4, fanAngle: 42 },
+  mobile: { width: 340, height: 340, cardW: 100, cardH: 138, radius: 120, perspective: 850, visMult: 1.5, fanAngle: 48 },
+};
 
 const PALETTES = [
   { bg: '#f2ddd0', fg: '#7a3a1e' }, { bg: '#d4e8d0', fg: '#2a5e34' },
@@ -17,17 +29,47 @@ const PALETTES = [
   { bg: '#f4e0c0', fg: '#6a3808' }, { bg: '#d8d4e8', fg: '#382e60' },
 ];
 
-const AUTO_DEGREES_PER_SECOND = 360 / 16;
-const CLICK_DURATION = 560;
-const normalizeAngle = (angle: number) => ((angle + 180) % 360 + 360) % 360 - 180;
+const AUTO_DEGREES_PER_MS = 360 / 16000;
 
-function visibleThresholdFor(angleStep: number, width: number) {
-  const responsiveVisibilityMultiplier = width < 480 ? 2 : width < 760 ? 2.15 : 2.3;
-  return Math.min(130, responsiveVisibilityMultiplier * angleStep);
+/** Keep every angular comparison on the shortest signed path. */
+function normalizeAngle(angle: number) {
+  return ((angle % 360) + 540) % 360 - 180;
+}
+
+function getMode(count: number): OrbitMode {
+  if (count === 0) return 'empty';
+  if (count === 1) return 'single';
+  return count <= 4 ? 'fan' : 'ring';
+}
+
+function configForViewport(width: number): ViewportKey {
+  if (width <= 640) return 'mobile';
+  if (width <= 1024) return 'tablet';
+  return 'desktop';
+}
+
+function angleStepFor(mode: OrbitMode, count: number, fanAngle: number) {
+  return mode === 'fan' ? fanAngle : count > 0 ? 360 / count : 0;
+}
+
+function frontIndex(count: number, step: number, rotation: number, sway: number) {
+  let best = 0;
+  let bestDistance = Number.POSITIVE_INFINITY;
+  for (let index = 0; index < count; index += 1) {
+    const distance = Math.abs(normalizeAngle(index * step + rotation + sway));
+    if (distance < bestDistance) {
+      bestDistance = distance;
+      best = index;
+    }
+  }
+  return best;
 }
 
 function priorityLabel(priority: ApplicationPriority | null | undefined) {
-  return priority === 'urgent' ? '紧急' : priority === 'high' ? '高' : priority === 'low' ? '低' : '普通';
+  if (priority === 'urgent') return '紧急';
+  if (priority === 'high') return '高';
+  if (priority === 'low') return '低';
+  return '普通';
 }
 
 function formatDateTime(value: string | null) {
@@ -36,102 +78,173 @@ function formatDateTime(value: string | null) {
   return Number.isNaN(date.getTime()) ? value : date.toLocaleString('zh-CN', { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit', hour12: false });
 }
 
-function easeOutCubic(value: number) {
-  return 1 - (1 - value) ** 3;
-}
-
-type OrbitMetrics = { width: number; cardWidth: number; cardHeight: number; radius: number; stageHeight: number };
-
-function metricsForWidth(width: number): OrbitMetrics {
-  if (width < 480) return { width, cardWidth: 100, cardHeight: 138, radius: 120, stageHeight: 240 };
-  if (width < 760) return { width, cardWidth: 122, cardHeight: 166, radius: 190, stageHeight: 280 };
-  return { width, cardWidth: 150, cardHeight: 204, radius: 250, stageHeight: 300 };
-}
-
-type ProgrammaticRotation = { from: number; to: number; startedAt: number; duration: number };
-
-const OrbitCard = memo(function OrbitCard({
-  app, index, expanded, selected, dimmed, onActivate, onViewDetail,
-}: {
+const OrbitCard = memo(function OrbitCard({ app, index, cardWidth, cardRef, onActivate, onKeyDown }: {
   app: Application;
   index: number;
-  expanded: boolean;
-  selected: boolean;
-  dimmed: boolean;
+  cardWidth: number;
+  cardRef: (node: HTMLDivElement | null) => void;
   onActivate: () => void;
-  onViewDetail: () => void;
+  onKeyDown: (event: React.KeyboardEvent<HTMLDivElement>) => void;
 }) {
   const palette = PALETTES[index % PALETTES.length];
   return (
-    <article
-      className={`action-orbit-card${expanded ? ' action-orbit-card--expanded' : ''}${dimmed ? ' action-orbit-card--dimmed' : ''}`}
-      data-orbit-card
-      tabIndex={0}
+    <div
+      ref={cardRef}
+      className="action-queue-card"
       role="button"
-      aria-label={`${app.company_name} ${app.position_name}${expanded ? '，已展开' : ''}`}
-      aria-expanded={expanded}
-      style={{ '--aq-bg': palette.bg, '--aq-fg': palette.fg } as React.CSSProperties}
+      tabIndex={0}
+      aria-label={`${app.company_name} · ${app.position_name} · ${app.status}`}
+      style={{
+        '--aq-card-bg': palette.bg,
+        '--aq-card-fg': palette.fg,
+        position: 'relative',
+        inset: 'auto',
+        width: '100%',
+        height: '100%',
+        borderRadius: 16,
+        boxSizing: 'border-box',
+        padding: cardWidth < 120 ? '10px 12px' : '13px 15px',
+        border: 0,
+        background: palette.bg,
+        backgroundImage: 'linear-gradient(160deg, rgba(255,255,255,.35), rgba(255,255,255,0) 55%)',
+        color: palette.fg,
+        font: 'inherit',
+        textAlign: 'left',
+        boxShadow: '0 8px 18px rgba(60,40,20,.08)',
+        backfaceVisibility: 'hidden',
+        WebkitBackfaceVisibility: 'hidden',
+        willChange: 'transform',
+        cursor: 'pointer',
+        transition: 'box-shadow .25s ease',
+        userSelect: 'none',
+      } as React.CSSProperties}
       onClick={(event) => { event.stopPropagation(); onActivate(); }}
-      onKeyDown={(event) => {
-        if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); onActivate(); }
-      }}
+      onKeyDown={onKeyDown}
     >
-      <div className="action-orbit-card__shine" />
-      <div className="action-orbit-card__summary" aria-hidden={expanded}>
-        <span className="action-orbit-card__initial">{app.company_name.charAt(0)}</span>
-        <strong>{app.company_name}</strong>
-        <span>{app.position_name}</span>
-        <em>{app.status}</em>
-      </div>
-      <div className="action-orbit-card__detail" aria-hidden={!expanded}>
-        <div>
-          <strong>{app.company_name}</strong>
-          <span>{app.position_name}</span>
-        </div>
-        <dl>
-          <div><dt>城市</dt><dd>{app.city || '未填写'}</dd></div>
-          <div><dt>渠道</dt><dd>{app.channel || '未填写'}</dd></div>
-          <div><dt>状态</dt><dd>{app.status}</dd></div>
-          <div><dt>优先级</dt><dd>{priorityLabel(app.priority)}</dd></div>
-          <div><dt>下一步</dt><dd>{app.next_action || '待处理'}</dd></div>
-          <div><dt>截止时间</dt><dd>{formatDateTime(app.deadline_at)}</dd></div>
-        </dl>
-        <button type="button" onClick={(event) => { event.stopPropagation(); onViewDetail(); }}>
-          查看详情 <span aria-hidden>→</span>
-        </button>
-      </div>
-      {selected && <span className="sr-only">当前中心卡片</span>}
-    </article>
+      <span style={{ display: 'block', fontSize: 15, fontWeight: 700, lineHeight: 1 }}>{app.company_name.charAt(0)}</span>
+      <strong style={{ display: 'block', marginTop: 4, overflow: 'hidden', fontSize: cardWidth < 120 ? 11 : 12, fontWeight: 700, textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{app.company_name}</strong>
+      <span style={{ display: 'block', marginTop: 2, overflow: 'hidden', fontSize: cardWidth < 120 ? 9.5 : 10.5, opacity: .72, textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{app.position_name}</span>
+      <em style={{ display: 'inline-block', marginTop: 4, borderRadius: 999, background: 'rgba(0,0,0,.1)', padding: '2px 6px', fontSize: 9, fontStyle: 'normal', fontWeight: 700 }}>{app.status}</em>
+    </div>
   );
 });
 
-export default function ActionQueueOrbit({ apps, onViewDetail }: ActionQueueOrbitProps) {
+function ExpandedCard({ app, index, config, onClose, onViewDetail }: {
+  app: Application;
+  index: number;
+  config: ViewportConfig;
+  onClose: () => void;
+  onViewDetail: () => void;
+}) {
+  const palette = PALETTES[index % PALETTES.length];
+  const width = config.width < 400 ? 236 : config.width < 700 ? 268 : 300;
+  return (
+    <article
+      className="action-queue-expanded"
+      style={{
+        position: 'absolute',
+        zIndex: 50,
+        top: '50%',
+        left: '50%',
+        display: 'flex',
+        width,
+        minHeight: config.cardH + 46,
+        transform: 'translate(-50%,-50%)',
+        flexDirection: 'column',
+        justifyContent: 'space-between',
+        boxSizing: 'border-box',
+        borderRadius: 18,
+        padding: '18px 20px',
+        background: palette.bg,
+        backgroundImage: 'linear-gradient(160deg, rgba(255,255,255,.35), rgba(255,255,255,0) 55%)',
+        color: palette.fg,
+        boxShadow: '0 24px 50px rgba(60,40,20,.24)',
+        animation: 'action-queue-expand-in .28s cubic-bezier(.16,1,.3,1)',
+      }}
+      onClick={(event) => event.stopPropagation()}
+    >
+      <button className="action-queue-expanded__close" style={{ position: 'absolute', top: 9, right: 11, width: 23, height: 23, appearance: 'none', border: 0, borderRadius: '50%', background: 'rgba(0,0,0,.09)', color: 'inherit', fontSize: 18, lineHeight: 1, cursor: 'pointer' }} type="button" aria-label="关闭详情" onClick={onClose}>×</button>
+      <div>
+        <strong style={{ display: 'block', maxWidth: '88%', overflow: 'hidden', fontSize: 18, textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{app.company_name}</strong>
+        <span style={{ display: 'block', overflow: 'hidden', marginTop: 3, fontSize: 12, opacity: .72, textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{app.position_name}</span>
+      </div>
+      <div style={{ display: 'flex', gap: 4, marginTop: 10 }}><em style={{ borderRadius: 999, background: 'rgba(0,0,0,.1)', padding: '2px 6px', fontSize: 9, fontStyle: 'normal', fontWeight: 700 }}>{app.status}</em><em style={{ borderRadius: 999, background: 'rgba(0,0,0,.1)', padding: '2px 6px', fontSize: 9, fontStyle: 'normal', fontWeight: 700 }}>{priorityLabel(app.priority)}</em></div>
+      <dl style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '9px 12px', margin: '15px 0 0', fontSize: 10 }}>
+        <div style={{ minWidth: 0 }}><dt style={{ opacity: .58 }}>城市</dt><dd style={{ overflow: 'hidden', margin: '2px 0 0', fontWeight: 700, textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{app.city || '未填写'}</dd></div>
+        <div style={{ minWidth: 0 }}><dt style={{ opacity: .58 }}>渠道</dt><dd style={{ overflow: 'hidden', margin: '2px 0 0', fontWeight: 700, textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{app.channel || '未填写'}</dd></div>
+        <div style={{ minWidth: 0 }}><dt style={{ opacity: .58 }}>下一步行动</dt><dd style={{ overflow: 'hidden', margin: '2px 0 0', fontWeight: 700, textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{app.next_action || '待处理'}</dd></div>
+        <div style={{ minWidth: 0 }}><dt style={{ opacity: .58 }}>截止时间</dt><dd style={{ overflow: 'hidden', margin: '2px 0 0', fontWeight: 700, textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{formatDateTime(app.deadline_at)}</dd></div>
+      </dl>
+      <button className="action-queue-expanded__detail" style={{ display: 'inline-flex', alignItems: 'center', gap: 4, alignSelf: 'flex-start', marginTop: 12, appearance: 'none', border: '1px solid rgba(0,0,0,.14)', borderRadius: 8, background: 'rgba(0,0,0,.1)', padding: '6px 12px', color: palette.fg, fontSize: 11.5, fontWeight: 700, cursor: 'pointer' }} type="button" onClick={onViewDetail}>查看详情 <span aria-hidden>→</span></button>
+    </article>
+  );
+}
+
+export default function ActionQueueOrbit({ apps, onViewDetail, fillHeight = false }: ActionQueueOrbitProps) {
   const { theme } = useTheme();
-  const stageRef = useRef<HTMLDivElement>(null);
-  const cardRefs = useRef<(HTMLElement | null)[]>([]);
-  const frameRef = useRef<number>();
+  const shellRef = useRef<HTMLDivElement>(null);
+  const ringRef = useRef<HTMLDivElement>(null);
+  const cardRefs = useRef<(HTMLDivElement | null)[]>([]);
   const rotationRef = useRef(0);
-  const speedRef = useRef(1);
+  const velocityRef = useRef(0);
   const lastFrameRef = useRef<number>();
-  const programRef = useRef<ProgrammaticRotation | null>(null);
-  const draggingRef = useRef<{ startX: number; startRotation: number; moved: boolean } | null>(null);
+  const animationRef = useRef<number>();
+  const tweenRef = useRef<Tween | null>(null);
+  const dragRef = useRef<{ startX: number; startRotation: number; moved: boolean } | null>(null);
+  const scaleRef = useRef(1);
   const ignoreClickRef = useRef(false);
-  const [metrics, setMetrics] = useState(() => metricsForWidth(640));
-  // A full ring starts unselected so it can autoplay; a short fan needs a stable centre card.
-  const [selectedId, setSelectedId] = useState<string | null>(() => apps.length < 5 ? apps[0]?.id ?? null : null);
+  const [viewport, setViewport] = useState<ViewportKey>(() => configForViewport(window.innerWidth));
+  const [availableSize, setAvailableSize] = useState({ width: 0, height: 0 });
+  const [sideBySide, setSideBySide] = useState(() => window.innerWidth >= 1024);
+  const [selectedId, setSelectedId] = useState<string | null>(null);
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [hovered, setHovered] = useState(false);
   const [reducedMotion, setReducedMotion] = useState(false);
 
-  const count = apps.length;
-  const currentIndex = Math.max(0, apps.findIndex((app) => app.id === selectedId));
-  const isOrbit = count >= 5;
-  const isPaused = hovered || selectedId !== null || expandedId !== null || reducedMotion || count < 2;
+  const config = VIEWPORTS[viewport];
+  const mode = getMode(apps.length);
+  const angleStep = angleStepFor(mode, apps.length, config.fanAngle);
+  const scale = Math.min(1, availableSize.width > 0 ? availableSize.width / config.width : 1);
+  const fillDashboardRow = fillHeight && sideBySide;
+  // The Dashboard grid determines the shared row height; convert its measured
+  // height back into reference-canvas units so width scaling remains uniform.
+  const stageHeight = fillDashboardRow && availableSize.height > 0
+    ? Math.max(config.height, availableSize.height / scale)
+    : config.height;
+  const scaledHeight = stageHeight * scale;
+  const ringTop = stageHeight - (config.height * 0.5 - 26);
+  const singleTop = stageHeight - (config.height * 0.5 - 10);
 
   useEffect(() => {
-    if (selectedId !== null && !apps.some((app) => app.id === selectedId)) setSelectedId(apps[0]?.id ?? null);
-    if (!apps.some((app) => app.id === expandedId)) setExpandedId(null);
-  }, [apps, expandedId, selectedId]);
+    scaleRef.current = scale;
+  }, [scale]);
+
+  useEffect(() => {
+    const onResize = () => {
+      setViewport(configForViewport(window.innerWidth));
+      setSideBySide(window.innerWidth >= 1024);
+    };
+    window.addEventListener('resize', onResize);
+    return () => window.removeEventListener('resize', onResize);
+  }, []);
+
+  useEffect(() => {
+    const shell = shellRef.current;
+    if (!shell) return undefined;
+    const observer = new ResizeObserver(([entry]) => {
+      const nextSize = {
+        width: Math.round(entry.contentRect.width * 100) / 100,
+        height: Math.round(entry.contentRect.height * 100) / 100,
+      };
+      setAvailableSize((current) => (
+        current.width === nextSize.width && current.height === nextSize.height
+          ? current
+          : nextSize
+      ));
+    });
+    observer.observe(shell);
+    return () => observer.disconnect();
+  }, []);
 
   useEffect(() => {
     const media = window.matchMedia('(prefers-reduced-motion: reduce)');
@@ -142,179 +255,263 @@ export default function ActionQueueOrbit({ apps, onViewDetail }: ActionQueueOrbi
   }, []);
 
   useEffect(() => {
-    const stage = stageRef.current;
-    if (!stage) return;
-    const observer = new ResizeObserver(([entry]) => setMetrics(metricsForWidth(entry.contentRect.width)));
-    observer.observe(stage);
-    return () => observer.disconnect();
-  }, []);
+    if (selectedId && !apps.some((app) => app.id === selectedId)) setSelectedId(null);
+    if (expandedId && !apps.some((app) => app.id === expandedId)) setExpandedId(null);
+  }, [apps, expandedId, selectedId]);
 
-  const renderCards = useCallback((rotation: number) => {
-    const step = count ? 360 / count : 0;
-    const fanStep = count > 1 ? 42 : 0;
+  const swayFor = useCallback(() => (
+    mode === 'fan' && !reducedMotion ? Math.sin(performance.now() / 1600) * 3 : 0
+  ), [mode, reducedMotion]);
+
+  const paint = useCallback((rotation: number) => {
+    const step = angleStep;
+    const sway = swayFor();
+    if (ringRef.current) ringRef.current.style.transform = `rotateY(${rotation + sway}deg)`;
+    const threshold = mode === 'fan' ? 200 : Math.min(130, config.visMult * step);
     cardRefs.current.forEach((card, index) => {
       if (!card) return;
-      // Standardise to [-180°, 180°] so both sides use the same visual falloff.
-      const theta = isOrbit
-        ? normalizeAngle(index * step + rotation)
-        : (index - currentIndex) * fanStep;
+      const theta = normalizeAngle(index * step + rotation + sway);
       const distance = Math.abs(theta);
-      const threshold = isOrbit ? visibleThresholdFor(step, metrics.width) : 92;
-      const visible = distance < threshold;
-      const progress = Math.min(distance / 180, 1);
-      const scale = 1 - progress * 0.28;
-      const opacity = visible ? (1 - distance / threshold) ** 1.4 : 0;
-      const y = progress * 16;
+      const opacity = Math.max(0, Math.min(1, distance >= threshold ? 0 : (1 - distance / threshold) ** 1.4));
       const tilt = -Math.sign(theta) * Math.min(distance, 90) / 90 * 6;
-      const transform = isOrbit
-        // rotateY + translateZ forms the ring; the inverse rotation keeps card copy legible.
-        ? `rotateY(${theta}deg) translateZ(${metrics.radius}px) rotateY(${-theta}deg) translateY(${y}px) rotateZ(${tilt}deg) scale(${scale})`
-        : `translateX(${theta * 2.8}px) translateY(${y}px) rotateZ(${tilt}deg) scale(${scale})`;
-      card.style.transform = transform;
-      card.style.opacity = String(expandedId && apps[index].id !== expandedId ? Math.min(opacity, 0.35) : opacity);
-      card.style.zIndex = String(Math.round(1000 - distance * 4));
-      card.style.pointerEvents = visible && !expandedId ? 'auto' : apps[index].id === expandedId ? 'auto' : 'none';
-      card.tabIndex = visible || apps[index].id === expandedId ? 0 : -1;
-      card.setAttribute('aria-hidden', visible || apps[index].id === expandedId ? 'false' : 'true');
-      card.style.filter = reducedMotion ? 'none' : `blur(${Math.min(progress * 0.4, 0.4)}px)`;
+      const verticalOffset = distance / 180 * 16;
+      const cardScale = 1 - distance / 180 * 0.28;
+      const front = distance < step / 2;
+      const dimmed = expandedId !== null;
+      const fanMode = mode === 'fan';
+      const slot = card.parentElement;
+
+      // Chromium can flatten translucent, filtered fan cards into separate
+      // compositor layers. Keep the prototype geometry, but make the small fan
+      // opaque and give its slots a deterministic near-to-far paint order.
+      if (slot) slot.style.zIndex = fanMode ? String(18000 - Math.round(distance * 100)) : '';
+      card.style.transform = `rotateZ(${tilt}deg) translateY(${verticalOffset + (front && hovered && !dimmed ? -6 : 0)}px) scale(${cardScale})`;
+      card.style.opacity = String(dimmed ? Math.min(fanMode ? 1 : opacity, 0.35) : (fanMode ? 1 : opacity));
+      card.style.filter = fanMode || reducedMotion || distance <= 4 ? 'none' : `blur(${Math.min(1.4, distance / 130 * 1.4)}px)`;
+      card.style.boxShadow = front && hovered && !dimmed ? '0 16px 32px rgba(60,40,20,.18)' : '0 8px 18px rgba(60,40,20,.08)';
+      card.style.pointerEvents = opacity < 0.12 || dimmed ? 'none' : 'auto';
+      card.tabIndex = opacity < 0.12 || dimmed ? -1 : 0;
+      card.dataset.front = String(front);
     });
-  }, [apps, count, currentIndex, expandedId, isOrbit, metrics.radius, metrics.width, reducedMotion]);
+  }, [angleStep, config.visMult, expandedId, hovered, mode, reducedMotion, swayFor]);
 
   useEffect(() => {
-    if (!count) return;
+    if (mode === 'empty' || mode === 'single') return undefined;
     const tick = (timestamp: number) => {
       const previous = lastFrameRef.current ?? timestamp;
-      const elapsed = Math.min(timestamp - previous, 48);
+      const delta = Math.min(48, timestamp - previous);
       lastFrameRef.current = timestamp;
-      const program = programRef.current;
-      if (program) {
-        const progress = Math.min(1, (timestamp - program.startedAt) / program.duration);
-        rotationRef.current = program.from + (program.to - program.from) * easeOutCubic(progress);
-        if (progress === 1) programRef.current = null;
-      } else if (isOrbit && !reducedMotion) {
-        // Smoothly ramp to a stop/start over ~260ms instead of freezing on hover.
-        const desiredSpeed = isPaused ? 0 : 1;
-        speedRef.current += (desiredSpeed - speedRef.current) * Math.min(1, elapsed / 260);
-        rotationRef.current += AUTO_DEGREES_PER_SECOND * speedRef.current * (elapsed / 1000);
+      const tween = tweenRef.current;
+      if (tween) {
+        const progress = Math.min(1, (timestamp - tween.start) / tween.duration);
+        const eased = 1 - (1 - progress) ** 3;
+        rotationRef.current = tween.from + (tween.to - tween.from) * eased;
+        if (progress === 1) tweenRef.current = null;
+      } else if (mode === 'ring' && !reducedMotion) {
+        const target = hovered || selectedId !== null || expandedId !== null ? 0 : AUTO_DEGREES_PER_MS;
+        velocityRef.current += (target - velocityRef.current) * Math.min(1, delta / 260);
+        rotationRef.current += velocityRef.current * delta;
       }
-      renderCards(rotationRef.current);
-      frameRef.current = requestAnimationFrame(tick);
+      paint(rotationRef.current);
+      animationRef.current = requestAnimationFrame(tick);
     };
-    frameRef.current = requestAnimationFrame(tick);
-    return () => { if (frameRef.current) cancelAnimationFrame(frameRef.current); };
-  }, [count, isOrbit, isPaused, reducedMotion, renderCards]);
+    animationRef.current = requestAnimationFrame(tick);
+    return () => { if (animationRef.current) cancelAnimationFrame(animationRef.current); };
+  }, [expandedId, hovered, mode, paint, reducedMotion, selectedId]);
 
-  const centreIndex = useCallback((index: number) => {
-    if (!count) return;
-    const target = isOrbit ? -(index * (360 / count)) : 0;
-    const difference = isOrbit ? normalizeAngle(target - rotationRef.current) : 0;
-    programRef.current = { from: rotationRef.current, to: rotationRef.current + difference, startedAt: performance.now(), duration: CLICK_DURATION };
+  const recenter = useCallback((index: number) => {
+    const target = -index * angleStep;
+    // A normalized difference is the shortest route around the ring.
+    const destination = rotationRef.current + normalizeAngle(target - rotationRef.current);
+    tweenRef.current = { from: rotationRef.current, to: destination, start: performance.now(), duration: reducedMotion ? 0 : 460 };
+    if (reducedMotion) rotationRef.current = destination;
+    velocityRef.current = 0;
+    setSelectedId(apps[index]?.id ?? null);
     setExpandedId(null);
-    setSelectedId(apps[index].id);
-  }, [apps, count, isOrbit]);
+  }, [angleStep, apps, reducedMotion]);
 
-  const moveBy = useCallback((direction: number) => {
-    if (!count) return;
-    centreIndex((currentIndex + direction + count) % count);
-  }, [centreIndex, count, currentIndex]);
-
-  const onCardActivate = useCallback((index: number) => {
+  const activate = useCallback((index: number) => {
     if (ignoreClickRef.current) { ignoreClickRef.current = false; return; }
+    const front = frontIndex(apps.length, angleStep, rotationRef.current, swayFor());
     const app = apps[index];
-    if (app.id !== selectedId) { centreIndex(index); return; }
+    if (front !== index && mode !== 'single') {
+      recenter(index);
+      return;
+    }
+    setSelectedId(app.id);
     setExpandedId((current) => current === app.id ? null : app.id);
-  }, [apps, centreIndex, selectedId]);
+  }, [angleStep, apps, mode, recenter, swayFor]);
 
-  const snapNearest = useCallback(() => {
-    if (!count) return;
-    const step = 360 / count;
-    const index = ((Math.round(-rotationRef.current / step) % count) + count) % count;
-    centreIndex(index);
-  }, [centreIndex, count]);
+  const stepBy = useCallback((direction: number) => {
+    if (apps.length < 2) return;
+    const front = frontIndex(apps.length, angleStep, rotationRef.current, swayFor());
+    recenter((front + direction + apps.length) % apps.length);
+  }, [angleStep, apps.length, recenter, swayFor]);
 
   const onPointerDown = (event: React.PointerEvent<HTMLDivElement>) => {
-    if (count < 2 || expandedId) return;
+    if (mode !== 'ring' && mode !== 'fan') return;
     event.currentTarget.setPointerCapture(event.pointerId);
-    draggingRef.current = { startX: event.clientX, startRotation: rotationRef.current, moved: false };
+    dragRef.current = { startX: event.clientX, startRotation: rotationRef.current, moved: false };
+    tweenRef.current = null;
   };
 
   const onPointerMove = (event: React.PointerEvent<HTMLDivElement>) => {
-    const drag = draggingRef.current;
-    if (!drag || !isOrbit) return;
-    const delta = event.clientX - drag.startX;
+    const drag = dragRef.current;
+    if (!drag) return;
+    const delta = (event.clientX - drag.startX) / scaleRef.current;
     if (Math.abs(delta) > 6) drag.moved = true;
     if (drag.moved) {
-      programRef.current = null;
-      rotationRef.current = drag.startRotation + delta * 0.28;
+      rotationRef.current = drag.startRotation + delta * 0.35;
+      velocityRef.current = 0;
       setSelectedId(null);
     }
   };
 
   const onPointerUp = () => {
-    const moved = draggingRef.current?.moved;
-    draggingRef.current = null;
-    if (moved) { ignoreClickRef.current = true; snapNearest(); }
+    if (!dragRef.current) return;
+    const moved = dragRef.current.moved;
+    dragRef.current = null;
+    if (moved) {
+      ignoreClickRef.current = true;
+      recenter(frontIndex(apps.length, angleStep, rotationRef.current, swayFor()));
+    }
   };
 
-  const onStageClick = () => {
+  const onBlankClick = () => {
     if (expandedId) { setExpandedId(null); return; }
-    setSelectedId(null);
+    if (selectedId) setSelectedId(null);
   };
 
-  const onStageKeyDown = (event: React.KeyboardEvent<HTMLDivElement>) => {
-    if (event.key === 'ArrowLeft') { event.preventDefault(); moveBy(-1); }
-    if (event.key === 'ArrowRight') { event.preventDefault(); moveBy(1); }
-    if (event.key === 'Escape') { setExpandedId(null); setSelectedId(null); }
-  };
+  const cards = useMemo(() => apps.map((app, index) => {
+    const base = index * angleStep;
+    return (
+      <div
+        key={app.id}
+        className="action-queue-slot"
+        style={{
+          position: 'absolute',
+          top: '50%',
+          left: '50%',
+          width: config.cardW,
+          height: config.cardH,
+          marginLeft: -config.cardW / 2,
+          marginTop: -config.cardH / 2,
+          transform: `rotateY(${base}deg) translateZ(${config.radius}px)`,
+          transformStyle: 'preserve-3d',
+        }}
+      >
+        <OrbitCard
+          app={app}
+          index={index}
+          cardWidth={config.cardW}
+          cardRef={(node) => { cardRefs.current[index] = node; }}
+          onActivate={() => activate(index)}
+          onKeyDown={(event) => {
+            event.stopPropagation();
+            if (event.key === 'ArrowLeft') { event.preventDefault(); stepBy(-1); }
+            if (event.key === 'ArrowRight') { event.preventDefault(); stepBy(1); }
+            if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); activate(index); }
+            if (event.key === 'Escape') { setExpandedId(null); setSelectedId(null); }
+          }}
+        />
+      </div>
+    );
+  }), [activate, angleStep, apps, config.cardH, config.cardW, config.radius, stepBy]);
 
-  const cards = useMemo(() => apps.map((app, index) => (
-    <OrbitCard
-      key={app.id}
-      app={app}
-      index={index}
-      selected={app.id === selectedId}
-      expanded={app.id === expandedId}
-      dimmed={expandedId !== null && app.id !== expandedId}
-      onActivate={() => onCardActivate(index)}
-      onViewDetail={() => onViewDetail(app)}
-    />
-  )), [apps, expandedId, onCardActivate, onViewDetail, selectedId]);
+  const expandedIndex = apps.findIndex((app) => app.id === expandedId);
+  const expandedApp = expandedIndex >= 0 ? apps[expandedIndex] : null;
+  const arcMaskHeight = Math.round(stageHeight * 0.36);
+  const navButtonStyle: React.CSSProperties = {
+    position: 'absolute',
+    top: '50%',
+    marginTop: 8,
+    transform: 'translateY(-50%)',
+    width: 34,
+    height: 34,
+    border: 0,
+    borderRadius: '50%',
+    background: 'rgba(255,253,248,.85)',
+    color: '#6b665c',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    fontSize: 18,
+    lineHeight: 1,
+    cursor: 'pointer',
+    boxShadow: '0 4px 12px rgba(60,50,35,.12)',
+    zIndex: 20,
+  };
 
   return (
-    <section className="action-orbit" style={{
-      '--aq-accent': theme.accent,
-      '--aq-accent-soft': theme.accentSoft,
-      '--aq-surface': theme.accentSoft,
-    } as React.CSSProperties}>
-      <div className="action-orbit__glow" />
-      <header className="action-orbit__header">
-        <div><p>行动队列</p><span>进行中的投递 · 点击卡片展开详情</span></div>
-        {count > 1 && <div className="action-orbit__controls" aria-label="切换投递记录">
-          <button type="button" onClick={() => moveBy(-1)} aria-label="上一条投递记录"><svg viewBox="0 0 24 24" aria-hidden><path d="m14 5-7 7 7 7" /></svg></button>
-          <button type="button" onClick={() => moveBy(1)} aria-label="下一条投递记录"><svg viewBox="0 0 24 24" aria-hidden><path d="m10 5 7 7-7 7" /></svg></button>
-        </div>}
-      </header>
-      {count === 0 ? <div className="action-orbit__empty">暂无待办，去「投递记录」添加一条吧。</div> : (
+    <section ref={shellRef} style={{ position: 'relative', width: '100%', height: fillDashboardRow ? '100%' : scaledHeight, minHeight: fillDashboardRow ? config.height * scale : undefined, overflow: 'hidden', '--aq-focus': theme.accent } as React.CSSProperties}>
+      <div style={{ position: 'absolute', top: 0, left: 0, width: config.width, height: stageHeight, transform: `scale(${scale})`, transformOrigin: 'top left' }}>
         <div
-          ref={stageRef}
-          className={`action-orbit__stage${count === 1 ? ' action-orbit__stage--single' : ''}${!isOrbit ? ' action-orbit__stage--fan' : ''}${expandedId ? ' action-orbit__stage--expanded' : ''}`}
-          style={{ height: metrics.stageHeight, '--aq-card-w': `${metrics.cardWidth}px`, '--aq-card-h': `${metrics.cardHeight}px` } as React.CSSProperties}
-          onPointerEnter={() => setHovered(true)} onPointerLeave={() => setHovered(false)}
-          onPointerDown={onPointerDown} onPointerMove={onPointerMove} onPointerUp={onPointerUp} onPointerCancel={onPointerUp}
-          onClick={onStageClick} onKeyDown={onStageKeyDown}
+          className={`action-queue-stage action-queue-stage--${viewport}${expandedApp ? ' action-queue-stage--expanded' : ''}`}
+          style={{
+            position: 'relative',
+            width: '100%',
+            height: '100%',
+            overflow: 'hidden',
+            borderRadius: 26,
+            background: '#ece4d6',
+            perspective: config.perspective,
+            perspectiveOrigin: 'center center',
+            touchAction: 'pan-y',
+            userSelect: 'none',
+            cursor: mode === 'ring' || mode === 'fan' ? 'grab' : 'default',
+            outline: 'none',
+          }}
+          tabIndex={0}
+          onMouseEnter={() => setHovered(true)}
+          onMouseLeave={() => { setHovered(false); dragRef.current = null; }}
+          onPointerDown={onPointerDown}
+          onPointerMove={onPointerMove}
+          onPointerUp={onPointerUp}
+          onPointerCancel={onPointerUp}
+          onClick={onBlankClick}
+          onKeyDown={(event) => {
+            if (event.key === 'ArrowLeft') { event.preventDefault(); stepBy(-1); }
+            if (event.key === 'ArrowRight') { event.preventDefault(); stepBy(1); }
+            if (event.key === 'Escape') { setExpandedId(null); setSelectedId(null); }
+          }}
         >
-          <div className="action-orbit__depth" aria-hidden />
-          <div className="action-orbit__ring" aria-hidden />
-          <div className="action-orbit__cards">
-            {cards.map((card, index) => (
-              <div key={apps[index].id} className="action-orbit__card-wrap" style={{ zIndex: apps[index].id === expandedId ? 1901 : undefined }} ref={(node) => { cardRefs.current[index] = node?.firstElementChild as HTMLElement | null; }}>
-                {card}
-              </div>
-            ))}
-          </div>
-          <div className="action-orbit__mask" aria-hidden />
+          <div aria-hidden style={{ position: 'absolute', right: -40, top: -40, width: 180, height: 180, borderRadius: '50%', background: 'radial-gradient(circle, rgba(244,200,74,.5), transparent 70%)', pointerEvents: 'none' }} />
+          <header style={{ position: 'relative', zIndex: 20, padding: '20px 22px 0' }}>
+            <strong style={{ display: 'block', color: '#a23d24', fontSize: 13, fontWeight: 700, letterSpacing: '.04em' }}>行动队列</strong>
+            <span style={{ display: 'block', marginTop: 4, color: '#7a7468', fontSize: 13 }}>进行中的投递 · 点击卡片展开详情</span>
+          </header>
+          {mode === 'empty' ? <p style={{ position: 'relative', zIndex: 1, margin: '105px 0 0', textAlign: 'center', color: '#7a7468', fontSize: 13 }}>暂无待办，去「投递记录」添加一条吧。</p> : (
+            <>
+              {mode === 'single' ? (
+                <div className="action-queue-single" style={{ position: 'absolute', top: singleTop, left: '50%', width: config.cardW, height: config.cardH, transform: 'translate(-50%,-50%)' }}>
+                  <OrbitCard
+                    app={apps[0]}
+                    index={0}
+                    cardWidth={config.cardW}
+                    cardRef={(node) => { cardRefs.current[0] = node; }}
+                    onActivate={() => activate(0)}
+                    onKeyDown={(event) => {
+                      event.stopPropagation();
+                      if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); activate(0); }
+                      if (event.key === 'Escape') { setExpandedId(null); setSelectedId(null); }
+                    }}
+                  />
+                </div>
+              ) : (
+                <div style={{ position: 'absolute', left: '50%', top: ringTop, width: 0, height: 0, transformStyle: 'preserve-3d' }}>
+                  <div ref={ringRef} style={{ position: 'absolute', width: 0, height: 0, transformStyle: 'preserve-3d', willChange: 'transform' }}>{cards}</div>
+                </div>
+              )}
+              <div aria-hidden style={{ position: 'absolute', zIndex: 10, left: '50%', bottom: -Math.round(arcMaskHeight * .62), width: Math.round(config.width * 1.18), height: arcMaskHeight, transform: 'translateX(-50%)', borderRadius: '50%', background: '#ece4d6', boxShadow: 'inset 0 10px 18px rgba(60,40,20,.06), inset 0 -2px 0 rgba(255,255,255,.4)', pointerEvents: 'none' }} />
+              {expandedApp && <ExpandedCard app={expandedApp} index={expandedIndex} config={config} onClose={() => setExpandedId(null)} onViewDetail={() => onViewDetail(expandedApp)} />}
+              {mode !== 'single' && <>
+                <button className="action-queue-nav" style={{ ...navButtonStyle, left: 10 }} type="button" aria-label="上一条投递" onClick={(event) => { event.stopPropagation(); stepBy(-1); }}>‹</button>
+                <button className="action-queue-nav" style={{ ...navButtonStyle, right: 10 }} type="button" aria-label="下一条投递" onClick={(event) => { event.stopPropagation(); stepBy(1); }}>›</button>
+              </>}
+            </>
+          )}
         </div>
-      )}
+      </div>
     </section>
   );
 }
