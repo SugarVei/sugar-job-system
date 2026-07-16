@@ -3,7 +3,6 @@ import {
   IconDashboard, IconOverview, IconApplications, IconCompanies, IconResumes,
   IconInterviews, IconTrophy,
   IconKey,
-  IconFile,
 } from './icons';
 
 export const NAV_ITEMS: {
@@ -22,7 +21,6 @@ export const NAV_ITEMS: {
   { key: 'offers', label: 'Offer 管理', Icon: IconTrophy },
   { key: 'interviewReviews', label: '面试复盘', Icon: IconOverview },
   { key: 'jdMatches', label: 'JD 匹配', Icon: IconApplications },
-  { key: 'evidence', label: '证据库', Icon: IconFile },
 ];
 
 export function greetFor(screen: ScreenKey, name: string): { title: string; sub: string } {
@@ -38,7 +36,6 @@ export function greetFor(screen: ScreenKey, name: string): { title: string; sub:
     offers: { title: 'Offer 管理', sub: '统一比较薪资、截止时间与决策风险' },
     interviewReviews: { title: '面试复盘', sub: '记录问题与表现，把每次面试变成题库' },
     jdMatches: { title: 'JD 匹配分析', sub: '粘贴岗位 JD，评估简历匹配度并生成建议' },
-    evidence: { title: '证据库', sub: '集中保存 JD、Offer、HR 沟通和面试反馈证据' },
   };
   return map[screen];
 }

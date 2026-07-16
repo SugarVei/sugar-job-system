@@ -16,7 +16,6 @@ import Interviews from './pages/Interviews';
 import Offers from './pages/Offers';
 import InterviewReviews from './pages/InterviewReviews';
 import JdMatches from './pages/JdMatches';
-import Evidence from './pages/Evidence';
 
 // 根据当前 screen 渲染对应页面
 function CurrentPage() {
@@ -44,8 +43,6 @@ function CurrentPage() {
       return <InterviewReviews />;
     case 'jdMatches':
       return <JdMatches />;
-    case 'evidence':
-      return <Evidence />;
     default:
       return <Dashboard />;
   }

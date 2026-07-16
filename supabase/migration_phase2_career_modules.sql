@@ -75,28 +75,6 @@ create table if not exists public.jd_matches (
   applied boolean not null default false, created_at timestamptz not null default now(), updated_at timestamptz not null default now()
 );
 
-create table if not exists public.evidence_items (
-  id uuid primary key default gen_random_uuid(),
-  user_id uuid not null references auth.users(id) on delete cascade,
-  title text not null,
-  evidence_type text not null default '其他'
-    check (evidence_type in ('JD','Offer','HR沟通','面试反馈','薪资福利','公司信息','其他')),
-  related_type text not null default 'none'
-    check (related_type in ('application','offer','interview','company','resume','none')),
-  related_id uuid,
-  company_name text,
-  position_name text,
-  source text,
-  evidence_date date,
-  content text,
-  file_url text,
-  tags text[],
-  credibility_score int check (credibility_score is null or (credibility_score between 0 and 100)),
-  notes text,
-  created_at timestamptz not null default now(),
-  updated_at timestamptz not null default now()
-);
-
 create index if not exists offers_user_id_idx on public.offers(user_id);
 create index if not exists offers_application_id_idx on public.offers(application_id);
 create index if not exists offers_status_idx on public.offers(offer_status);
@@ -120,20 +98,14 @@ create index if not exists jd_matches_application_idx on public.jd_matches(appli
 create index if not exists jd_matches_score_idx on public.jd_matches(match_score);
 create index if not exists jd_matches_created_idx on public.jd_matches(created_at);
 create index if not exists jd_matches_applied_idx on public.jd_matches(applied);
-create index if not exists evidence_items_user_idx on public.evidence_items(user_id);
-create index if not exists evidence_items_type_idx on public.evidence_items(evidence_type);
-create index if not exists evidence_items_related_idx on public.evidence_items(related_type, related_id);
-create index if not exists evidence_items_company_idx on public.evidence_items(company_name);
-create index if not exists evidence_items_date_idx on public.evidence_items(evidence_date);
 
 alter table public.offers enable row level security;
 alter table public.interview_reviews enable row level security;
 alter table public.interview_review_questions enable row level security;
 alter table public.jd_matches enable row level security;
-alter table public.evidence_items enable row level security;
 
 do $$ declare t text; op text; begin
-  foreach t in array array['offers','interview_reviews','interview_review_questions','jd_matches','evidence_items'] loop
+  foreach t in array array['offers','interview_reviews','interview_review_questions','jd_matches'] loop
     foreach op in array array['select','insert','update','delete'] loop
       execute format('drop policy if exists %I on public.%I', t || '_' || op || '_own', t);
       if op = 'insert' then
@@ -154,12 +126,10 @@ revoke all on table public.offers from anon, authenticated;
 revoke all on table public.interview_reviews from anon, authenticated;
 revoke all on table public.interview_review_questions from anon, authenticated;
 revoke all on table public.jd_matches from anon, authenticated;
-revoke all on table public.evidence_items from anon, authenticated;
 grant select, insert, update, delete on table public.offers to authenticated;
 grant select, insert, update, delete on table public.interview_reviews to authenticated;
 grant select, insert, update, delete on table public.interview_review_questions to authenticated;
 grant select, insert, update, delete on table public.jd_matches to authenticated;
-grant select, insert, update, delete on table public.evidence_items to authenticated;
 
 drop trigger if exists offers_set_updated_at on public.offers;
 create trigger offers_set_updated_at before update on public.offers for each row execute function public.set_updated_at();
@@ -169,5 +139,3 @@ drop trigger if exists review_questions_set_updated_at on public.interview_revie
 create trigger review_questions_set_updated_at before update on public.interview_review_questions for each row execute function public.set_updated_at();
 drop trigger if exists jd_matches_set_updated_at on public.jd_matches;
 create trigger jd_matches_set_updated_at before update on public.jd_matches for each row execute function public.set_updated_at();
-drop trigger if exists evidence_items_set_updated_at on public.evidence_items;
-create trigger evidence_items_set_updated_at before update on public.evidence_items for each row execute function public.set_updated_at();

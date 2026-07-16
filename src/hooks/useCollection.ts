@@ -46,7 +46,7 @@ function readableDbError(error: unknown, table: string) {
     return '数据库缺少内推码表，请在 Supabase SQL Editor 执行 supabase/migration_referral_codes.sql。';
   }
 
-  if (['offers', 'interview_reviews', 'interview_review_questions', 'jd_matches', 'evidence_items'].includes(table)
+  if (['offers', 'interview_reviews', 'interview_review_questions', 'jd_matches'].includes(table)
     && /relation.*does not exist|schema cache|permission denied|does not exist/i.test(message)) {
     return '数据库缺少第二阶段职业模块表或 Data API 授权，请在 Supabase SQL Editor 执行 supabase/migration_phase2_career_modules.sql。';
   }
@@ -82,7 +82,7 @@ function stripResumeId(payload: Record<string, unknown>) {
 }
 
 export function useCollection<T extends BaseRow>(
-  table: 'applications' | 'companies' | 'resumes' | 'interviews' | 'offers' | 'interview_reviews' | 'interview_review_questions' | 'jd_matches' | 'evidence_items' | 'referral_codes',
+  table: 'applications' | 'companies' | 'resumes' | 'interviews' | 'offers' | 'interview_reviews' | 'interview_review_questions' | 'jd_matches' | 'referral_codes',
   orderBy: { column: string; ascending?: boolean } = { column: 'created_at', ascending: false },
 ) {
   const { user } = useAuth();
