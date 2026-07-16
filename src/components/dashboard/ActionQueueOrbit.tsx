@@ -112,8 +112,7 @@ const OrbitCard = memo(function OrbitCard({ app, index, cardWidth, cardRef, onAc
         boxShadow: '0 8px 18px rgba(60,40,20,.08)',
         backfaceVisibility: 'hidden',
         WebkitBackfaceVisibility: 'hidden',
-        transformStyle: 'preserve-3d',
-        willChange: 'transform, opacity, filter',
+        willChange: 'transform',
         cursor: 'pointer',
         transition: 'box-shadow .25s ease',
         userSelect: 'none',
@@ -255,9 +254,16 @@ export default function ActionQueueOrbit({ apps, onViewDetail }: ActionQueueOrbi
       const cardScale = 1 - distance / 180 * 0.28;
       const front = distance < step / 2;
       const dimmed = expandedId !== null;
+      const fanMode = mode === 'fan';
+      const slot = card.parentElement;
+
+      // Chromium can flatten translucent, filtered fan cards into separate
+      // compositor layers. Keep the prototype geometry, but make the small fan
+      // opaque and give its slots a deterministic near-to-far paint order.
+      if (slot) slot.style.zIndex = fanMode ? String(18000 - Math.round(distance * 100)) : '';
       card.style.transform = `rotateZ(${tilt}deg) translateY(${verticalOffset + (front && hovered && !dimmed ? -6 : 0)}px) scale(${cardScale})`;
-      card.style.opacity = String(dimmed ? Math.min(opacity, 0.35) : opacity);
-      card.style.filter = !reducedMotion && distance > 4 ? `blur(${Math.min(1.4, distance / 130 * 1.4)}px)` : 'none';
+      card.style.opacity = String(dimmed ? Math.min(fanMode ? 1 : opacity, 0.35) : (fanMode ? 1 : opacity));
+      card.style.filter = fanMode || reducedMotion || distance <= 4 ? 'none' : `blur(${Math.min(1.4, distance / 130 * 1.4)}px)`;
       card.style.boxShadow = front && hovered && !dimmed ? '0 16px 32px rgba(60,40,20,.18)' : '0 8px 18px rgba(60,40,20,.08)';
       card.style.pointerEvents = opacity < 0.12 || dimmed ? 'none' : 'auto';
       card.tabIndex = opacity < 0.12 || dimmed ? -1 : 0;

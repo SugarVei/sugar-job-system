@@ -68,3 +68,17 @@ final result: passed
 - Post-fix visual evidence is currently unavailable because the connected Chrome extension cannot establish a browser-control session and this Codex turn exposes no alternate in-app browser surface. The previous screenshot predates this literal source-port iteration and is not reused as new proof.
 
 final result: blocked
+
+---
+
+## Fan-mode layer ordering iteration
+
+- Source visual truth: `C:\Temp\codex-clipboard-8f1de996-dceb-4f92-8133-39a6025ab57a.png`
+- Target state: three applications in desktop fan mode, with the center card in front.
+- Finding [P1]: translucent card opacity plus per-card blur/filter promoted the fan cards into separate Chromium compositor layers. The later yellow card painted across the nearer green card, and text from rear cards remained visible through the center card.
+- Fix made: fan cards retain the prototype's 3D positions, angles, sizes, colors, and transforms, but are rendered opaque with blur disabled. Each fan slot now receives a deterministic near-to-far layer value derived from its current angular distance. The five-or-more-card ring path is unchanged.
+- Code verification: `npm run lint` passed; `npm run build` passed.
+- Post-fix implementation screenshot: unavailable. Both the in-app browser and Chrome browser connections fail before tab acquisition with a local browser-client initialization error, so a valid rendered comparison cannot be captured in this run.
+- Temporary three-record QA entry was removed before commit.
+
+final result: blocked
