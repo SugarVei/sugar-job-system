@@ -14,6 +14,8 @@
   --qc-sand: rgba(248, 240, 226, .78); --ql-sand: rgba(198, 168, 110, .36); --qa-sand: rgba(198, 168, 110, .22); --qi-sand: #9c8050;
   --qc-slate: rgba(234, 236, 242, .78); --ql-slate: rgba(130, 140, 162, .36); --qa-slate: rgba(130, 140, 162, .22); --qi-slate: #66708a;
   color: var(--aq-ink);
+  width: 100%;
+  min-width: 0;
 }
 
 .action-queue[data-theme='dark'] {
@@ -35,6 +37,8 @@
 
 .action-queue-panel {
   box-sizing: border-box;
+  width: 100%;
+  min-width: 0;
   overflow: hidden;
   padding: clamp(18px, 3vw, 30px);
   border: 1px solid var(--aq-line);
@@ -108,11 +112,14 @@
   position: relative;
   display: flex;
   flex-direction: column;
+  min-width: 0;
+  max-width: 100%;
+  overflow: hidden;
   gap: 4px;
   mask-image: linear-gradient(to right, transparent 0, #000 11%, #000 89%, transparent 100%);
   -webkit-mask-image: linear-gradient(to right, transparent 0, #000 11%, #000 89%, transparent 100%);
 }
-.action-queue-row { overflow: hidden; padding: 5px 0; scrollbar-width: thin; }
+.action-queue-row { width: 100%; min-width: 0; max-width: 100%; overflow: hidden; padding: 5px 0; scrollbar-width: thin; }
 .action-queue-row::-webkit-scrollbar { height: 6px; }
 .action-queue-row::-webkit-scrollbar-thumb { border-radius: 3px; background: var(--aq-line); }
 .action-queue-track { display: flex; width: max-content; will-change: transform; }
