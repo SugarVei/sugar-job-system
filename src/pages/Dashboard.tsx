@@ -143,6 +143,7 @@ export default function Dashboard() {
           onViewDetail={handleViewDetail}
           onViewAll={() => setScreen('applications')}
           onAddAction={triggerAdd}
+          fillHeight
         />
 
         {/* 月历 */}

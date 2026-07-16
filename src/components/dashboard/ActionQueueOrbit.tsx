@@ -7,6 +7,8 @@ interface ActionQueueOrbitProps {
   onViewDetail: (app: Application) => void;
   onViewAll?: () => void;
   onAddAction?: () => void;
+  /** Keeps the dashboard's desktop two-column row at its established height. */
+  fillHeight?: boolean;
 }
 
 type QueueStatus = 'pending' | 'interview' | 'follow-up' | 'review';
@@ -177,7 +179,7 @@ function DetailDrawer({ item, onClose, onViewDetail }: {
   );
 }
 
-export default function ActionQueueOrbit({ apps, onViewDetail, onViewAll, onAddAction }: ActionQueueOrbitProps) {
+export default function ActionQueueOrbit({ apps, onViewDetail, onViewAll, onAddAction, fillHeight = false }: ActionQueueOrbitProps) {
   const [selected, setSelected] = useState<ActionQueueItem | null>(null);
   const items = useMemo(() => apps.map(toQueueItem), [apps]);
   const rows = useMemo(
@@ -196,7 +198,7 @@ export default function ActionQueueOrbit({ apps, onViewDetail, onViewAll, onAddA
   }, [closeDetail, selected]);
 
   return (
-    <section className="action-queue" data-theme="light" aria-labelledby="action-queue-heading">
+    <section className={`action-queue${fillHeight ? ' action-queue--fill-height' : ''}`} data-theme="light" aria-labelledby="action-queue-heading">
       <div className="action-queue-panel">
         <header className="action-queue-header">
           <div className="action-queue-heading">
