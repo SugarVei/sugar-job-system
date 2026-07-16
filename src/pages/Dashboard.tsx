@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import type { Application, ApplicationPriority, Interview } from '../types';
 import { useCollection } from '../hooks/useCollection';
 import { useAppShell } from '../contexts/AppShellContext';
@@ -12,7 +12,6 @@ import {
 } from '../components/icons';
 import { initialOf, avatarColor, CARD, statusTag } from '../lib/appHelpers';
 
-// ── 行动队列卡片色板（暖色调，匹配网页风格）──────────────────────
 const AQ_PALETTES: { bg: string; fg: string }[] = [
   { bg: '#f2ddd0', fg: '#7a3a1e' },
   { bg: '#d4e8d0', fg: '#2a5e34' },
@@ -51,7 +50,13 @@ function formatDateTime(value: string | null) {
   if (!value) return '';
   const d = new Date(value);
   if (Number.isNaN(d.getTime())) return value;
-  return d.toLocaleString('zh-CN', { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit', hour12: false });
+  return d.toLocaleString('zh-CN', {
+    month: 'numeric',
+    day: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false,
+  });
 }
 
 function isClosedStatus(status: string) {
@@ -71,207 +76,372 @@ function urgencyScore(app: Application, now: Date) {
   );
 }
 
-// ── 行动队列卡片 ──────────────────────────────────────────────────
-function AQCard({
-  app, palette, isSelected, isDimmed, onSelect, onViewDetail,
-}: {
-  app: Application;
-  palette: { bg: string; fg: string };
-  isSelected: boolean;
-  isDimmed: boolean;
-  onSelect: () => void;
-  onViewDetail: () => void;
-}) {
-  return (
-    <div
-      onClick={onSelect}
-      style={{
-        width: isSelected ? 236 : 104,
-        height: isSelected ? 140 : 62,
-        borderRadius: 11,
-        padding: '9px 11px',
-        background: palette.bg,
-        color: palette.fg,
-        cursor: 'pointer',
-        flexShrink: 0,
-        overflow: 'hidden',
-        position: 'relative',
-        opacity: isDimmed ? 0.38 : 1,
-        transform: isDimmed ? 'scaleY(0.86)' : 'none',
-        transition: 'width .44s cubic-bezier(.34,1.15,.64,1), height .44s cubic-bezier(.34,1.15,.64,1), opacity .28s, transform .36s cubic-bezier(.34,1.15,.64,1)',
-        userSelect: 'none',
-      }}
-    >
-      {/* 未展开视图 */}
-      <div style={{ opacity: isSelected ? 0 : 1, transition: 'opacity .18s', pointerEvents: isSelected ? 'none' : 'auto' }}>
-        <div style={{ fontSize: 17, fontWeight: 700, lineHeight: 1, marginBottom: 3 }}>
-          {app.company_name.charAt(0)}
-        </div>
-        <div style={{ fontSize: 11.5, fontWeight: 700, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-          {app.company_name}
-        </div>
-          <div style={{ fontSize: 10, marginTop: 2, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', opacity: 0.72 }}>
-          {app.position_name}
-        </div>
-        <span style={{ display: 'inline-block', fontSize: 9, fontWeight: 700, padding: '2px 6px', borderRadius: 999, background: 'rgba(0,0,0,.1)', marginTop: 4 }}>
-          {app.status}
-        </span>
-      </div>
-
-      {/* 展开视图 */}
-      <div style={{
-        position: 'absolute', inset: 0, padding: '11px 13px',
-        opacity: isSelected ? 1 : 0,
-        transition: isSelected ? 'opacity .22s .2s' : 'opacity .1s',
-        display: 'flex', flexDirection: 'column', justifyContent: 'space-between',
-        pointerEvents: isSelected ? 'auto' : 'none',
-      }}>
-        <div>
-          <div style={{ fontSize: 13, fontWeight: 700 }}>{app.company_name}</div>
-          <div style={{ fontSize: 10.5, marginTop: 1, opacity: 0.75 }}>{app.position_name}</div>
-          <div style={{ fontSize: 9.5, marginTop: 4, lineHeight: 1.6, opacity: 0.62 }}>
-            {[app.city, app.channel].filter(Boolean).join(' · ')}
-            <br />
-            <span style={{ display: 'inline-block', fontSize: 9, fontWeight: 700, padding: '2px 6px', borderRadius: 999, background: 'rgba(0,0,0,.1)' }}>
-              {app.status}
-            </span>
-            <span style={{ display: 'inline-block', fontSize: 9, fontWeight: 700, padding: '2px 6px', borderRadius: 999, background: 'rgba(0,0,0,.1)', marginLeft: 4 }}>
-              {priorityLabel(app.priority)}
-            </span>
-            {(app.next_action || app.deadline_at) && (
-              <>
-                <br />
-                {app.next_action || '待处理'}{app.deadline_at ? ` · ${formatDateTime(app.deadline_at)}` : ''}
-              </>
-            )}
-          </div>
-        </div>
-        <button
-          onClick={(e) => { e.stopPropagation(); onViewDetail(); }}
-          style={{
-            display: 'inline-flex', alignItems: 'center', gap: 4,
-            background: 'rgba(0,0,0,.1)', border: '1px solid rgba(0,0,0,.14)',
-            borderRadius: 7, padding: '4px 9px', fontSize: 10.5, fontWeight: 700,
-            color: palette.fg, cursor: 'pointer',
-          }}
-        >
-          查看详情 →
-        </button>
-      </div>
-    </div>
-  );
+function signedCycleDistance(value: number, length: number) {
+  if (length <= 0) return 0;
+  let result = ((value % length) + length) % length;
+  if (result > length / 2) result -= length;
+  return result;
 }
 
-// ── 行动队列单行 ──────────────────────────────────────────────────
-function AQRow({
-  apps, direction, selectedId, colorOffset, onSelect, onViewDetail,
+function ActionQueue({
+  apps,
+  onViewDetail,
 }: {
   apps: Application[];
-  direction: 'ltr' | 'rtl';
-  selectedId: string | null;
-  colorOffset: number;
-  onSelect: (id: string) => void;
   onViewDetail: (app: Application) => void;
 }) {
-  // 不足 7 张时重复填满，保证滚动顺畅；再翻倍实现无缝循环
-  const track = useMemo(() => {
-    let cycle = [...apps];
-    while (cycle.length < 7) cycle = [...cycle, ...apps];
-    return [...cycle, ...cycle];
+  const stageRef = useRef<HTMLDivElement | null>(null);
+  const [stageWidth, setStageWidth] = useState(760);
+  const [offset, setOffset] = useState(0);
+  const [selectedKey, setSelectedKey] = useState<string | null>(null);
+  const [isHovered, setIsHovered] = useState(false);
+  const [reduceMotion, setReduceMotion] = useState(false);
+
+  const orbitApps = useMemo(() => {
+    if (apps.length === 0) return [];
+    const targetLength = Math.max(9, apps.length);
+    return Array.from({ length: targetLength }, (_, index) => apps[index % apps.length]);
   }, [apps]);
 
-  const anim = direction === 'ltr' ? 'aqLTR 30s linear infinite' : 'aqRTL 30s linear infinite';
-  const paused = selectedId !== null;
+  useEffect(() => {
+    const media = window.matchMedia('(prefers-reduced-motion: reduce)');
+    const update = () => setReduceMotion(media.matches);
+    update();
+    media.addEventListener?.('change', update);
+    return () => media.removeEventListener?.('change', update);
+  }, []);
+
+  useEffect(() => {
+    const node = stageRef.current;
+    if (!node) return;
+
+    const update = () => setStageWidth(node.clientWidth || 760);
+    update();
+
+    if (typeof ResizeObserver === 'undefined') {
+      window.addEventListener('resize', update);
+      return () => window.removeEventListener('resize', update);
+    }
+
+    const observer = new ResizeObserver(update);
+    observer.observe(node);
+    return () => observer.disconnect();
+  }, []);
+
+  useEffect(() => {
+    if (orbitApps.length === 0 || reduceMotion) return;
+
+    let frameId = 0;
+    let previous = performance.now();
+
+    const tick = (time: number) => {
+      const delta = Math.min(64, time - previous);
+      previous = time;
+
+      if (!isHovered && selectedKey === null) {
+        setOffset((current) => (current + delta / 2600) % orbitApps.length);
+      }
+
+      frameId = window.requestAnimationFrame(tick);
+    };
+
+    frameId = window.requestAnimationFrame(tick);
+    return () => window.cancelAnimationFrame(frameId);
+  }, [isHovered, orbitApps.length, reduceMotion, selectedKey]);
+
+  useEffect(() => {
+    if (orbitApps.length > 0) setOffset((current) => current % orbitApps.length);
+    setSelectedKey(null);
+  }, [orbitApps.length]);
+
+  const isCompact = stageWidth < 560;
+  const cardWidth = Math.max(108, Math.min(154, stageWidth * (isCompact ? 0.29 : 0.19)));
+  const cardHeight = cardWidth * 1.36;
+  const slotWidth = cardWidth * (isCompact ? 0.67 : 0.72);
+  const stageHeight = isCompact ? 242 : 292;
+  const visibleLimit = isCompact ? 3.15 : 4.55;
 
   return (
-    <div style={{
-      overflow: 'hidden',
-      position: 'relative',
-      WebkitMaskImage: 'linear-gradient(to right, transparent, black 8%, black 92%, transparent)',
-      maskImage: 'linear-gradient(to right, transparent, black 8%, black 92%, transparent)',
-    }}>
-      <div style={{
-        display: 'flex',
-        gap: 7,
-        width: 'max-content',
-        animation: anim,
-        animationPlayState: paused ? 'paused' : 'running',
-      }}>
-        {track.map((app, i) => (
-          <AQCard
-            key={`${app.id}-${i}`}
-            app={app}
-            palette={AQ_PALETTES[(colorOffset + (i % apps.length)) % AQ_PALETTES.length]}
-            isSelected={selectedId === app.id}
-            isDimmed={selectedId !== null && selectedId !== app.id}
-            onSelect={() => onSelect(app.id)}
-            onViewDetail={() => onViewDetail(app)}
-          />
-        ))}
-      </div>
-    </div>
-  );
-}
+    <section
+      style={{
+        background: '#ece4d6',
+        borderRadius: 26,
+        minHeight: 360,
+        padding: '22px 0 0',
+        position: 'relative',
+        overflow: 'hidden',
+        isolation: 'isolate',
+      }}
+      onMouseEnter={() => setIsHovered(true)}
+      onMouseLeave={() => setIsHovered(false)}
+      aria-label="行动队列"
+    >
+      <div
+        style={{
+          position: 'absolute',
+          right: -42,
+          top: -48,
+          width: 210,
+          height: 210,
+          borderRadius: '50%',
+          background: 'radial-gradient(circle,rgba(244,200,74,.55),transparent 70%)',
+          pointerEvents: 'none',
+        }}
+      />
+      <div
+        style={{
+          position: 'absolute',
+          left: -80,
+          top: 104,
+          width: 210,
+          height: 210,
+          borderRadius: '50%',
+          background: 'radial-gradient(circle,rgba(152,190,154,.24),transparent 70%)',
+          pointerEvents: 'none',
+        }}
+      />
 
-// ── 行动队列容器：根据投递数量自动解锁行数 ───────────────────────
-function ActionQueue({ apps, onViewDetail }: {
-  apps: Application[];
-  onViewDetail: (app: Application) => void;
-}) {
-  const [selectedId, setSelectedId] = useState<string | null>(null);
-
-  // 1–6 → 1行  7–12 → 2行  13–18 → 3行  19+ → 4行
-  const rowCount = apps.length <= 6 ? 1 : apps.length <= 12 ? 2 : apps.length <= 18 ? 3 : 4;
-
-  const rows = useMemo(() => {
-    if (apps.length === 0) return [];
-    const result: Application[][] = Array.from({ length: rowCount }, () => []);
-    apps.forEach((app, i) => result[i % rowCount].push(app));
-    return result;
-  }, [apps, rowCount]);
-
-  const handleSelect = (id: string) => setSelectedId(prev => prev === id ? null : id);
-
-  return (
-    <div style={{ background: '#ece4d6', borderRadius: 26, padding: '22px 22px 18px', position: 'relative', overflow: 'hidden' }}>
-      <style>{`
-        @keyframes aqLTR{0%{transform:translateX(0)}100%{transform:translateX(-50%)}}
-        @keyframes aqRTL{0%{transform:translateX(-50%)}100%{transform:translateX(0)}}
-      `}</style>
-      <div style={{ position: 'absolute', right: -40, top: -40, width: 180, height: 180, borderRadius: '50%', background: 'radial-gradient(circle,rgba(244,200,74,.5),transparent 70%)' }} />
-      <div style={{ position: 'relative' }}>
-        <div style={{ fontSize: 13, fontWeight: 700, color: '#a23d24', letterSpacing: '.04em', textTransform: 'uppercase' }}>行动队列</div>
-        <p style={{ fontSize: 13, color: '#7a7468', margin: '4px 0 14px' }}>
-          进行中的投递 · 点击卡片展开详情
+      <header style={{ position: 'relative', zIndex: 100, padding: '0 22px' }}>
+        <div style={{ fontSize: 13, fontWeight: 700, color: '#a23d24', letterSpacing: '.04em' }}>
+          行动队列
+        </div>
+        <p style={{ fontSize: 13, color: '#7a7468', margin: '4px 0 0' }}>
+          进行中的投递 · 卡片沿轨道循环，悬停暂停
         </p>
+      </header>
 
-        {apps.length === 0 ? (
-          <div style={{ background: '#fffdf8', borderRadius: 16, padding: 18, fontSize: 13.5, color: '#8a8478' }}>
-            暂无待办，去「投递记录」添加一条吧。
-          </div>
-        ) : (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 7 }}>
-            {rows.map((row, ri) => (
-              <AQRow
-                key={ri}
-                apps={row}
-                direction={ri % 2 === 0 ? 'ltr' : 'rtl'}
-                selectedId={selectedId}
-                colorOffset={ri * 6}
-                onSelect={handleSelect}
-                onViewDetail={onViewDetail}
-              />
-            ))}
-          </div>
-        )}
+      {apps.length === 0 ? (
+        <div style={{ margin: '18px 22px 22px', background: '#fffdf8', borderRadius: 16, padding: 18, fontSize: 13.5, color: '#8a8478' }}>
+          暂无待办，去「投递记录」添加一条吧。
+        </div>
+      ) : (
+        <div
+          ref={stageRef}
+          style={{
+            height: stageHeight,
+            marginTop: 10,
+            position: 'relative',
+            overflow: 'hidden',
+            perspective: 900,
+            WebkitMaskImage: 'linear-gradient(to right, transparent 0%, black 8%, black 92%, transparent 100%)',
+            maskImage: 'linear-gradient(to right, transparent 0%, black 8%, black 92%, transparent 100%)',
+          }}
+        >
+          {orbitApps.map((app, index) => {
+            const key = `${app.id}-${index}`;
+            const distance = signedCycleDistance(index - offset, orbitApps.length);
+            const absDistance = Math.abs(distance);
+            const visible = absDistance <= visibleLimit + 0.8;
+            const selected = selectedKey === key;
+            const dimmed = selectedKey !== null && !selected;
+            const palette = AQ_PALETTES[index % AQ_PALETTES.length];
 
-        {selectedId && (
-          <p style={{ margin: '8px 0 0', fontSize: 11, color: '#9a9488', textAlign: 'center' }}>
-            再次点击收起
-          </p>
-        )}
-      </div>
-    </div>
+            const x = stageWidth / 2 - cardWidth / 2 + distance * slotWidth;
+            const y = 17 + Math.pow(absDistance, 1.42) * (isCompact ? 10 : 12);
+            const rotate = distance * (isCompact ? 4.2 : 4.8);
+            const scale = Math.max(0.77, 1.07 - absDistance * 0.055) + (selected ? 0.08 : 0);
+            const zIndex = selected ? 90 : 55 - Math.round(absDistance * 8);
+            const opacity = !visible ? 0 : dimmed ? 0.34 : Math.max(0.42, 1 - absDistance * 0.11);
+
+            return (
+              <div
+                key={key}
+                role="button"
+                tabIndex={visible ? 0 : -1}
+                aria-label={`${app.company_name} ${app.position_name}`}
+                aria-pressed={selected}
+                onClick={() => setSelectedKey((current) => current === key ? null : key)}
+                onKeyDown={(event) => {
+                  if (event.key === 'Enter' || event.key === ' ') {
+                    event.preventDefault();
+                    setSelectedKey((current) => current === key ? null : key);
+                  }
+                }}
+                style={{
+                  width: cardWidth,
+                  height: cardHeight,
+                  position: 'absolute',
+                  left: 0,
+                  top: 0,
+                  zIndex,
+                  padding: isCompact ? '13px 12px' : '16px 15px',
+                  borderRadius: isCompact ? 15 : 18,
+                  background: palette.bg,
+                  color: palette.fg,
+                  border: selected ? `2px solid ${palette.fg}55` : '1px solid rgba(255,255,255,.42)',
+                  boxShadow: selected
+                    ? '0 22px 36px rgba(44,39,31,.24)'
+                    : '0 12px 26px rgba(44,39,31,.15)',
+                  cursor: 'pointer',
+                  overflow: 'hidden',
+                  opacity,
+                  pointerEvents: visible ? 'auto' : 'none',
+                  transform: `translate3d(${x}px, ${y}px, 0) rotate(${rotate}deg) scale(${scale})`,
+                  transformOrigin: '50% 78%',
+                  transition: selectedKey
+                    ? 'opacity .24s ease, box-shadow .24s ease, border-color .24s ease, transform .28s cubic-bezier(.22,.8,.24,1)'
+                    : 'opacity .18s linear, box-shadow .22s ease',
+                  willChange: 'transform, opacity',
+                  userSelect: 'none',
+                }}
+              >
+                <div
+                  style={{
+                    position: 'absolute',
+                    width: cardWidth * 0.8,
+                    height: cardWidth * 0.8,
+                    borderRadius: '50%',
+                    right: -cardWidth * 0.28,
+                    top: -cardWidth * 0.32,
+                    background: 'rgba(255,255,255,.26)',
+                  }}
+                />
+
+                <div
+                  style={{
+                    opacity: selected ? 0 : 1,
+                    transform: selected ? 'translateY(-8px)' : 'translateY(0)',
+                    transition: 'opacity .18s ease, transform .24s ease',
+                  }}
+                >
+                  <div style={{ fontFamily: 'Poppins', fontSize: isCompact ? 34 : 44, fontWeight: 700, lineHeight: .92 }}>
+                    {app.company_name.charAt(0)}
+                  </div>
+                  <div style={{ marginTop: isCompact ? 16 : 22, fontSize: isCompact ? 12 : 13.5, fontWeight: 700, lineHeight: 1.25 }}>
+                    {app.company_name}
+                  </div>
+                  <div style={{ marginTop: 4, fontSize: isCompact ? 9.5 : 10.5, lineHeight: 1.35, opacity: .74 }}>
+                    {app.position_name}
+                  </div>
+                  <span
+                    style={{
+                      display: 'inline-block',
+                      marginTop: 9,
+                      padding: '3px 7px',
+                      borderRadius: 999,
+                      background: 'rgba(0,0,0,.09)',
+                      fontSize: 9,
+                      fontWeight: 700,
+                    }}
+                  >
+                    {app.status}
+                  </span>
+                </div>
+
+                <div
+                  style={{
+                    position: 'absolute',
+                    inset: 0,
+                    padding: isCompact ? '13px 12px' : '15px 14px',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    justifyContent: 'space-between',
+                    opacity: selected ? 1 : 0,
+                    transform: selected ? 'translateY(0)' : 'translateY(10px)',
+                    pointerEvents: selected ? 'auto' : 'none',
+                    transition: 'opacity .2s .08s ease, transform .24s .08s ease',
+                  }}
+                >
+                  <div>
+                    <div style={{ fontSize: isCompact ? 12 : 13.5, fontWeight: 700, lineHeight: 1.25 }}>
+                      {app.company_name}
+                    </div>
+                    <div style={{ fontSize: isCompact ? 9.5 : 10.5, marginTop: 3, opacity: .78 }}>
+                      {app.position_name}
+                    </div>
+                    <div style={{ fontSize: isCompact ? 8.8 : 9.5, marginTop: 8, lineHeight: 1.55, opacity: .7 }}>
+                      {[app.city, app.channel].filter(Boolean).join(' · ') || '待补充地点与渠道'}
+                      <br />
+                      {app.next_action || '等待下一步安排'}
+                      {app.deadline_at ? <><br />截止 {formatDateTime(app.deadline_at)}</> : null}
+                    </div>
+                    <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap', marginTop: 8 }}>
+                      <span style={{ fontSize: 8.5, fontWeight: 700, padding: '2px 6px', borderRadius: 999, background: 'rgba(0,0,0,.09)' }}>
+                        {app.status}
+                      </span>
+                      <span style={{ fontSize: 8.5, fontWeight: 700, padding: '2px 6px', borderRadius: 999, background: 'rgba(0,0,0,.09)' }}>
+                        {priorityLabel(app.priority)}
+                      </span>
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={(event) => {
+                      event.stopPropagation();
+                      onViewDetail(app);
+                    }}
+                    style={{
+                      width: '100%',
+                      border: '1px solid rgba(0,0,0,.14)',
+                      borderRadius: 9,
+                      padding: '6px 8px',
+                      background: 'rgba(255,255,255,.24)',
+                      color: palette.fg,
+                      fontSize: isCompact ? 9.5 : 10.5,
+                      fontWeight: 700,
+                      cursor: 'pointer',
+                    }}
+                  >
+                    查看详情 →
+                  </button>
+                </div>
+              </div>
+            );
+          })}
+
+          <div
+            aria-hidden
+            style={{
+              position: 'absolute',
+              zIndex: 70,
+              left: '50%',
+              bottom: isCompact ? -92 : -112,
+              width: '132%',
+              height: isCompact ? 138 : 170,
+              transform: 'translateX(-50%)',
+              borderRadius: '50% 50% 0 0 / 100% 100% 0 0',
+              background: 'linear-gradient(180deg,#dedbd5 0%,#ece4d6 78%)',
+              boxShadow: '0 -18px 34px rgba(74,67,56,.08)',
+              pointerEvents: 'none',
+            }}
+          />
+
+          <div
+            aria-hidden
+            style={{
+              position: 'absolute',
+              zIndex: 72,
+              left: '50%',
+              bottom: isCompact ? 13 : 17,
+              width: 5,
+              height: 5,
+              borderRadius: '50%',
+              transform: 'translateX(-50%)',
+              background: '#8e887c',
+              opacity: .7,
+            }}
+          />
+        </div>
+      )}
+
+      {selectedKey && (
+        <div
+          style={{
+            position: 'absolute',
+            zIndex: 110,
+            left: 0,
+            right: 0,
+            bottom: 12,
+            textAlign: 'center',
+            fontSize: 10.5,
+            color: '#777166',
+            pointerEvents: 'none',
+          }}
+        >
+          再次点击卡片收起
+        </div>
+      )}
+    </section>
   );
 }
 
@@ -319,7 +489,6 @@ export default function Dashboard() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [interviews]);
 
-  // 进行中的投递（无数量上限），按行数动态解锁
   const activeApps = useMemo(
     () => apps
       .filter((a) => !isClosedStatus(a.status))
@@ -353,7 +522,6 @@ export default function Dashboard() {
   const goalTarget = 30;
   const goalPct = Math.min(100, Math.round((stats.total / goalTarget) * 100));
 
-  // 跳转到投递记录并筛选该公司
   const handleViewDetail = (app: Application) => {
     setScreen('applications');
     setTimeout(() => setQuery(app.company_name), 0);
@@ -361,12 +529,9 @@ export default function Dashboard() {
 
   return (
     <div className="flex flex-col gap-[22px] animate-rise">
-      {/* 顶部：行动队列 + 月历 */}
-      <div className="grid grid-cols-1 lg:grid-cols-[1.55fr_1fr] gap-[22px]">
-        {/* 行动队列 */}
+      <div className="grid grid-cols-1 lg:grid-cols-[1.55fr_1fr] gap-[22px] items-stretch">
         <ActionQueue apps={activeApps} onViewDetail={handleViewDetail} />
 
-        {/* 月历 */}
         <div style={{ background: '#dcebd5', borderRadius: 26, padding: 24 }}>
           <div className="flex items-center justify-between" style={{ marginBottom: 16 }}>
             <div style={{ fontFamily: 'Poppins', fontSize: 17, fontWeight: 600, color: '#2f5d36' }}>本月面试</div>
@@ -401,7 +566,6 @@ export default function Dashboard() {
         </div>
       </div>
 
-      {/* 指标行 */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         <Metric label="进行中" value={stats.inProgress} bg="#fbeec2" fg="#7a5a12" icon={<IconArrowRight size={22} />} />
         <Metric label="本周面试" value={stats.weekInterviews} bg="#dcebd5" fg="#2f5d36" icon={<IconInterviews size={22} />} />
@@ -409,7 +573,6 @@ export default function Dashboard() {
         <Metric label="已获 Offer" value={stats.offers} bg="#fbe0d8" fg="#a23d24" icon={<IconTrophy size={22} />} />
       </div>
 
-      {/* 待办 + 近期面试 */}
       <div className="grid grid-cols-1 lg:grid-cols-[1fr_1.7fr] gap-[22px]">
         <div className="flex flex-col gap-[18px]">
           <div style={{ ...CARD, padding: 22 }}>
@@ -427,6 +590,7 @@ export default function Dashboard() {
               </div>
             </div>
           </div>
+
           <div style={{ background: '#1b1a17', borderRadius: 22, padding: 22, color: '#f3efe7' }}>
             <div style={{ fontSize: 13, color: '#bdb6a5' }}>待跟进</div>
             <div className="flex items-baseline gap-[6px]" style={{ margin: '6px 0 14px' }}>
@@ -437,6 +601,7 @@ export default function Dashboard() {
               <div style={{ height: '100%', width: `${stats.total ? Math.round((stats.followUps / stats.total) * 100) : 0}%`, borderRadius: 999, background: 'linear-gradient(90deg,#f4c84a,#f0613f)' }} />
             </div>
           </div>
+
           <div style={{ ...CARD, padding: 22 }}>
             <div style={{ fontFamily: 'Poppins', fontSize: 16, fontWeight: 600 }}>今日待办 / 临近截止</div>
             <div style={{ fontSize: 12.5, color: '#8a8478', margin: '3px 0 14px' }}>下一步到期或 3 天内截止</div>
@@ -531,6 +696,7 @@ interface DayCell {
   isToday: boolean;
   hasEvent: boolean;
 }
+
 function buildMonth(now: Date, interviews: Interview[]): DayCell[] {
   const year = now.getFullYear();
   const month = now.getMonth();
@@ -538,11 +704,13 @@ function buildMonth(now: Date, interviews: Interview[]): DayCell[] {
   const lead = (first.getDay() + 6) % 7;
   const daysInMonth = new Date(year, month + 1, 0).getDate();
   const eventDays = new Set<number>();
+
   interviews.forEach((iv) => {
     if (!iv.interview_time) return;
     const t = new Date(iv.interview_time);
     if (t.getFullYear() === year && t.getMonth() === month) eventDays.add(t.getDate());
   });
+
   const cells: DayCell[] = [];
   for (let i = 0; i < lead; i++) cells.push({ num: '', empty: true, isToday: false, hasEvent: false });
   for (let n = 1; n <= daysInMonth; n++) {
