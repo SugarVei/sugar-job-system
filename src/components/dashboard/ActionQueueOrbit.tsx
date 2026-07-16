@@ -6,17 +6,18 @@ import './ActionQueueOrbit.css';
 interface ActionQueueOrbitProps {
   apps: Application[];
   onViewDetail: (app: Application) => void;
+  fillHeight?: boolean;
 }
 
 type OrbitMode = 'empty' | 'single' | 'fan' | 'ring';
 type ViewportKey = 'desktop' | 'tablet' | 'mobile';
-type ViewportConfig = { width: number; height: number; cardW: number; cardH: number; radius: number; perspective: number; visMult: number };
+type ViewportConfig = { width: number; height: number; cardW: number; cardH: number; radius: number; perspective: number; visMult: number; fanAngle: number };
 type Tween = { from: number; to: number; start: number; duration: number };
 
 const VIEWPORTS: Record<ViewportKey, ViewportConfig> = {
-  desktop: { width: 860, height: 400, cardW: 150, cardH: 204, radius: 250, perspective: 1300, visMult: 3.5 },
-  tablet: { width: 640, height: 380, cardW: 122, cardH: 166, radius: 190, perspective: 1100, visMult: 2.4 },
-  mobile: { width: 340, height: 340, cardW: 100, cardH: 138, radius: 120, perspective: 850, visMult: 1.5 },
+  desktop: { width: 860, height: 400, cardW: 150, cardH: 204, radius: 250, perspective: 1300, visMult: 3.5, fanAngle: 38 },
+  tablet: { width: 640, height: 380, cardW: 122, cardH: 166, radius: 190, perspective: 1100, visMult: 2.4, fanAngle: 42 },
+  mobile: { width: 340, height: 340, cardW: 100, cardH: 138, radius: 120, perspective: 850, visMult: 1.5, fanAngle: 48 },
 };
 
 const PALETTES = [
@@ -47,8 +48,8 @@ function configForViewport(width: number): ViewportKey {
   return 'desktop';
 }
 
-function angleStepFor(mode: OrbitMode, count: number) {
-  return mode === 'fan' ? 26 : count > 0 ? 360 / count : 0;
+function angleStepFor(mode: OrbitMode, count: number, fanAngle: number) {
+  return mode === 'fan' ? fanAngle : count > 0 ? 360 / count : 0;
 }
 
 function frontIndex(count: number, step: number, rotation: number, sway: number) {
@@ -179,7 +180,7 @@ function ExpandedCard({ app, index, config, onClose, onViewDetail }: {
   );
 }
 
-export default function ActionQueueOrbit({ apps, onViewDetail }: ActionQueueOrbitProps) {
+export default function ActionQueueOrbit({ apps, onViewDetail, fillHeight = false }: ActionQueueOrbitProps) {
   const { theme } = useTheme();
   const shellRef = useRef<HTMLDivElement>(null);
   const ringRef = useRef<HTMLDivElement>(null);
@@ -193,7 +194,8 @@ export default function ActionQueueOrbit({ apps, onViewDetail }: ActionQueueOrbi
   const scaleRef = useRef(1);
   const ignoreClickRef = useRef(false);
   const [viewport, setViewport] = useState<ViewportKey>(() => configForViewport(window.innerWidth));
-  const [availableWidth, setAvailableWidth] = useState(0);
+  const [availableSize, setAvailableSize] = useState({ width: 0, height: 0 });
+  const [sideBySide, setSideBySide] = useState(() => window.innerWidth >= 1024);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [hovered, setHovered] = useState(false);
@@ -201,15 +203,27 @@ export default function ActionQueueOrbit({ apps, onViewDetail }: ActionQueueOrbi
 
   const config = VIEWPORTS[viewport];
   const mode = getMode(apps.length);
-  const scale = Math.min(1, availableWidth > 0 ? availableWidth / config.width : 1);
-  const scaledHeight = config.height * scale;
+  const angleStep = angleStepFor(mode, apps.length, config.fanAngle);
+  const scale = Math.min(1, availableSize.width > 0 ? availableSize.width / config.width : 1);
+  const fillDashboardRow = fillHeight && sideBySide;
+  // The Dashboard grid determines the shared row height; convert its measured
+  // height back into reference-canvas units so width scaling remains uniform.
+  const stageHeight = fillDashboardRow && availableSize.height > 0
+    ? Math.max(config.height, availableSize.height / scale)
+    : config.height;
+  const scaledHeight = stageHeight * scale;
+  const ringTop = stageHeight - (config.height * 0.5 - 26);
+  const singleTop = stageHeight - (config.height * 0.5 - 10);
 
   useEffect(() => {
     scaleRef.current = scale;
   }, [scale]);
 
   useEffect(() => {
-    const onResize = () => setViewport(configForViewport(window.innerWidth));
+    const onResize = () => {
+      setViewport(configForViewport(window.innerWidth));
+      setSideBySide(window.innerWidth >= 1024);
+    };
     window.addEventListener('resize', onResize);
     return () => window.removeEventListener('resize', onResize);
   }, []);
@@ -217,7 +231,17 @@ export default function ActionQueueOrbit({ apps, onViewDetail }: ActionQueueOrbi
   useEffect(() => {
     const shell = shellRef.current;
     if (!shell) return undefined;
-    const observer = new ResizeObserver(([entry]) => setAvailableWidth(entry.contentRect.width));
+    const observer = new ResizeObserver(([entry]) => {
+      const nextSize = {
+        width: Math.round(entry.contentRect.width * 100) / 100,
+        height: Math.round(entry.contentRect.height * 100) / 100,
+      };
+      setAvailableSize((current) => (
+        current.width === nextSize.width && current.height === nextSize.height
+          ? current
+          : nextSize
+      ));
+    });
     observer.observe(shell);
     return () => observer.disconnect();
   }, []);
@@ -240,7 +264,7 @@ export default function ActionQueueOrbit({ apps, onViewDetail }: ActionQueueOrbi
   ), [mode, reducedMotion]);
 
   const paint = useCallback((rotation: number) => {
-    const step = angleStepFor(mode, apps.length);
+    const step = angleStep;
     const sway = swayFor();
     if (ringRef.current) ringRef.current.style.transform = `rotateY(${rotation + sway}deg)`;
     const threshold = mode === 'fan' ? 200 : Math.min(130, config.visMult * step);
@@ -269,7 +293,7 @@ export default function ActionQueueOrbit({ apps, onViewDetail }: ActionQueueOrbi
       card.tabIndex = opacity < 0.12 || dimmed ? -1 : 0;
       card.dataset.front = String(front);
     });
-  }, [apps.length, config.visMult, expandedId, hovered, mode, reducedMotion, swayFor]);
+  }, [angleStep, config.visMult, expandedId, hovered, mode, reducedMotion, swayFor]);
 
   useEffect(() => {
     if (mode === 'empty' || mode === 'single') return undefined;
@@ -296,8 +320,7 @@ export default function ActionQueueOrbit({ apps, onViewDetail }: ActionQueueOrbi
   }, [expandedId, hovered, mode, paint, reducedMotion, selectedId]);
 
   const recenter = useCallback((index: number) => {
-    const step = angleStepFor(mode, apps.length);
-    const target = -index * step;
+    const target = -index * angleStep;
     // A normalized difference is the shortest route around the ring.
     const destination = rotationRef.current + normalizeAngle(target - rotationRef.current);
     tweenRef.current = { from: rotationRef.current, to: destination, start: performance.now(), duration: reducedMotion ? 0 : 460 };
@@ -305,12 +328,11 @@ export default function ActionQueueOrbit({ apps, onViewDetail }: ActionQueueOrbi
     velocityRef.current = 0;
     setSelectedId(apps[index]?.id ?? null);
     setExpandedId(null);
-  }, [apps, mode, reducedMotion]);
+  }, [angleStep, apps, reducedMotion]);
 
   const activate = useCallback((index: number) => {
     if (ignoreClickRef.current) { ignoreClickRef.current = false; return; }
-    const step = angleStepFor(mode, apps.length);
-    const front = frontIndex(apps.length, step, rotationRef.current, swayFor());
+    const front = frontIndex(apps.length, angleStep, rotationRef.current, swayFor());
     const app = apps[index];
     if (front !== index && mode !== 'single') {
       recenter(index);
@@ -318,14 +340,13 @@ export default function ActionQueueOrbit({ apps, onViewDetail }: ActionQueueOrbi
     }
     setSelectedId(app.id);
     setExpandedId((current) => current === app.id ? null : app.id);
-  }, [apps, mode, recenter, swayFor]);
+  }, [angleStep, apps, mode, recenter, swayFor]);
 
   const stepBy = useCallback((direction: number) => {
     if (apps.length < 2) return;
-    const step = angleStepFor(mode, apps.length);
-    const front = frontIndex(apps.length, step, rotationRef.current, swayFor());
+    const front = frontIndex(apps.length, angleStep, rotationRef.current, swayFor());
     recenter((front + direction + apps.length) % apps.length);
-  }, [apps.length, mode, recenter, swayFor]);
+  }, [angleStep, apps.length, recenter, swayFor]);
 
   const onPointerDown = (event: React.PointerEvent<HTMLDivElement>) => {
     if (mode !== 'ring' && mode !== 'fan') return;
@@ -352,8 +373,7 @@ export default function ActionQueueOrbit({ apps, onViewDetail }: ActionQueueOrbi
     dragRef.current = null;
     if (moved) {
       ignoreClickRef.current = true;
-      const step = angleStepFor(mode, apps.length);
-      recenter(frontIndex(apps.length, step, rotationRef.current, swayFor()));
+      recenter(frontIndex(apps.length, angleStep, rotationRef.current, swayFor()));
     }
   };
 
@@ -363,7 +383,7 @@ export default function ActionQueueOrbit({ apps, onViewDetail }: ActionQueueOrbi
   };
 
   const cards = useMemo(() => apps.map((app, index) => {
-    const base = index * angleStepFor(mode, apps.length);
+    const base = index * angleStep;
     return (
       <div
         key={app.id}
@@ -396,11 +416,11 @@ export default function ActionQueueOrbit({ apps, onViewDetail }: ActionQueueOrbi
         />
       </div>
     );
-  }), [activate, apps, config.cardH, config.cardW, config.radius, mode, stepBy]);
+  }), [activate, angleStep, apps, config.cardH, config.cardW, config.radius, stepBy]);
 
   const expandedIndex = apps.findIndex((app) => app.id === expandedId);
   const expandedApp = expandedIndex >= 0 ? apps[expandedIndex] : null;
-  const arcMaskHeight = Math.round(config.height * 0.36);
+  const arcMaskHeight = Math.round(stageHeight * 0.36);
   const navButtonStyle: React.CSSProperties = {
     position: 'absolute',
     top: '50%',
@@ -423,8 +443,8 @@ export default function ActionQueueOrbit({ apps, onViewDetail }: ActionQueueOrbi
   };
 
   return (
-    <section ref={shellRef} style={{ position: 'relative', width: '100%', height: scaledHeight, overflow: 'hidden', '--aq-focus': theme.accent } as React.CSSProperties}>
-      <div style={{ position: 'absolute', top: 0, left: 0, width: config.width, height: config.height, transform: `scale(${scale})`, transformOrigin: 'top left' }}>
+    <section ref={shellRef} style={{ position: 'relative', width: '100%', height: fillDashboardRow ? '100%' : scaledHeight, minHeight: fillDashboardRow ? config.height * scale : undefined, overflow: 'hidden', '--aq-focus': theme.accent } as React.CSSProperties}>
+      <div style={{ position: 'absolute', top: 0, left: 0, width: config.width, height: stageHeight, transform: `scale(${scale})`, transformOrigin: 'top left' }}>
         <div
           className={`action-queue-stage action-queue-stage--${viewport}${expandedApp ? ' action-queue-stage--expanded' : ''}`}
           style={{
@@ -463,7 +483,7 @@ export default function ActionQueueOrbit({ apps, onViewDetail }: ActionQueueOrbi
           {mode === 'empty' ? <p style={{ position: 'relative', zIndex: 1, margin: '105px 0 0', textAlign: 'center', color: '#7a7468', fontSize: 13 }}>暂无待办，去「投递记录」添加一条吧。</p> : (
             <>
               {mode === 'single' ? (
-                <div className="action-queue-single" style={{ position: 'absolute', top: config.height * .5 + 10, left: '50%', width: config.cardW, height: config.cardH, transform: 'translate(-50%,-50%)' }}>
+                <div className="action-queue-single" style={{ position: 'absolute', top: singleTop, left: '50%', width: config.cardW, height: config.cardH, transform: 'translate(-50%,-50%)' }}>
                   <OrbitCard
                     app={apps[0]}
                     index={0}
@@ -478,7 +498,7 @@ export default function ActionQueueOrbit({ apps, onViewDetail }: ActionQueueOrbi
                   />
                 </div>
               ) : (
-                <div style={{ position: 'absolute', left: '50%', top: config.height * .5 + 26, width: 0, height: 0, transformStyle: 'preserve-3d' }}>
+                <div style={{ position: 'absolute', left: '50%', top: ringTop, width: 0, height: 0, transformStyle: 'preserve-3d' }}>
                   <div ref={ringRef} style={{ position: 'absolute', width: 0, height: 0, transformStyle: 'preserve-3d', willChange: 'transform' }}>{cards}</div>
                 </div>
               )}

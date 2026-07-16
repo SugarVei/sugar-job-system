@@ -136,12 +136,12 @@ export default function Dashboard() {
   return (
     <div className="flex flex-col gap-[22px] animate-rise">
       {/* 顶部：行动队列 + 月历 */}
-      <div className="grid grid-cols-1 lg:grid-cols-[1.55fr_1fr] gap-[22px]">
+      <div className="grid grid-cols-1 lg:grid-cols-[1.55fr_1fr] items-stretch gap-[22px]">
         {/* 行动队列 */}
-        <ActionQueueOrbit apps={activeApps} onViewDetail={handleViewDetail} />
+        <ActionQueueOrbit apps={activeApps} onViewDetail={handleViewDetail} fillHeight />
 
         {/* 月历 */}
-        <div style={{ background: '#dcebd5', borderRadius: 26, padding: 24 }}>
+        <div style={{ height: '100%', background: '#dcebd5', borderRadius: 26, padding: 24 }}>
           <div className="flex items-center justify-between" style={{ marginBottom: 16 }}>
             <div style={{ fontFamily: 'Poppins', fontSize: 17, fontWeight: 600, color: '#2f5d36' }}>本月面试</div>
             <div style={{ fontSize: 13, fontWeight: 600, color: '#4a7a51' }}>
