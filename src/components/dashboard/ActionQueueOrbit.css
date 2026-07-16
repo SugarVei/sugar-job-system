@@ -34,6 +34,7 @@
 }
 
 .action-queue-panel {
+  box-sizing: border-box;
   overflow: hidden;
   padding: clamp(18px, 3vw, 30px);
   border: 1px solid var(--aq-line);
@@ -42,6 +43,16 @@
   box-shadow: 0 18px 50px rgba(90, 70, 100, .08);
   backdrop-filter: blur(18px);
   -webkit-backdrop-filter: blur(18px);
+}
+
+/* On the desktop dashboard, preserve the original shared row height with the calendar. */
+.action-queue--fill-height {
+  height: 100%;
+  min-height: 400px;
+}
+
+.action-queue--fill-height .action-queue-panel {
+  height: 100%;
 }
 
 .action-queue-header {
@@ -220,6 +231,14 @@ button.action-queue-card:hover { transform: translateY(-4px); border-color: var(
 @media (max-width: 640px) {
   .action-queue-header__actions { width: 100%; flex-wrap: wrap; }
   .action-queue-drawer { padding: 22px; }
+}
+
+@media (max-width: 1023px) {
+  .action-queue--fill-height,
+  .action-queue--fill-height .action-queue-panel {
+    height: auto;
+    min-height: 0;
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {
