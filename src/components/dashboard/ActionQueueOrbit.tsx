@@ -77,9 +77,10 @@ function formatDateTime(value: string | null) {
   return Number.isNaN(date.getTime()) ? value : date.toLocaleString('zh-CN', { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit', hour12: false });
 }
 
-const OrbitCard = memo(function OrbitCard({ app, index, cardRef, onActivate, onKeyDown }: {
+const OrbitCard = memo(function OrbitCard({ app, index, compact, cardRef, onActivate, onKeyDown }: {
   app: Application;
   index: number;
+  compact: boolean;
   cardRef: (node: HTMLButtonElement | null) => void;
   onActivate: () => void;
   onKeyDown: (event: React.KeyboardEvent<HTMLButtonElement>) => void;
@@ -91,14 +92,26 @@ const OrbitCard = memo(function OrbitCard({ app, index, cardRef, onActivate, onK
       type="button"
       className="action-queue-card"
       aria-label={`${app.company_name} · ${app.position_name} · ${app.status}`}
-      style={{ '--aq-card-bg': palette.bg, '--aq-card-fg': palette.fg } as React.CSSProperties}
+      style={{
+        '--aq-card-bg': palette.bg,
+        '--aq-card-fg': palette.fg,
+        appearance: 'none',
+        WebkitAppearance: 'none',
+        display: 'block',
+        font: 'inherit',
+        padding: 0,
+      } as React.CSSProperties}
       onClick={(event) => { event.stopPropagation(); onActivate(); }}
       onKeyDown={onKeyDown}
     >
-      <span className="action-queue-card__initial">{app.company_name.charAt(0)}</span>
-      <strong>{app.company_name}</strong>
-      <span className="action-queue-card__position">{app.position_name}</span>
-      <em>{app.status}</em>
+      <span
+        style={{ position: 'absolute', top: compact ? 10 : 13, right: compact ? 12 : 15, left: compact ? 12 : 15 }}
+      >
+        <span className="action-queue-card__initial">{app.company_name.charAt(0)}</span>
+        <strong>{app.company_name}</strong>
+        <span className="action-queue-card__position">{app.position_name}</span>
+        <em>{app.status}</em>
+      </span>
     </button>
   );
 });
@@ -321,6 +334,7 @@ export default function ActionQueueOrbit({ apps, onViewDetail }: ActionQueueOrbi
         <OrbitCard
           app={app}
           index={index}
+          compact={viewport === 'mobile'}
           cardRef={(node) => { cardRefs.current[index] = node; }}
           onActivate={() => activate(index)}
           onKeyDown={(event) => {
@@ -333,7 +347,7 @@ export default function ActionQueueOrbit({ apps, onViewDetail }: ActionQueueOrbi
         />
       </div>
     );
-  }), [activate, apps, config.cardH, config.cardW, config.radius, mode, stepBy]);
+  }), [activate, apps, config.cardH, config.cardW, config.radius, mode, stepBy, viewport]);
 
   const expandedIndex = apps.findIndex((app) => app.id === expandedId);
   const expandedApp = expandedIndex >= 0 ? apps[expandedIndex] : null;
@@ -370,6 +384,7 @@ export default function ActionQueueOrbit({ apps, onViewDetail }: ActionQueueOrbi
                   <OrbitCard
                     app={apps[0]}
                     index={0}
+                    compact={viewport === 'mobile'}
                     cardRef={(node) => { cardRefs.current[0] = node; }}
                     onActivate={() => activate(0)}
                     onKeyDown={(event) => {
