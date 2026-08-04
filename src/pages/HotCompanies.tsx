@@ -3,10 +3,11 @@ import { HOT_COMPANY_GROUPS, HOT_COMPANY_TOTAL, type HotCompany, type HotCompany
 import { useAppShell } from '../contexts/AppShellContext';
 import { useApiKeys } from '../contexts/ApiKeysContext';
 import { useCollection } from '../hooks/useCollection';
+import { useCampusRecruitmentStatuses, type CampusRecruitmentStatus } from '../hooks/useCampusRecruitmentStatuses';
 import type { Application, Company, NewRecord } from '../types';
 import { CARD, avatarColor, initialOf } from '../lib/appHelpers';
 import { normalizeCompanyName } from '../lib/companyName';
-import { IconExternalLink, IconPlus } from '../components/icons';
+import { IconExternalLink } from '../components/icons';
 
 const ALL = '全部';
 const AI_GROUP_NAME = 'AI 导入公司';
@@ -44,6 +45,7 @@ export default function HotCompanies() {
   const { getActiveConfig } = useApiKeys();
   const { items: savedCompanies, create } = useCollection<Company>('companies');
   const { items: applications } = useCollection<Application>('applications');
+  const { items: recruitmentStatuses, loading: statusesLoading } = useCampusRecruitmentStatuses();
   const [activeGroup, setActiveGroup] = useState(ALL);
   const [aiPrompt, setAiPrompt] = useState('');
   const [aiLoading, setAiLoading] = useState(false);
@@ -79,6 +81,11 @@ export default function HotCompanies() {
     [applications],
   );
 
+  const recruitmentStatusByCompany = useMemo(
+    () => new Map(recruitmentStatuses.map((status) => [status.company_key, status])),
+    [recruitmentStatuses],
+  );
+
   const groups = useMemo(() => {
     const q = query.trim().toLowerCase();
     return allGroups
@@ -94,11 +101,6 @@ export default function HotCompanies() {
       }))
       .filter((group) => group.companies.length > 0);
   }, [activeGroup, allGroups, query]);
-
-  const addToCompanyLibrary = (company: HotCompany) => {
-    setScreen('companies');
-    setTimeout(() => setQuery(company.name), 0);
-  };
 
   const viewApplications = (company: HotCompany) => {
     setScreen('applications');
@@ -338,7 +340,8 @@ export default function HotCompanies() {
                   key={`${group.name}-${company.name}`}
                   company={company}
                   applied={appliedCompanyNames.has(normalizeCompanyName(company.name))}
-                  onAdd={addToCompanyLibrary}
+                  recruitmentStatus={recruitmentStatusByCompany.get(normalizeCompanyName(company.name))}
+                  statusesLoading={statusesLoading}
                   onViewApplications={viewApplications}
                 />
               ))}
@@ -353,15 +356,18 @@ export default function HotCompanies() {
 function CompanyCard({
   company,
   applied,
-  onAdd,
+  recruitmentStatus,
+  statusesLoading,
   onViewApplications,
 }: {
   company: HotCompany;
   applied: boolean;
-  onAdd: (company: HotCompany) => void;
+  recruitmentStatus?: CampusRecruitmentStatus;
+  statusesLoading: boolean;
   onViewApplications: (company: HotCompany) => void;
 }) {
   const color = avatarColor(company.name);
+  const recruitment = recruitmentStatusPresentation(recruitmentStatus, statusesLoading);
   return (
     <article
       className="card-hover"
@@ -379,7 +385,10 @@ function CompanyCard({
       }}
     >
       {applied && (
-        <span
+        <button
+          type="button"
+          onClick={() => onViewApplications(company)}
+          aria-label={`查看${company.name}的投递记录`}
           style={{
             position: 'absolute',
             top: 12,
@@ -391,10 +400,12 @@ function CompanyCard({
             fontSize: 11,
             fontWeight: 800,
             letterSpacing: '.04em',
+            border: 'none',
+            cursor: 'pointer',
           }}
         >
           已投递
-        </span>
+        </button>
       )}
       <div style={{ display: 'flex', alignItems: 'center', gap: 12, minWidth: 0, paddingRight: applied ? 68 : 0 }}>
         <div
@@ -428,15 +439,17 @@ function CompanyCard({
         <a href={company.url} target="_blank" rel="noopener noreferrer" className="btn-press" style={primaryLink}>
           校招官网 <IconExternalLink size={13} />
         </a>
-        <button
-          type="button"
-          onClick={() => applied ? onViewApplications(company) : onAdd(company)}
+        <a
+          href={recruitmentStatus?.evidence_url || company.url}
+          target="_blank"
+          rel="noopener noreferrer"
           className="btn-press"
-          style={applied ? appliedButton : secondaryButton}
-          aria-label={applied ? `查看${company.name}的投递记录` : `在公司库中查看${company.name}`}
+          style={{ ...recruitmentButton, ...recruitment.style }}
+          aria-label={`${company.name}${recruitment.label}，查看官网依据`}
+          title={recruitment.title}
         >
-          {applied ? '查看投递' : <><IconPlus size={13} /> 公司库</>}
-        </button>
+          {recruitment.label}
+        </a>
       </div>
     </article>
   );
@@ -475,9 +488,51 @@ const secondaryButton: React.CSSProperties = {
   whiteSpace: 'nowrap',
 };
 
-const appliedButton: React.CSSProperties = {
+const recruitmentButton: React.CSSProperties = {
   ...secondaryButton,
-  border: '1px solid #83add8',
-  background: '#e7f1fc',
-  color: '#2f659f',
+  minWidth: 112,
+  padding: '0 10px',
+  textDecoration: 'none',
 };
+
+function recruitmentStatusPresentation(status: CampusRecruitmentStatus | undefined, loading: boolean) {
+  if (loading && !status) {
+    return {
+      label: '27校招查询中',
+      title: '正在读取每日同步结果',
+      style: { background: '#f3efe6', color: '#8a8478' },
+    };
+  }
+
+  if (status?.status === 'started') {
+    return {
+      label: '27校招已开始',
+      title: status.evidence_text || '官网已发现 2027 届校园招聘信息；该公司已停止每日检查。',
+      style: { border: '1px solid #72a879', background: '#e6f3e7', color: '#2f7040' },
+    };
+  }
+
+  if (status?.status === 'not_started') {
+    return {
+      label: '27校招暂未开始',
+      title: status.last_checked_at
+        ? `官网暂未发现明确的 2027 校招信息。最近检查：${new Date(status.last_checked_at).toLocaleString('zh-CN')}`
+        : '官网暂未发现明确的 2027 校招信息。',
+      style: { border: '1px solid #d7b56f', background: '#fff4d9', color: '#89631c' },
+    };
+  }
+
+  if (status?.status === 'error') {
+    return {
+      label: '27校招待复查',
+      title: `本次官网检查失败，将自动重试。${status.error_message ? ` ${status.error_message}` : ''}`,
+      style: { border: '1px solid #d8a19a', background: '#fbe9e7', color: '#a14b40' },
+    };
+  }
+
+  return {
+    label: '27校招待确认',
+    title: '等待每日自动检查；点击可先打开校招官网。',
+    style: { background: '#f3efe6', color: '#756f65' },
+  };
+}
