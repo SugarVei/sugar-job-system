@@ -28,6 +28,7 @@ const C = {
     '笔试':   { bg: 'F4C84A', fg: '7A5A12' },
     '一面':   { bg: '7CC4A0', fg: '1B4D35' },
     '二面':   { bg: '6BB7B1', fg: '1B4D35' },
+    'AI面':   { bg: '8B7ED8', fg: 'FFFFFF' },
     'HR面':   { bg: '7AA7D8', fg: '1B4D35' },
     'Offer':  { bg: '5FA86B', fg: 'FFFFFF' },
     '已拒绝': { bg: 'F0613F', fg: 'FFFFFF' },
@@ -115,7 +116,7 @@ function buildOverviewSheet(items: Application[]): any {
   const COLS = ['A','B','C','D','E','F'];
 
   const total = items.length;
-  const interviewing = items.filter(a => ['一面','二面','HR面','Offer'].includes(a.status)).length;
+  const interviewing = items.filter(a => ['一面','二面','AI面','HR面','Offer'].includes(a.status)).length;
   const offers = items.filter(a => a.status === 'Offer').length;
   const followUps = items.filter(a => a.status === '待跟进').length;
 

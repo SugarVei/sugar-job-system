@@ -5,6 +5,7 @@ export type ApplicationStatus =
   | '笔试'
   | '一面'
   | '二面'
+  | 'AI面'
   | 'HR面'
   | 'Offer'
   | '已拒绝'

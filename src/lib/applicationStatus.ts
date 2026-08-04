@@ -7,6 +7,7 @@ export const APPLICATION_STATUSES = [
   '笔试',
   '一面',
   '二面',
+  'AI面',
   'HR面',
   'Offer',
   '已拒绝',
@@ -25,6 +26,7 @@ export const APPLICATION_STATUS_FLOW = [
   '笔试',
   '一面',
   '二面',
+  'AI面',
   'HR面',
   'Offer',
 ] as const satisfies readonly ApplicationStatus[];
@@ -52,6 +54,7 @@ export const APPLICATION_STATUS_COLORS: Record<ApplicationStatus, { bg: string; 
   笔试: { bg: '#fbeec2', fg: '#7a5a12', chart: '#f4c84a' },
   一面: { bg: '#dde8fb', fg: '#345b9a', chart: '#7cc4a0' },
   二面: { bg: '#dde8fb', fg: '#345b9a', chart: '#6bb7b1' },
+  AI面: { bg: '#e4e0f7', fg: '#4a3f96', chart: '#8b7ed8' },
   HR面: { bg: '#dde8fb', fg: '#345b9a', chart: '#7aa7d8' },
   Offer: { bg: '#dcebd5', fg: '#2f5d36', chart: '#5fa86b' },
   已拒绝: { bg: '#fbe0d8', fg: '#a23d24', chart: '#f0613f' },

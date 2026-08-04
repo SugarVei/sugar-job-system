@@ -46,7 +46,7 @@ function rotate<T>(items: T[], amount: number) {
 
 function queueStatusFor(app: Application): QueueStatus {
   if (app.status === '待投递') return 'pending';
-  if (['笔试', '一面', '二面', 'HR面'].includes(app.status)) return 'interview';
+  if (['笔试', '一面', '二面', 'AI面', 'HR面'].includes(app.status)) return 'interview';
   if (['已投递', '简历筛选', '待跟进'].includes(app.status)) return 'follow-up';
   return 'review';
 }
