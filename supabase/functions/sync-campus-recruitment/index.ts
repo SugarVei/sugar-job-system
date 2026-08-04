@@ -13,7 +13,7 @@ const COMPANY_SOURCE_URL = 'https://sugar-job-system.vercel.app/api/hot-companie
 const BATCH_SIZE = 8;
 const FETCH_TIMEOUT_MS = 12_000;
 const DAY_MS = 24 * 60 * 60 * 1000;
-const ERROR_RETRY_MS = 6 * 60 * 60 * 1000;
+const ERROR_RETRY_MS = DAY_MS;
 
 function normalizeCompanyName(name: string) {
   return name
