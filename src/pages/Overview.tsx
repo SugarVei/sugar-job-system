@@ -89,7 +89,7 @@ export default function Overview() {
     const topCh = Object.entries(chMap).sort((a,b)=>b[1]-a[1]).slice(0,5).map(([k,v])=>`${k}(${v})`).join('、');
     const recent = items.slice(0, 5).map(a => `${a.company_name}·${a.position_name}(${a.status})`).join('；');
     return `你是一名专业的求职顾问，请根据以下用户的真实投递数据给出分析和建议，回答要具体、实用，语气亲切。
-投递统计：总计 ${items.length} 条，待投递 ${byStatus['待投递']}，已投递 ${byStatus['已投递']}，简历筛选 ${byStatus['简历筛选']}，笔试 ${byStatus['笔试']}，一面 ${byStatus['一面']}，二面 ${byStatus['二面']}，AI面 ${byStatus['AI面']}，HR面 ${byStatus['HR面']}，Offer ${byStatus['Offer']}，已拒绝 ${byStatus['已拒绝']}，已放弃 ${byStatus['已放弃']}，人才库 ${byStatus['人才库']}，待跟进 ${byStatus['待跟进']}。
+投递统计：总计 ${items.length} 条，待投递 ${byStatus['待投递']}，已投递 ${byStatus['已投递']}，简历筛选 ${byStatus['简历筛选']}，AI面 ${byStatus['AI面']}，笔试 ${byStatus['笔试']}，一面 ${byStatus['一面']}，二面 ${byStatus['二面']}，HR面 ${byStatus['HR面']}，Offer ${byStatus['Offer']}，已拒绝 ${byStatus['已拒绝']}，已放弃 ${byStatus['已放弃']}，人才库 ${byStatus['人才库']}，待跟进 ${byStatus['待跟进']}。
 Offer 转化率：${items.length > 0 ? Math.round((byStatus['Offer']/items.length)*100) : 0}%。
 高优先级投递 ${stats.highPriority} 条，临近截止 ${stats.nearDeadline} 条，有 JD 记录 ${stats.withJd} 条。
 主要投递城市：${topCities || '未记录'}。投递渠道：${topCh || '未记录'}。

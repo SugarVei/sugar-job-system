@@ -75,7 +75,7 @@ update public.applications
 set status = '待跟进',
     notes = concat_ws(E'\n', notes, '[系统迁移] 原状态：' || coalesce(status, '<空>'))
 where status is null or status not in (
-  '待投递', '已投递', '简历筛选', '笔试', '一面', '二面', 'AI面', 'HR面',
+  '待投递', '已投递', '简历筛选', 'AI面', '笔试', '一面', '二面', 'HR面',
   'Offer', '已拒绝', '已放弃', '人才库', '待跟进'
 );
 
@@ -96,7 +96,7 @@ alter table public.applications
 
 alter table public.applications
   add constraint applications_status_check check (status in (
-    '待投递', '已投递', '简历筛选', '笔试', '一面', '二面', 'AI面', 'HR面',
+    '待投递', '已投递', '简历筛选', 'AI面', '笔试', '一面', '二面', 'HR面',
     'Offer', '已拒绝', '已放弃', '人才库', '待跟进'
   )),
   add constraint applications_priority_check check (priority in ('low', 'normal', 'high', 'urgent')),
