@@ -1,14 +1,15 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
-import type { Company, NewRecord } from '../types';
+import { useMemo, useRef, useState } from 'react';
+import type { Application, Company, NewRecord } from '../types';
 import { useCollection } from '../hooks/useCollection';
 import { useAppShell } from '../contexts/AppShellContext';
 import { useTheme } from '../contexts/ThemeContext';
 import Modal from '../components/Modal';
 import { Field, TextInput, TextArea, Select, PrimaryButton, GhostButton, FormError } from '../components/Field';
-import { IconEdit, IconTrash, IconPlus, IconExternalLink } from '../components/icons';
-import { initialOf, avatarColor, CARD } from '../lib/appHelpers';
+import { IconEdit, IconPlus, IconExternalLink } from '../components/icons';
+import { initialOf, avatarColor, CARD, statusTag } from '../lib/appHelpers';
 import EmptyState from '../components/EmptyState';
 import AIChatDialog from '../components/AIChatDialog';
+import { normalizeCompanyName } from '../lib/companyName';
 
 const empty: NewRecord<Company> = {
   company_name: '',
@@ -30,8 +31,9 @@ function errorText(error: unknown) {
 }
 
 export default function Companies() {
-  const { items, loading, error: companiesError, create, update, remove } = useCollection<Company>('companies');
-  const { query, registerAdd, setScreen } = useAppShell();
+  const { items, loading: companiesLoading, error: companiesError, update } = useCollection<Company>('companies');
+  const { items: applications, loading: applicationsLoading, error: applicationsError } = useCollection<Application>('applications');
+  const { query, setQuery, setScreen } = useAppShell();
   const { theme } = useTheme();
   const [industryFilter, setIndustryFilter] = useState('all');
   const [modalOpen, setModalOpen] = useState(false);
@@ -42,36 +44,34 @@ export default function Companies() {
   const [scrollSig, setScrollSig] = useState(0);
   const nameRef = useRef<HTMLInputElement>(null);
 
-  useEffect(() => {
-    registerAdd(() => openCreate());
-    return () => registerAdd(null);
-  }, [registerAdd]);
+  const companyRows = useMemo(
+    () => items.map((company) => ({
+      company,
+      applications: applications.filter((application) =>
+        application.company_id === company.id
+        || (!application.company_id && normalizeCompanyName(application.company_name) === normalizeCompanyName(company.company_name))),
+    })).filter((row) => row.applications.length > 0),
+    [applications, items],
+  );
 
   const industries = useMemo(
-    () => Array.from(new Set(items.map((company) => company.industry).filter(Boolean))) as string[],
-    [items],
+    () => Array.from(new Set(companyRows.map(({ company }) => company.industry).filter(Boolean))) as string[],
+    [companyRows],
   );
 
   const aiSystemPrompt = useMemo(() => {
     const cityMap: Record<string, number> = {};
     const indMap: Record<string, number> = {};
-    items.forEach(c => {
+    companyRows.forEach(({ company: c }) => {
       if (c.city) cityMap[c.city] = (cityMap[c.city] ?? 0) + 1;
       if (c.industry) indMap[c.industry] = (indMap[c.industry] ?? 0) + 1;
     });
     const topCity = Object.entries(cityMap).sort((a,b)=>b[1]-a[1]).slice(0,5).map(([k,v])=>`${k}(${v})`).join('、');
     const topInd = Object.entries(indMap).sort((a,b)=>b[1]-a[1]).slice(0,5).map(([k,v])=>`${k}(${v})`).join('、');
     return `你是一名专业的求职顾问。用户的公司库数据如下：
-共 ${items.length} 家公司，主要城市：${topCity || '未记录'}，行业分布：${topInd || '未记录'}。
+共 ${companyRows.length} 家已投递公司、${applications.length} 条投递记录，主要城市：${topCity || '未记录'}，行业分布：${topInd || '未记录'}。
 请根据这些信息帮用户分析目标公司的倾向、地域集中度、行业匹配度，并给出具体建议。回答要简洁、实用。`;
-  }, [items]);
-
-  const openCreate = () => {
-    setEditing(null);
-    setForm(empty);
-    setFormError('');
-    setModalOpen(true);
-  };
+  }, [applications.length, companyRows]);
 
   const openEdit = (company: Company) => {
     setEditing(company);
@@ -98,8 +98,8 @@ export default function Companies() {
     setFormError('');
     setSaving(true);
     try {
-      if (editing) await update(editing.id, form);
-      else await create(form);
+      if (!editing) return;
+      await update(editing.id, { ...form, company_name: form.company_name.trim() });
       setModalOpen(false);
     } catch (error) {
       setFormError('保存失败：' + errorText(error));
@@ -108,32 +108,34 @@ export default function Companies() {
     }
   };
 
-  const del = async (company: Company) => {
-    if (!confirm(`确定删除「${company.company_name}」吗？`)) return;
-    try {
-      await remove(company.id);
-    } catch (error) {
-      alert('删除失败：' + errorText(error));
-    }
-  };
-
   const filtered = useMemo(
     () =>
-      items
-        .filter((company) => industryFilter === 'all' || company.industry === industryFilter)
-        .filter((company) => {
+      companyRows
+        .filter(({ company }) => industryFilter === 'all' || company.industry === industryFilter)
+        .filter(({ company, applications: relatedApplications }) => {
           if (!query) return true;
           const text = query.toLowerCase();
-          return [company.company_name, company.industry, company.city, company.notes]
+          return [
+            company.company_name,
+            company.industry,
+            company.city,
+            company.notes,
+            ...relatedApplications.flatMap((application) => [application.position_name, application.status]),
+          ]
             .filter(Boolean)
             .some((value) => (value as string).toLowerCase().includes(text));
         }),
-    [items, industryFilter, query],
+    [companyRows, industryFilter, query],
   );
+
+  const viewApplications = (companyName: string) => {
+    setScreen('applications');
+    setTimeout(() => setQuery(companyName), 0);
+  };
 
   return (
     <div className="flex flex-col gap-[18px] animate-rise">
-      {companiesError && <FormError message={companiesError} />}
+      {(companiesError || applicationsError) && <FormError message={companiesError || applicationsError || ''} />}
 
       <div className="flex flex-col lg:flex-row lg:items-center gap-3 p-4" style={{ ...CARD, borderRadius: 20 }}>
         <Select value={industryFilter} onChange={(event) => setIndustryFilter(event.target.value)} style={{ flex: 1 }} aria-label="按行业筛选公司">
@@ -145,7 +147,7 @@ export default function Companies() {
           ))}
         </Select>
         <div className="flex flex-wrap gap-3">
-          {items.length > 0 && (
+          {companyRows.length > 0 && (
             <AIChatDialog
               systemPrompt={aiSystemPrompt}
               placeholder="问我关于你的目标公司分析…"
@@ -155,25 +157,25 @@ export default function Companies() {
           <GhostButton onClick={() => setScreen('referralCodes')} aria-label="进入内推码管理" style={{ height: 44 }}>
             内推码管理
           </GhostButton>
-          <PrimaryButton accent={theme.accent} onClick={openCreate} style={{ height: 44 }}>
+          <PrimaryButton accent={theme.accent} onClick={() => setScreen('applications')} style={{ height: 44 }}>
             <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
-              <IconPlus size={16} /> 新增公司
+              <IconPlus size={16} /> 新增投递
             </span>
           </PrimaryButton>
         </div>
       </div>
 
-      {loading ? (
+      {(companiesLoading || applicationsLoading) ? (
         <EmptyState text="加载中..." />
       ) : filtered.length === 0 ? (
         <EmptyState
-          text={items.length === 0 ? '公司库还是空的，添加一个目标公司吧' : '没有符合条件的公司'}
-          actionLabel={items.length === 0 ? '新增公司' : undefined}
-          onAction={items.length === 0 ? openCreate : undefined}
+          text={companyRows.length === 0 ? '还没有已投递公司，新增投递后会自动出现在这里' : '没有符合条件的公司'}
+          actionLabel={companyRows.length === 0 ? '新增投递' : undefined}
+          onAction={companyRows.length === 0 ? () => setScreen('applications') : undefined}
         />
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">
-          {filtered.map((company) => {
+          {filtered.map(({ company, applications: relatedApplications }) => {
             const color = avatarColor(company.company_name);
             return (
               <div key={company.id} className="card-hover" style={{ ...CARD, padding: 22 }}>
@@ -219,9 +221,36 @@ export default function Companies() {
                     <button onClick={() => openEdit(company)} aria-label="编辑" className="btn-press" style={miniBtn}>
                       <IconEdit size={14} />
                     </button>
-                    <button onClick={() => del(company)} aria-label="删除" className="btn-press" style={miniBtn}>
-                      <IconTrash size={14} />
+                  </div>
+                </div>
+
+                <div style={{ marginTop: 14, paddingTop: 12, borderTop: '1px solid #eee7da' }}>
+                  <div className="flex items-center justify-between gap-3" style={{ marginBottom: 9 }}>
+                    <span style={{ fontSize: 12, color: '#8a8478' }}>关联投递</span>
+                    <button
+                      type="button"
+                      onClick={() => viewApplications(company.company_name)}
+                      className="btn-press"
+                      style={{ border: 0, background: 'transparent', color: theme.accent, fontSize: 12, fontWeight: 700, cursor: 'pointer' }}
+                    >
+                      {relatedApplications.length} 条 · 查看全部
                     </button>
+                  </div>
+                  <div className="flex flex-col gap-2">
+                    {relatedApplications.slice(0, 3).map((application) => {
+                      const tag = statusTag(application.status);
+                      return (
+                        <div key={application.id} className="flex items-center justify-between gap-3" style={{ fontSize: 13 }}>
+                          <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{application.position_name}</span>
+                          <span style={{ background: tag.bg, color: tag.fg, flex: 'none', fontSize: 11, fontWeight: 700, padding: '4px 8px', borderRadius: 999 }}>
+                            {application.status}
+                          </span>
+                        </div>
+                      );
+                    })}
+                    {relatedApplications.length > 3 && (
+                      <div style={{ fontSize: 12, color: '#9a9488' }}>另有 {relatedApplications.length - 3} 条投递记录</div>
+                    )}
                   </div>
                 </div>
 
@@ -254,7 +283,7 @@ export default function Companies() {
 
       <Modal
         open={modalOpen}
-        title={editing ? '编辑公司' : '新增公司'}
+        title="编辑公司资料"
         onClose={() => setModalOpen(false)}
         scrollTopSignal={scrollSig}
         footer={

@@ -12,6 +12,7 @@ import { exportApplicationsToExcel } from '../lib/exportExcel';
 import AIRecordImporter, { type ApplicationExtraction } from '../components/AIRecordImporter';
 
 const empty: NewRecord<Application> = {
+  company_id: null,
   company_name: '',
   position_name: '',
   city: '',
@@ -114,6 +115,7 @@ export default function Applications() {
   const openEdit = (application: Application) => {
     setEditing(application);
     setForm({
+      company_id: application.company_id ?? null,
       company_name: application.company_name,
       position_name: application.position_name,
       city: application.city ?? '',

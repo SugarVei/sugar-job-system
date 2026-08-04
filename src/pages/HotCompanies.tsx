@@ -5,6 +5,7 @@ import { useApiKeys } from '../contexts/ApiKeysContext';
 import { useCollection } from '../hooks/useCollection';
 import type { Company, NewRecord } from '../types';
 import { CARD, avatarColor, initialOf } from '../lib/appHelpers';
+import { normalizeCompanyName } from '../lib/companyName';
 import { IconExternalLink, IconPlus } from '../components/icons';
 
 const ALL = '全部';
@@ -143,7 +144,7 @@ export default function HotCompanies() {
         return [hotCompany, ...prev].slice(0, 40);
       });
 
-      if (!savedCompanies.some((company) => company.company_name === candidate.name)) {
+      if (!savedCompanies.some((company) => normalizeCompanyName(company.company_name) === normalizeCompanyName(candidate.name))) {
         const payload: NewRecord<Company> = {
           company_name: candidate.name,
           industry: candidate.industry,
@@ -155,7 +156,7 @@ export default function HotCompanies() {
         await create(payload);
       }
 
-      setImportMessage(`已导入「${candidate.name}」，可在热门公司页和公司库中查看。`);
+      setImportMessage(`已导入「${candidate.name}」；产生投递记录后会自动出现在公司库。`);
     } catch (error) {
       setAiError(`导入失败：${errorText(error)}`);
     } finally {

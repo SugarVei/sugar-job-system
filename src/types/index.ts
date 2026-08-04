@@ -20,6 +20,7 @@ export type InterviewType = '电话' | '视频' | '现场';
 export interface Application {
   id: string;
   user_id: string;
+  company_id: string | null;
   company_name: string;
   position_name: string;
   city: string | null;

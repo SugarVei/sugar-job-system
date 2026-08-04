@@ -28,7 +28,7 @@ export function greetFor(screen: ScreenKey, name: string): { title: string; sub:
     dashboard: { title: `下午好，${name || '你'}`, sub: '今天有几件事临近截止，先把它们处理掉' },
     overview: { title: '投递总览', sub: '投递的城市、薪资、岗位与渠道，一屏看全' },
     applications: { title: '投递记录', sub: '记录每次投递，按公司、状态、渠道筛选' },
-    companies: { title: '公司库', sub: '汇总目标公司，避免重复记录' },
+    companies: { title: '公司库', sub: '自动汇总已投递公司，关联岗位与进度' },
     referralCodes: { title: '内推码管理', sub: '集中保存公司、内推码与推荐人信息' },
     hotCompanies: { title: '热门公司', sub: '精选知名企业，一键直达招聘官网' },
     resumes: { title: '简历库', sub: '多版本简历与面试稿件，按账号保存' },
