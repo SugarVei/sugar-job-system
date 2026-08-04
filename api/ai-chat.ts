@@ -32,7 +32,7 @@ const PROVIDER_CONFIG = {
     defaultModel: 'qwen-vl-max',
   },
   minimax: {
-    baseUrl: 'https://api.minimax.io/v1',
+    baseUrl: 'https://api.minimaxi.com/v1',
     type: 'openai-compatible',
     defaultModel: 'MiniMax-M2.5',
   },
@@ -153,12 +153,21 @@ async function handleOpenAICompatible(
   apiKey: string,
   baseUrl: string,
   model: string,
+  provider: ProviderId,
   corsHeaders: Record<string, string>,
 ): Promise<Response> {
   const upstream = await fetch(`${baseUrl}/chat/completions`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${apiKey}` },
-    body: JSON.stringify({ model, messages, stream: true, max_tokens: maxTokens, temperature: 0.7 }),
+    body: JSON.stringify({
+      model,
+      messages,
+      stream: true,
+      ...(provider === 'minimax'
+        ? { max_completion_tokens: Math.min(maxTokens, 2048) }
+        : { max_tokens: maxTokens }),
+      temperature: 0.7,
+    }),
   });
 
   if (!upstream.ok) {
@@ -199,5 +208,5 @@ export default async function handler(req: Request): Promise<Response> {
   if (providerConfig.type === 'claude') {
     return handleClaude(messages, maxTokens, resolvedKey, resolvedModel, corsHeaders);
   }
-  return handleOpenAICompatible(messages, maxTokens, resolvedKey, providerConfig.baseUrl, resolvedModel, corsHeaders);
+  return handleOpenAICompatible(messages, maxTokens, resolvedKey, providerConfig.baseUrl, resolvedModel, requestedProvider, corsHeaders);
 }

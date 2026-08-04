@@ -73,6 +73,15 @@ interface Screenshot {
 const MAX_SCREENSHOTS = 3;
 const MAX_FILE_SIZE = 10 * 1024 * 1024;
 
+class LocalOcrError extends Error {
+  readonly cause: unknown;
+
+  constructor(cause: unknown) {
+    super('本地截图读取失败，请检查网络后重试，或直接粘贴岗位文字。');
+    this.cause = cause;
+  }
+}
+
 function compressScreenshot(file: File): Promise<Screenshot> {
   return new Promise((resolve, reject) => {
     if (!file.type.startsWith('image/')) return reject(new Error('只能上传 PNG、JPG 或 WebP 图片。'));
@@ -108,6 +117,7 @@ export default function AIRecordImporter<T extends ApplicationExtraction | Offer
   const { theme } = useTheme();
   const [sourceText, setSourceText] = useState('');
   const [loading, setLoading] = useState(false);
+  const [loadingMessage, setLoadingMessage] = useState('');
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   const [screenshots, setScreenshots] = useState<Screenshot[]>([]);
@@ -151,22 +161,36 @@ export default function AIRecordImporter<T extends ApplicationExtraction | Offer
       setSuccess('');
       return;
     }
-    if (screenshots.length > 0 && !PROVIDERS[config.provider].supportsVision) {
-      setError(`当前 ${PROVIDERS[config.provider].label} 配置不支持图片识别，请切换到 OpenAI、Claude、豆包、通义千问或 Gemini。`);
-      setSuccess('');
-      return;
-    }
     setLoading(true);
     setError('');
     setSuccess('');
     try {
+      let requestText = text;
+      let requestImages = screenshots.map(item => item.dataUrl);
+      if (requestImages.length > 0 && !PROVIDERS[config.provider].supportsVision) {
+        setLoadingMessage('正在加载本地 OCR…');
+        let ocrText = '';
+        try {
+          const { extractTextFromImages } = await import('../lib/localOcr');
+          ocrText = await extractTextFromImages(requestImages, ({ imageIndex, imageCount, progress }) => {
+            setLoadingMessage(`读取截图 ${imageIndex}/${imageCount} · ${Math.round(progress * 100)}%`);
+          });
+        } catch (ocrError) {
+          console.error('[AIRecordImporter] local OCR failed:', ocrError);
+          throw new LocalOcrError(ocrError);
+        }
+        if (!ocrText) throw new Error('没有从截图中读到清晰文字，请裁剪到岗位内容区域或改为粘贴文字。');
+        requestText = [text, ocrText].filter(Boolean).join('\n\n');
+        requestImages = [];
+      }
+      setLoadingMessage('AI 正在整理字段…');
       const response = await fetch('/api/record-extract', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           kind,
-          sourceText: text,
-          images: screenshots.map(item => item.dataUrl),
+          sourceText: requestText,
+          images: requestImages,
           provider: config.provider,
           apiKey: config.apiKey,
           model: config.model,
@@ -180,6 +204,7 @@ export default function AIRecordImporter<T extends ApplicationExtraction | Offer
       setError(recognitionError instanceof Error ? recognitionError.message : String(recognitionError));
     } finally {
       setLoading(false);
+      setLoadingMessage('');
     }
   };
 
@@ -190,7 +215,9 @@ export default function AIRecordImporter<T extends ApplicationExtraction | Offer
         <div>
           <div className="ai-record-importer__title">{isApplication ? 'AI 智能识别岗位信息' : 'AI 智能识别 Offer'}</div>
           <div className="ai-record-importer__subtitle">
-            使用当前的 {PROVIDERS[activeProvider].label} · 只回填表单，不会直接保存
+            使用当前的 {PROVIDERS[activeProvider].label} · {PROVIDERS[activeProvider].supportsVision
+              ? '只回填表单，不会直接保存'
+              : '截图会先在本机读取，不额外消耗 API 额度'}
           </div>
         </div>
       </div>
@@ -234,7 +261,9 @@ export default function AIRecordImporter<T extends ApplicationExtraction | Offer
         </div>
       )}
       <div className="ai-record-importer__actions">
-        <span>支持“文字 + 截图”一起识别；保存前请核对关键金额和日期。</span>
+        <span>{PROVIDERS[activeProvider].supportsVision
+          ? '支持“文字 + 截图”一起识别；保存前请核对关键金额和日期。'
+          : '截图先做本地 OCR，再由当前 AI 填表；保存前请核对金额和日期。'}</span>
         <PrimaryButton
           type="button"
           accent={theme.accent}
@@ -242,7 +271,7 @@ export default function AIRecordImporter<T extends ApplicationExtraction | Offer
           disabled={(!sourceText.trim() && screenshots.length === 0) || loading}
           style={{ minWidth: 168 }}
         >
-          {loading ? '正在识别…' : '智能识别并填充'}
+          {loading ? (loadingMessage || '正在识别…') : '智能识别并填充'}
         </PrimaryButton>
       </div>
       {error && <FormError message={error} />}

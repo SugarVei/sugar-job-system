@@ -32,7 +32,7 @@ const PROVIDER_CONFIG = {
     defaultModel: 'qwen-vl-max',
   },
   minimax: {
-    baseUrl: 'https://api.minimax.io/v1',
+    baseUrl: 'https://api.minimaxi.com/v1',
     type: 'openai-compatible',
     defaultModel: 'MiniMax-M2.5',
   },
@@ -133,7 +133,7 @@ async function callClaude(messages: ChatMessage[], apiKey: string, model: string
   return data.content?.map((part) => part.text ?? '').join('\n') ?? '';
 }
 
-async function callOpenAICompatible(messages: ChatMessage[], apiKey: string, baseUrl: string, model: string, maxTokens: number) {
+async function callOpenAICompatible(messages: ChatMessage[], apiKey: string, baseUrl: string, model: string, maxTokens: number, provider: ProviderId) {
   const upstream = await fetch(`${baseUrl}/chat/completions`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${apiKey}` },
@@ -141,7 +141,9 @@ async function callOpenAICompatible(messages: ChatMessage[], apiKey: string, bas
       model,
       messages,
       stream: false,
-      max_tokens: maxTokens,
+      ...(provider === 'minimax'
+        ? { max_completion_tokens: Math.min(maxTokens, 2048) }
+        : { max_tokens: maxTokens }),
       temperature: 0.35,
     }),
   });
@@ -189,7 +191,7 @@ export default async function handler(req: Request): Promise<Response> {
 
     const text = providerConfig.type === 'claude'
       ? await callClaude(messages, resolvedKey, resolvedModel, 1800)
-      : await callOpenAICompatible(messages, resolvedKey, providerConfig.baseUrl, resolvedModel, 1800);
+      : await callOpenAICompatible(messages, resolvedKey, providerConfig.baseUrl, resolvedModel, 1800, requestedProvider);
 
     const parsed = extractJsonObject(text);
     const companies = normalizeCompanies(parsed);

@@ -7,7 +7,7 @@ const PROVIDER_CONFIG = {
   claude: { baseUrl: 'https://api.anthropic.com', type: 'claude', defaultModel: 'claude-haiku-4-5-20251001', supportsVision: true, structuredOutput: false },
   doubao: { baseUrl: 'https://ark.cn-beijing.volces.com/api/v3', type: 'openai-compatible', defaultModel: 'doubao-seed-1-6-vision-250815', supportsVision: true, structuredOutput: false },
   qwen: { baseUrl: 'https://dashscope.aliyuncs.com/compatible-mode/v1', type: 'openai-compatible', defaultModel: 'qwen-vl-max', supportsVision: true, structuredOutput: false },
-  minimax: { baseUrl: 'https://api.minimax.io/v1', type: 'openai-compatible', defaultModel: 'MiniMax-M2.5', supportsVision: false, structuredOutput: false },
+  minimax: { baseUrl: 'https://api.minimaxi.com/v1', type: 'openai-compatible', defaultModel: 'MiniMax-M2.5', supportsVision: false, structuredOutput: false },
   gemini: { baseUrl: 'https://generativelanguage.googleapis.com/v1beta/openai', type: 'openai-compatible', defaultModel: 'gemini-2.5-flash', supportsVision: true, structuredOutput: false },
 } as const;
 
@@ -16,6 +16,12 @@ type RecordKind = 'application' | 'offer';
 type ImagePart = { type: 'image_url'; image_url: { url: string } };
 type TextPart = { type: 'text'; text: string };
 type ChatMessage = { role: 'system' | 'user' | 'assistant'; content: string | Array<TextPart | ImagePart> };
+
+class UpstreamRequestError extends Error {
+  constructor(readonly status: number) {
+    super(`AI upstream request failed with ${status}`);
+  }
+}
 
 const APPLICATION_STATUSES = ['待投递','已投递','简历筛选','笔试','一面','二面','HR面','Offer','已拒绝','已放弃','人才库','待跟进'] as const;
 const APPLICATION_PRIORITIES = ['low','normal','high','urgent'] as const;
@@ -155,7 +161,8 @@ async function callClaude(messages: ChatMessage[], apiKey: string, model: string
   return data.content?.map(part => part.text ?? '').join('\n') ?? '';
 }
 
-async function callOpenAICompatible(messages: ChatMessage[], apiKey: string, baseUrl: string, model: string, maxTokens: number, structuredOutput: boolean) {
+async function callOpenAICompatible(messages: ChatMessage[], apiKey: string, baseUrl: string, model: string, maxTokens: number, structuredOutput: boolean, provider: ProviderId) {
+  const tokenLimit = provider === 'minimax' ? Math.min(maxTokens, 2048) : maxTokens;
   const upstream = await fetch(`${baseUrl}/chat/completions`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${apiKey}` },
@@ -163,12 +170,17 @@ async function callOpenAICompatible(messages: ChatMessage[], apiKey: string, bas
       model,
       messages,
       stream: false,
-      max_tokens: maxTokens,
+      ...(provider === 'minimax'
+        ? { max_completion_tokens: tokenLimit }
+        : { max_tokens: tokenLimit }),
       temperature: 0.1,
       ...(structuredOutput ? { response_format: { type: 'json_object' } } : {}),
     }),
   });
-  if (!upstream.ok) throw new Error(await upstream.text());
+  if (!upstream.ok) {
+    await upstream.text();
+    throw new UpstreamRequestError(upstream.status);
+  }
   const data = await upstream.json() as { choices?: Array<{ message?: { content?: string } }> };
   return data.choices?.[0]?.message?.content ?? '';
 }
@@ -178,6 +190,7 @@ export default async function handler(req: Request): Promise<Response> {
   if (req.method === 'OPTIONS') return new Response(null, { headers: corsHeaders });
   if (req.method !== 'POST') return json({ error: 'Method not allowed' }, 405, corsHeaders);
 
+  let activeProvider: ProviderId | null = null;
   try {
     const body = await req.json() as { kind?: RecordKind; sourceText?: string; images?: string[]; provider?: string; apiKey?: string; model?: string };
     const kind = body.kind;
@@ -197,6 +210,7 @@ export default async function handler(req: Request): Promise<Response> {
     const requestedProvider = body.provider ?? 'deepseek';
     if (!isProviderId(requestedProvider)) return json({ error: '不支持的 AI 服务商。' }, 400, corsHeaders);
     const providerConfig = PROVIDER_CONFIG[requestedProvider];
+    activeProvider = requestedProvider;
     if (images.length > 0 && !providerConfig.supportsVision) {
       return json({ error: '当前 AI 模型不支持图片识别，请切换到 OpenAI、Claude、豆包、通义千问或 Gemini。' }, 400, corsHeaders);
     }
@@ -213,12 +227,24 @@ export default async function handler(req: Request): Promise<Response> {
     ];
     const output = providerConfig.type === 'claude'
       ? await callClaude(messages, resolvedKey, resolvedModel, 2200)
-      : await callOpenAICompatible(messages, resolvedKey, providerConfig.baseUrl, resolvedModel, 2200, providerConfig.structuredOutput);
+      : await callOpenAICompatible(messages, resolvedKey, providerConfig.baseUrl, resolvedModel, 2200, providerConfig.structuredOutput, requestedProvider);
     const parsed = extractJsonObject(output);
     const data = kind === 'application' ? normalizeApplication(parsed) : normalizeOffer(parsed);
     return json({ data }, 200, corsHeaders);
   } catch (error) {
     console.error('[record-extract] request failed:', error);
+    if (error instanceof UpstreamRequestError) {
+      if (error.status === 401 || error.status === 403) {
+        const message = activeProvider === 'minimax'
+          ? 'MiniMax API Key 校验失败。请确认 Key 来自国内站 platform.minimaxi.com，并在 AI 设置中重新保存。'
+          : 'API Key 校验失败，请在 AI 设置中重新保存正确的 Key。';
+        return json({ error: message }, 401, corsHeaders);
+      }
+      if (error.status === 402) return json({ error: '当前 AI 账户余额不足或尚未开通按量计费。' }, 402, corsHeaders);
+      if (error.status === 429) return json({ error: 'AI 请求过于频繁或已达到当前额度限制，请稍后重试。' }, 429, corsHeaders);
+      if (error.status >= 500) return json({ error: 'AI 服务商暂时不可用，请稍后重试。' }, 502, corsHeaders);
+      return json({ error: 'AI 服务商未接受本次请求，请检查当前模型与 API Key 是否匹配。' }, 400, corsHeaders);
+    }
     return json({ error: 'AI 识别失败，请检查 API Key、余额或粘贴内容后重试。' }, 500, corsHeaders);
   }
 }
