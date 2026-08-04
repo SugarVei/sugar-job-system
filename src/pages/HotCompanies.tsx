@@ -3,7 +3,7 @@ import { HOT_COMPANY_GROUPS, HOT_COMPANY_TOTAL, type HotCompany, type HotCompany
 import { useAppShell } from '../contexts/AppShellContext';
 import { useApiKeys } from '../contexts/ApiKeysContext';
 import { useCollection } from '../hooks/useCollection';
-import type { Company, NewRecord } from '../types';
+import type { Application, Company, NewRecord } from '../types';
 import { CARD, avatarColor, initialOf } from '../lib/appHelpers';
 import { normalizeCompanyName } from '../lib/companyName';
 import { IconExternalLink, IconPlus } from '../components/icons';
@@ -43,6 +43,7 @@ export default function HotCompanies() {
   const { query, setScreen, setQuery } = useAppShell();
   const { getActiveConfig } = useApiKeys();
   const { items: savedCompanies, create } = useCollection<Company>('companies');
+  const { items: applications } = useCollection<Application>('applications');
   const [activeGroup, setActiveGroup] = useState(ALL);
   const [aiPrompt, setAiPrompt] = useState('');
   const [aiLoading, setAiLoading] = useState(false);
@@ -73,6 +74,11 @@ export default function HotCompanies() {
     [importedCompanies, savedCompanies],
   );
 
+  const appliedCompanyNames = useMemo(
+    () => new Set(applications.map((application) => normalizeCompanyName(application.company_name))),
+    [applications],
+  );
+
   const groups = useMemo(() => {
     const q = query.trim().toLowerCase();
     return allGroups
@@ -90,8 +96,13 @@ export default function HotCompanies() {
   }, [activeGroup, allGroups, query]);
 
   const addToCompanyLibrary = (company: HotCompany) => {
-    setQuery(company.name);
     setScreen('companies');
+    setTimeout(() => setQuery(company.name), 0);
+  };
+
+  const viewApplications = (company: HotCompany) => {
+    setScreen('applications');
+    setTimeout(() => setQuery(company.name), 0);
   };
 
   const searchWithAI = async () => {
@@ -323,7 +334,13 @@ export default function HotCompanies() {
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
               {group.companies.map((company) => (
-                <CompanyCard key={`${group.name}-${company.name}`} company={company} onAdd={addToCompanyLibrary} />
+                <CompanyCard
+                  key={`${group.name}-${company.name}`}
+                  company={company}
+                  applied={appliedCompanyNames.has(normalizeCompanyName(company.name))}
+                  onAdd={addToCompanyLibrary}
+                  onViewApplications={viewApplications}
+                />
               ))}
             </div>
           </section>
@@ -333,24 +350,53 @@ export default function HotCompanies() {
   );
 }
 
-function CompanyCard({ company, onAdd }: { company: HotCompany; onAdd: (company: HotCompany) => void }) {
+function CompanyCard({
+  company,
+  applied,
+  onAdd,
+  onViewApplications,
+}: {
+  company: HotCompany;
+  applied: boolean;
+  onAdd: (company: HotCompany) => void;
+  onViewApplications: (company: HotCompany) => void;
+}) {
   const color = avatarColor(company.name);
   return (
     <article
       className="card-hover"
       style={{
-        background: 'rgba(255,253,248,.88)',
-        border: '1px solid #e0d8c9',
+        position: 'relative',
+        background: applied ? 'linear-gradient(145deg, rgba(239,247,255,.98), rgba(224,238,253,.94))' : 'rgba(255,253,248,.88)',
+        border: applied ? '1.5px solid #83add8' : '1px solid #e0d8c9',
         borderRadius: 16,
         padding: 16,
         display: 'flex',
         flexDirection: 'column',
         gap: 14,
-        boxShadow: '0 3px 10px rgba(60,50,35,.08)',
+        boxShadow: applied ? '0 7px 18px rgba(66,112,163,.16)' : '0 3px 10px rgba(60,50,35,.08)',
         minWidth: 0,
       }}
     >
-      <div style={{ display: 'flex', alignItems: 'center', gap: 12, minWidth: 0 }}>
+      {applied && (
+        <span
+          style={{
+            position: 'absolute',
+            top: 12,
+            right: 12,
+            padding: '4px 9px',
+            borderRadius: 999,
+            background: '#3975b7',
+            color: '#fff',
+            fontSize: 11,
+            fontWeight: 800,
+            letterSpacing: '.04em',
+          }}
+        >
+          已投递
+        </span>
+      )}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 12, minWidth: 0, paddingRight: applied ? 68 : 0 }}>
         <div
           style={{
             width: 44,
@@ -382,8 +428,14 @@ function CompanyCard({ company, onAdd }: { company: HotCompany; onAdd: (company:
         <a href={company.url} target="_blank" rel="noopener noreferrer" className="btn-press" style={primaryLink}>
           校招官网 <IconExternalLink size={13} />
         </a>
-        <button type="button" onClick={() => onAdd(company)} className="btn-press" style={secondaryButton}>
-          <IconPlus size={13} /> 公司库
+        <button
+          type="button"
+          onClick={() => applied ? onViewApplications(company) : onAdd(company)}
+          className="btn-press"
+          style={applied ? appliedButton : secondaryButton}
+          aria-label={applied ? `查看${company.name}的投递记录` : `在公司库中查看${company.name}`}
+        >
+          {applied ? '查看投递' : <><IconPlus size={13} /> 公司库</>}
         </button>
       </div>
     </article>
@@ -421,4 +473,11 @@ const secondaryButton: React.CSSProperties = {
   fontWeight: 700,
   cursor: 'pointer',
   whiteSpace: 'nowrap',
+};
+
+const appliedButton: React.CSSProperties = {
+  ...secondaryButton,
+  border: '1px solid #83add8',
+  background: '#e7f1fc',
+  color: '#2f659f',
 };
