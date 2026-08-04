@@ -513,6 +513,14 @@ function recruitmentStatusPresentation(status: CampusRecruitmentStatus | undefin
   }
 
   if (status?.status === 'not_started') {
+    const announced = status.evidence_text?.startsWith('【豆包调查：已公布但尚未开始');
+    if (announced) {
+      return {
+        label: '27校招已公布',
+        title: status.evidence_text || '官方已公布 2027 届校招安排，但目前尚未开放投递。',
+        style: { border: '1px solid #8ca6c7', background: '#eaf1fa', color: '#41658f' },
+      };
+    }
     return {
       label: '27校招暂未开始',
       title: status.last_checked_at
