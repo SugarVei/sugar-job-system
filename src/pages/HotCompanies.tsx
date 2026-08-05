@@ -6,7 +6,7 @@ import { useCollection } from '../hooks/useCollection';
 import { useCampusRecruitmentStatuses, type CampusRecruitmentStatus } from '../hooks/useCampusRecruitmentStatuses';
 import type { Application, Company, NewRecord } from '../types';
 import { CARD, avatarColor, initialOf } from '../lib/appHelpers';
-import { normalizeCompanyName } from '../lib/companyName';
+import { applicationCompanyMatchesHotCompany, normalizeCompanyName } from '../lib/companyName';
 import { IconExternalLink } from '../components/icons';
 
 const ALL = '全部';
@@ -76,8 +76,8 @@ export default function HotCompanies() {
     [importedCompanies, savedCompanies],
   );
 
-  const appliedCompanyNames = useMemo(
-    () => new Set(applications.map((application) => normalizeCompanyName(application.company_name))),
+  const appliedApplicationCompanyNames = useMemo(
+    () => applications.map((application) => application.company_name),
     [applications],
   );
 
@@ -339,7 +339,8 @@ export default function HotCompanies() {
                 <CompanyCard
                   key={`${group.name}-${company.name}`}
                   company={company}
-                  applied={appliedCompanyNames.has(normalizeCompanyName(company.name))}
+                  applied={appliedApplicationCompanyNames.some((applicationCompanyName) =>
+                    applicationCompanyMatchesHotCompany(applicationCompanyName, company.name))}
                   recruitmentStatus={recruitmentStatusByCompany.get(normalizeCompanyName(company.name))}
                   statusesLoading={statusesLoading}
                   onViewApplications={viewApplications}
