@@ -75,6 +75,11 @@ function isMissingResumeId(error: unknown) {
   return /resume_id|schema cache/i.test(message);
 }
 
+function requiresLegacyResumeFields(error: unknown) {
+  const message = stringifyErrorValue(error);
+  return /version_name|target_role/i.test(message);
+}
+
 function stripResumeId(payload: Record<string, unknown>) {
   const rest = { ...payload };
   delete rest.resume_id;
@@ -136,6 +141,27 @@ export function useCollection<T extends BaseRow>(
         .insert(insertPayload)
         .select()
         .single();
+
+      // Early installations used version_name / target_role. Some of those
+      // columns are still NOT NULL after the canonical columns were added.
+      // Retry only when Supabase explicitly reports that legacy schema.
+      if (err && table === 'resumes' && requiresLegacyResumeFields(err)) {
+        const resumePayload = payload as Record<string, unknown>;
+        const { data: retryData, error: retryErr } = await supabase
+          .from(table)
+          .insert({
+            ...insertPayload,
+            version_name: resumePayload.resume_name,
+            target_role: resumePayload.target_position,
+          })
+          .select()
+          .single();
+
+        if (retryErr) throw new Error(readableDbError(retryErr, table));
+
+        setItems((prev) => [retryData as T, ...prev]);
+        return retryData as T;
+      }
 
       if (err && table === 'applications' && 'resume_id' in payload && isMissingResumeId(err)) {
         const { data: retryData, error: retryErr } = await supabase
