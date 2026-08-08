@@ -165,21 +165,25 @@ export interface InterviewReviewQuestion {
 export type NewOffer = NewRecord<Offer>;
 export type NewInterviewReview = NewRecord<InterviewReview>;
 
-/** 网易邮箱账号配置（授权码仅本人可读，受 RLS 保护） */
+export type MailboxProvider = 'netease163' | 'qq' | 'gmail' | 'outlook' | 'custom';
+
+/** 邮箱账号配置（授权码仅本人可读，受 RLS 保护） */
 export interface MailboxAccount {
   id: string;
   user_id: string;
-  provider: 'netease163';
+  provider: MailboxProvider;
   email: string;
-  /** 客户端授权码；仅通过 RLS 隔离，前端勿打印 */
+  /** 客户端授权码 / 应用专用密码；仅通过 RLS 隔离，前端勿打印 */
   auth_code: string;
   display_name: string | null;
+  imap_host: string | null;
+  imap_port: number | null;
   last_synced_at: string | null;
   created_at: string;
   updated_at: string;
 }
 export type NewMailboxAccount = Pick<MailboxAccount, 'provider' | 'email' | 'auth_code'> &
-  Partial<Pick<MailboxAccount, 'display_name' | 'last_synced_at'>>;
+  Partial<Pick<MailboxAccount, 'display_name' | 'last_synced_at' | 'imap_host' | 'imap_port'>>;
 
 export interface MailboxMessage {
   uid: number;
@@ -187,6 +191,8 @@ export interface MailboxMessage {
   from: string;
   date: string | null;
   snippet: string;
+  /** 净化后的 HTML 正文（详情用） */
+  html?: string;
   seen: boolean;
   hasAttachment: boolean;
 }

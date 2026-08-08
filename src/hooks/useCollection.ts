@@ -47,6 +47,9 @@ function readableDbError(error: unknown, table: string) {
   if (table === 'mailbox_accounts' && /relation.*does not exist|schema cache|mailbox_accounts/i.test(message)) {
     return '数据库缺少邮箱账号表，请在 Supabase SQL Editor 执行 supabase/migration_mailbox_accounts.sql。';
   }
+  if (table === 'mailbox_accounts' && /provider|check constraint|imap_host/i.test(message)) {
+    return '邮箱表需要升级以支持多服务商，请在 Supabase SQL Editor 执行 supabase/migration_mailbox_providers.sql。';
+  }
 
   if (['offers', 'interview_reviews', 'interview_review_questions'].includes(table)
     && /relation.*does not exist|schema cache|permission denied|does not exist/i.test(message)) {
