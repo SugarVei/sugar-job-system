@@ -1,7 +1,5 @@
 /**
- * 网易 163/126/yeah IMAP（纯 TLS 命令）
- * 顺序：CONNECT → CAPABILITY → ID → LOGIN → SELECT → FETCH
- * 绝不打印授权码。
+ * 网易 163/126/yeah IMAP — 列表用 ENVELOPE（稳定拿齐多封），详情再取正文摘要
  */
 import tls from 'node:tls';
 
@@ -89,11 +87,48 @@ function decodeQuotedPrintable(input: string) {
   }
 }
 
+/** 从 multipart / base64 / qp 正文里抽出可读摘要 */
+function readableSnippet(raw: string, max = 220): string {
+  if (!raw) return '';
+  let text = raw;
+
+  // 去掉明显的 MIME 外壳
+  if (/Content-Type:/i.test(text) || /------=_Part_/i.test(text) || /--[0-9a-zA-Z._-]+/.test(text)) {
+    // 优先 text/plain 段
+    const plain = text.match(/Content-Type:\s*text\/plain[\s\S]*?\r?\n\r?\n([\s\S]*?)(?=\r?\n--|\r?\nContent-Type:|$)/i);
+    const html = text.match(/Content-Type:\s*text\/html[\s\S]*?\r?\n\r?\n([\s\S]*?)(?=\r?\n--|\r?\nContent-Type:|$)/i);
+    const chunk = plain?.[1] || html?.[1] || text;
+
+    if (/Content-Transfer-Encoding:\s*base64/i.test(text) && plain?.[1]) {
+      try {
+        text = Buffer.from(plain[1].replace(/\s+/g, ''), 'base64').toString('utf8');
+      } catch {
+        text = chunk;
+      }
+    } else if (/Content-Transfer-Encoding:\s*quoted-printable/i.test(text)) {
+      text = decodeQuotedPrintable(chunk);
+    } else {
+      text = decodeQuotedPrintable(chunk);
+    }
+  } else {
+    text = decodeQuotedPrintable(text);
+  }
+
+  text = stripHtml(text)
+    .replace(/------=_Part_[\s\S]{0,80}/g, ' ')
+    .replace(/Content-Type:[^;]+;?/gi, ' ')
+    .replace(/Content-Transfer-Encoding:[^\s]+/gi, ' ')
+    .replace(/charset=[^\s]+/gi, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+
+  return text.slice(0, max);
+}
+
 function imapQuoted(s: string) {
   return `"${s.replace(/\\/g, '\\\\').replace(/"/g, '\\"')}"`;
 }
 
-/** 支持 IMAP literal {n} 的会话 */
 class ImapSession {
   private socket: tls.TLSSocket | null = null;
   private chunks: Buffer[] = [];
@@ -113,7 +148,6 @@ class ImapSession {
       });
       this.socket = socket;
     });
-    // greeting
     await this.readLine();
   }
 
@@ -133,32 +167,27 @@ class ImapSession {
     return out;
   }
 
-  private async waitBytes(min: number, ms = 20000) {
-    const start = Date.now();
-    while (this.buf().length < min) {
-      if (!this.socket || this.socket.destroyed) throw new Error('连接已断开');
-      if (Date.now() - start > ms) throw new Error('读取超时');
-      await new Promise((r) => setTimeout(r, 15));
-    }
-  }
-
   private async readLine(): Promise<string> {
     const start = Date.now();
     while (true) {
       const b = this.buf();
-      const idx = b.indexOf(0x0a); // \n
+      const idx = b.indexOf(0x0a);
       if (idx >= 0) {
-        const lineBuf = this.consume(idx + 1);
-        return lineBuf.toString('utf8').replace(/\r?\n$/, '');
+        return this.consume(idx + 1).toString('utf8').replace(/\r?\n$/, '');
       }
       if (!this.socket || this.socket.destroyed) throw new Error('连接已断开');
       if (Date.now() - start > 20000) throw new Error('读取行超时');
-      await new Promise((r) => setTimeout(r, 15));
+      await new Promise((r) => setTimeout(r, 10));
     }
   }
 
   private async readLiteral(size: number): Promise<Buffer> {
-    await this.waitBytes(size);
+    const start = Date.now();
+    while (this.buf().length < size) {
+      if (!this.socket || this.socket.destroyed) throw new Error('连接已断开');
+      if (Date.now() - start > 20000) throw new Error('读取超时');
+      await new Promise((r) => setTimeout(r, 10));
+    }
     return this.consume(size);
   }
 
@@ -171,18 +200,14 @@ class ImapSession {
     if (!this.socket || this.socket.destroyed) throw new Error('未连接');
     const tag = this.nextTag();
     this.socket.write(`${tag} ${cmd}\r\n`);
-
     const lines: string[] = [];
     while (true) {
       const line = await this.readLine();
-      // literal marker at end: ... {123}
       const lit = line.match(/\{(\d+)\}$/);
       if (lit && !line.startsWith(tag)) {
-        const size = Number(lit[1]);
-        const data = await this.readLiteral(size);
+        const data = await this.readLiteral(Number(lit[1]));
         lines.push(line);
         lines.push(data.toString('utf8'));
-        // after literal, IMAP may send closing ) on next lines without extra wait
         continue;
       }
       lines.push(line);
@@ -207,75 +232,152 @@ class ImapSession {
   }
 }
 
-function parseHeaderBlock(headers: string) {
-  const get = (name: string) => {
-    const re = new RegExp(`^${name}:\\s*([\\s\\S]*?)(?=\\r?\\n\\S|\\r?\\n\\r?\\n|$)`, 'im');
-    const m = headers.match(re);
-    if (!m) return '';
-    return decodeMimeWord(m[1].replace(/\r?\n[ \t]+/g, ' ').trim());
-  };
-  return {
-    subject: get('Subject') || '（无主题）',
-    from: get('From'),
-    dateRaw: get('Date'),
-  };
-}
-
-function parseFetchResponse(lines: string[]): MailItem[] {
-  const items: MailItem[] = [];
+/** 极简 IMAP s-expression 分词（够解析 ENVELOPE） */
+function tokenizeImapList(input: string): string[] {
+  const tokens: string[] = [];
   let i = 0;
-  while (i < lines.length) {
-    const line = lines[i];
-    if (!/^\* \d+ FETCH \(/i.test(line)) {
+  const s = input;
+  while (i < s.length) {
+    const ch = s[i];
+    if (ch === ' ' || ch === '\r' || ch === '\n' || ch === '\t') {
       i += 1;
       continue;
     }
-
-    // accumulate structured lines + literals until matching close for this FETCH is hard;
-    // walk forward collecting uid/flags/header/body
-    let uid = 0;
-    let flags = '';
-    let headers = '';
-    let body = '';
+    if (ch === '(' || ch === ')') {
+      tokens.push(ch);
+      i += 1;
+      continue;
+    }
+    if (ch === '"') {
+      let j = i + 1;
+      let out = '';
+      while (j < s.length) {
+        if (s[j] === '\\' && j + 1 < s.length) {
+          out += s[j + 1];
+          j += 2;
+          continue;
+        }
+        if (s[j] === '"') break;
+        out += s[j];
+        j += 1;
+      }
+      tokens.push(out);
+      i = j + 1;
+      continue;
+    }
+    // atom / NIL
     let j = i;
-    while (j < lines.length) {
-      const L = lines[j];
-      const uidM = L.match(/UID (\d+)/i);
-      if (uidM) uid = Number(uidM[1]);
-      const flagsM = L.match(/FLAGS \(([^)]*)\)/i);
-      if (flagsM) flags = flagsM[1];
+    while (j < s.length && !/[\s()]/.test(s[j])) j += 1;
+    tokens.push(s.slice(i, j));
+    i = j;
+  }
+  return tokens;
+}
 
-      if (/BODY\[HEADER/i.test(L) && /\{(\d+)\}$/.test(L) && lines[j + 1] != null) {
-        headers = lines[j + 1];
-        j += 2;
-        continue;
-      }
-      if (/BODY\[TEXT/i.test(L) && /\{(\d+)\}$/.test(L) && lines[j + 1] != null) {
-        body = lines[j + 1];
-        j += 2;
-        continue;
-      }
-      // end of this fetch block roughly when we see next * n FETCH or tag line
-      if (j > i && (/^\* \d+ FETCH \(/i.test(L) || /^A\d{3} /.test(L))) break;
-      j += 1;
+function parseListValue(tokens: string[], idx: { i: number }): unknown {
+  const t = tokens[idx.i];
+  if (t === '(') {
+    idx.i += 1;
+    const arr: unknown[] = [];
+    while (idx.i < tokens.length && tokens[idx.i] !== ')') {
+      arr.push(parseListValue(tokens, idx));
     }
+    if (tokens[idx.i] === ')') idx.i += 1;
+    return arr;
+  }
+  idx.i += 1;
+  if (t === 'NIL' || t === 'nil') return null;
+  return t ?? null;
+}
 
-    if (uid) {
-      const meta = parseHeaderBlock(headers);
-      const date = meta.dateRaw ? new Date(meta.dateRaw) : null;
+function formatAddressList(addr: unknown): string {
+  if (!addr || !Array.isArray(addr) || addr.length === 0) return '';
+  // addr is list of (name adl mailbox host)
+  const first = addr[0];
+  if (!Array.isArray(first) || first.length < 4) return '';
+  const name = first[0] ? decodeMimeWord(String(first[0])) : '';
+  const mailbox = first[2] ? String(first[2]) : '';
+  const host = first[3] ? String(first[3]) : '';
+  const email = mailbox && host ? `${mailbox}@${host}` : mailbox || host;
+  if (name && email) return `${name} <${email}>`;
+  return email || name;
+}
+
+function parseEnvelopeFetch(lines: string[]): MailItem[] {
+  const items: MailItem[] = [];
+  // 把整段拼起来，按 "* n FETCH" 切开
+  const full = lines.join('\n');
+  const blocks = full.split(/\n(?=\* \d+ FETCH \()/i);
+  for (const block of blocks) {
+    if (!/^\* \d+ FETCH \(/i.test(block.trim())) continue;
+    const uidM = block.match(/\bUID (\d+)\b/i);
+    const flagsM = block.match(/\bFLAGS \(([^)]*)\)/i);
+    const envM = block.match(/\bENVELOPE (\([\s\S]*)$/i);
+    if (!uidM || !envM) continue;
+
+    // ENVELOPE (...) 可能后面还有 ) 关闭 FETCH
+    let envSrc = envM[1];
+    // 截到与 ENVELOPE 匹配的列表结束：用括号计数
+    let depth = 0;
+    let end = -1;
+    for (let i = 0; i < envSrc.length; i++) {
+      if (envSrc[i] === '(') depth += 1;
+      else if (envSrc[i] === ')') {
+        depth -= 1;
+        if (depth === 0) {
+          end = i + 1;
+          break;
+        }
+      }
+    }
+    if (end < 0) continue;
+    envSrc = envSrc.slice(0, end);
+
+    try {
+      const tokens = tokenizeImapList(envSrc);
+      const idx = { i: 0 };
+      const env = parseListValue(tokens, idx) as unknown[];
+      if (!Array.isArray(env) || env.length < 3) continue;
+      const dateRaw = env[0] ? String(env[0]) : '';
+      const subject = env[1] ? decodeMimeWord(String(env[1])) : '（无主题）';
+      const from = formatAddressList(env[2]);
+      const date = dateRaw ? new Date(dateRaw) : null;
       items.push({
-        uid,
-        subject: meta.subject,
-        from: meta.from,
+        uid: Number(uidM[1]),
+        subject: subject || '（无主题）',
+        from,
         date: date && !Number.isNaN(date.getTime()) ? date.toISOString() : null,
-        snippet: stripHtml(decodeQuotedPrintable(body)).slice(0, 200),
-        seen: /\\Seen/i.test(flags),
-        hasAttachment: /attachment/i.test(headers + body),
+        snippet: '',
+        seen: /\\Seen/i.test(flagsM?.[1] || ''),
+        hasAttachment: false,
       });
+    } catch {
+      /* skip bad block */
     }
-    i = Math.max(j, i + 1);
   }
   return items;
+}
+
+function parseBodyFetch(lines: string[]): { snippet: string; hasAttachment: boolean } {
+  const full = lines.join('\n');
+  // BODY[TEXT]<0> {n}\n data
+  const lit = full.match(/BODY\[(?:TEXT|1|1\.1)[^\]]*\](?:<\d+>)? \{(\d+)\}\n([\s\S]*)/i);
+  let raw = '';
+  if (lit) {
+    const size = Number(lit[1]);
+    raw = lit[2].slice(0, size);
+  } else {
+    // 拼接所有 literal 行
+    for (let i = 0; i < lines.length - 1; i++) {
+      if (/\{(\d+)\}$/.test(lines[i]) && /BODY\[/i.test(lines[i])) {
+        raw += lines[i + 1];
+      }
+    }
+  }
+  return {
+    snippet: readableSnippet(raw, 800),
+    hasAttachment: /attachment|filename=/i.test(raw),
+  };
 }
 
 async function fetchMails(email: string, authCode: string, limit: number, focusUid: number | null) {
@@ -302,8 +404,7 @@ async function fetchMails(email: string, authCode: string, limit: number, focusU
     let unseen = 0;
     try {
       const st = await session.command('STATUS INBOX (MESSAGES UNSEEN)');
-      const joined = st.join('\n');
-      const um = joined.match(/UNSEEN (\d+)/i);
+      const um = st.join('\n').match(/UNSEEN (\d+)/i);
       if (um) unseen = Number(um[1]);
     } catch {
       /* optional */
@@ -311,29 +412,42 @@ async function fetchMails(email: string, authCode: string, limit: number, focusU
 
     if (total === 0) return { messages: [] as MailItem[], total: 0, unseen: 0 };
 
+    // 单封详情
     if (focusUid != null && Number.isFinite(focusUid)) {
-      const lines = await session.command(
-        `UID FETCH ${focusUid} (UID FLAGS BODY.PEEK[HEADER.FIELDS (SUBJECT FROM DATE)] BODY.PEEK[TEXT]<0.8000>)`,
-      );
-      const items = parseFetchResponse(lines);
+      const envLines = await session.command(`UID FETCH ${focusUid} (UID FLAGS ENVELOPE)`);
+      const items = parseEnvelopeFetch(envLines);
       const one = items[0];
       if (!one) throw new Error('邮件不存在或无法解析');
-      return {
-        message: { ...one, snippet: one.snippet.slice(0, 800) },
-      };
+      try {
+        const bodyLines = await session.command(
+          `UID FETCH ${focusUid} (BODY.PEEK[TEXT]<0.12000>)`,
+        );
+        const body = parseBodyFetch(bodyLines);
+        one.snippet = body.snippet;
+        one.hasAttachment = body.hasAttachment;
+      } catch {
+        one.snippet = '';
+      }
+      return { message: one };
     }
 
-    const start = Math.max(1, total - limit + 1);
+    // 列表：只拉 ENVELOPE，一次拿齐最近 N 封
+    const take = Math.min(50, Math.max(5, limit));
+    const start = Math.max(1, total - take + 1);
     const lines = await session.command(
-      `FETCH ${start}:${total} (UID FLAGS BODY.PEEK[HEADER.FIELDS (SUBJECT FROM DATE)] BODY.PEEK[TEXT]<0.2500>)`,
+      `FETCH ${start}:${total} (UID FLAGS ENVELOPE)`,
     );
-    const messages = parseFetchResponse(lines).sort((a, b) => {
+    const messages = parseEnvelopeFetch(lines).sort((a, b) => {
       const ta = a.date ? new Date(a.date).getTime() : 0;
       const tb = b.date ? new Date(b.date).getTime() : 0;
       return tb - ta;
     });
 
-    return { messages: messages.slice(0, limit), total, unseen };
+    return {
+      messages: messages.slice(0, take),
+      total,
+      unseen,
+    };
   } finally {
     await session.logout();
   }
@@ -342,13 +456,13 @@ async function fetchMails(email: string, authCode: string, limit: number, focusU
 function friendlyError(raw: string, authCode: string) {
   const safe = raw.split(authCode).join('***');
   if (/Login error|password error|AUTHENTICATION|Invalid credentials|NO LOGIN/i.test(safe)) {
-    return '登录失败：邮箱或授权码不正确。请到 163 网页版 → 设置 → POP3/SMTP/IMAP → 关闭再开启 IMAP → 重新生成授权码 → 本页点「更新账号」后再同步。';
+    return '登录失败：邮箱或授权码不正确。请重新生成客户端授权码后点「更新账号」再同步。';
   }
   if (/Unsafe Login/i.test(safe)) {
     return '网易拒绝不安全登录。请确认 IMAP 已开启后重试。';
   }
   if (/timeout|超时|ECONN|ENOTFOUND|断开|ECONNRESET|EAI_AGAIN/i.test(safe)) {
-    return '连接网易服务器失败（网络波动或云主机被限制）。请 1 分钟后重试。';
+    return '连接网易服务器失败，请稍后重试。';
   }
   if (/Too many|limit|频繁|rate/i.test(safe)) {
     return '操作太频繁，请等几分钟再同步。';
@@ -376,7 +490,7 @@ export default async function handler(req: any, res: any) {
 
   const email = (body.email ?? '').trim();
   const authCode = (body.authCode ?? '').trim().replace(/\s+/g, '');
-  const limit = Math.min(50, Math.max(5, Number(body.limit) || 20));
+  const limit = Math.min(50, Math.max(5, Number(body.limit) || 40));
   const focusUid = body.uid != null ? Number(body.uid) : null;
 
   if (!email || !authCode) {
@@ -388,7 +502,7 @@ export default async function handler(req: any, res: any) {
     return;
   }
   if (authCode.length < 6 || authCode.length > 64) {
-    res.status(400).json({ error: '授权码长度不对。163 客户端授权码一般为 16 位，请重新生成后完整粘贴。' });
+    res.status(400).json({ error: '授权码长度不对，请重新生成后完整粘贴。' });
     return;
   }
 

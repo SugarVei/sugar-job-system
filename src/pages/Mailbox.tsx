@@ -122,7 +122,7 @@ export default function Mailbox() {
       const res = await fetch('/api/mailbox-fetch', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email: e, authCode: code, limit: 30 }),
+        body: JSON.stringify({ email: e, authCode: code, limit: 40 }),
       });
       const data = await readApiJson(res) as {
         error?: string;

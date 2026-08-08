@@ -187,18 +187,18 @@ export default function AppLayout({ children }: { children: ReactNode }) {
             </div>
           </div>
 
-          {/* 导航：扁平列表，无分组小标题、无滚动条 */}
+          {/* 导航：纵向均分填满，无分组标题、无空白、无滚轮 */}
           <nav
             className="sidebar-nav"
             style={{
               display: 'flex',
               flexDirection: 'column',
-              gap: 2,
+              gap: 4,
               flex: 1,
               minHeight: 0,
               overflow: 'hidden',
-              padding: '8px 0 4px',
-              justifyContent: 'flex-start',
+              padding: '10px 0 8px',
+              justifyContent: 'space-between',
             }}
           >
             {NAV_ITEMS.map(({ key, label, Icon }) => {
@@ -214,9 +214,7 @@ export default function AppLayout({ children }: { children: ReactNode }) {
                     display: 'flex',
                     alignItems: 'center',
                     gap: 10,
-                    height: 36,
-                    minHeight: 36,
-                    maxHeight: 36,
+                    minHeight: 34,
                     padding: '0 12px',
                     border: 'none',
                     borderRadius: 11,
@@ -225,7 +223,7 @@ export default function AppLayout({ children }: { children: ReactNode }) {
                     cursor: 'pointer',
                     textAlign: 'left',
                     whiteSpace: 'nowrap',
-                    flex: 'none',
+                    flex: '1 1 0',
                     width: '100%',
                   }}
                 >
