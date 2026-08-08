@@ -13,7 +13,6 @@ import {
 import { initialOf, avatarColor, CARD, statusTag } from '../lib/appHelpers';
 import ActionQueueOrbit from '../components/dashboard/ActionQueueOrbit';
 
-// ── 行动队列卡片色板（暖色调，匹配网页风格）──────────────────────
 function priorityRank(priority: ApplicationPriority | null | undefined) {
   return priority === 'urgent' ? 4 : priority === 'high' ? 3 : priority === 'normal' ? 2 : 1;
 }
@@ -35,6 +34,11 @@ function isClosedStatus(status: string) {
   return ['Offer', '已拒绝', '已放弃', '人才库'].includes(status);
 }
 
+function toDateKey(d: Date) {
+  const p = (n: number) => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`;
+}
+
 function urgencyScore(app: Application, now: Date) {
   const nowTime = now.getTime();
   const deadline = timeValue(app.deadline_at);
@@ -48,17 +52,13 @@ function urgencyScore(app: Application, now: Date) {
   );
 }
 
-// ── 行动队列卡片 ──────────────────────────────────────────────────
-// ============================================================
-// 总览仪表盘
-// ============================================================
 export default function Dashboard() {
   const { items: apps } = useCollection<Application>('applications');
   const { items: interviews } = useCollection<Interview>('interviews', {
     column: 'interview_time',
     ascending: true,
   });
-  const { setScreen, setQuery, triggerAdd } = useAppShell();
+  const { navigate, triggerAdd } = useAppShell();
   const { theme } = useTheme();
 
   const now = new Date();
@@ -93,11 +93,11 @@ export default function Dashboard() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [interviews]);
 
-  // 进行中的投递（无数量上限），按行数动态解锁
   const activeApps = useMemo(
-    () => apps
-      .filter((a) => !isClosedStatus(a.status))
-      .sort((a, b) => urgencyScore(b, now) - urgencyScore(a, now)),
+    () =>
+      apps
+        .filter((a) => !isClosedStatus(a.status))
+        .sort((a, b) => urgencyScore(b, now) - urgencyScore(a, now)),
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [apps],
   );
@@ -127,32 +127,32 @@ export default function Dashboard() {
   const goalTarget = 30;
   const goalPct = Math.min(100, Math.round((stats.total / goalTarget) * 100));
 
-  // 跳转到投递记录并筛选该公司
   const handleViewDetail = (app: Application) => {
-    setScreen('applications');
-    setTimeout(() => setQuery(app.company_name), 0);
+    navigate('applications', { query: app.company_name });
   };
 
   return (
     <div className="flex flex-col gap-[22px] animate-rise">
-      {/* 顶部：行动队列 + 月历 */}
       <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,1.55fr)_minmax(0,1fr)] items-stretch gap-[22px]">
-        {/* 行动队列 */}
         <ActionQueueOrbit
           apps={activeApps}
           onViewDetail={handleViewDetail}
-          onViewAll={() => setScreen('applications')}
+          onViewAll={() => navigate('applications', { applicationsFilter: 'active' })}
           onAddAction={triggerAdd}
           fillHeight
         />
 
-        {/* 月历 */}
         <div style={{ height: '100%', background: '#dcebd5', borderRadius: 26, padding: 24 }}>
           <div className="flex items-center justify-between" style={{ marginBottom: 16 }}>
             <div style={{ fontFamily: 'Poppins', fontSize: 17, fontWeight: 600, color: '#2f5d36' }}>本月面试</div>
-            <div style={{ fontSize: 13, fontWeight: 600, color: '#4a7a51' }}>
-              {now.getMonth() + 1} 月
-            </div>
+            <button
+              type="button"
+              onClick={() => navigate('interviews')}
+              className="btn-press"
+              style={{ fontSize: 13, fontWeight: 600, color: '#4a7a51', background: 'none', border: 'none', cursor: 'pointer' }}
+            >
+              {now.getMonth() + 1} 月 · 查看全部
+            </button>
           </div>
           <div className="grid grid-cols-7 gap-[2px]" style={{ marginBottom: 6 }}>
             {['一', '二', '三', '四', '五', '六', '日'].map((w) => (
@@ -164,32 +164,87 @@ export default function Dashboard() {
               <div key={i} style={{ aspectRatio: '1', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                 {d.empty ? (
                   <span />
-                ) : d.isToday ? (
-                  <span style={{ width: 32, height: 32, borderRadius: '50%', background: '#5fa86b', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 13, fontWeight: 700, boxShadow: '0 4px 10px rgba(95,168,107,.4)' }}>{d.num}</span>
-                ) : d.hasEvent ? (
-                  <span style={{ width: 32, height: 32, borderRadius: '50%', border: '1.8px solid #7cbf85', color: '#3f7a47', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 13, fontWeight: 600 }}>{d.num}</span>
                 ) : (
-                  <span style={{ width: 32, height: 32, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 13, fontWeight: 500, color: '#5d7a62' }}>{d.num}</span>
+                  <button
+                    type="button"
+                    title={d.hasEvent ? `${d.num} 日有面试，点击查看` : `${d.num} 日`}
+                    onClick={() => {
+                      if (d.hasEvent && d.dateKey) {
+                        navigate('interviews', { interviewDate: d.dateKey });
+                      } else {
+                        navigate('interviews');
+                      }
+                    }}
+                    className="btn-press"
+                    style={{
+                      width: 32,
+                      height: 32,
+                      borderRadius: '50%',
+                      border: d.isToday ? 'none' : d.hasEvent ? '1.8px solid #7cbf85' : 'none',
+                      background: d.isToday ? '#5fa86b' : 'transparent',
+                      color: d.isToday ? '#fff' : d.hasEvent ? '#3f7a47' : '#5d7a62',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      fontSize: 13,
+                      fontWeight: d.isToday || d.hasEvent ? 700 : 500,
+                      boxShadow: d.isToday ? '0 4px 10px rgba(95,168,107,.4)' : 'none',
+                      cursor: 'pointer',
+                      padding: 0,
+                    }}
+                  >
+                    {d.num}
+                  </button>
                 )}
               </div>
             ))}
           </div>
           <div className="flex gap-4" style={{ marginTop: 16, paddingTop: 14, borderTop: '1px solid rgba(95,140,100,.2)', fontSize: 12, color: '#4a7a51' }}>
             <span className="flex items-center gap-[6px]"><span style={{ width: 10, height: 10, borderRadius: '50%', background: '#5fa86b' }} />今天</span>
-            <span className="flex items-center gap-[6px]"><span style={{ width: 10, height: 10, borderRadius: '50%', border: '1.8px solid #7cbf85' }} />有面试</span>
+            <span className="flex items-center gap-[6px]"><span style={{ width: 10, height: 10, borderRadius: '50%', border: '1.8px solid #7cbf85' }} />有面试 · 可点</span>
           </div>
         </div>
       </div>
 
-      {/* 指标行 */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        <Metric label="进行中" value={stats.inProgress} bg="#fbeec2" fg="#7a5a12" icon={<IconArrowRight size={22} />} />
-        <Metric label="本周面试" value={stats.weekInterviews} bg="#dcebd5" fg="#2f5d36" icon={<IconInterviews size={22} />} />
-        <Metric label="投递总数" value={stats.total} bg="#ece4d6" fg="#5d584d" icon={<IconApplications size={22} />} />
-        <Metric label="已获 Offer" value={stats.offers} bg="#fbe0d8" fg="#a23d24" icon={<IconTrophy size={22} />} />
+        <Metric
+          label="进行中"
+          value={stats.inProgress}
+          bg="#fbeec2"
+          fg="#7a5a12"
+          icon={<IconArrowRight size={22} />}
+          onClick={() => navigate('applications', { applicationsFilter: 'active' })}
+          hint="查看进行中投递"
+        />
+        <Metric
+          label="本周面试"
+          value={stats.weekInterviews}
+          bg="#dcebd5"
+          fg="#2f5d36"
+          icon={<IconInterviews size={22} />}
+          onClick={() => navigate('interviews')}
+          hint="打开面试日历"
+        />
+        <Metric
+          label="投递总数"
+          value={stats.total}
+          bg="#ece4d6"
+          fg="#5d584d"
+          icon={<IconApplications size={22} />}
+          onClick={() => navigate('applications', { applicationsFilter: 'all' })}
+          hint="全部投递记录"
+        />
+        <Metric
+          label="已获 Offer"
+          value={stats.offers}
+          bg="#fbe0d8"
+          fg="#a23d24"
+          icon={<IconTrophy size={22} />}
+          onClick={() => navigate('applications', { applicationsFilter: 'Offer' })}
+          hint="筛选 Offer 状态"
+        />
       </div>
 
-      {/* 待办 + 近期面试 */}
       <div className="grid grid-cols-1 lg:grid-cols-[1fr_1.7fr] gap-[22px]">
         <div className="flex flex-col gap-[18px]">
           <div style={{ ...CARD, padding: 22 }}>
@@ -207,8 +262,13 @@ export default function Dashboard() {
               </div>
             </div>
           </div>
-          <div style={{ background: '#1b1a17', borderRadius: 22, padding: 22, color: '#f3efe7' }}>
-            <div style={{ fontSize: 13, color: '#bdb6a5' }}>待跟进</div>
+          <button
+            type="button"
+            onClick={() => navigate('applications', { applicationsFilter: '待跟进' })}
+            className="btn-press"
+            style={{ background: '#1b1a17', borderRadius: 22, padding: 22, color: '#f3efe7', textAlign: 'left', border: 'none', cursor: 'pointer' }}
+          >
+            <div style={{ fontSize: 13, color: '#bdb6a5' }}>待跟进 · 点击处理</div>
             <div className="flex items-baseline gap-[6px]" style={{ margin: '6px 0 14px' }}>
               <span style={{ fontFamily: 'Poppins', fontSize: 32, fontWeight: 700 }}>{stats.followUps}</span>
               <span style={{ fontSize: 13, color: '#bdb6a5' }}>条需要处理</span>
@@ -216,12 +276,12 @@ export default function Dashboard() {
             <div style={{ height: 10, borderRadius: 999, background: 'rgba(255,255,255,.12)', overflow: 'hidden' }}>
               <div style={{ height: '100%', width: `${stats.total ? Math.round((stats.followUps / stats.total) * 100) : 0}%`, borderRadius: 999, background: 'linear-gradient(90deg,#f4c84a,#f0613f)' }} />
             </div>
-          </div>
+          </button>
           <div style={{ ...CARD, padding: 22 }}>
             <div style={{ fontFamily: 'Poppins', fontSize: 16, fontWeight: 600 }}>今日待办 / 临近截止</div>
             <div style={{ fontSize: 12.5, color: '#8a8478', margin: '3px 0 14px' }}>下一步到期或 3 天内截止</div>
             {todoApps.length === 0 ? (
-              <div style={{ fontSize: 13, color: '#a39d90', padding: '8px 0' }}>暂无临近事项。</div>
+              <div style={{ fontSize: 13, color: '#a39d90', padding: '8px 0' }}>暂无临近事项。把下一步动作和时间填进投递记录，这里会自动汇总。</div>
             ) : (
               <div className="flex flex-col gap-2">
                 {todoApps.map((app) => {
@@ -256,31 +316,59 @@ export default function Dashboard() {
         <div style={{ ...CARD, padding: 22 }}>
           <div className="flex items-center justify-between" style={{ marginBottom: 16 }}>
             <div style={{ fontFamily: 'Poppins', fontSize: 17, fontWeight: 600 }}>近期面试</div>
-            <button onClick={() => setScreen('interviews')} className="btn-press" style={{ display: 'flex', alignItems: 'center', gap: 5, background: 'none', border: 'none', fontSize: 13, fontWeight: 600, color: theme.accent, cursor: 'pointer' }}>
+            <button onClick={() => navigate('interviews')} className="btn-press" style={{ display: 'flex', alignItems: 'center', gap: 5, background: 'none', border: 'none', fontSize: 13, fontWeight: 600, color: theme.accent, cursor: 'pointer' }}>
               查看全部 <IconChevronRight size={14} />
             </button>
           </div>
           <div className="flex flex-col">
             {upcoming.length === 0 ? (
-              <div style={{ fontSize: 13.5, color: '#8a8478', padding: '20px 0' }}>暂无安排，去「面试日历」添加。</div>
+              <div style={{ fontSize: 13.5, color: '#8a8478', padding: '20px 0' }}>
+                暂无安排。
+                <button
+                  type="button"
+                  onClick={() => navigate('interviews')}
+                  className="btn-press"
+                  style={{ marginLeft: 6, background: 'none', border: 'none', color: theme.accent, fontWeight: 700, cursor: 'pointer', fontSize: 13.5 }}
+                >
+                  去面试日历添加 →
+                </button>
+              </div>
             ) : (
               upcoming.map((iv) => {
                 const col = avatarColor(iv.company_name);
                 const d = new Date(iv.interview_time!);
                 return (
-                  <div key={iv.id} style={{ display: 'grid', gridTemplateColumns: 'auto 1fr auto', alignItems: 'center', gap: 14, padding: '12px 6px', borderBottom: '1px solid #f0ebe0' }}>
+                  <button
+                    key={iv.id}
+                    type="button"
+                    onClick={() => navigate('interviews', { query: iv.company_name, interviewDate: toDateKey(d) })}
+                    className="btn-press"
+                    style={{
+                      display: 'grid',
+                      gridTemplateColumns: 'auto 1fr auto',
+                      alignItems: 'center',
+                      gap: 14,
+                      padding: '12px 6px',
+                      border: 'none',
+                      borderBottom: '1px solid #f0ebe0',
+                      background: 'none',
+                      width: '100%',
+                      textAlign: 'left',
+                      cursor: 'pointer',
+                    }}
+                  >
                     <div style={{ width: 42, height: 42, borderRadius: 13, background: col.bg, color: col.fg, display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700, fontFamily: 'Poppins', fontSize: 16 }}>
                       {initialOf(iv.company_name)}
                     </div>
                     <div style={{ minWidth: 0 }}>
-                      <div style={{ fontWeight: 600, fontSize: 14.5 }}>{iv.company_name} · {iv.round || '面试'}</div>
+                      <div style={{ fontWeight: 600, fontSize: 14.5, color: '#1b1a17' }}>{iv.company_name} · {iv.round || '面试'}</div>
                       <div style={{ fontSize: 12.5, color: '#8a8478', marginTop: 2 }}>
                         {iv.position_name ? `${iv.position_name} · ` : ''}
                         {d.toLocaleString('zh-CN', { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit', hour12: false })}
                       </div>
                     </div>
                     <span style={{ background: '#fbeec2', color: '#7a5a12', fontSize: 12, fontWeight: 600, padding: '5px 11px', borderRadius: 999, whiteSpace: 'nowrap' }}>{iv.interview_type || '面试'}</span>
-                  </div>
+                  </button>
                 );
               })
             )}
@@ -291,17 +379,51 @@ export default function Dashboard() {
   );
 }
 
-function Metric({ label, value, bg, fg, icon }: { label: string; value: number; bg: string; fg: string; icon: React.ReactNode }) {
+function Metric({
+  label,
+  value,
+  bg,
+  fg,
+  icon,
+  onClick,
+  hint,
+}: {
+  label: string;
+  value: number;
+  bg: string;
+  fg: string;
+  icon: React.ReactNode;
+  onClick?: () => void;
+  hint?: string;
+}) {
   return (
-    <div className="card-hover" style={{ ...CARD, borderRadius: 20, padding: 20, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+    <button
+      type="button"
+      onClick={onClick}
+      title={hint}
+      className="card-hover btn-press"
+      style={{
+        ...CARD,
+        borderRadius: 20,
+        padding: 20,
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        width: '100%',
+        textAlign: 'left',
+        border: 'none',
+        cursor: onClick ? 'pointer' : 'default',
+      }}
+    >
       <div>
         <div style={{ fontSize: 13, color: '#8a8478' }}>{label}</div>
         <div style={{ fontFamily: 'Poppins', fontSize: 30, fontWeight: 600, marginTop: 3 }}>{value}</div>
+        {hint && <div style={{ fontSize: 11, color: '#b0a898', marginTop: 4 }}>{hint}</div>}
       </div>
       <div style={{ width: 46, height: 46, borderRadius: 14, background: bg, color: fg, display: 'flex', alignItems: 'center', justifyContent: 'center', flex: 'none' }}>
         {icon}
       </div>
-    </div>
+    </button>
   );
 }
 
@@ -310,7 +432,9 @@ interface DayCell {
   empty: boolean;
   isToday: boolean;
   hasEvent: boolean;
+  dateKey: string | null;
 }
+
 function buildMonth(now: Date, interviews: Interview[]): DayCell[] {
   const year = now.getFullYear();
   const month = now.getMonth();
@@ -324,13 +448,15 @@ function buildMonth(now: Date, interviews: Interview[]): DayCell[] {
     if (t.getFullYear() === year && t.getMonth() === month) eventDays.add(t.getDate());
   });
   const cells: DayCell[] = [];
-  for (let i = 0; i < lead; i++) cells.push({ num: '', empty: true, isToday: false, hasEvent: false });
+  for (let i = 0; i < lead; i++) cells.push({ num: '', empty: true, isToday: false, hasEvent: false, dateKey: null });
   for (let n = 1; n <= daysInMonth; n++) {
+    const dateKey = `${year}-${String(month + 1).padStart(2, '0')}-${String(n).padStart(2, '0')}`;
     cells.push({
       num: n,
       empty: false,
       isToday: n === now.getDate(),
       hasEvent: eventDays.has(n),
+      dateKey,
     });
   }
   return cells;

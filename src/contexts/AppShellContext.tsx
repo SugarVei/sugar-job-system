@@ -1,16 +1,52 @@
-import { createContext, useContext, useRef, useState, type ReactNode } from 'react';
-import type { ScreenKey } from '../types';
+import { createContext, useContext, useEffect, useRef, useState, type ReactNode } from 'react';
+import type { ApplicationStatus, ScreenKey } from '../types';
 
-// ============================================================
-// 应用外壳上下文：当前页面、全局搜索词、以及顶栏“新增”按钮的回调
-// 让顶栏（共享）与各页面（独立）之间解耦协作
-// ============================================================
+/** 投递记录页的列表筛选；active = 未关闭流程 */
+export type ApplicationsListFilter = 'all' | 'active' | ApplicationStatus;
+
+const SCREEN_STORAGE_KEY = 'sugar.screen';
+const VALID_SCREENS: ScreenKey[] = [
+  'dashboard',
+  'overview',
+  'applications',
+  'companies',
+  'referralCodes',
+  'hotCompanies',
+  'resumes',
+  'interviews',
+  'offers',
+  'interviewReviews',
+  'mailbox',
+];
+
+function readStoredScreen(): ScreenKey {
+  try {
+    const raw = sessionStorage.getItem(SCREEN_STORAGE_KEY);
+    // 旧版本可能记住已删除的 jdMatches
+    if (raw === 'jdMatches') return 'dashboard';
+    if (raw && (VALID_SCREENS as string[]).includes(raw)) return raw as ScreenKey;
+  } catch {
+    /* ignore */
+  }
+  return 'dashboard';
+}
+
+export interface NavigateOptions {
+  query?: string;
+  applicationsFilter?: ApplicationsListFilter;
+  interviewDate?: string | null;
+}
+
 interface AppShellValue {
   screen: ScreenKey;
   setScreen: (s: ScreenKey) => void;
+  navigate: (s: ScreenKey, opts?: NavigateOptions) => void;
   query: string;
   setQuery: (q: string) => void;
-  /** 当前页面注册的“新增”动作；顶栏 + 按钮会调用它 */
+  applicationsFilter: ApplicationsListFilter;
+  setApplicationsFilter: (f: ApplicationsListFilter) => void;
+  interviewDateFilter: string | null;
+  setInterviewDateFilter: (d: string | null) => void;
   registerAdd: (fn: (() => void) | null) => void;
   triggerAdd: () => void;
 }
@@ -18,12 +54,39 @@ interface AppShellValue {
 const AppShellContext = createContext<AppShellValue | null>(null);
 
 export function AppShellProvider({ children }: { children: ReactNode }) {
-  const [screen, setScreenState] = useState<ScreenKey>('dashboard');
+  const [screen, setScreenState] = useState<ScreenKey>(() => readStoredScreen());
   const [query, setQuery] = useState('');
+  const [applicationsFilter, setApplicationsFilter] = useState<ApplicationsListFilter>('all');
+  const [interviewDateFilter, setInterviewDateFilter] = useState<string | null>(null);
   const addRef = useRef<(() => void) | null>(null);
 
+  useEffect(() => {
+    try {
+      sessionStorage.setItem(SCREEN_STORAGE_KEY, screen);
+    } catch {
+      /* ignore */
+    }
+  }, [screen]);
+
   const setScreen = (s: ScreenKey) => {
-    setQuery(''); // 切页时清空搜索
+    setQuery('');
+    if (s !== 'applications') setApplicationsFilter('all');
+    if (s !== 'interviews') setInterviewDateFilter(null);
+    setScreenState(s);
+  };
+
+  const navigate = (s: ScreenKey, opts?: NavigateOptions) => {
+    setQuery(opts?.query ?? '');
+    if (s === 'applications') {
+      setApplicationsFilter(opts?.applicationsFilter ?? 'all');
+    } else {
+      setApplicationsFilter('all');
+    }
+    if (s === 'interviews') {
+      setInterviewDateFilter(opts?.interviewDate ?? null);
+    } else {
+      setInterviewDateFilter(null);
+    }
     setScreenState(s);
   };
 
@@ -33,12 +96,24 @@ export function AppShellProvider({ children }: { children: ReactNode }) {
 
   const triggerAdd = () => {
     if (addRef.current) addRef.current();
-    else setScreen('applications'); // 兜底：跳到投递记录
+    else setScreen('applications');
   };
 
   return (
     <AppShellContext.Provider
-      value={{ screen, setScreen, query, setQuery, registerAdd, triggerAdd }}
+      value={{
+        screen,
+        setScreen,
+        navigate,
+        query,
+        setQuery,
+        applicationsFilter,
+        setApplicationsFilter,
+        interviewDateFilter,
+        setInterviewDateFilter,
+        registerAdd,
+        triggerAdd,
+      }}
     >
       {children}
     </AppShellContext.Provider>

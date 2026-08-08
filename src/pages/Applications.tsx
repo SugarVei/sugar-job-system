@@ -1,12 +1,13 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import type { Application, ApplicationPriority, ApplicationStatus, NewRecord, Resume } from '../types';
 import { useCollection } from '../hooks/useCollection';
-import { useAppShell } from '../contexts/AppShellContext';
+import { useAppShell, type ApplicationsListFilter } from '../contexts/AppShellContext';
 import { useTheme } from '../contexts/ThemeContext';
 import Modal from '../components/Modal';
 import { Field, TextInput, TextArea, Select, PrimaryButton, GhostButton, FormError } from '../components/Field';
-import { IconEdit, IconTrash, IconPlus, IconExternalLink } from '../components/icons';
+import { IconEdit, IconTrash, IconPlus, IconExternalLink, IconArrowRight } from '../components/icons';
 import { STATUS_OPTIONS, statusTag, buildSteps, matchApp, CARD } from '../lib/appHelpers';
+import { getNextApplicationStatus } from '../lib/applicationStatus';
 import EmptyState from '../components/EmptyState';
 import { exportApplicationsToExcel } from '../lib/exportExcel';
 import AIRecordImporter, { type ApplicationExtraction } from '../components/AIRecordImporter';
@@ -40,6 +41,9 @@ const PRIORITY_OPTIONS: Array<{ value: ApplicationPriority; label: string }> = [
   { value: 'urgent', label: '紧急' },
 ];
 
+const VIEW_STORAGE_KEY = 'sugar.applications.view';
+const CLOSED_STATUSES: ApplicationStatus[] = ['Offer', '已拒绝', '已放弃', '人才库'];
+
 function priorityTag(priority: ApplicationPriority | null | undefined): { label: string; bg: string; fg: string } {
   switch (priority) {
     case 'urgent':
@@ -72,7 +76,25 @@ function parseKeywords(value: string) {
   return value.split(/[,，]/).map((item) => item.trim()).filter(Boolean);
 }
 
+function isOverdue(application: Application, now = Date.now()) {
+  const times = [application.deadline_at, application.next_action_at]
+    .filter(Boolean)
+    .map((v) => new Date(v as string).getTime())
+    .filter((t) => !Number.isNaN(t));
+  return times.some((t) => t < now);
+}
+
 type ViewMode = 'list' | 'kanban';
+
+function readStoredView(): ViewMode {
+  try {
+    const raw = localStorage.getItem(VIEW_STORAGE_KEY);
+    if (raw === 'list' || raw === 'kanban') return raw;
+  } catch {
+    /* ignore */
+  }
+  return 'list';
+}
 
 function errorText(error: unknown) {
   if (error instanceof Error) return error.message;
@@ -84,13 +106,29 @@ function errorText(error: unknown) {
   }
 }
 
+function filterLabel(filter: ApplicationsListFilter): string {
+  if (filter === 'all') return '全部状态';
+  if (filter === 'active') return '进行中（未关闭）';
+  return filter;
+}
+
+function matchesFilter(application: Application, filter: ApplicationsListFilter) {
+  if (filter === 'all') return true;
+  if (filter === 'active') return !CLOSED_STATUSES.includes(application.status);
+  return application.status === filter;
+}
+
 export default function Applications() {
   const { items, loading, error: applicationsError, create, update, remove } = useCollection<Application>('applications');
   const { items: resumes, error: resumesError } = useCollection<Resume>('resumes');
-  const { query, registerAdd } = useAppShell();
+  const {
+    query,
+    registerAdd,
+    applicationsFilter,
+    setApplicationsFilter,
+  } = useAppShell();
   const { theme } = useTheme();
-  const [statusFilter, setStatusFilter] = useState<'all' | ApplicationStatus>('all');
-  const [viewMode, setViewMode] = useState<ViewMode>('list');
+  const [viewMode, setViewMode] = useState<ViewMode>(() => readStoredView());
   const [modalOpen, setModalOpen] = useState(false);
   const [editing, setEditing] = useState<Application | null>(null);
   const [form, setForm] = useState<NewRecord<Application>>(empty);
@@ -98,12 +136,21 @@ export default function Applications() {
   const [exporting, setExporting] = useState(false);
   const [formError, setFormError] = useState('');
   const [scrollSig, setScrollSig] = useState(0);
+  const [actionError, setActionError] = useState('');
   const companyRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     registerAdd(() => openCreate());
     return () => registerAdd(null);
   }, [registerAdd]);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem(VIEW_STORAGE_KEY, viewMode);
+    } catch {
+      /* ignore */
+    }
+  }, [viewMode]);
 
   const openCreate = () => {
     setEditing(null);
@@ -140,14 +187,14 @@ export default function Applications() {
   };
 
   const applyAIExtraction = (data: ApplicationExtraction) => {
-    setForm(current => ({
+    setForm((current) => ({
       ...current,
       company_name: data.company_name ?? current.company_name,
       position_name: data.position_name ?? current.position_name,
       city: data.city ?? current.city,
       channel: data.channel ?? current.channel,
       apply_date: data.apply_date ?? current.apply_date,
-      status: STATUS_OPTIONS.includes(data.status as ApplicationStatus) ? data.status as ApplicationStatus : current.status,
+      status: STATUS_OPTIONS.includes(data.status as ApplicationStatus) ? (data.status as ApplicationStatus) : current.status,
       salary_range: data.salary_range ?? current.salary_range,
       job_url: data.job_url ?? current.job_url,
       jd_text: data.jd_text ?? current.jd_text,
@@ -155,7 +202,7 @@ export default function Applications() {
       next_action: data.next_action ?? current.next_action,
       next_action_at: data.next_action_at ?? current.next_action_at,
       deadline_at: data.deadline_at ?? current.deadline_at,
-      priority: PRIORITY_OPTIONS.some(item => item.value === data.priority) ? data.priority as ApplicationPriority : current.priority,
+      priority: PRIORITY_OPTIONS.some((item) => item.value === data.priority) ? (data.priority as ApplicationPriority) : current.priority,
       notes: data.notes ?? current.notes,
     }));
     setFormError('');
@@ -193,46 +240,73 @@ export default function Applications() {
 
   const quickUpdateStatus = async (application: Application, status: ApplicationStatus) => {
     try {
+      setActionError('');
       await update(application.id, { status });
     } catch (error) {
-      alert('状态更新失败：' + errorText(error));
+      setActionError('状态更新失败：' + errorText(error));
     }
+  };
+
+  const advanceStatus = async (application: Application) => {
+    const next = getNextApplicationStatus(application.status);
+    if (!next) return;
+    await quickUpdateStatus(application, next);
   };
 
   const del = async (application: Application) => {
     if (!confirm(`确定删除「${application.company_name} · ${application.position_name}」吗？`)) return;
     try {
+      setActionError('');
       await remove(application.id);
     } catch (error) {
-      alert('删除失败：' + errorText(error));
+      setActionError('删除失败：' + errorText(error));
     }
   };
 
   const filtered = useMemo(
     () =>
       items
-        .filter((application) => statusFilter === 'all' || application.status === statusFilter)
+        .filter((application) => matchesFilter(application, applicationsFilter))
         .filter((application) => matchApp(application, query)),
-    [items, statusFilter, query],
+    [items, applicationsFilter, query],
   );
+
+  const overdueCount = useMemo(() => filtered.filter((a) => isOverdue(a)).length, [filtered]);
 
   return (
     <div className="flex flex-col gap-[18px] animate-rise">
-      {(applicationsError || resumesError) && (
-        <FormError message={applicationsError || resumesError || ''} />
+      {(applicationsError || resumesError || actionError) && (
+        <FormError message={applicationsError || resumesError || actionError || ''} />
       )}
 
       <div className="grid grid-cols-1 lg:grid-cols-[1fr_auto_auto_auto] gap-3 p-4" style={{ ...CARD, borderRadius: 20 }}>
-        <Select value={statusFilter} onChange={(event) => setStatusFilter(event.target.value as 'all' | ApplicationStatus)}>
+        <Select
+          value={applicationsFilter}
+          onChange={(event) => setApplicationsFilter(event.target.value as ApplicationsListFilter)}
+        >
           <option value="all">全部状态</option>
+          <option value="active">进行中（未关闭）</option>
           {STATUS_OPTIONS.map((status) => (
             <option key={status} value={status}>
               {status}
             </option>
           ))}
         </Select>
-        <div className="hidden sm:block" style={{ fontSize: 13, color: '#9a9488', alignSelf: 'center' }}>
-          共 {filtered.length} 条
+        <div className="hidden sm:flex" style={{ fontSize: 13, color: '#9a9488', alignSelf: 'center', gap: 10 }}>
+          <span>共 {filtered.length} 条</span>
+          {overdueCount > 0 && (
+            <span style={{ color: '#a23d24', fontWeight: 700 }}>逾期 {overdueCount}</span>
+          )}
+          {applicationsFilter !== 'all' && (
+            <button
+              type="button"
+              onClick={() => setApplicationsFilter('all')}
+              className="btn-press"
+              style={{ border: 'none', background: 'none', color: theme.accent, fontWeight: 700, cursor: 'pointer', fontSize: 13 }}
+            >
+              清除筛选
+            </button>
+          )}
         </div>
         <div style={{ display: 'flex', background: '#f5f0e7', border: '1px solid #e4ddcf', borderRadius: 12, padding: 3, height: 44 }}>
           {(['list', 'kanban'] as const).map((mode) => (
@@ -261,27 +335,31 @@ export default function Applications() {
             onClick={async () => {
               if (items.length === 0 || exporting) return;
               setExporting(true);
-              try { await exportApplicationsToExcel(items); }
-              catch (err) { alert('导出失败：' + String(err)); }
-              finally { setExporting(false); }
+              try {
+                await exportApplicationsToExcel(items);
+              } catch (err) {
+                setActionError('导出失败：' + String(err));
+              } finally {
+                setExporting(false);
+              }
             }}
             disabled={items.length === 0 || exporting}
             style={{
               height: 44,
               padding: '0 16px',
               border: '1px solid #e4ddcf',
-              background: (items.length === 0 || exporting) ? '#f5f2eb' : '#faf7f0',
+              background: items.length === 0 || exporting ? '#f5f2eb' : '#faf7f0',
               borderRadius: 12,
               fontSize: 13,
               fontWeight: 600,
-              color: (items.length === 0 || exporting) ? '#c0b8a8' : '#4a463e',
-              cursor: (items.length === 0 || exporting) ? 'not-allowed' : 'pointer',
+              color: items.length === 0 || exporting ? '#c0b8a8' : '#4a463e',
+              cursor: items.length === 0 || exporting ? 'not-allowed' : 'pointer',
               display: 'inline-flex',
               alignItems: 'center',
               gap: 6,
             }}
           >
-            {exporting ? '导出中...' : '📊 导出 Excel'}
+            {exporting ? '导出中...' : '导出 Excel'}
           </button>
           <PrimaryButton accent={theme.accent} onClick={openCreate} style={{ height: 44 }}>
             <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
@@ -291,27 +369,69 @@ export default function Applications() {
         </div>
       </div>
 
+      {applicationsFilter !== 'all' && (
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            gap: 12,
+            padding: '10px 14px',
+            borderRadius: 14,
+            background: '#fbf6ec',
+            border: '1px solid #f0e6cf',
+            fontSize: 13,
+            color: '#5d584d',
+          }}
+        >
+          <span>
+            当前筛选：<strong>{filterLabel(applicationsFilter)}</strong>
+          </span>
+          <button
+            type="button"
+            onClick={() => setApplicationsFilter('all')}
+            className="btn-press"
+            style={{ border: 'none', background: '#fffdf8', borderRadius: 10, padding: '6px 12px', fontWeight: 700, cursor: 'pointer', fontSize: 12.5 }}
+          >
+            显示全部
+          </button>
+        </div>
+      )}
+
       {loading ? (
         <EmptyState text="加载中..." />
       ) : filtered.length === 0 ? (
         <EmptyState
-          text={items.length === 0 ? '还没有投递记录，点右上角新增第一条吧' : '没有符合条件的记录'}
-          actionLabel={items.length === 0 ? '新增投递' : undefined}
-          onAction={items.length === 0 ? openCreate : undefined}
+          text={
+            items.length === 0
+              ? '还没有投递记录，点右上角新增第一条吧'
+              : applicationsFilter !== 'all'
+                ? `没有「${filterLabel(applicationsFilter)}」的记录`
+                : '没有符合条件的记录'
+          }
+          actionLabel={items.length === 0 ? '新增投递' : applicationsFilter !== 'all' ? '清除筛选' : undefined}
+          onAction={items.length === 0 ? openCreate : applicationsFilter !== 'all' ? () => setApplicationsFilter('all') : undefined}
         />
+      ) : viewMode === 'kanban' ? (
+        <KanbanBoard applications={filtered} onEdit={openEdit} onStatusChange={quickUpdateStatus} />
       ) : (
-        viewMode === 'kanban' ? (
-          <KanbanBoard
-            applications={filtered}
-            onEdit={openEdit}
-            onStatusChange={quickUpdateStatus}
-          />
-        ) : filtered.map((application) => {
+        filtered.map((application) => {
           const tag = statusTag(application.status);
           const steps = buildSteps(application.status);
           const priority = priorityTag(application.priority);
+          const next = getNextApplicationStatus(application.status);
+          const overdue = isOverdue(application);
           return (
-            <div key={application.id} className="card-hover" style={{ ...CARD, padding: '22px 24px' }}>
+            <div
+              key={application.id}
+              className="card-hover"
+              style={{
+                ...CARD,
+                padding: '22px 24px',
+                border: overdue ? '1px solid #f3b3a1' : undefined,
+                boxShadow: overdue ? '0 6px 18px rgba(162,61,36,.08)' : CARD.boxShadow,
+              }}
+            >
               <div className="flex items-start justify-between gap-4 flex-wrap">
                 <div style={{ minWidth: 0 }}>
                   <div className="flex items-center gap-[10px] flex-wrap">
@@ -320,6 +440,7 @@ export default function Applications() {
                     </h3>
                     <span style={pill(tag.bg, tag.fg)}>{application.status}</span>
                     <span style={pill(priority.bg, priority.fg)}>{priority.label}</span>
+                    {overdue && <span style={pill('#fbe0d8', '#a23d24')}>已逾期</span>}
                   </div>
                   <div className="flex flex-wrap mt-[9px]" style={{ gap: '6px 18px', fontSize: 13, color: '#8a8478' }}>
                     {application.city && <span>{application.city}</span>}
@@ -327,7 +448,11 @@ export default function Applications() {
                     {application.salary_range && <span>{application.salary_range}</span>}
                     {application.apply_date && <span>投递：{application.apply_date}</span>}
                     {application.next_action && <span>下一步：{application.next_action}</span>}
-                    {application.deadline_at && <span>截止：{formatDateTime(application.deadline_at)}</span>}
+                    {application.deadline_at && (
+                      <span style={{ color: overdue ? '#a23d24' : undefined, fontWeight: overdue ? 700 : 400 }}>
+                        截止：{formatDateTime(application.deadline_at)}
+                      </span>
+                    )}
                     {application.job_url && (
                       <a
                         href={application.job_url}
@@ -340,7 +465,22 @@ export default function Applications() {
                     )}
                   </div>
                 </div>
-                <div className="flex gap-2 flex-none">
+                <div className="flex gap-2 flex-none flex-wrap">
+                  {next && (
+                    <button
+                      onClick={() => void advanceStatus(application)}
+                      className="btn-press"
+                      title={`推进到「${next}」`}
+                      style={{
+                        ...iconBtnText,
+                        background: '#1b1a17',
+                        color: '#f4f1ea',
+                        borderColor: '#1b1a17',
+                      }}
+                    >
+                      <IconArrowRight size={14} /> {next}
+                    </button>
+                  )}
                   <button onClick={() => openEdit(application)} className="btn-press" style={iconBtnText}>
                     <IconEdit size={14} /> 编辑
                   </button>
@@ -350,7 +490,7 @@ export default function Applications() {
                 </div>
               </div>
 
-              <div className="grid grid-cols-4 gap-1" style={{ margin: '20px 0 4px' }}>
+              <div className="grid grid-cols-4 sm:grid-cols-9 gap-1" style={{ margin: '20px 0 4px' }}>
                 {steps.map((step) => (
                   <div key={step.idx} className="flex flex-col items-center gap-[7px]">
                     <div className="flex items-center w-full">
@@ -554,9 +694,9 @@ export default function Applications() {
               placeholder="记录人工或 AI 分析结果"
             />
           </Field>
-          <button type="button" disabled style={{ ...iconBtnText, opacity: 0.55, cursor: 'not-allowed', marginBottom: 14 }}>
-            AI 分析 JD（待接入）
-          </button>
+          <div style={{ fontSize: 12, color: '#9a9488', marginBottom: 14, lineHeight: 1.55 }}>
+            可在此粘贴 JD 原文与关键词，匹配分可手动填写；简历库中也可对照岗位优化版本。
+          </div>
         </div>
         <div
           style={{
@@ -614,6 +754,8 @@ function KanbanBoard({
     status,
     items: applications.filter((application) => application.status === status),
   }));
+  const [dragOverStatus, setDragOverStatus] = useState<ApplicationStatus | null>(null);
+  const [draggingId, setDraggingId] = useState<string | null>(null);
 
   return (
     <div className="kanban-board-scroll" style={{ overflowX: 'auto', paddingBottom: 8 }}>
@@ -642,17 +784,36 @@ function KanbanBoard({
       <div style={{ display: 'grid', gridAutoFlow: 'column', gridAutoColumns: 'minmax(260px, 1fr)', gap: 14, minWidth: 980, alignItems: 'stretch' }}>
         {grouped.map((column) => {
           const tag = statusTag(column.status);
+          const isOver = dragOverStatus === column.status;
           return (
             <div
               key={column.status}
+              onDragOver={(event) => {
+                event.preventDefault();
+                setDragOverStatus(column.status);
+              }}
+              onDragLeave={() => {
+                setDragOverStatus((cur) => (cur === column.status ? null : cur));
+              }}
+              onDrop={(event) => {
+                event.preventDefault();
+                const id = event.dataTransfer.getData('text/application-id');
+                setDragOverStatus(null);
+                setDraggingId(null);
+                if (!id) return;
+                const app = applications.find((item) => item.id === id);
+                if (app && app.status !== column.status) onStatusChange(app, column.status);
+              }}
               style={{
-                background: '#f5f0e7',
+                background: isOver ? '#ebe4d6' : '#f5f0e7',
                 borderRadius: 18,
                 padding: 12,
                 height: 'min(58vh, 520px)',
                 minHeight: 280,
                 display: 'flex',
                 flexDirection: 'column',
+                outline: isOver ? '2px dashed #1b1a17' : 'none',
+                outlineOffset: -2,
               }}
             >
               <div className="flex items-center justify-between" style={{ marginBottom: 10, flex: 'none' }}>
@@ -671,60 +832,76 @@ function KanbanBoard({
               >
                 {column.items.length === 0 ? (
                   <div style={{ border: '1px dashed #d8cfbd', borderRadius: 13, padding: 14, color: '#a39d90', fontSize: 12.5, textAlign: 'center' }}>
-                    暂无记录
+                    拖到此处更改状态
                   </div>
-                ) : column.items.map((application) => {
-                  const priority = priorityTag(application.priority);
-                  return (
-                    <button
-                      key={application.id}
-                      type="button"
-                      onClick={() => onEdit(application)}
-                      className="btn-press"
-                      style={{
-                        ...CARD,
-                        border: '1px solid #f0ebe0',
-                        borderRadius: 14,
-                        padding: 14,
-                        textAlign: 'left',
-                        cursor: 'pointer',
-                      }}
-                    >
-                      <div style={{ fontSize: 14, fontWeight: 700, color: '#1b1a17', lineHeight: 1.35 }}>
-                        {application.company_name}
-                      </div>
-                      <div style={{ fontSize: 12.5, fontWeight: 600, color: '#5d584d', marginTop: 3 }}>
-                        {application.position_name}
-                      </div>
-                      <div className="flex flex-wrap" style={{ gap: '5px 8px', marginTop: 9, fontSize: 11.5, color: '#8a8478' }}>
-                        {application.city && <span>{application.city}</span>}
-                        {application.salary_range && <span>{application.salary_range}</span>}
-                        {application.channel && <span>{application.channel}</span>}
-                      </div>
-                      <div className="flex flex-wrap gap-1" style={{ marginTop: 10 }}>
-                        <span style={pill(tag.bg, tag.fg)}>{application.status}</span>
-                        <span style={pill(priority.bg, priority.fg)}>{priority.label}</span>
-                      </div>
-                      {(application.next_action || application.deadline_at) && (
-                        <div style={{ marginTop: 10, fontSize: 12, color: '#6b665c', lineHeight: 1.55 }}>
-                          {application.next_action && <div>下一步：{application.next_action}</div>}
-                          {application.deadline_at && <div>截止：{formatDateTime(application.deadline_at)}</div>}
+                ) : (
+                  column.items.map((application) => {
+                    const priority = priorityTag(application.priority);
+                    const overdue = isOverdue(application);
+                    return (
+                      <button
+                        key={application.id}
+                        type="button"
+                        draggable
+                        onDragStart={(event) => {
+                          event.dataTransfer.setData('text/application-id', application.id);
+                          event.dataTransfer.effectAllowed = 'move';
+                          setDraggingId(application.id);
+                        }}
+                        onDragEnd={() => {
+                          setDraggingId(null);
+                          setDragOverStatus(null);
+                        }}
+                        onClick={() => onEdit(application)}
+                        className="btn-press"
+                        style={{
+                          ...CARD,
+                          border: overdue ? '1px solid #f3b3a1' : '1px solid #f0ebe0',
+                          borderRadius: 14,
+                          padding: 14,
+                          textAlign: 'left',
+                          cursor: 'grab',
+                          background: overdue ? '#fff8f5' : CARD.background,
+                          opacity: draggingId === application.id ? 0.55 : 1,
+                        }}
+                      >
+                        <div style={{ fontSize: 14, fontWeight: 700, color: '#1b1a17', lineHeight: 1.35 }}>
+                          {application.company_name}
                         </div>
-                      )}
-                      <div onClick={(event) => event.stopPropagation()} style={{ marginTop: 10 }}>
-                        <Select
-                          value={application.status}
-                          onChange={(event) => onStatusChange(application, event.target.value as ApplicationStatus)}
-                          style={{ height: 34, fontSize: 12.5 }}
-                        >
-                          {STATUS_OPTIONS.map((status) => (
-                            <option key={status} value={status}>{status}</option>
-                          ))}
-                        </Select>
-                      </div>
-                    </button>
-                  );
-                })}
+                        <div style={{ fontSize: 12.5, fontWeight: 600, color: '#5d584d', marginTop: 3 }}>
+                          {application.position_name}
+                        </div>
+                        <div className="flex flex-wrap" style={{ gap: '5px 8px', marginTop: 9, fontSize: 11.5, color: '#8a8478' }}>
+                          {application.city && <span>{application.city}</span>}
+                          {application.salary_range && <span>{application.salary_range}</span>}
+                          {application.channel && <span>{application.channel}</span>}
+                        </div>
+                        <div className="flex flex-wrap gap-1" style={{ marginTop: 10 }}>
+                          <span style={pill(tag.bg, tag.fg)}>{application.status}</span>
+                          <span style={pill(priority.bg, priority.fg)}>{priority.label}</span>
+                          {overdue && <span style={pill('#fbe0d8', '#a23d24')}>逾期</span>}
+                        </div>
+                        {(application.next_action || application.deadline_at) && (
+                          <div style={{ marginTop: 10, fontSize: 12, color: overdue ? '#a23d24' : '#6b665c', lineHeight: 1.55 }}>
+                            {application.next_action && <div>下一步：{application.next_action}</div>}
+                            {application.deadline_at && <div>截止：{formatDateTime(application.deadline_at)}</div>}
+                          </div>
+                        )}
+                        <div onClick={(event) => event.stopPropagation()} style={{ marginTop: 10 }}>
+                          <Select
+                            value={application.status}
+                            onChange={(event) => onStatusChange(application, event.target.value as ApplicationStatus)}
+                            style={{ height: 34, fontSize: 12.5 }}
+                          >
+                            {STATUS_OPTIONS.map((status) => (
+                              <option key={status} value={status}>{status}</option>
+                            ))}
+                          </Select>
+                        </div>
+                      </button>
+                    );
+                  })
+                )}
               </div>
             </div>
           );

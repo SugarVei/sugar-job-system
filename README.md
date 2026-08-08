@@ -5,7 +5,7 @@
 - **技术栈**：React 18 + Vite 5 + TypeScript + Tailwind CSS + Vercel Serverless/Edge Functions
 - **后端 / 登录**：Supabase（Auth 邮箱登录注册 + Postgres 云端存储 + Storage 文件上传 + 行级安全 RLS）
 - **响应式**：电脑（侧边栏）/ 平板（两列）/ 手机（底部导航、卡片单列），最低适配 360px
-- **页面**：登录、总览仪表盘、投递总览、投递记录、公司库、内推码管理、热门公司、简历库、面试日历、Offer 管理、面试复盘、JD 匹配分析
+- **页面**：登录、总览仪表盘、投递总览、投递记录、公司库、内推码管理、热门公司、简历库、面试日历、Offer 管理、面试复盘、面试邮件（网易 163）
 - **内嵌 AI 能力**：热门公司页找公司、投递总览分析、简历库生成面试稿件（当前不是独立导航页面）
 - **主题**：粉 / 蓝 / 绿 / 灰 / 米白 5 套配色，弥散流光动态背景，磨砂玻璃质感
 
@@ -52,7 +52,8 @@ npm run preview    # 本地预览打包结果
    - 第三步：[`supabase/migration_resume_files_ai_scripts.sql`](./supabase/migration_resume_files_ai_scripts.sql)
    - 第四步：[`supabase/migration_api_keys.sql`](./supabase/migration_api_keys.sql)
    - 对已有数据库，先执行第一阶段统一迁移：[`supabase/migration_phase1_foundation_fix.sql`](./supabase/migration_phase1_foundation_fix.sql)。它会兼容旧字段并补齐状态约束、索引、RLS 与 Storage policy，不删除业务数据。
-   - 最后执行第二阶段职业模块迁移：[`supabase/migration_phase2_career_modules.sql`](./supabase/migration_phase2_career_modules.sql)。它会创建 Offer 管理、面试复盘、JD 匹配历史相关表，并补齐 RLS 与 Data API 授权。
+   - 最后执行第二阶段职业模块迁移：[`supabase/migration_phase2_career_modules.sql`](./supabase/migration_phase2_career_modules.sql)。它会创建 Offer 管理、面试复盘相关表，并补齐 RLS 与 Data API 授权。
+   - 面试邮件（网易 163）：[`supabase/migration_mailbox_accounts.sql`](./supabase/migration_mailbox_accounts.sql)，创建 `mailbox_accounts` 表与 RLS。
 3. `schema.sql` 会创建 `applications` / `companies` / `resumes` / `resume_files` / `user_api_keys` / `interviews`，自动维护 `updated_at`，并为业务表开启 RLS + select/insert/update/delete 策略，保证**每个用户只能读写自己的数据**。
 
 ### 3. 安全说明
@@ -79,10 +80,10 @@ npm run preview    # 本地预览打包结果
 | `resume_files` 简历/稿件文件 | resume_id, file_name, file_path, kind, size, content, source |
 | `user_api_keys` 用户 AI Key | provider, api_key |
 | `interviews` 面试日历 | company_name, position_name, interview_time, round, interview_type, notes |
+| `mailbox_accounts` 面试邮件 | provider, email, auth_code（RLS 隔离）, last_synced_at |
 | `offers` Offer 管理 | 薪资结构、回复截止、状态、评分、谈薪与风险 |
 | `interview_reviews` 面试复盘 | 面试信息、STAR、表现评分、改进计划 |
 | `interview_review_questions` 面试问题/题库 | 问题、回答、题型、掌握状态 |
-| `jd_matches` JD 匹配历史 | JD 解析、关键词、匹配分数、建议与投递联动 |
 
 每张表都含 `id`、`user_id`、`created_at`、`updated_at`。完整 SQL（含 RLS）见 [`supabase/schema.sql`](./supabase/schema.sql)。
 

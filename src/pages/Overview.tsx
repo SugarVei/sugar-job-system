@@ -32,7 +32,7 @@ function timeValue(value: string | null) {
 
 export default function Overview() {
   const { items, loading } = useCollection<Application>('applications');
-  const { setScreen, setQuery } = useAppShell();
+  const { navigate } = useAppShell();
   const [activeStatus, setActiveStatus] = useState<ApplicationStatus | null>(null);
 
   const stats = useMemo(() => {
@@ -103,7 +103,7 @@ Offer 转化率：${items.length > 0 ? Math.round((byStatus['Offer']/items.lengt
       <EmptyState
         text="还没有投递数据，先去「投递记录」添加几条，这里会自动生成概览图表。"
         actionLabel="去投递记录"
-        onAction={() => setScreen('applications')}
+        onAction={() => navigate('applications')}
       />
     );
 
@@ -124,10 +124,10 @@ Offer 转化率：${items.length > 0 ? Math.round((byStatus['Offer']/items.lengt
 
       {/* 统计卡 */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        <StatCard label="投递总数" value={stats.total} sub="全部记录" bg="#d9e6d3" fg="#2f5d36" />
-        <StatCard label="进入面试" value={stats.interviewing} sub={`进面率 ${pct(stats.interviewing, stats.total)}`} bg="#fbeec2" fg="#7a5a12" />
-        <StatCard label="获得 Offer" value={stats.offers} sub={`Offer 率 ${pct(stats.offers, stats.total)}`} bg="#fbe0d8" fg="#a23d24" />
-        <StatCard label="待跟进" value={stats.followUps} sub="需要处理" bg="#e4e0f7" fg="#4a3f96" />
+        <StatCard label="投递总数" value={stats.total} sub="全部记录" bg="#d9e6d3" fg="#2f5d36" onClick={() => navigate('applications', { applicationsFilter: 'all' })} />
+        <StatCard label="进入面试" value={stats.interviewing} sub={`进面率 ${pct(stats.interviewing, stats.total)}`} bg="#fbeec2" fg="#7a5a12" onClick={() => navigate('applications', { applicationsFilter: 'active' })} />
+        <StatCard label="获得 Offer" value={stats.offers} sub={`Offer 率 ${pct(stats.offers, stats.total)}`} bg="#fbe0d8" fg="#a23d24" onClick={() => navigate('applications', { applicationsFilter: 'Offer' })} />
+        <StatCard label="待跟进" value={stats.followUps} sub="需要处理" bg="#e4e0f7" fg="#4a3f96" onClick={() => navigate('applications', { applicationsFilter: '待跟进' })} />
       </div>
 
       {/* 状态环形图 + 状态筛选 */}
@@ -264,9 +264,18 @@ Offer 转化率：${items.length > 0 ? Math.round((byStatus['Offer']/items.lengt
               {activeStatus ? `「${activeStatus}」的投递` : '按状态查看'}
             </div>
             {activeStatus && (
-              <button onClick={() => setActiveStatus(null)} className="btn-press" style={{ background: 'none', border: 'none', fontSize: 13, color: '#8a8478', cursor: 'pointer' }}>
-                清除
-              </button>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => navigate('applications', { applicationsFilter: activeStatus })}
+                  className="btn-press"
+                  style={{ background: '#1b1a17', color: '#f4f1ea', border: 'none', borderRadius: 10, fontSize: 12.5, fontWeight: 700, padding: '6px 12px', cursor: 'pointer' }}
+                >
+                  打开投递记录
+                </button>
+                <button onClick={() => setActiveStatus(null)} className="btn-press" style={{ background: 'none', border: 'none', fontSize: 13, color: '#8a8478', cursor: 'pointer' }}>
+                  清除
+                </button>
+              </div>
             )}
           </div>
           {!activeStatus ? (
@@ -280,10 +289,7 @@ Offer 转化率：${items.length > 0 ? Math.round((byStatus['Offer']/items.lengt
                 return (
                   <div
                     key={a.id}
-                    onClick={() => {
-                      setQuery(a.company_name);
-                      setScreen('applications');
-                    }}
+                    onClick={() => navigate('applications', { query: a.company_name, applicationsFilter: a.status })}
                     className="flex items-center justify-between"
                     style={{ border: '1px solid #f0ebe0', borderRadius: 13, padding: '11px 14px', cursor: 'pointer' }}
                   >
@@ -455,12 +461,43 @@ function ApiBalanceCard() {
   );
 }
 
-function StatCard({ label, value, sub, bg, fg }: { label: string; value: number; sub: string; bg: string; fg: string }) {
-  return (
-    <div style={{ background: bg, borderRadius: 20, padding: '20px 22px' }}>
+function StatCard({
+  label,
+  value,
+  sub,
+  bg,
+  fg,
+  onClick,
+}: {
+  label: string;
+  value: number;
+  sub: string;
+  bg: string;
+  fg: string;
+  onClick?: () => void;
+}) {
+  const body = (
+    <>
       <div style={{ fontSize: 13, fontWeight: 600, color: fg, opacity: 0.85 }}>{label}</div>
       <div style={{ fontFamily: 'Poppins', fontSize: 34, fontWeight: 700, color: fg, margin: '6px 0 2px' }}>{value}</div>
       <div style={{ fontSize: 12, color: fg, opacity: 0.72 }}>{sub}</div>
+    </>
+  );
+  if (onClick) {
+    return (
+      <button
+        type="button"
+        onClick={onClick}
+        className="card-hover btn-press"
+        style={{ background: bg, borderRadius: 20, padding: '20px 22px', border: 'none', textAlign: 'left', cursor: 'pointer', width: '100%' }}
+      >
+        {body}
+      </button>
+    );
+  }
+  return (
+    <div style={{ background: bg, borderRadius: 20, padding: '20px 22px' }}>
+      {body}
     </div>
   );
 }

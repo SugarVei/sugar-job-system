@@ -2,6 +2,7 @@ import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { ApiKeysProvider } from './contexts/ApiKeysContext';
 import { ThemeProvider } from './contexts/ThemeContext';
 import { AppShellProvider, useAppShell } from './contexts/AppShellContext';
+import { ToastProvider } from './components/Toast';
 import LiquidBackground from './components/LiquidBackground';
 import AppLayout from './layouts/AppLayout';
 import Login from './pages/Login';
@@ -15,9 +16,8 @@ import Resumes from './pages/Resumes';
 import Interviews from './pages/Interviews';
 import Offers from './pages/Offers';
 import InterviewReviews from './pages/InterviewReviews';
-import JdMatches from './pages/JdMatches';
+import Mailbox from './pages/Mailbox';
 
-// 根据当前 screen 渲染对应页面
 function CurrentPage() {
   const { screen } = useAppShell();
   switch (screen) {
@@ -41,14 +41,13 @@ function CurrentPage() {
       return <Offers />;
     case 'interviewReviews':
       return <InterviewReviews />;
-    case 'jdMatches':
-      return <JdMatches />;
+    case 'mailbox':
+      return <Mailbox />;
     default:
       return <Dashboard />;
   }
 }
 
-// 登录态门禁
 function Gate() {
   const { session, loading } = useAuth();
 
@@ -76,10 +75,12 @@ function Gate() {
 export default function App() {
   return (
     <ThemeProvider>
-      <LiquidBackground />
-      <AuthProvider>
-        <Gate />
-      </AuthProvider>
+      <ToastProvider>
+        <LiquidBackground />
+        <AuthProvider>
+          <Gate />
+        </AuthProvider>
+      </ToastProvider>
     </ThemeProvider>
   );
 }

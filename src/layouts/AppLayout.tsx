@@ -1,9 +1,9 @@
-import { useRef, type ReactNode } from 'react';
+import { useRef, useState, type ReactNode } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { useTheme } from '../contexts/ThemeContext';
 import { useAppShell } from '../contexts/AppShellContext';
 import { useProfile } from '../hooks/useProfile';
-import { NAV_ITEMS, greetFor } from '../components/navConfig';
+import { MOBILE_MORE_NAV, MOBILE_PRIMARY_NAV, NAV_GROUPS, NAV_ITEMS, greetFor } from '../components/navConfig';
 import ThemeSwitcher from '../components/ThemeSwitcher';
 import ApiKeySettings from '../components/ApiKeySettingsGuide';
 import {
@@ -13,7 +13,10 @@ import {
   IconLogout,
   IconUser,
   IconCamera,
+  IconMore,
+  IconClose,
 } from '../components/icons';
+import type { ScreenKey } from '../types';
 
 // ============================================================
 // 应用主框架：桌面侧边栏 + 顶栏；平板两列；手机底部导航
@@ -24,8 +27,15 @@ export default function AppLayout({ children }: { children: ReactNode }) {
   const { screen, setScreen, query, setQuery, triggerAdd } = useAppShell();
   const { name, avatar, updateName, updateAvatar } = useProfile();
   const fileRef = useRef<HTMLInputElement>(null);
+  const [mobileMoreOpen, setMobileMoreOpen] = useState(false);
 
   const greet = greetFor(screen, name);
+  const moreActive = MOBILE_MORE_NAV.some((item) => item.key === screen);
+
+  const go = (key: ScreenKey) => {
+    setScreen(key);
+    setMobileMoreOpen(false);
+  };
 
   const onAvatarChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -178,50 +188,70 @@ export default function AppLayout({ children }: { children: ReactNode }) {
             </div>
           </div>
 
-          {/* 导航：在侧栏固定高度内均分空间，不产生独立滚动 */}
+          {/* 导航：分组展示，在侧栏固定高度内均分空间 */}
           <nav
             className="sidebar-nav"
             style={{
               display: 'flex',
               flexDirection: 'column',
-              gap: 2,
+              gap: 6,
               flex: 1,
               minHeight: 0,
               overflow: 'hidden',
-              padding: '10px 0',
+              padding: '8px 0',
             }}
           >
-            {NAV_ITEMS.map(({ key, label, Icon }) => {
-              const active = screen === key;
+            {NAV_GROUPS.map((group) => {
+              const items = NAV_ITEMS.filter((item) => item.group === group.id);
               return (
-                <button
-                  key={key}
-                  onClick={() => setScreen(key)}
-                  className={`nav-item ${active ? 'nav-item--active' : ''}`}
-                  style={{
-                    background: active ? '#1b1a17' : 'transparent',
-                    color: active ? '#f4f1ea' : '#6b665c',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: 12,
-                    minHeight: 0,
-                    maxHeight: 44,
-                    padding: '0 14px',
-                    border: 'none',
-                    borderRadius: 13,
-                    fontSize: 14.5,
-                    fontWeight: 600,
-                    cursor: 'pointer',
-                    textAlign: 'left',
-                    whiteSpace: 'nowrap',
-                    flex: '1 1 0',
-                  }}
-                >
-                  <span style={{ width: 22, height: 22, display: 'flex', alignItems: 'center', justifyContent: 'center', flex: 'none' }}>
-                    <Icon size={20} />
-                  </span>
-                  {label}
-                </button>
+                <div key={group.id} style={{ display: 'flex', flexDirection: 'column', gap: 2, flex: '1 1 0', minHeight: 0 }}>
+                  <div
+                    style={{
+                      fontSize: 10.5,
+                      fontWeight: 700,
+                      letterSpacing: '.06em',
+                      color: '#b0a898',
+                      padding: '4px 12px 2px',
+                      textTransform: 'uppercase',
+                      flex: 'none',
+                    }}
+                  >
+                    {group.label}
+                  </div>
+                  {items.map(({ key, label, Icon }) => {
+                    const active = screen === key;
+                    return (
+                      <button
+                        key={key}
+                        onClick={() => go(key)}
+                        className={`nav-item ${active ? 'nav-item--active' : ''}`}
+                        style={{
+                          background: active ? '#1b1a17' : 'transparent',
+                          color: active ? '#f4f1ea' : '#6b665c',
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: 12,
+                          minHeight: 0,
+                          maxHeight: 40,
+                          padding: '0 14px',
+                          border: 'none',
+                          borderRadius: 13,
+                          fontSize: 13.5,
+                          fontWeight: 600,
+                          cursor: 'pointer',
+                          textAlign: 'left',
+                          whiteSpace: 'nowrap',
+                          flex: '1 1 0',
+                        }}
+                      >
+                        <span style={{ width: 20, height: 20, display: 'flex', alignItems: 'center', justifyContent: 'center', flex: 'none' }}>
+                          <Icon size={18} />
+                        </span>
+                        {label}
+                      </button>
+                    );
+                  })}
+                </div>
               );
             })}
           </nav>
@@ -338,9 +368,80 @@ export default function AppLayout({ children }: { children: ReactNode }) {
         </main>
       </div>
 
-      {/* ===== 移动端底部导航（< lg 显示） ===== */}
+      {/* ===== 移动端「更多」抽屉 ===== */}
+      {mobileMoreOpen && (
+        <div
+          className="flex lg:hidden"
+          style={{
+            position: 'fixed',
+            inset: 0,
+            zIndex: 60,
+            background: 'rgba(40, 32, 24, 0.28)',
+            backdropFilter: 'blur(4px)',
+          }}
+          onClick={() => setMobileMoreOpen(false)}
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            style={{
+              position: 'absolute',
+              left: 10,
+              right: 10,
+              bottom: 84,
+              background: 'rgba(255,253,250,0.96)',
+              borderRadius: 22,
+              boxShadow: '0 18px 40px rgba(60,50,35,.2)',
+              padding: '16px 14px 14px',
+              maxHeight: 'min(62vh, 420px)',
+              overflowY: 'auto',
+            }}
+          >
+            <div className="flex items-center justify-between" style={{ marginBottom: 12, padding: '0 4px' }}>
+              <div style={{ fontFamily: 'Poppins', fontWeight: 700, fontSize: 15 }}>更多功能</div>
+              <button
+                type="button"
+                aria-label="关闭"
+                onClick={() => setMobileMoreOpen(false)}
+                style={{ width: 34, height: 34, borderRadius: 10, border: '1px solid #e4ddcf', background: '#fffdf8', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+              >
+                <IconClose size={16} />
+              </button>
+            </div>
+            <div className="grid grid-cols-3 gap-2">
+              {MOBILE_MORE_NAV.map(({ key, label, shortLabel, Icon }) => {
+                const active = screen === key;
+                return (
+                  <button
+                    key={key}
+                    type="button"
+                    onClick={() => go(key)}
+                    className="btn-press"
+                    style={{
+                      display: 'flex',
+                      flexDirection: 'column',
+                      alignItems: 'center',
+                      gap: 8,
+                      padding: '14px 8px',
+                      borderRadius: 16,
+                      border: active ? '1.5px solid #1b1a17' : '1px solid #ece4d6',
+                      background: active ? '#1b1a17' : '#fffdf8',
+                      color: active ? '#f4f1ea' : '#5d584d',
+                      cursor: 'pointer',
+                    }}
+                  >
+                    <Icon size={20} />
+                    <span style={{ fontSize: 12, fontWeight: 700 }}>{shortLabel || label}</span>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ===== 移动端底部导航（主 5 项 + 更多） ===== */}
       <nav
-        className="flex lg:hidden bottom-nav-scroll"
+        className="flex lg:hidden"
         style={{
           position: 'fixed',
           left: 10,
@@ -353,18 +454,17 @@ export default function AppLayout({ children }: { children: ReactNode }) {
           borderRadius: 20,
           boxShadow: '0 12px 30px rgba(60,50,35,.18)',
           alignItems: 'center',
-          justifyContent: 'flex-start',
-          overflowX: 'auto',
-          padding: '0 6px',
+          justifyContent: 'space-around',
+          padding: '0 4px',
           zIndex: 50,
         }}
       >
-        {NAV_ITEMS.map(({ key, label, Icon }) => {
+        {MOBILE_PRIMARY_NAV.map(({ key, label, shortLabel, Icon }) => {
           const active = screen === key;
           return (
             <button
               key={key}
-              onClick={() => setScreen(key)}
+              onClick={() => go(key)}
               style={{
                 display: 'flex',
                 flexDirection: 'column',
@@ -374,15 +474,38 @@ export default function AppLayout({ children }: { children: ReactNode }) {
                 border: 'none',
                 cursor: 'pointer',
                 color: active ? theme.accent : '#9a9488',
-                flex: '0 0 66px',
+                flex: '1 1 0',
+                minWidth: 0,
                 padding: '6px 0',
               }}
             >
               <Icon size={20} />
-              <span style={{ fontSize: 10, fontWeight: 600 }}>{label}</span>
+              <span style={{ fontSize: 10, fontWeight: 600 }}>{shortLabel || label}</span>
             </button>
           );
         })}
+        <button
+          type="button"
+          onClick={() => setMobileMoreOpen((v) => !v)}
+          aria-expanded={mobileMoreOpen}
+          aria-label="更多功能"
+          style={{
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            gap: 3,
+            background: 'none',
+            border: 'none',
+            cursor: 'pointer',
+            color: moreActive || mobileMoreOpen ? theme.accent : '#9a9488',
+            flex: '1 1 0',
+            minWidth: 0,
+            padding: '6px 0',
+          }}
+        >
+          <IconMore size={20} />
+          <span style={{ fontSize: 10, fontWeight: 600 }}>更多</span>
+        </button>
       </nav>
     </div>
   );

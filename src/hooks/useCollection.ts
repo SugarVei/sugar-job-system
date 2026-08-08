@@ -36,8 +36,6 @@ function stringifyErrorValue(value: unknown): string {
 function readableDbError(error: unknown, table: string) {
   const message = stringifyErrorValue(error);
 
-  // RLS check first: RLS errors often mention the table name, so checking table-name first
-  // would mis-classify RLS violations as "missing column/table" errors.
   if (/row-level security|new row violates|violates row-level/i.test(message)) {
     return `Supabase 权限策略拒绝了 ${table} 操作。原始错误：${message}`;
   }
@@ -46,7 +44,11 @@ function readableDbError(error: unknown, table: string) {
     return '数据库缺少内推码表，请在 Supabase SQL Editor 执行 supabase/migration_referral_codes.sql。';
   }
 
-  if (['offers', 'interview_reviews', 'interview_review_questions', 'jd_matches'].includes(table)
+  if (table === 'mailbox_accounts' && /relation.*does not exist|schema cache|mailbox_accounts/i.test(message)) {
+    return '数据库缺少邮箱账号表，请在 Supabase SQL Editor 执行 supabase/migration_mailbox_accounts.sql。';
+  }
+
+  if (['offers', 'interview_reviews', 'interview_review_questions'].includes(table)
     && /relation.*does not exist|schema cache|permission denied|does not exist/i.test(message)) {
     return '数据库缺少第二阶段职业模块表或 Data API 授权，请在 Supabase SQL Editor 执行 supabase/migration_phase2_career_modules.sql。';
   }
@@ -87,7 +89,7 @@ function stripResumeId(payload: Record<string, unknown>) {
 }
 
 export function useCollection<T extends BaseRow>(
-  table: 'applications' | 'companies' | 'resumes' | 'interviews' | 'offers' | 'interview_reviews' | 'interview_review_questions' | 'jd_matches' | 'referral_codes',
+  table: 'applications' | 'companies' | 'resumes' | 'interviews' | 'offers' | 'interview_reviews' | 'interview_review_questions' | 'referral_codes' | 'mailbox_accounts',
   orderBy: { column: string; ascending?: boolean } = { column: 'created_at', ascending: false },
 ) {
   const { user } = useAuth();
@@ -142,9 +144,6 @@ export function useCollection<T extends BaseRow>(
         .select()
         .single();
 
-      // Early installations used version_name / target_role. Some of those
-      // columns are still NOT NULL after the canonical columns were added.
-      // Retry only when Supabase explicitly reports that legacy schema.
       if (err && table === 'resumes' && requiresLegacyResumeFields(err)) {
         const resumePayload = payload as Record<string, unknown>;
         const { data: retryData, error: retryErr } = await supabase

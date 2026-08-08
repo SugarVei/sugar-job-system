@@ -162,22 +162,34 @@ export interface InterviewReviewQuestion {
   star_situation: string | null; star_task: string | null; star_action: string | null; star_result: string | null;
   created_at: string; updated_at: string;
 }
-export type MatchLevel = '高匹配' | '中匹配' | '低匹配';
-export type RecommendAction = '建议投递' | '建议修改后投递' | '不建议优先投递';
-export interface JdMatch {
-  id: string; user_id: string; application_id: string | null; resume_id: string | null; company_name: string | null;
-  position_name: string | null; city: string | null; salary_range: string | null; jd_text: string;
-  job_url: string | null; channel: string | null; jd_duties: string[] | null; jd_requirements: string[] | null;
-  skill_keywords: string[] | null; industry_keywords: string[] | null; exp_required: string | null;
-  edu_required: string | null; hidden_requirements: string[] | null; match_score: number | null;
-  match_level: MatchLevel | null; recommend_action: RecommendAction | null; matched_keywords: string[] | null;
-  missing_keywords: string[] | null; strong_exp: string[] | null; weak_exp: string[] | null; risk_note: string | null;
-  suggestions: unknown; interview_prep: unknown; analysis_summary: string | null; analysis_method: string;
-  applied: boolean; created_at: string; updated_at: string;
-}
 export type NewOffer = NewRecord<Offer>;
 export type NewInterviewReview = NewRecord<InterviewReview>;
-export type NewJdMatch = NewRecord<JdMatch>;
+
+/** 网易邮箱账号配置（授权码仅本人可读，受 RLS 保护） */
+export interface MailboxAccount {
+  id: string;
+  user_id: string;
+  provider: 'netease163';
+  email: string;
+  /** 客户端授权码；仅通过 RLS 隔离，前端勿打印 */
+  auth_code: string;
+  display_name: string | null;
+  last_synced_at: string | null;
+  created_at: string;
+  updated_at: string;
+}
+export type NewMailboxAccount = Pick<MailboxAccount, 'provider' | 'email' | 'auth_code'> &
+  Partial<Pick<MailboxAccount, 'display_name' | 'last_synced_at'>>;
+
+export interface MailboxMessage {
+  uid: number;
+  subject: string;
+  from: string;
+  date: string | null;
+  snippet: string;
+  seen: boolean;
+  hasAttachment: boolean;
+}
 
 export type ScreenKey =
   | 'dashboard'
@@ -190,4 +202,4 @@ export type ScreenKey =
   | 'interviews'
   | 'offers'
   | 'interviewReviews'
-  | 'jdMatches';
+  | 'mailbox';
