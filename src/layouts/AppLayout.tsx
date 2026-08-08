@@ -3,7 +3,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { useTheme } from '../contexts/ThemeContext';
 import { useAppShell } from '../contexts/AppShellContext';
 import { useProfile } from '../hooks/useProfile';
-import { MOBILE_MORE_NAV, MOBILE_PRIMARY_NAV, NAV_GROUPS, NAV_ITEMS, greetFor } from '../components/navConfig';
+import { MOBILE_MORE_NAV, MOBILE_PRIMARY_NAV, NAV_ITEMS, greetFor } from '../components/navConfig';
 import ThemeSwitcher from '../components/ThemeSwitcher';
 import ApiKeySettings from '../components/ApiKeySettingsGuide';
 import {
@@ -187,74 +187,53 @@ export default function AppLayout({ children }: { children: ReactNode }) {
             </div>
           </div>
 
-          {/* 导航：固定行高 + 组间距一致，避免上松下挤 */}
+          {/* 导航：扁平列表，无分组小标题、无滚动条 */}
           <nav
-            className="sidebar-nav scrolly"
+            className="sidebar-nav"
             style={{
               display: 'flex',
               flexDirection: 'column',
-              gap: 10,
+              gap: 2,
               flex: 1,
               minHeight: 0,
-              overflowY: 'auto',
-              overflowX: 'hidden',
-              padding: '10px 0 6px',
-              overscrollBehavior: 'contain',
+              overflow: 'hidden',
+              padding: '8px 0 4px',
+              justifyContent: 'flex-start',
             }}
           >
-            {NAV_GROUPS.map((group) => {
-              const items = NAV_ITEMS.filter((item) => item.group === group.id);
+            {NAV_ITEMS.map(({ key, label, Icon }) => {
+              const active = screen === key;
               return (
-                <div key={group.id} style={{ display: 'flex', flexDirection: 'column', gap: 3, flex: 'none' }}>
-                  <div
-                    style={{
-                      fontSize: 10.5,
-                      fontWeight: 700,
-                      letterSpacing: '.06em',
-                      color: '#b0a898',
-                      padding: '0 12px 2px',
-                      textTransform: 'uppercase',
-                      flex: 'none',
-                    }}
-                  >
-                    {group.label}
-                  </div>
-                  {items.map(({ key, label, Icon }) => {
-                    const active = screen === key;
-                    return (
-                      <button
-                        key={key}
-                        onClick={() => go(key)}
-                        className={`nav-item ${active ? 'nav-item--active' : ''}`}
-                        style={{
-                          background: active ? '#1b1a17' : 'transparent',
-                          color: active ? '#f4f1ea' : '#6b665c',
-                          display: 'flex',
-                          alignItems: 'center',
-                          gap: 11,
-                          height: 38,
-                          minHeight: 38,
-                          maxHeight: 38,
-                          padding: '0 12px',
-                          border: 'none',
-                          borderRadius: 12,
-                          fontSize: 13.5,
-                          fontWeight: 600,
-                          cursor: 'pointer',
-                          textAlign: 'left',
-                          whiteSpace: 'nowrap',
-                          flex: 'none',
-                          width: '100%',
-                        }}
-                      >
-                        <span style={{ width: 20, height: 20, display: 'flex', alignItems: 'center', justifyContent: 'center', flex: 'none' }}>
-                          <Icon size={17} />
-                        </span>
-                        {label}
-                      </button>
-                    );
-                  })}
-                </div>
+                <button
+                  key={key}
+                  onClick={() => go(key)}
+                  className={`nav-item ${active ? 'nav-item--active' : ''}`}
+                  style={{
+                    background: active ? '#1b1a17' : 'transparent',
+                    color: active ? '#f4f1ea' : '#6b665c',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 10,
+                    height: 36,
+                    minHeight: 36,
+                    maxHeight: 36,
+                    padding: '0 12px',
+                    border: 'none',
+                    borderRadius: 11,
+                    fontSize: 13.5,
+                    fontWeight: 600,
+                    cursor: 'pointer',
+                    textAlign: 'left',
+                    whiteSpace: 'nowrap',
+                    flex: 'none',
+                    width: '100%',
+                  }}
+                >
+                  <span style={{ width: 18, height: 18, display: 'flex', alignItems: 'center', justifyContent: 'center', flex: 'none' }}>
+                    <Icon size={16} />
+                  </span>
+                  {label}
+                </button>
               );
             })}
           </nav>
