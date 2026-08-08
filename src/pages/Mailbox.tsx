@@ -11,6 +11,23 @@ import { IconMail, IconEye, IconEyeOff } from '../components/icons';
 
 const GUIDE_URL = 'https://help.mail.163.com/faqDetail.do?code=d7a5dc8471cd0c0e8b4b8f4f8e49998b374173cfe9171305fa1ce630d7f67ac2cda80145a1742516';
 
+
+async function readApiJson(res: Response) {
+  const text = await res.text();
+  try {
+    return JSON.parse(text) as Record<string, unknown>;
+  } catch {
+    const clipped = text.replace(/\s+/g, ' ').trim().slice(0, 160);
+    if (/FUNCTION_INVOCATION_FAILED|A server error has occurred/i.test(text)) {
+      throw new Error('邮件服务暂时不可用，请稍后重试。若持续失败，请检查 163 IMAP 是否已开启。');
+    }
+    if (clipped.startsWith('<!DOCTYPE') || clipped.startsWith('<html')) {
+      throw new Error('邮件接口未正确部署（返回了网页）。请等待最新部署完成后再试。');
+    }
+    throw new Error(clipped || `请求失败（HTTP ${res.status}）`);
+  }
+}
+
 export default function Mailbox() {
   const db = useCollection<MailboxAccount>('mailbox_accounts');
   const { registerAdd } = useAppShell();
@@ -107,13 +124,13 @@ export default function Mailbox() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email: e, authCode: code, limit: 30 }),
       });
-      const data = await res.json() as {
+      const data = await readApiJson(res) as {
         error?: string;
         messages?: MailboxMessage[];
         unseen?: number;
         total?: number;
       };
-      if (!res.ok || data.error) throw new Error(data.error || '拉取失败');
+      if (!res.ok || data.error) throw new Error((data.error as string) || '拉取失败');
       setMessages(data.messages ?? []);
       setUnseen(data.unseen ?? 0);
       setTotal(data.total ?? 0);
@@ -140,8 +157,8 @@ export default function Mailbox() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email: e, authCode: code, uid: msg.uid }),
       });
-      const data = await res.json() as { error?: string; message?: MailboxMessage };
-      if (!res.ok || data.error) throw new Error(data.error || '读取失败');
+      const data = await readApiJson(res) as { error?: string; message?: MailboxMessage };
+      if (!res.ok || data.error) throw new Error((data.error as string) || '读取失败');
       if (data.message) setSelected(data.message);
     } catch (err) {
       toast.error(err instanceof Error ? err.message : '读取正文失败');
