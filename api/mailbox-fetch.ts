@@ -1,7 +1,6 @@
 /**
- * 网易 163 IMAP 拉取（Node.js serverless，与 parse-resume 相同 handler 风格）
- * - 前端传入邮箱 + 客户端授权码（不写日志）
- * - 仅返回主题/发件人/时间/纯文本摘要
+ * 网易 163 IMAP 拉取（Node.js serverless）
+ * 163 要求：连接后先发 ID，再 LOGIN；否则常返回 Command failed / Unsafe Login。
  */
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
 // @ts-ignore — imapflow CJS interop on Vercel
@@ -80,6 +79,20 @@ function setCors(res: { setHeader: (k: string, v: string) => void }, req: { head
   }
 }
 
+function friendlyImapError(raw: string, authCode: string) {
+  const safe = raw.replaceAll(authCode, '***').replace(/password[^\s]*/gi, '***');
+  if (/AUTHENTICATIONFAILED|Invalid login|LOGIN failed|auth|Unsafe Login|LOGIN|Command failed/i.test(safe)) {
+    return '登录失败：请确认 ① 已开启 IMAP ② 使用「客户端授权码」而非登录密码 ③ 授权码完整无空格。';
+  }
+  if (/timeout|ETIMEDOUT|ECONN|ENOTFOUND|certificate|TLS|socket/i.test(safe)) {
+    return '无法连接网易 IMAP 服务器（网络或被云主机限制）。请稍后重试。';
+  }
+  if (/Too many|limit|频繁/i.test(safe)) {
+    return '请求过于频繁，请稍等几分钟再同步。';
+  }
+  return safe || '邮件同步失败，请稍后重试。';
+}
+
 export default async function handler(req: any, res: any) {
   setCors(res, req);
 
@@ -117,26 +130,33 @@ export default async function handler(req: any, res: any) {
     return;
   }
 
+  // 不在 connect 时带 auth：163 需要先 ID 再 LOGIN
   const client = new ImapFlow({
     host: 'imap.163.com',
     port: 993,
     secure: true,
-    auth: { user: email, pass: authCode },
     logger: false,
     emitLogs: false,
+    greetingTimeout: 20000,
+    socketTimeout: 25000,
   });
 
   try {
     await client.connect();
 
+    // 网易强制要求客户端标识
     try {
-      const anyClient = client as unknown as { id?: (info: Record<string, string>) => Promise<unknown> };
-      if (typeof anyClient.id === 'function') {
-        await anyClient.id({ name: 'SugarJobSystem', version: '1.0.0' });
-      }
+      await client.id({
+        name: 'SugarJobSystem',
+        version: '1.0.0',
+        vendor: 'Sugar',
+        'support-email': 'support@sugar.local',
+      });
     } catch {
-      /* 网易 ID 命令可选 */
+      /* 部分节点可忽略 */
     }
+
+    await client.login(email, authCode);
 
     const lock = await client.getMailboxLock('INBOX');
     try {
@@ -230,22 +250,19 @@ export default async function handler(req: any, res: any) {
     }
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
-    // 脱敏：绝不回显授权码
-    const safe = message.replace(authCode, '***').replace(/password[^\s]*/gi, '***');
-    let hint = safe;
-    if (/AUTHENTICATIONFAILED|Invalid login|LOGIN failed|auth/i.test(safe)) {
-      hint = '登录失败：请确认已开启 IMAP，并使用「客户端授权码」而非登录密码。';
-    } else if (/timeout|ECONN|ENOTFOUND|certificate/i.test(safe)) {
-      hint = '无法连接网易 IMAP，请稍后重试。';
-    } else if (/FUNCTION_INVOCATION|socket|TLS/i.test(safe)) {
-      hint = '邮件服务暂时不可用，请稍后重试。';
-    }
-    res.status(502).json({ error: hint });
+    res.status(502).json({ error: friendlyImapError(message, authCode) });
   } finally {
     try {
+      if (!client.usable) {
+        /* already closed */
+      }
       await client.logout();
     } catch {
-      /* ignore */
+      try {
+        client.close();
+      } catch {
+        /* ignore */
+      }
     }
   }
 }
