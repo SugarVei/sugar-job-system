@@ -112,20 +112,20 @@ export default function AppLayout({ children }: { children: ReactNode }) {
             maxHeight: '100%',
             flex: 'none',
             flexDirection: 'column',
-            padding: '18px 18px 0',
+            padding: '14px 14px 0',
             borderRight: '1px solid rgba(120,105,80,.1)',
             overflow: 'hidden',
             minHeight: 0,
           }}
         >
           {/* 品牌 */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: 11, minHeight: 62, padding: '6px 8px', flex: 'none' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '2px 8px 6px', flex: 'none' }}>
             <div style={brandMark}>
-              <SugarMark size={26} />
+              <SugarMark size={24} />
             </div>
             <div>
-              <div style={{ fontFamily: 'Poppins', fontWeight: 600, fontSize: 18, lineHeight: 1.1 }}>Sugar</div>
-              <div style={{ fontSize: 11.5, color: '#9a9488', marginTop: 2 }}>行动优先 · 求职系统</div>
+              <div style={{ fontFamily: 'Poppins', fontWeight: 600, fontSize: 17, lineHeight: 1.1 }}>Sugar</div>
+              <div style={{ fontSize: 11, color: '#9a9488', marginTop: 2 }}>行动优先 · 求职系统</div>
             </div>
           </div>
 
@@ -134,23 +134,22 @@ export default function AppLayout({ children }: { children: ReactNode }) {
             style={{
               display: 'flex',
               alignItems: 'center',
-              gap: 12,
-              minHeight: 88,
-              padding: '10px 8px 14px',
+              gap: 10,
+              padding: '6px 6px 10px',
               borderBottom: '1px solid rgba(120,105,80,.12)',
               flex: 'none',
             }}
           >
-            <label title="点击更换头像" style={{ position: 'relative', cursor: 'pointer', width: 56, height: 56, flex: 'none' }}>
+            <label title="点击更换头像" style={{ position: 'relative', cursor: 'pointer', width: 48, height: 48, flex: 'none' }}>
               <input ref={fileRef} type="file" accept="image/*" onChange={onAvatarChange} style={{ display: 'none' }} />
-              {avatarBox(56)}
+              {avatarBox(48)}
               <span
                 style={{
                   position: 'absolute',
                   right: -2,
                   bottom: -2,
-                  width: 22,
-                  height: 22,
+                  width: 20,
+                  height: 20,
                   borderRadius: '50%',
                   background: '#f4c84a',
                   border: '2px solid #f3efe7',
@@ -159,11 +158,11 @@ export default function AppLayout({ children }: { children: ReactNode }) {
                   justifyContent: 'center',
                 }}
               >
-                <IconCamera size={11} color="#1b1a17" />
+                <IconCamera size={10} color="#1b1a17" />
               </span>
             </label>
             <div style={{ minWidth: 0, flex: 1 }}>
-              <div style={{ fontSize: 11.5, color: '#9a9488', margin: '0 0 4px 7px' }}>个人账号</div>
+              <div style={{ fontSize: 11, color: '#9a9488', margin: '0 0 2px 6px' }}>个人账号</div>
               <input
                 className="nameedit"
                 value={name}
@@ -176,11 +175,11 @@ export default function AppLayout({ children }: { children: ReactNode }) {
                   border: '1px solid transparent',
                   background: 'rgba(255,253,248,.42)',
                   outline: 'none',
-                  fontSize: 16,
+                  fontSize: 15,
                   fontWeight: 600,
                   color: '#1b1a17',
                   borderRadius: 10,
-                  padding: '7px 8px',
+                  padding: '5px 7px',
                   cursor: 'text',
                   transition: 'background .15s, border-color .15s, box-shadow .15s',
                 }}
@@ -188,30 +187,32 @@ export default function AppLayout({ children }: { children: ReactNode }) {
             </div>
           </div>
 
-          {/* 导航：分组展示，在侧栏固定高度内均分空间 */}
+          {/* 导航：固定行高 + 组间距一致，避免上松下挤 */}
           <nav
-            className="sidebar-nav"
+            className="sidebar-nav scrolly"
             style={{
               display: 'flex',
               flexDirection: 'column',
-              gap: 6,
+              gap: 10,
               flex: 1,
               minHeight: 0,
-              overflow: 'hidden',
-              padding: '8px 0',
+              overflowY: 'auto',
+              overflowX: 'hidden',
+              padding: '10px 0 6px',
+              overscrollBehavior: 'contain',
             }}
           >
             {NAV_GROUPS.map((group) => {
               const items = NAV_ITEMS.filter((item) => item.group === group.id);
               return (
-                <div key={group.id} style={{ display: 'flex', flexDirection: 'column', gap: 2, flex: '1 1 0', minHeight: 0 }}>
+                <div key={group.id} style={{ display: 'flex', flexDirection: 'column', gap: 3, flex: 'none' }}>
                   <div
                     style={{
                       fontSize: 10.5,
                       fontWeight: 700,
                       letterSpacing: '.06em',
                       color: '#b0a898',
-                      padding: '4px 12px 2px',
+                      padding: '0 12px 2px',
                       textTransform: 'uppercase',
                       flex: 'none',
                     }}
@@ -230,22 +231,24 @@ export default function AppLayout({ children }: { children: ReactNode }) {
                           color: active ? '#f4f1ea' : '#6b665c',
                           display: 'flex',
                           alignItems: 'center',
-                          gap: 12,
-                          minHeight: 0,
-                          maxHeight: 40,
-                          padding: '0 14px',
+                          gap: 11,
+                          height: 38,
+                          minHeight: 38,
+                          maxHeight: 38,
+                          padding: '0 12px',
                           border: 'none',
-                          borderRadius: 13,
+                          borderRadius: 12,
                           fontSize: 13.5,
                           fontWeight: 600,
                           cursor: 'pointer',
                           textAlign: 'left',
                           whiteSpace: 'nowrap',
-                          flex: '1 1 0',
+                          flex: 'none',
+                          width: '100%',
                         }}
                       >
                         <span style={{ width: 20, height: 20, display: 'flex', alignItems: 'center', justifyContent: 'center', flex: 'none' }}>
-                          <Icon size={18} />
+                          <Icon size={17} />
                         </span>
                         {label}
                       </button>
