@@ -714,7 +714,7 @@ export default function Applications() {
             <TextInput
               value={form.next_action ?? ''}
               onChange={(event) => setForm({ ...form, next_action: event.target.value })}
-              placeholder="如：补投简历 / 3 天后跟进 HR / 准备笔试"
+              placeholder="如：补投简历 / 3 天后跟进 HR / 准备在线测评"
             />
           </Field>
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-x-3">

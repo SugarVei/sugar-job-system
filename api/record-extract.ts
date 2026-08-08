@@ -23,7 +23,7 @@ class UpstreamRequestError extends Error {
   }
 }
 
-const APPLICATION_STATUSES = ['待投递','已投递','简历筛选','AI面','笔试','一面','二面','HR面','Offer','已拒绝','已放弃','人才库','待跟进'] as const;
+const APPLICATION_STATUSES = ['待投递','已投递','在线测评','AI面','HR面','一面','二面','Offer','已拒绝','已放弃','人才库','待跟进'] as const;
 const APPLICATION_PRIORITIES = ['low','normal','high','urgent'] as const;
 const OFFER_STATUSES = ['待考虑','谈薪中','已接受','已拒绝','已过期'] as const;
 

@@ -3,12 +3,11 @@ import type { ApplicationStatus } from '../types';
 export const APPLICATION_STATUSES = [
   '待投递',
   '已投递',
-  '简历筛选',
+  '在线测评',
   'AI面',
-  '笔试',
+  'HR面',
   '一面',
   '二面',
-  'HR面',
   'Offer',
   '已拒绝',
   '已放弃',
@@ -19,15 +18,15 @@ export const APPLICATION_STATUSES = [
 export const APPLICATION_STATUS_LABELS: Record<ApplicationStatus, string> =
   Object.fromEntries(APPLICATION_STATUSES.map((status) => [status, status])) as Record<ApplicationStatus, string>;
 
+/** 主流程步骤（看板进度条） */
 export const APPLICATION_STATUS_FLOW = [
   '待投递',
   '已投递',
-  '简历筛选',
+  '在线测评',
   'AI面',
-  '笔试',
+  'HR面',
   '一面',
   '二面',
-  'HR面',
   'Offer',
 ] as const satisfies readonly ApplicationStatus[];
 
@@ -50,12 +49,11 @@ export function getStatusGroup(status: ApplicationStatus): ApplicationStatusGrou
 export const APPLICATION_STATUS_COLORS: Record<ApplicationStatus, { bg: string; fg: string; chart: string }> = {
   待投递: { bg: '#ece4d6', fg: '#5d584d', chart: '#cfc6b4' },
   已投递: { bg: '#fbeec2', fg: '#7a5a12', chart: '#cfc6b4' },
-  简历筛选: { bg: '#f5f0e7', fg: '#7a5a12', chart: '#e4d7a8' },
-  笔试: { bg: '#fbeec2', fg: '#7a5a12', chart: '#f4c84a' },
-  一面: { bg: '#dde8fb', fg: '#345b9a', chart: '#7cc4a0' },
-  二面: { bg: '#dde8fb', fg: '#345b9a', chart: '#6bb7b1' },
+  在线测评: { bg: '#f5f0e7', fg: '#7a5a12', chart: '#e4d7a8' },
   AI面: { bg: '#e4e0f7', fg: '#4a3f96', chart: '#8b7ed8' },
   HR面: { bg: '#dde8fb', fg: '#345b9a', chart: '#7aa7d8' },
+  一面: { bg: '#dde8fb', fg: '#345b9a', chart: '#7cc4a0' },
+  二面: { bg: '#dde8fb', fg: '#345b9a', chart: '#6bb7b1' },
   Offer: { bg: '#dcebd5', fg: '#2f5d36', chart: '#5fa86b' },
   已拒绝: { bg: '#fbe0d8', fg: '#a23d24', chart: '#f0613f' },
   已放弃: { bg: '#fbe0d8', fg: '#a23d24', chart: '#c56c5a' },
@@ -65,4 +63,14 @@ export const APPLICATION_STATUS_COLORS: Record<ApplicationStatus, { bg: string; 
 
 export function getApplicationStatusColor(status: ApplicationStatus) {
   return APPLICATION_STATUS_COLORS[status];
+}
+
+/** 旧状态 → 新状态（兼容历史数据） */
+export function normalizeApplicationStatus(status: string): ApplicationStatus {
+  if (status === '简历筛选') return '在线测评';
+  if (status === '笔试') return 'HR面';
+  if ((APPLICATION_STATUSES as readonly string[]).includes(status)) {
+    return status as ApplicationStatus;
+  }
+  return '待投递';
 }

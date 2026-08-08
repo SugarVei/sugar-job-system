@@ -24,8 +24,7 @@ const C = {
   status: {
     '待投递': { bg: 'CFC6B4', fg: '5D584D' },
     '已投递': { bg: 'CFC6B4', fg: '5D584D' },
-    '简历筛选': { bg: 'E4D7A8', fg: '7A5A12' },
-    '笔试':   { bg: 'F4C84A', fg: '7A5A12' },
+    '在线测评': { bg: 'E4D7A8', fg: '7A5A12' },
     '一面':   { bg: '7CC4A0', fg: '1B4D35' },
     '二面':   { bg: '6BB7B1', fg: '1B4D35' },
     'AI面':   { bg: '8B7ED8', fg: 'FFFFFF' },
