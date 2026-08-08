@@ -1,5 +1,7 @@
 # Sugar 求职系统 🍬
 
+
+> 部署提示：修改 Vercel 的 `VITE_*` 环境变量后需重新部署；推送 `main` 或在 Deployments 中 Redeploy 即可（Hobby 计划足够，无需 Pro）。
 一个把求职过程「记录化、可视化、行动化」的网页应用，由原单文件设计稿重构为标准前端工程。
 
 - **技术栈**：React 18 + Vite 5 + TypeScript + Tailwind CSS + Vercel Serverless/Edge Functions
