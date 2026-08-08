@@ -8,6 +8,7 @@ import { useToast } from '../components/Toast';
 import type { Application, Company, NewRecord } from '../types';
 import { CARD, avatarColor, initialOf } from '../lib/appHelpers';
 import { applicationCompanyMatchesHotCompany, normalizeCompanyName } from '../lib/companyName';
+import { seedStatusForCompany } from '../data/campusRecruitmentSeed';
 import { IconExternalLink, IconSearch, IconTrash } from '../components/icons';
 
 const ALL = '全部';
@@ -427,7 +428,10 @@ export default function HotCompanies() {
                   deleting={deletingName === company.name}
                   applied={appliedApplicationCompanyNames.some((applicationCompanyName) =>
                     applicationCompanyMatchesHotCompany(applicationCompanyName, company.name))}
-                  recruitmentStatus={recruitmentStatusByCompany.get(normalizeCompanyName(company.name))}
+                  recruitmentStatus={resolveRecruitmentStatus(
+                    company,
+                    recruitmentStatusByCompany.get(normalizeCompanyName(company.name)),
+                  )}
                   statusesLoading={statusesLoading}
                   onViewApplications={viewApplications}
                   onDelete={group.name === AI_GROUP_NAME ? () => void deleteImported(company) : undefined}
@@ -439,6 +443,16 @@ export default function HotCompanies() {
       )}
     </div>
   );
+}
+
+
+function resolveRecruitmentStatus(company: HotCompany, dbStatus?: CampusRecruitmentStatus) {
+  // DB 明确已开始：以库为准
+  if (dbStatus?.status === 'started') return dbStatus;
+  // DB 已检查且未开始：以库为准
+  if (dbStatus?.status === 'not_started' && dbStatus.last_checked_at) return dbStatus;
+  // 其余（无记录 / pending / error）回落静态底库，保证卡片立刻有「已开始/未开始」
+  return seedStatusForCompany(company.name, company.url);
 }
 
 function CompanyCard({
@@ -644,7 +658,7 @@ function recruitmentStatusPresentation(status: CampusRecruitmentStatus | undefin
       };
     }
     return {
-      label: '27校招暂未开始',
+      label: '27校招未开始',
       title: status.last_checked_at
         ? `官网暂未发现明确的 2027 校招信息。最近检查：${new Date(status.last_checked_at).toLocaleString('zh-CN')}`
         : '官网暂未发现明确的 2027 校招信息。',
