@@ -15,72 +15,30 @@ import HotCompanies from './pages/HotCompanies';
 import Resumes from './pages/Resumes';
 import Interviews from './pages/Interviews';
 import Offers from './pages/Offers';
-import InterviewReviews from './pages/InterviewReviews';
 import Mailbox from './pages/Mailbox';
+import ResumeAssistant from './pages/ResumeAssistant';
 
 function CurrentPage() {
   const { screen } = useAppShell();
   switch (screen) {
-    case 'dashboard':
-      return <Dashboard />;
-    case 'overview':
-      return <Overview />;
-    case 'applications':
-      return <Applications />;
-    case 'companies':
-      return <Companies />;
-    case 'referralCodes':
-      return <ReferralCodes />;
-    case 'hotCompanies':
-      return <HotCompanies />;
-    case 'resumes':
-      return <Resumes />;
-    case 'interviews':
-      return <Interviews />;
-    case 'offers':
-      return <Offers />;
-    case 'interviewReviews':
-      return <InterviewReviews />;
-    case 'mailbox':
-      return <Mailbox />;
-    default:
-      return <Dashboard />;
+    case 'dashboard': return <Dashboard />;
+    case 'overview': return <Overview />;
+    case 'applications': return <Applications />;
+    case 'companies': return <Companies />;
+    case 'referralCodes': return <ReferralCodes />;
+    case 'hotCompanies': return <HotCompanies />;
+    case 'resumes': return <Resumes />;
+    case 'interviews': return <Interviews />;
+    case 'offers': return <Offers />;
+    case 'resumeAssistant': return <ResumeAssistant />;
+    case 'mailbox': return <Mailbox />;
+    default: return <Dashboard />;
   }
 }
-
 function Gate() {
   const { session, loading } = useAuth();
-
-  if (loading) {
-    return (
-      <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#7a7468', fontSize: 15 }}>
-        加载中…
-      </div>
-    );
-  }
-
+  if (loading) return <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#7a7468', fontSize: 15 }}>加载中…</div>;
   if (!session) return <Login />;
-
-  return (
-    <AppShellProvider>
-      <ApiKeysProvider>
-        <AppLayout>
-          <CurrentPage />
-        </AppLayout>
-      </ApiKeysProvider>
-    </AppShellProvider>
-  );
+  return <AppShellProvider><ApiKeysProvider><AppLayout><CurrentPage /></AppLayout></ApiKeysProvider></AppShellProvider>;
 }
-
-export default function App() {
-  return (
-    <ThemeProvider>
-      <ToastProvider>
-        <LiquidBackground />
-        <AuthProvider>
-          <Gate />
-        </AuthProvider>
-      </ToastProvider>
-    </ThemeProvider>
-  );
-}
+export default function App() { return <ThemeProvider><ToastProvider><LiquidBackground /><AuthProvider><Gate /></AuthProvider></ToastProvider></ThemeProvider>; }

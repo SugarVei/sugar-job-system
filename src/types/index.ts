@@ -207,4 +207,5 @@ export type ScreenKey =
   | 'interviews'
   | 'offers'
   | 'interviewReviews'
-  | 'mailbox';
+  | 'mailbox'
+  | 'resumeAssistant';

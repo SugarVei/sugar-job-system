@@ -20,6 +20,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     // 未配置 Supabase 时不发起网络请求，直接进入未登录态
     if (!isSupabaseConfigured) {
+      setSession({
+        access_token: 'demo-session', token_type: 'bearer', expires_in: 3600,
+        expires_at: Math.floor(Date.now() / 1000) + 3600, refresh_token: '',
+        user: { id: '00000000-0000-4000-8000-000000000001', aud: 'authenticated', role: 'authenticated', email: 'demo@sugar.local', created_at: new Date().toISOString(), app_metadata: {}, user_metadata: { name: '演示用户' } },
+      } as Session);
       setLoading(false);
       return;
     }
@@ -58,6 +63,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const signOut = async () => {
+    if (!isSupabaseConfigured) return;
     await supabase.auth.signOut();
   };
 

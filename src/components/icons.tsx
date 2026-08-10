@@ -211,42 +211,11 @@ export const IconKey = ({ size = 16, ...p }: IconProps) => (
   </svg>
 );
 
-/** Offer / 礼盒 */
-export const IconOffer = ({ size = 20, ...p }: IconProps) => (
-  <svg {...base(size, p)}>
-    <path d="M20 12v8a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2v-8" />
-    <path d="M4 8h16v4H4z" />
-    <path d="M12 22V8" />
-    <path d="M12 8H8.5a2.5 2.5 0 1 1 0-5C11 3 12 8 12 8z" />
-    <path d="M12 8h3.5a2.5 2.5 0 1 0 0-5C13 3 12 8 12 8z" />
-  </svg>
-);
-
-/** 面试复盘 / 笔记 */
-export const IconReview = ({ size = 20, ...p }: IconProps) => (
-  <svg {...base(size, p)}>
-    <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20" />
-    <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z" />
-    <path d="M8 7h8M8 11h6M8 15h4" />
-  </svg>
-);
-
-/** 邮件 */
-export const IconMail = ({ size = 20, ...p }: IconProps) => (
-  <svg {...base(size, p)}>
-    <rect x="3" y="5" width="18" height="14" rx="2" />
-    <path d="m3 7 9 6 9-6" />
-  </svg>
-);
-
-/** 更多 / 溢出菜单 */
-export const IconMore = ({ size = 20, ...p }: IconProps) => (
-  <svg {...base(size, p)}>
-    <circle cx="5" cy="12" r="1.5" fill="currentColor" stroke="none" />
-    <circle cx="12" cy="12" r="1.5" fill="currentColor" stroke="none" />
-    <circle cx="19" cy="12" r="1.5" fill="currentColor" stroke="none" />
-  </svg>
-);
+export const IconOffer = ({ size = 20, ...p }: IconProps) => (<svg {...base(size, p)}><path d="M20 12v8a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2v-8" /><path d="M4 8h16v4H4z" /><path d="M12 22V8" /><path d="M12 8H8.5a2.5 2.5 0 1 1 0-5C11 3 12 8 12 8z" /><path d="M12 8h3.5a2.5 2.5 0 1 0 0-5C13 3 12 8 12 8z" /></svg>);
+export const IconReview = ({ size = 20, ...p }: IconProps) => (<svg {...base(size, p)}><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20" /><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z" /><path d="M8 7h8M8 11h6M8 15h4" /></svg>);
+export const IconMail = ({ size = 20, ...p }: IconProps) => (<svg {...base(size, p)}><rect x="3" y="5" width="18" height="14" rx="2" /><path d="m3 7 9 6 9-6" /></svg>);
+export const IconMore = ({ size = 20, ...p }: IconProps) => (<svg {...base(size, p)}><circle cx="5" cy="12" r="1.5" fill="currentColor" stroke="none" /><circle cx="12" cy="12" r="1.5" fill="currentColor" stroke="none" /><circle cx="19" cy="12" r="1.5" fill="currentColor" stroke="none" /></svg>);
+export const IconPlugin = ({ size = 20, ...p }: IconProps) => (<svg {...base(size, p)}><path d="M12 2v7m0 0a3 3 0 1 0-3-3m3 3a3 3 0 1 1 3-3M5 12H2v4a3 3 0 0 0 3 3h2v3h4v-7H8a3 3 0 1 1 0-6h3v3Z" /><path d="M15 12h7v7h-7z" /></svg>);
 
 /** Sugar 品牌 Logo（透明背景，与 favicon 保持一致） */
 export const SugarMark = ({ size = 26 }: { size?: number; color?: string }) => (

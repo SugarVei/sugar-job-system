@@ -24,7 +24,7 @@ import type { ScreenKey } from '../types';
 export default function AppLayout({ children }: { children: ReactNode }) {
   const { signOut } = useAuth();
   const { theme } = useTheme();
-  const { screen, setScreen, query, setQuery, triggerAdd } = useAppShell();
+  const { screen, setScreen, query, setQuery, triggerAdd, headerChrome } = useAppShell();
   const { name, avatar, updateName, updateAvatar } = useProfile();
   const fileRef = useRef<HTMLInputElement>(null);
   const [mobileMoreOpen, setMobileMoreOpen] = useState(false);
@@ -306,7 +306,7 @@ export default function AppLayout({ children }: { children: ReactNode }) {
               <div className="hidden lg:block">
                 <ThemeSwitcher />
               </div>
-              <div
+              {headerChrome?.searchPlaceholder !== null && <div
                 className="flex-1 sm:flex-none"
                 style={{
                   display: 'flex',
@@ -325,16 +325,16 @@ export default function AppLayout({ children }: { children: ReactNode }) {
                 <input
                   value={query}
                   onChange={(e) => setQuery(e.target.value)}
-                  placeholder={screen === 'referralCodes' ? '搜索公司、推荐人、内推码…' : '搜索公司、岗位…'}
-                  aria-label={screen === 'referralCodes' ? '搜索公司、推荐人、内推码' : '搜索公司、岗位'}
+                  placeholder={headerChrome?.searchPlaceholder ?? (screen === 'referralCodes' ? '搜索公司、推荐人、内推码…' : '搜索公司、岗位…')}
+                  aria-label={headerChrome?.searchPlaceholder ?? '搜索'}
                   className="sm:w-[180px]"
                   style={{ border: 'none', background: 'none', outline: 'none', fontSize: 14, width: '100%', color: '#1b1a17' }}
                 />
-              </div>
-              <button onClick={triggerAdd} className="btn-press" style={addBtn}>
+              </div>}
+              {(headerChrome?.primaryAction || headerChrome?.showAdd !== false) && <button onClick={headerChrome?.primaryAction?.onClick ?? triggerAdd} disabled={headerChrome?.primaryAction?.loading} className="btn-press" style={addBtn}>
                 <IconPlus size={17} />
-                <span className="hidden sm:inline">新增</span>
-              </button>
+                <span className="hidden sm:inline">{headerChrome?.primaryAction?.label ?? '新增'}</span>
+              </button>}
             </div>
           </div>
 

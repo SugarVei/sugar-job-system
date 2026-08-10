@@ -1,0 +1,4 @@
+import { useState } from 'react';
+import { creamCard, muted } from './styles';
+const rows = [['标准资料编辑', '网站', '资料按 section 保存'], ['设备配对', '网站 + 插件', '6 位码，随时撤销'], ['文本、日期、下拉填写', '插件', '受限控件适配'], ['AI 字段映射', '可选', '只接收字段目录'], ['自动提交 / 上传 / 验证码', '禁止', '不会自动投递']];
+export function CapabilityMatrix() { const [open, setOpen] = useState(false); return <section style={creamCard}><button onClick={() => setOpen(value => !value)} style={{ border: 0, background: 'transparent', padding: 0, fontWeight: 750, cursor: 'pointer' }}>能力边界 {open ? '收起' : '展开'}</button>{open && <div style={{ display: 'grid', gap: 8, marginTop: 12 }}>{rows.map(row => <div key={row[0]} style={{ display: 'grid', gridTemplateColumns: '1.2fr .8fr 1.4fr', gap: 8, ...muted }}><strong style={{ color: '#4d473d' }}>{row[0]}</strong><span>{row[1]}</span><span>{row[2]}</span></div>)}</div>}</section>; }

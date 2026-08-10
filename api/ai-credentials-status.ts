@@ -1,0 +1,4 @@
+import { getServiceSupabase, requireUserFromJwt } from './_lib/auth';
+import { handleOptions, json } from './_lib/cors';
+export const config = { runtime: 'edge' };
+export default async function handler(request: Request) { if (request.method === 'OPTIONS') return handleOptions(request); if (request.method !== 'GET') return json(request, { error: 'Method not allowed' }, 405); try { const user = await requireUserFromJwt(request); const { data, error } = await getServiceSupabase().from('ai_credentials').select('provider,last4,model').eq('user_id', user.id).order('updated_at', { ascending: false }).limit(1).maybeSingle(); if (error) throw error; return json(request, { credential: data ? { ...data, status: 'configured' } : null }); } catch (error) { return json(request, { error: error instanceof Error && error.message === 'Unauthorized' ? 'Unauthorized' : 'Credential service unavailable' }, error instanceof Error && error.message === 'Unauthorized' ? 401 : 503); } }

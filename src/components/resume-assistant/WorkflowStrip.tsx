@@ -1,0 +1,2 @@
+import { creamCard, muted } from './styles';
+export function WorkflowStrip() { return <section style={creamCard}><strong>使用流程</strong><div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', marginTop: 13 }}>{['网站管理资料', '生成配对码', '插件同步资料', '在招聘页填写'].map((item, index) => <span key={item} style={{ ...muted, background: '#f5efe5', borderRadius: 999, padding: '7px 10px' }}>{index + 1}. {item}</span>)}</div></section>; }
