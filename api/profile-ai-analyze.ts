@@ -1,3 +1,6 @@
+import { decryptSecret } from './_lib/crypto';
+import { AI_PROVIDERS } from './_lib/ai-providers';
+
 type NativeRequest = { method?: string; headers: Record<string, string | string[] | undefined>; body?: unknown };
 type NativeResponse = { status(code: number): NativeResponse; json(body: unknown): void; setHeader(name: string, value: string): void; end(): void };
 
@@ -90,6 +93,7 @@ export default async function handler(request: NativeRequest, response: NativeRe
   setCors(request, response);
   if (request.method === 'OPTIONS') return response.status(204).end();
   if (request.method !== 'POST') return response.status(405).json({ error: 'Method not allowed' });
+  let stage = 'auth';
   try {
     const userId = await requireUserId(request);
     if (!rateLimit(`profile-ai:${userId}:${clientIp(request)}`)) return response.status(429).json({ error: 'AI 请求过于频繁，请稍后再试。' });
@@ -101,17 +105,25 @@ export default async function handler(request: NativeRequest, response: NativeRe
 
     const supabaseUrl = process.env.SUPABASE_URL;
     const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
-    if (!supabaseUrl || !serviceKey) throw new Error('Supabase service is not configured');
+    if (!supabaseUrl || !serviceKey) return response.status(503).json({ error: 'AI 配置服务未完成，请检查 Vercel 的 Supabase 服务端变量。' });
+    stage = 'credential_lookup';
     const query = new URLSearchParams({ select: 'provider,encrypted_secret,model', user_id: `eq.${userId}`, order: 'updated_at.desc', limit: '1' });
     const credentialResponse = await fetch(`${supabaseUrl}/rest/v1/ai_credentials?${query}`, { headers: { apikey: serviceKey, authorization: `Bearer ${serviceKey}` } });
-    if (!credentialResponse.ok) throw new Error('Credential lookup failed');
+    if (!credentialResponse.ok) return response.status(503).json({ error: '无法读取 AI 配置，请检查 Supabase 服务端连接。' });
     const [data] = await credentialResponse.json() as Array<{ provider: string; encrypted_secret: string; model?: string | null }>;
-    const [{ decryptSecret }, { AI_PROVIDERS }] = await Promise.all([import('./_lib/crypto'), import('./_lib/ai-providers')]);
     if (!data || !AI_PROVIDERS[data.provider]) return response.status(404).json({ error: '请先在“插件与 AI”页面配置并测试 AI Key。' });
     const provider = AI_PROVIDERS[data.provider];
+    stage = 'decrypt';
+    let apiKey: string;
+    try {
+      apiKey = await decryptSecret(data.encrypted_secret);
+    } catch {
+      return response.status(422).json({ error: 'AI Key 无法解密，请在“插件与 AI”页面重新保存并测试 Key。' });
+    }
+    stage = 'provider';
     const upstream = await fetch(`${provider.baseUrl}/chat/completions`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${await decryptSecret(data.encrypted_secret)}` },
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${apiKey}` },
       body: JSON.stringify({
         model: data.model || provider.model,
         messages: [{ role: 'system', content: SYSTEM_PROMPT }, { role: 'user', content: `<resume_text>\n${resumeText}\n</resume_text>` }],
@@ -124,10 +136,17 @@ export default async function handler(request: NativeRequest, response: NativeRe
     const payload = await upstream.json() as { choices?: Array<{ message?: { content?: string } }> };
     const content = payload.choices?.[0]?.message?.content;
     if (!content) return response.status(422).json({ error: 'AI 没有返回可用结果。' });
+    stage = 'response_parse';
     const parsed = extractJson(content);
     return response.status(200).json({ profile: normalizeProfile(parsed.profile ?? parsed) });
   } catch (error) {
     const unauthorized = error instanceof Error && /Unauthorized/.test(error.message);
-    return response.status(unauthorized ? 401 : 503).json({ error: unauthorized ? 'Unauthorized' : 'AI 简历分析暂时不可用。' });
+    if (!unauthorized) console.error(`profile-ai-analyze failed at ${stage}`, error);
+    const message = stage === 'provider'
+      ? '无法连接 AI 服务，请稍后重试。'
+      : stage === 'response_parse'
+        ? 'AI 返回的内容无法解析，请重新分析。'
+        : 'AI 简历分析暂时不可用。';
+    return response.status(unauthorized ? 401 : 503).json({ error: unauthorized ? 'Unauthorized' : message });
   }
 }
