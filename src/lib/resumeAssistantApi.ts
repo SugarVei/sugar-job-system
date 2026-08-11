@@ -3,9 +3,13 @@ import { isSupabaseConfigured, supabase } from './supabase';
 
 async function authHeader(forceRefresh = false) {
   if (!isSupabaseConfigured) return {};
-  const { data } = forceRefresh
+  const { data, error } = forceRefresh
     ? await supabase.auth.refreshSession()
     : await supabase.auth.getSession();
+  if (forceRefresh && (error || !data.session)) {
+    await supabase.auth.signOut({ scope: 'local' });
+    return {};
+  }
   return data.session?.access_token ? { Authorization: `Bearer ${data.session.access_token}` } : {};
 }
 
