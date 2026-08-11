@@ -32,15 +32,18 @@ export default function ResumeAssistant() {
   const [model, setModel] = useState('');
   const [apiKey, setApiKey] = useState('');
   const [credentialMessage, setCredentialMessage] = useState('');
+  const requestPair = devices.requestPair;
+  const saveProfile = profile.save;
 
   const loadCredential = useCallback(() => { resumeAssistantApi.getAiCredentialStatus().then(result => setCredential(result.credential)).catch(() => setCredential(null)); }, []);
   useEffect(() => { loadCredential(); }, [loadCredential]);
 
+  const hasDevices = devices.devices.length > 0;
   const onPrimary = useCallback(() => {
-    if (devices.devices.length) { void profile.save(); }
-    else { void devices.requestPair(); }
-  }, [devices, profile]);
-  const primaryLabel = devices.devices.length ? (profile.saving ? '正在同步…' : '同步到插件') : '连接插件';
+    if (hasDevices) { void saveProfile(); }
+    else { void requestPair(); }
+  }, [hasDevices, requestPair, saveProfile]);
+  const primaryLabel = hasDevices ? (profile.saving ? '正在同步…' : '同步到插件') : '连接插件';
   useEffect(() => {
     setHeaderChrome({ searchPlaceholder: null, showAdd: false, primaryAction: { label: primaryLabel, onClick: onPrimary, loading: profile.saving } });
     return () => setHeaderChrome(null);

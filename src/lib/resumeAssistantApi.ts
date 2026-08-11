@@ -22,7 +22,14 @@ async function apiFetch<T>(path: string, init: RequestInit = {}): Promise<T> {
   };
   let response = await send();
   if (response.status === 401 && isSupabaseConfigured) response = await send(true);
-  if (!response.ok) throw new Error((await response.json().catch(() => ({ error: response.statusText }))).error || '请求失败');
+  if (!response.ok) {
+    const payload = await response.json().catch(() => null) as { error?: string } | null;
+    const fallback = response.status === 413 ? '上传内容过大。'
+      : response.status === 504 ? 'AI 分析超时，请稍后重试。'
+        : response.status >= 500 ? `服务暂时不可用（${response.status}）。`
+          : `请求失败（${response.status}）。`;
+    throw new Error(payload?.error || fallback);
+  }
   return response.json() as Promise<T>;
 }
 

@@ -4,8 +4,6 @@ import { AI_PROVIDERS } from './_lib/ai-providers';
 import { handleOptions, json } from './_lib/cors';
 import { clientIp, rateLimit } from './_lib/rate-limit';
 
-export const config = { runtime: 'edge' };
-
 const REPEATABLE = new Set(['education', 'internships', 'work', 'projects', 'campus', 'certificates', 'languages']);
 const SECTIONS = ['personal', 'contact', 'identity', 'online', 'preferences', 'skills', ...REPEATABLE, 'extra'];
 
