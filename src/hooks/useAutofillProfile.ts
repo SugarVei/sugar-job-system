@@ -14,15 +14,37 @@ export function useAutofillProfile() {
   const [localOnly, setLocalOnly] = useState(false);
 
   useEffect(() => {
+    let cancelled = false;
+    let retryTimer: ReturnType<typeof setTimeout> | undefined;
     const draft = localStorage.getItem(DRAFT_KEY);
     if (draft) {
       try { const parsed = JSON.parse(draft); setProfile(normalizeImportedJson(parsed.profile ?? parsed)); if (parsed.syncScope) setSyncScope(parsed.syncScope); }
       catch { localStorage.removeItem(DRAFT_KEY); }
     }
-    resumeAssistantApi.getAutofillProfile()
-      .then(({ profile: remote }) => { if (remote) { setProfile(normalizeImportedJson(remote.profile)); setSyncScope(remote.sync_scope); setRevision(remote.revision); } })
-      .catch(() => setLocalOnly(true))
-      .finally(() => setLoading(false));
+    let attempts = 0;
+    const loadRemote = () => {
+      attempts += 1;
+      resumeAssistantApi.getAutofillProfile()
+        .then(({ profile: remote }) => {
+          if (cancelled) return;
+          if (remote) { setProfile(normalizeImportedJson(remote.profile)); setSyncScope(remote.sync_scope); setRevision(remote.revision); }
+          setLocalOnly(false);
+        })
+        .catch(() => {
+          if (cancelled) return;
+          setLocalOnly(true);
+          if (attempts < 3) retryTimer = setTimeout(loadRemote, attempts * 3000);
+        })
+        .finally(() => { if (!cancelled) setLoading(false); });
+    };
+    loadRemote();
+    const reconnect = () => { attempts = 0; loadRemote(); };
+    window.addEventListener('online', reconnect);
+    return () => {
+      cancelled = true;
+      if (retryTimer) clearTimeout(retryTimer);
+      window.removeEventListener('online', reconnect);
+    };
   }, []);
 
   useEffect(() => { localStorage.setItem(DRAFT_KEY, JSON.stringify({ profile, syncScope })); }, [profile, syncScope]);
