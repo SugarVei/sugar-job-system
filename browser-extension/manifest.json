@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Sugar 智能填表助手",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "description": "从 Sugar 求职系统同步资料，在当前招聘表单中填写可安全填写的字段。",
   "permissions": ["storage", "activeTab", "scripting"],
   "host_permissions": ["https://sugar-job-system.vercel.app/*"],
