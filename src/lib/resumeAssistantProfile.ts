@@ -86,4 +86,66 @@ export function summarizeProfile(profile: ResumeProfile) {
   return PROFILE_SECTIONS.map(section => ({ ...section, completeness: sectionCompleteness(profile, section.key) }));
 }
 
+export function restoreLocalSensitiveFields(cloudProfile: ResumeProfile, localProfile: ResumeProfile): ResumeProfile {
+  let restored = structuredClone(cloudProfile) as ResumeProfile;
+  for (const path of SENSITIVE_FIELD_PATHS) {
+    const localValue = getByPath(localProfile, path);
+    if (localValue !== undefined && localValue !== '') restored = setByPath(restored as unknown as Record<string, unknown>, path, localValue) as ResumeProfile;
+  }
+  return restored;
+}
+
+export type ProfileMergeStats = { recognized: number; added: number; conflicts: number };
+
+const meaningful = (value: unknown) => {
+  if (Array.isArray(value)) return value.length > 0;
+  if (value && typeof value === 'object') return Object.values(value).some(meaningful);
+  return value === 0 || value === false || (typeof value === 'string' ? Boolean(value.trim()) : value != null);
+};
+
+const recordIdentity = (section: ResumeProfileSection, record: Record<string, unknown>) => {
+  const fields: Partial<Record<ResumeProfileSection, string[]>> = {
+    education: ['school', 'degree', 'major'], internships: ['company', 'title', 'startDate'],
+    work: ['company', 'title', 'startDate'], projects: ['name', 'role', 'startDate'],
+    campus: ['organization', 'title', 'startDate'], certificates: ['name', 'date'], languages: ['language', 'level'],
+  };
+  return (fields[section] ?? Object.keys(record).slice(0, 2)).map(key => String(record[key] ?? '').trim().toLowerCase()).filter(Boolean).join('|');
+};
+
+function mergeObjects(current: Record<string, unknown>, suggestion: Record<string, unknown>, stats: ProfileMergeStats) {
+  const merged = structuredClone(current);
+  for (const [key, value] of Object.entries(suggestion)) {
+    if (!meaningful(value)) continue;
+    stats.recognized += 1;
+    const existing = merged[key];
+    if (!meaningful(existing)) { merged[key] = value; stats.added += 1; continue; }
+    if (existing && value && typeof existing === 'object' && typeof value === 'object' && !Array.isArray(existing) && !Array.isArray(value)) {
+      merged[key] = mergeObjects(existing as Record<string, unknown>, value as Record<string, unknown>, stats);
+    } else if (JSON.stringify(existing) !== JSON.stringify(value)) stats.conflicts += 1;
+  }
+  return merged;
+}
+
+export function mergeResumeProfiles(current: ResumeProfile, suggested: ResumeProfile) {
+  const merged = structuredClone(current);
+  const stats: ProfileMergeStats = { recognized: 0, added: 0, conflicts: 0 };
+  for (const section of PROFILE_SECTIONS) {
+    const incoming = suggested[section.key];
+    if (Array.isArray(incoming)) {
+      const existing = Array.isArray(merged[section.key]) ? [...merged[section.key] as Array<Record<string, unknown>>] : [];
+      for (const record of incoming) {
+        if (!record || typeof record !== 'object') continue;
+        const identity = recordIdentity(section.key, record);
+        const index = identity ? existing.findIndex(item => recordIdentity(section.key, item) === identity) : -1;
+        if (index >= 0) existing[index] = mergeObjects(existing[index], record, stats);
+        else { existing.push(record); stats.recognized += Object.values(record).filter(meaningful).length; stats.added += 1; }
+      }
+      merged[section.key] = existing;
+    } else if (incoming && typeof incoming === 'object') {
+      merged[section.key] = mergeObjects(merged[section.key] as Record<string, unknown>, incoming as Record<string, unknown>, stats);
+    }
+  }
+  return { profile: merged, stats };
+}
+
 export { AUTOFILL_SCHEMA_VERSION };

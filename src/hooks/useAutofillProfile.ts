@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { defaultSyncScope, emptyResumeProfile, normalizeImportedJson, stripSensitiveFields } from '../lib/resumeAssistantProfile';
+import { defaultSyncScope, emptyResumeProfile, normalizeImportedJson, restoreLocalSensitiveFields, stripSensitiveFields } from '../lib/resumeAssistantProfile';
 import { resumeAssistantApi } from '../lib/resumeAssistantApi';
 import type { ResumeProfile, SyncScope } from '../types/resumeAssistant';
 
@@ -53,7 +53,7 @@ export function useAutofillProfile() {
     setSaving(true);
     try {
       const { profile: saved } = await resumeAssistantApi.saveAutofillProfile(profile, syncScope);
-      setProfile(normalizeImportedJson(saved.profile)); setSyncScope(saved.sync_scope); setRevision(saved.revision); setLocalOnly(false);
+      setProfile(restoreLocalSensitiveFields(normalizeImportedJson(saved.profile), profile)); setSyncScope(saved.sync_scope); setRevision(saved.revision); setLocalOnly(false);
       return true;
     } catch { setLocalOnly(true); return false; }
     finally { setSaving(false); }

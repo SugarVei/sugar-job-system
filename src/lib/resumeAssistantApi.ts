@@ -38,4 +38,6 @@ export const resumeAssistantApi = {
   saveAiCredential: (provider: string, api_key: string, model?: string) => apiFetch<{ credential: AiCredentialStatus }>('/api/ai-credentials-save', { method: 'POST', body: JSON.stringify({ provider, api_key, model }) }),
   deleteAiCredential: () => apiFetch<{ ok: true }>('/api/ai-credentials-delete', { method: 'DELETE' }),
   testAiCredential: () => apiFetch<{ ok: true }>('/api/ai-credentials-test', { method: 'POST' }),
+  parseResumePdf: (file_name: string, file_data: string) => apiFetch<{ text: string }>('/api/profile-resume-parse', { method: 'POST', body: JSON.stringify({ file_name, file_data }) }),
+  analyzeResumeProfile: (resume_text: string) => apiFetch<{ profile: ResumeProfile }>('/api/profile-ai-analyze', { method: 'POST', body: JSON.stringify({ resume_text }) }),
 };
