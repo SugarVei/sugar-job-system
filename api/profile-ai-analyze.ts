@@ -1,8 +1,31 @@
-import { decryptSecret } from './_lib/crypto';
-import { AI_PROVIDERS } from './_lib/ai-providers';
-
 type NativeRequest = { method?: string; headers: Record<string, string | string[] | undefined>; body?: unknown };
 type NativeResponse = { status(code: number): NativeResponse; json(body: unknown): void; setHeader(name: string, value: string): void; end(): void };
+
+// Keep this function self-contained.  Vercel failed before invoking the handler
+// when it traced the shared crypto/provider modules, so even unauthenticated
+// requests received a platform 500 instead of the expected 401 response.
+const AI_PROVIDERS: Record<string, { baseUrl: string; model: string }> = {
+  deepseek: { baseUrl: 'https://api.deepseek.com/v1', model: 'deepseek-chat' },
+  openai: { baseUrl: 'https://api.openai.com/v1', model: 'gpt-4o-mini' },
+  kimi: { baseUrl: 'https://api.moonshot.cn/v1', model: 'moonshot-v1-8k' },
+  qwen: { baseUrl: 'https://dashscope.aliyuncs.com/compatible-mode/v1', model: 'qwen-plus' },
+  minimax: { baseUrl: 'https://api.minimaxi.com/v1', model: 'MiniMax-M2.5' },
+  gemini: { baseUrl: 'https://generativelanguage.googleapis.com/v1beta/openai', model: 'gemini-2.5-flash' },
+};
+
+async function decryptSecret(value: string) {
+  const master = process.env.AI_CREDENTIAL_MASTER_KEY;
+  if (!master || !/^[0-9a-f]{64}$/i.test(master)) throw new Error('AI credential encryption is not configured');
+  const [ivValue, ciphertextValue] = value.split('.');
+  if (!ivValue || !ciphertextValue) throw new Error('Invalid encrypted credential');
+  const { webcrypto } = await import('node:crypto');
+  const keyBytes = Uint8Array.from(Buffer.from(master, 'hex'));
+  const iv = Uint8Array.from(Buffer.from(ivValue, 'base64'));
+  const ciphertext = Uint8Array.from(Buffer.from(ciphertextValue, 'base64'));
+  const key = await webcrypto.subtle.importKey('raw', keyBytes, 'AES-GCM', false, ['decrypt']);
+  const plaintext = await webcrypto.subtle.decrypt({ name: 'AES-GCM', iv }, key, ciphertext);
+  return new TextDecoder().decode(plaintext);
+}
 
 const buckets = new Map<string, { count: number; reset: number }>();
 function header(request: NativeRequest, name: string) { const value = request.headers[name]; return Array.isArray(value) ? value[0] ?? '' : value ?? ''; }
