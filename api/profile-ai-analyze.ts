@@ -3,6 +3,7 @@ import { getServiceSupabase, requireUserFromJwt } from './_lib/auth';
 import { AI_PROVIDERS } from './_lib/ai-providers';
 import { handleOptions, json } from './_lib/cors';
 import { clientIp, rateLimit } from './_lib/rate-limit';
+import { sendWebResponse, toWebRequest } from './_lib/node-adapter';
 
 const REPEATABLE = new Set(['education', 'internships', 'work', 'projects', 'campus', 'certificates', 'languages']);
 const SECTIONS = ['personal', 'contact', 'identity', 'online', 'preferences', 'skills', ...REPEATABLE, 'extra'];
@@ -61,7 +62,7 @@ projects: name, role, startDate, endDate, highlights；highlights 使用字符�
 certificates: name, date, issuer；languages: language, level, score。
 日期尽量使用 YYYY-MM 或 YYYY-MM-DD。身份证、护照、手机号、邮箱、微信和详细住址不得出现在输出中。`;
 
-export default async function handler(request: Request) {
+async function handle(request: Request) {
   if (request.method === 'OPTIONS') return handleOptions(request);
   if (request.method !== 'POST') return json(request, { error: 'Method not allowed' }, 405);
   try {
@@ -99,4 +100,8 @@ export default async function handler(request: Request) {
     const unauthorized = error instanceof Error && /Unauthorized/.test(error.message);
     return json(request, { error: unauthorized ? 'Unauthorized' : 'AI 简历分析暂时不可用。' }, unauthorized ? 401 : 503);
   }
+}
+
+export default async function handler(request: Parameters<typeof toWebRequest>[0], response: Parameters<typeof sendWebResponse>[0]) {
+  await sendWebResponse(response, await handle(toWebRequest(request)));
 }

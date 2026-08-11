@@ -6,8 +6,9 @@ import pdfParse from 'pdf-parse';
 import { requireUserFromJwt } from './_lib/auth';
 import { handleOptions, json } from './_lib/cors';
 import { clientIp, rateLimit } from './_lib/rate-limit';
+import { sendWebResponse, toWebRequest } from './_lib/node-adapter';
 
-export default async function handler(request: Request) {
+async function handle(request: Request) {
   if (request.method === 'OPTIONS') return handleOptions(request);
   if (request.method !== 'POST') return json(request, { error: 'Method not allowed' }, 405);
   try {
@@ -29,4 +30,8 @@ export default async function handler(request: Request) {
     if (!unauthorized) console.error('profile-resume-parse failed', error);
     return json(request, { error: unauthorized ? 'Unauthorized' : 'PDF 解析失败。' }, unauthorized ? 401 : 500);
   }
+}
+
+export default async function handler(request: Parameters<typeof toWebRequest>[0], response: Parameters<typeof sendWebResponse>[0]) {
+  await sendWebResponse(response, await handle(toWebRequest(request)));
 }
