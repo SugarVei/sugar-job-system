@@ -1,190 +1,229 @@
 # Sugar 求职系统 🍬
 
+一个用来整理求职信息的网页。
 
-> 部署提示：修改 Vercel 的 `VITE_*` 环境变量后需重新部署；推送 `main` 或在 Deployments 中 Redeploy 即可（Hobby 计划足够，无需 Pro）。
-一个把求职过程「记录化、可视化、行动化」的网页应用，由原单文件设计稿重构为标准前端工程。
+投过哪些岗位、关注过哪些公司、用的是哪份简历、什么时候面试、拿到了哪些 Offer，都可以放在这里统一查看，不用再把信息分散记在 Excel、备忘录和聊天软件里。
 
-- **技术栈**：React 18 + Vite 5 + TypeScript + Tailwind CSS + Vercel Serverless/Edge Functions
-- **后端 / 登录**：Supabase（Auth 邮箱登录注册 + Postgres 云端存储 + Storage 文件上传 + 行级安全 RLS）
-- **响应式**：电脑（侧边栏）/ 平板（两列）/ 手机（底部导航、卡片单列），最低适配 360px
-- **页面**：登录、总览仪表盘、投递总览、投递记录、公司库、内推码管理、热门公司、简历库、面试日历、Offer 管理、面试复盘、面试邮件（网易 163）
-- **内嵌 AI 能力**：热门公司页找公司、投递总览分析、简历库生成面试稿件（当前不是独立导航页面）
-- **主题**：粉 / 蓝 / 绿 / 灰 / 米白 5 套配色，弥散流光动态背景，磨砂玻璃质感
+## 在线访问
 
----
+项目已经上线，可以通过下面的网址打开：
 
-## 一、本地运行
+**[https://sugar-job-system.vercel.app/](https://sugar-job-system.vercel.app/)**
+
+> 目前需要先开启网络代理（梯子）再访问。如果页面打不开，请先确认代理是否已经打开。
+
+<p align="center">
+  <img src="docs/images/readme/01-dashboard.jpg" alt="Sugar 求职系统总览页面" width="100%" />
+</p>
+
+> README 中的公司、岗位、简历、内推码和面试安排均为虚构演示数据，不包含真实个人信息。
+
+## 这个网页能做什么
+
+Sugar 把求职过程中经常要处理的事情放到了一起：记录投递、整理公司、保存不同版本的简历、安排面试、比较 Offer，还可以连接浏览器插件，减少招聘网站上的重复填表工作。
+
+一次完整的使用过程大致是：
+
+```text
+添加投递 → 记录公司和简历 → 跟进招聘进度 → 安排面试 → 比较 Offer
+                                      ↓
+                         用填表助手减少重复填写
+```
+
+## 功能介绍
+
+### 一、求职主线
+
+#### 1. 总览
+
+总览页把近期最需要处理的事情放在前面，包括待跟进的投递、即将开始的面试、投递总数和已经拿到的 Offer。
+
+右侧日历可以查看本月的面试日期，下面还能继续查看投递进度和近期安排。平时打开网页后，先看这一页就能知道接下来该做什么。
+
+<p align="center">
+  <img src="docs/images/readme/01-dashboard.jpg" alt="总览页面" width="100%" />
+</p>
+
+#### 2. 投递总览
+
+投递总览会把现有投递整理成图表，可以看到投递数量、进入面试的数量、Offer 数量，以及状态、城市、岗位和投递渠道的分布。
+
+如果想进一步分析自己的投递情况，也可以直接在这个页面向 AI 提问，例如哪些岗位进展更好、哪些城市投得更多。
+
+<p align="center">
+  <img src="docs/images/readme/02-overview.jpg" alt="投递总览页面" width="100%" />
+</p>
+
+#### 3. 投递记录
+
+每次投递都可以单独保存公司、岗位、城市、渠道、投递日期、薪资范围和岗位链接。
+
+还可以继续记录岗位要求、关键词、匹配情况、下一步行动、截止时间和优先级。页面支持按状态筛选、列表与看板切换、直接推进招聘进度，以及导出 Excel。
+
+<p align="center">
+  <img src="docs/images/readme/03-applications.jpg" alt="投递记录页面" width="100%" />
+</p>
+
+### 二、公司与简历
+
+#### 4. 公司库
+
+公司库用来集中整理已经投递或正在关注的公司。每家公司可以保存行业、城市、规模、官网和备注，并自动显示与这家公司有关的投递岗位和当前进度。
+
+需要比较几家公司时，可以在这里快速找到对应记录，也可以让 AI 根据现有信息帮助分析。
+
+<p align="center">
+  <img src="docs/images/readme/04-companies.jpg" alt="公司库页面" width="100%" />
+</p>
+
+#### 5. 内推码管理
+
+内推码管理用来保存公司内推码、推荐人、岗位、来源和有效期。
+
+内推码默认会隐藏一部分字符，需要时可以显示或一键复制。已经使用或快过期的内推码也可以单独标记，避免临时找不到或忘记使用。
+
+<p align="center">
+  <img src="docs/images/readme/05-referral-codes.jpg" alt="内推码管理页面" width="100%" />
+</p>
+
+#### 6. 热门公司
+
+热门公司页面按行业整理了一批常见招聘企业，可以搜索公司、查看招聘官网和校招状态。
+
+自己关注的公司可以添加到“我添加的公司”中。如果还没有明确目标，也可以输入专业、城市或求职方向，让 AI 整理一批候选公司，再由自己决定是否保存。
+
+<p align="center">
+  <img src="docs/images/readme/06-hot-companies.jpg" alt="热门公司页面" width="100%" />
+</p>
+
+#### 7. 简历库
+
+简历库可以按照不同岗位保存多份简历，例如数据分析版、供应链版或产品岗位版。
+
+每个版本都能关联已有投递，并上传 PDF 或 DOCX 文件。上传简历后，还可以根据简历内容生成面试准备稿，并下载为文档继续修改。
+
+<p align="center">
+  <img src="docs/images/readme/07-resumes.jpg" alt="简历库页面" width="100%" />
+</p>
+
+### 三、面试与决策
+
+#### 8. 面试日历
+
+面试日历按周展示面试安排，可以记录公司、岗位、面试时间、面试轮次、电话或视频等面试形式，以及需要提前准备的事项。
+
+点击日历中的面试可以查看或修改内容，也可以切换上一周和下一周，避免面试时间冲突。
+
+<p align="center">
+  <img src="docs/images/readme/08-interviews.jpg" alt="面试日历页面" width="100%" />
+</p>
+
+#### 9. Offer 管理
+
+Offer 管理可以记录公司、岗位、城市、月薪、奖金、补贴、年包、入职日期和回复截止时间。
+
+除了保存基本信息，还可以记录岗位匹配、成长空间、工作强度、谈薪情况和需要注意的风险。拿到多个 Offer 时，可以勾选后放在一起比较。
+
+<p align="center">
+  <img src="docs/images/readme/09-offers.jpg" alt="Offer 管理页面" width="100%" />
+</p>
+
+#### 10. 智能填表助手
+
+智能填表助手由网站和 Chrome 插件配合使用。网站负责整理标准资料，插件负责在招聘网站中识别输入框并填写内容。
+
+标准资料可以保存教育经历、实习经历、工作经历、项目经历、求职偏好和技能。也可以上传 PDF、DOCX 或 TXT 简历，让 AI 帮忙提取已有内容，再由自己检查和补充。
+
+这个页面还可以管理已连接的插件、选择同步范围、设置 AI 服务，以及查看最近填写了多少字段。插件不会自动提交申请，不会代替用户上传附件，也不会处理验证码。
+
+<p align="center">
+  <img src="docs/images/readme/10-resume-assistant.jpg" alt="智能填表助手页面" width="100%" />
+</p>
+
+#### 11. 面试邮件
+
+面试邮件页面可以连接网易、QQ、Gmail、Outlook 或学校邮箱，在系统里查看和搜索面试相关邮件。
+
+选择一封邮件后，可以在右侧阅读正文，方便把面试通知和其他求职记录放在一起查看。邮箱连接使用客户端授权码，不使用邮箱登录密码。
+
+<p align="center">
+  <img src="docs/images/readme/11-mailbox.jpg" alt="面试邮件页面" width="100%" />
+</p>
+
+### 四、其他使用体验
+
+- **AI 设置**：可以选择自己使用的 AI 服务和模型，用于公司查找、投递分析、简历整理和面试稿生成。
+- **主题切换**：页面顶部可以切换粉、蓝、绿、灰和米白主题。
+- **全局搜索**：可以按照公司或岗位快速查找已有记录。
+- **电脑与手机适配**：电脑端使用侧边栏，手机端会改成更适合单手操作的底部导航和卡片布局。
+- **操作提醒**：新增、修改、删除和加载失败时会给出明确提示，避免不知道操作有没有成功。
+
+## 建议的使用顺序
+
+1. 先在“投递记录”中添加正在申请的岗位。
+2. 到“公司库”和“热门公司”整理自己关注的企业。
+3. 在“简历库”保存不同岗位使用的简历版本。
+4. 收到面试通知后，把时间添加到“面试日历”。
+5. 拿到 Offer 后，在“Offer 管理”中记录并比较。
+6. 如果经常重复填写招聘网站，可以整理“标准资料”并连接填表插件。
+
+## 代码结构
+
+项目主要使用 React、TypeScript、Vite 和 Tailwind CSS。代码按照页面、共用组件和业务功能分开存放。
+
+```text
+sugar-job-system/
+├─ src/
+│  ├─ pages/                         各个功能页面
+│  ├─ components/                    导航、按钮、弹窗、表单等共用界面
+│  │  └─ resume-assistant/           智能填表助手的页面组件
+│  ├─ layouts/                       电脑端和手机端的整体页面框架
+│  ├─ contexts/                      登录、主题、AI 设置和页面状态
+│  ├─ hooks/                         读取、保存和更新数据的公共逻辑
+│  ├─ lib/                           文件导出、简历处理和其他工具
+│  ├─ styles/                        页面主题和全局样式
+│  ├─ types/                         TypeScript 数据类型
+│  ├─ App.tsx                        页面入口和功能切换
+│  └─ main.tsx                       前端启动入口
+├─ api/                              网页调用的接口代码
+├─ browser-extension/                Chrome 智能填表插件
+├─ public/                           Logo 和其他静态文件
+├─ docs/images/readme/               README 使用的页面截图
+├─ package.json                      项目依赖和常用命令
+├─ vite.config.ts                    Vite 配置
+├─ tailwind.config.js                Tailwind CSS 配置
+└─ tsconfig.json                     TypeScript 配置
+```
+
+### 主要目录怎么配合
+
+- `pages` 负责拼出完整页面。
+- `components` 保存多个页面都会使用的界面，避免重复编写。
+- `hooks` 处理读取、添加、修改和删除等公共逻辑。
+- `contexts` 保存登录状态、当前主题和页面之间共用的状态。
+- `lib` 放文件导出、简历处理和格式转换等工具。
+- `api` 接收网页请求，并负责 AI、邮箱和浏览器插件等功能的接口处理。
+- `browser-extension` 是与网站配套使用的 Chrome 插件代码。
+
+## 本地运行
+
+需要先安装 Node.js，然后在项目目录中运行：
 
 ```bash
-# 1. 安装依赖
 npm install
-
-# 2. 配置环境变量（见下方「Supabase 配置」）
-cp .env.example .env
-#   然后编辑 .env 填入你的 Supabase URL 和 anon key
-
-# 3. 启动开发服务器
 npm run dev
-#   打开 http://localhost:5173
-
-# 4. 生产打包
-npm run build      # 产物在 dist/
-npm run preview    # 本地预览打包结果
 ```
 
-> 未配置 `.env` 时页面仍可打开并展示登录界面，但登录/注册不可用（会有提示）。配置后即可正常使用。
+启动后打开：
 
----
-
-## 二、Supabase 配置
-
-### 1. 创建项目
-1. 打开 <https://supabase.com> 注册并新建一个 Project（免费额度足够个人使用）。
-2. 进入 **Project Settings → API**，复制：
-   - `Project URL` → 填入 `.env` 的 `VITE_SUPABASE_URL`
-   - `anon` `public` key → 填入 `.env` 的 `VITE_SUPABASE_ANON_KEY`
-
-> ⚠️ 只使用 **anon public** key，前端绝不要放 `service_role` key。anon key 是设计为公开的，数据安全由下面的 RLS 行级安全策略保证。
-
-### 2. 建表 + 行级安全
-1. 进入 Supabase 控制台 → **SQL Editor → New query**。
-2. 按顺序执行以下 SQL：
-   - 第一步：[`supabase/schema.sql`](./supabase/schema.sql)
-   - 第二步：[`supabase/migration_resume_files.sql`](./supabase/migration_resume_files.sql)。如果 `schema.sql` 已是最新版，此步骤可作为兼容旧库使用。
-   - 第三步：[`supabase/migration_resume_files_ai_scripts.sql`](./supabase/migration_resume_files_ai_scripts.sql)
-   - 第四步：[`supabase/migration_api_keys.sql`](./supabase/migration_api_keys.sql)
-   - 对已有数据库，先执行第一阶段统一迁移：[`supabase/migration_phase1_foundation_fix.sql`](./supabase/migration_phase1_foundation_fix.sql)。它会兼容旧字段并补齐状态约束、索引、RLS 与 Storage policy，不删除业务数据。
-   - 最后执行第二阶段职业模块迁移：[`supabase/migration_phase2_career_modules.sql`](./supabase/migration_phase2_career_modules.sql)。它会创建 Offer 管理、面试复盘相关表，并补齐 RLS 与 Data API 授权。
-   - 面试邮件（网易 163）：[`supabase/migration_mailbox_accounts.sql`](./supabase/migration_mailbox_accounts.sql)，创建 `mailbox_accounts` 表与 RLS。
-3. `schema.sql` 会创建 `applications` / `companies` / `resumes` / `resume_files` / `user_api_keys` / `interviews`，自动维护 `updated_at`，并为业务表开启 RLS + select/insert/update/delete 策略，保证**每个用户只能读写自己的数据**。
-
-### 3. 安全说明
-- 前端只能使用 Supabase `anon public` key，不要把 `service_role` key 写入代码、`.env` 或 Vercel 前端变量。
-- API Key 存储在用户自己的 Supabase 数据中，并受 RLS 行级权限保护；除非真正实现加密，不要称为“已加密”。
-- AI 服务商充值、API Key 创建和账号登录应在 DeepSeek / OpenAI / Anthropic / Kimi 官方平台完成。
-- AI 接口只会使用服务端白名单中的官方 `baseUrl`，不会信任前端传入的任意地址。
-
-### 4. 邮箱登录设置
-- 默认情况下 Supabase 会要求邮箱确认。可在 **Authentication → Providers → Email** 中：
-  - 保持「Confirm email」开启（更安全）：注册后需去邮箱点确认链接再登录；
-  - 或关闭它（体验更顺滑）：注册后可直接登录。
-- 部署上线后，记得在 **Authentication → URL Configuration** 把你的线上域名加入 **Site URL / Redirect URLs**。
-
----
-
-## 三、数据表结构
-
-| 表 | 关键字段 |
-|---|---|
-| `applications` 投递记录 | company_name, position_name, city, channel, apply_date, status, salary_range, job_url, jd_text, jd_keywords, match_score, next_action, deadline_at, priority, notes |
-| `companies` 公司库 | company_name, industry, city, scale, website, notes |
-| `resumes` 简历库 | resume_name, target_position, file_url, notes |
-| `resume_files` 简历/稿件文件 | resume_id, file_name, file_path, kind, size, content, source |
-| `user_api_keys` 用户 AI Key | provider, api_key |
-| `interviews` 面试日历 | company_name, position_name, interview_time, round, interview_type, notes |
-| `mailbox_accounts` 面试邮件 | provider, email, auth_code（RLS 隔离）, last_synced_at |
-| `offers` Offer 管理 | 薪资结构、回复截止、状态、评分、谈薪与风险 |
-| `interview_reviews` 面试复盘 | 面试信息、STAR、表现评分、改进计划 |
-| `interview_review_questions` 面试问题/题库 | 问题、回答、题型、掌握状态 |
-
-每张表都含 `id`、`user_id`、`created_at`、`updated_at`。完整 SQL（含 RLS）见 [`supabase/schema.sql`](./supabase/schema.sql)。
-
----
-
-## 四、部署到 Vercel（推荐）
-
-1. 把项目推到 GitHub：
-   ```bash
-   git init
-   git add .
-   git commit -m "init sugar job system"
-   git branch -M main
-   git remote add origin https://github.com/<你的用户名>/<仓库名>.git
-   git push -u origin main
-   ```
-   > `.env` 已被 `.gitignore` 忽略，不会上传密钥，放心。
-2. 打开 <https://vercel.com> → **Add New → Project** → 选择刚才的 GitHub 仓库导入。
-3. Vercel 会自动识别为 Vite 项目（已附带 `vercel.json`）：
-   - Framework Preset：`Vite`
-   - Build Command：`npm run build`
-   - Output Directory：`dist`
-4. 在 **Settings → Environment Variables** 添加两个变量（**不要**写进代码仓库）：
-   - `VITE_SUPABASE_URL`
-   - `VITE_SUPABASE_ANON_KEY`
-   - `ALLOWED_ORIGIN`（建议填生产域名，如 `https://sugar-job-system.vercel.app`，用于 Vercel API CORS）
-   - `DEEPSEEK_API_KEY`（可选，只作为 DeepSeek 服务端兜底；用户也可以在 AI 设置中保存自己的 Key）
-5. 点 **Deploy**。几十秒后得到一个 `https://xxx.vercel.app` 网址，电脑/平板/手机都能访问登录。
-6. 之后每次 `git push` 都会自动重新部署。
-
----
-
-## 五、部署到 Netlify
-
-1. 同样先把项目推到 GitHub。
-2. 打开 <https://app.netlify.com> → **Add new site → Import an existing project** → 选 GitHub 仓库。
-3. 构建设置（已附带 `netlify.toml`，一般会自动填好）：
-   - Build command：`npm run build`
-   - Publish directory：`dist`
-4. 在 **Site settings → Environment variables** 添加：
-   - `VITE_SUPABASE_URL`
-   - `VITE_SUPABASE_ANON_KEY`
-5. 点 **Deploy site**，得到 `https://xxx.netlify.app` 网址。
-
-> `netlify.toml` 里已配置 SPA 重定向，刷新子路由不会 404。
-
----
-
-## 六、项目结构
-
-```
-sugar-job-system/
-├─ public/sugar-logo.png        # 品牌 Logo
-├─ supabase/schema.sql          # 建表 + RLS（在 Supabase SQL Editor 运行）
-├─ supabase/migration_*.sql     # 旧库升级迁移
-├─ src/
-│  ├─ components/               # 复用组件（图标、背景、弹窗、表单、导航等）
-│  ├─ contexts/                 # Auth / Theme / AppShell 全局状态
-│  ├─ hooks/                    # useCollection(通用 CRUD) / useProfile / useResumeFiles
-│  ├─ layouts/AppLayout.tsx     # 响应式主框架（侧边栏 + 顶栏 + 底部导航）
-│  ├─ lib/                      # supabase 客户端 / 业务助手
-│  ├─ pages/                    # 12 个业务页面
-│  ├─ styles/theme.ts           # 5 套主题配色
-│  └─ types/                    # TypeScript 类型定义
-├─ .env.example                 # 环境变量模板
-├─ vercel.json / netlify.toml   # 部署配置
-└─ ...
+```text
+http://localhost:5173
 ```
 
----
+检查项目能否正常打包：
 
-## 七、常见问题
+```bash
+npm run build
+```
 
-**Q：登录页提示「未检测到 Supabase 配置」？**
-A：还没建 `.env` 或没填对。复制 `.env.example` 为 `.env`，填入 URL 和 anon key，然后**重启** `npm run dev`（Vite 环境变量改动需重启）。
-
-**Q：注册后登录提示邮箱未确认？**
-A：去注册邮箱点确认链接；或在 Supabase 关闭 Email 的「Confirm email」。
-
-**Q：登录后看不到数据 / 报权限错误？**
-A：确认已在 SQL Editor 按顺序跑过 `supabase/schema.sql` 和后续 migration（含 RLS 策略）。数据是按用户隔离的，新账号本来就是空的，点右上角「新增」录入即可。
-
-**Q：AI 设置保存失败？**
-A：检查是否已执行 `supabase/migration_api_keys.sql`，并确认 `user_api_keys` 表存在且 RLS 策略已创建。
-
-**Q：AI 生成面试稿件保存失败？**
-A：检查是否已执行 `supabase/migration_resume_files_ai_scripts.sql`，并确认 `resume_files` 包含 `content` / `source` 字段，`file_path` 允许为空。
-
-**Q：上传失败？**
-A：确认 Supabase Storage 中存在私有 bucket `resumes`，并检查 `storage.objects` 的 RLS policy 是否已由 `schema.sql` / `migration_resume_files.sql` 创建。系统目前只支持上传 PDF / DOCX 文件。
-
-**Q：看板、JD 字段或提醒字段保存失败？**
-A：检查是否已执行 `supabase/migration_application_status_and_p0_fields.sql`，并确认 `applications` 表包含 JD、下一步动作、截止时间和优先级字段。
-
-**Q：换了设备 / 浏览器，数据还在吗？**
-A：在。投递、公司、简历、面试都存在 Supabase 云端，用同一账号登录任意设备都能看到。（头像和昵称是轻量本地偏好，存在本地浏览器。）
-
-**Q：线上登录跳转异常？**
-A：在 Supabase **Authentication → URL Configuration** 把线上域名加入 Site URL / Redirect URLs。
-
-**Q：简历能上传文件吗？**
-A：可以。简历库使用 Supabase Storage 上传 PDF / DOCX 文件，并可基于已上传简历生成 AI 面试稿件。
+完整的登录、在线同步、AI 和邮箱功能还需要准备项目使用的本地环境变量。
