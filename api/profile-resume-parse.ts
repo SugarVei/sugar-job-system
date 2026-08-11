@@ -1,7 +1,8 @@
 // Node runtime is required by pdf-parse.
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
-// @ts-ignore pdf-parse ships CommonJS; Vercel bundles it for Node functions.
-import pdfParse from 'pdf-parse/lib/pdf-parse.js';
+// @ts-ignore pdf-parse ships CommonJS without TypeScript declarations.
+// Import the public package entry so Vercel traces the complete dependency.
+import pdfParse from 'pdf-parse';
 import { requireUserFromJwt } from './_lib/auth';
 import { handleOptions, json } from './_lib/cors';
 import { clientIp, rateLimit } from './_lib/rate-limit';
@@ -25,6 +26,7 @@ export default async function handler(request: Request) {
     return json(request, { text });
   } catch (error) {
     const unauthorized = error instanceof Error && /Unauthorized/.test(error.message);
+    if (!unauthorized) console.error('profile-resume-parse failed', error);
     return json(request, { error: unauthorized ? 'Unauthorized' : 'PDF 解析失败。' }, unauthorized ? 401 : 500);
   }
 }

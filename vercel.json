@@ -14,7 +14,8 @@
     },
     "api/profile-resume-parse.ts": {
       "maxDuration": 30,
-      "memory": 1024
+      "memory": 1024,
+      "includeFiles": "node_modules/pdf-parse/lib/pdf.js/v1.10.100/build/**"
     }
   },
   "rewrites": [
