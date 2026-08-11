@@ -4,12 +4,15 @@ import { sha256Hex } from './crypto';
 function required(name: string) { const value = process.env[name]; if (!value) throw new Error(`${name} is not configured`); return value; }
 export function getServiceSupabase() { return createClient(required('SUPABASE_URL'), required('SUPABASE_SERVICE_ROLE_KEY'), { auth: { autoRefreshToken: false, persistSession: false } }); }
 export function getAnonSupabase(token?: string) { return createClient(required('SUPABASE_URL'), required('SUPABASE_ANON_KEY'), { auth: { autoRefreshToken: false, persistSession: false }, global: token ? { headers: { Authorization: `Bearer ${token}` } } : {} }); }
-export async function requireUserFromJwt(request: Request): Promise<User> {
-  const value = request.headers.get('authorization') ?? ''; const token = value.startsWith('Bearer ') ? value.slice(7) : '';
+export async function requireUserFromToken(value: string): Promise<User> {
+  const token = value.startsWith('Bearer ') ? value.slice(7) : '';
   if (!token) throw new Error('Unauthorized');
   const { data, error } = await getAnonSupabase(token).auth.getUser(token);
   if (error || !data.user) throw new Error('Unauthorized');
   return data.user;
+}
+export async function requireUserFromJwt(request: Request): Promise<User> {
+  return requireUserFromToken(request.headers.get('authorization') ?? '');
 }
 export type DeviceAuth = { deviceId: string; userId: string; scopes: string[] };
 export async function requireDeviceToken(request: Request, neededScope?: string): Promise<DeviceAuth> {
