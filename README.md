@@ -227,3 +227,7 @@ npm run build
 ```
 
 完整的登录、在线同步、AI 和邮箱功能还需要准备项目使用的本地环境变量。
+
+---
+
+![祝愿大家都可以找到自己心仪的工作](docs/images/readme/12-best-wishes.png)
