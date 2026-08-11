@@ -1,17 +1,23 @@
 import type { AiCredentialStatus, AutofillProfileRecord, AutofillRun, ExtensionDevice, ResumeProfile, SyncScope } from '../types/resumeAssistant';
 import { isSupabaseConfigured, supabase } from './supabase';
 
-async function authHeader() {
+async function authHeader(forceRefresh = false) {
   if (!isSupabaseConfigured) return {};
-  const { data } = await supabase.auth.getSession();
+  const { data } = forceRefresh
+    ? await supabase.auth.refreshSession()
+    : await supabase.auth.getSession();
   return data.session?.access_token ? { Authorization: `Bearer ${data.session.access_token}` } : {};
 }
 
 async function apiFetch<T>(path: string, init: RequestInit = {}): Promise<T> {
-  const headers = new Headers(init.headers);
-  headers.set('Content-Type', 'application/json');
-  Object.entries(await authHeader()).forEach(([key, value]) => headers.set(key, value));
-  const response = await fetch(path, { ...init, headers });
+  const send = async (forceRefresh = false) => {
+    const headers = new Headers(init.headers);
+    headers.set('Content-Type', 'application/json');
+    Object.entries(await authHeader(forceRefresh)).forEach(([key, value]) => headers.set(key, value));
+    return fetch(path, { ...init, headers });
+  };
+  let response = await send();
+  if (response.status === 401 && isSupabaseConfigured) response = await send(true);
   if (!response.ok) throw new Error((await response.json().catch(() => ({ error: response.statusText }))).error || '请求失败');
   return response.json() as Promise<T>;
 }
