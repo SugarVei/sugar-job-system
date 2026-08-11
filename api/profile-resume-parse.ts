@@ -1,20 +1,46 @@
 // Node runtime is required by pdf-parse.
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
 // @ts-ignore pdf-parse ships CommonJS without TypeScript declarations.
-// Import the public package entry so Vercel traces the complete dependency.
-import pdfParse from 'pdf-parse';
-import { requireUserFromToken } from './_lib/auth';
-import { header, nodeClientIp, parseNodeBody, setNodeCors, type NodeRequest, type NodeResponse } from './_lib/node-http';
-import { rateLimit } from './_lib/rate-limit';
+import pdfParse from 'pdf-parse/lib/pdf-parse.js';
+type NativeRequest = { method?: string; headers: Record<string, string | string[] | undefined>; body?: unknown };
+type NativeResponse = { status(code: number): NativeResponse; json(body: unknown): void; setHeader(name: string, value: string): void; end(): void };
 
-export default async function handler(request: NodeRequest, response: NodeResponse) {
-  setNodeCors(request, response);
+const buckets = new Map<string, { count: number; reset: number }>();
+function header(request: NativeRequest, name: string) { const value = request.headers[name]; return Array.isArray(value) ? value[0] ?? '' : value ?? ''; }
+function clientIp(request: NativeRequest) { return header(request, 'x-forwarded-for').split(',')[0]?.trim() || 'unknown'; }
+function rateLimit(key: string) { const now = Date.now(); const item = buckets.get(key); if (!item || item.reset <= now) { buckets.set(key, { count: 1, reset: now + 60_000 }); return true; } item.count += 1; return item.count <= 8; }
+function setCors(request: NativeRequest, response: NativeResponse) {
+  const origin = header(request, 'origin');
+  const allowed = new Set(['http://localhost:5173', 'http://127.0.0.1:5173', 'http://localhost:8080', 'http://127.0.0.1:8080']);
+  if (process.env.ALLOWED_ORIGIN) allowed.add(process.env.ALLOWED_ORIGIN);
+  if (process.env.VERCEL_URL) allowed.add(`https://${process.env.VERCEL_URL}`);
+  if (allowed.has(origin)) response.setHeader('Access-Control-Allow-Origin', origin);
+  response.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
+  response.setHeader('Access-Control-Allow-Headers', 'Authorization, Content-Type');
+  response.setHeader('Cache-Control', 'no-store');
+  response.setHeader('Vary', 'Origin');
+}
+async function requireUserId(request: NativeRequest) {
+  const authorization = header(request, 'authorization');
+  if (!authorization.startsWith('Bearer ')) throw new Error('Unauthorized');
+  const url = process.env.SUPABASE_URL;
+  const anonKey = process.env.SUPABASE_ANON_KEY;
+  if (!url || !anonKey) throw new Error('Supabase is not configured');
+  const result = await fetch(`${url}/auth/v1/user`, { headers: { apikey: anonKey, authorization } });
+  if (!result.ok) throw new Error('Unauthorized');
+  const user = await result.json() as { id?: string };
+  if (!user.id) throw new Error('Unauthorized');
+  return user.id;
+}
+
+export default async function handler(request: NativeRequest, response: NativeResponse) {
+  setCors(request, response);
   if (request.method === 'OPTIONS') return response.status(204).end();
   if (request.method !== 'POST') return response.status(405).json({ error: 'Method not allowed' });
   try {
-    const user = await requireUserFromToken(header(request, 'authorization'));
-    if (!rateLimit(`resume-parse:${user.id}:${nodeClientIp(request)}`, 8, 60_000)) return response.status(429).json({ error: '解析请求过于频繁，请稍后再试。' });
-    const body = parseNodeBody<{ file_data?: unknown; file_name?: unknown }>(request);
+    const userId = await requireUserId(request);
+    if (!rateLimit(`resume-parse:${userId}:${clientIp(request)}`)) return response.status(429).json({ error: '解析请求过于频繁，请稍后再试。' });
+    const body = (typeof request.body === 'string' ? JSON.parse(request.body) : request.body ?? {}) as { file_data?: unknown; file_name?: unknown };
     const fileName = typeof body.file_name === 'string' ? body.file_name.slice(0, 180) : '';
     const encoded = typeof body.file_data === 'string' ? body.file_data : '';
     if (!/\.pdf$/i.test(fileName)) return response.status(400).json({ error: '服务器解析仅支持 PDF；DOCX 会在浏览器本地读取。' });

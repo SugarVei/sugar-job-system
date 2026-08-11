@@ -1,8 +1,33 @@
-import { decryptSecret } from './_lib/crypto';
-import { getServiceSupabase, requireUserFromToken } from './_lib/auth';
-import { AI_PROVIDERS } from './_lib/ai-providers';
-import { header, nodeClientIp, parseNodeBody, setNodeCors, type NodeRequest, type NodeResponse } from './_lib/node-http';
-import { rateLimit } from './_lib/rate-limit';
+type NativeRequest = { method?: string; headers: Record<string, string | string[] | undefined>; body?: unknown };
+type NativeResponse = { status(code: number): NativeResponse; json(body: unknown): void; setHeader(name: string, value: string): void; end(): void };
+
+const buckets = new Map<string, { count: number; reset: number }>();
+function header(request: NativeRequest, name: string) { const value = request.headers[name]; return Array.isArray(value) ? value[0] ?? '' : value ?? ''; }
+function clientIp(request: NativeRequest) { return header(request, 'x-forwarded-for').split(',')[0]?.trim() || 'unknown'; }
+function rateLimit(key: string) { const now = Date.now(); const item = buckets.get(key); if (!item || item.reset <= now) { buckets.set(key, { count: 1, reset: now + 60_000 }); return true; } item.count += 1; return item.count <= 6; }
+function setCors(request: NativeRequest, response: NativeResponse) {
+  const origin = header(request, 'origin');
+  const allowed = new Set(['http://localhost:5173', 'http://127.0.0.1:5173', 'http://localhost:8080', 'http://127.0.0.1:8080']);
+  if (process.env.ALLOWED_ORIGIN) allowed.add(process.env.ALLOWED_ORIGIN);
+  if (process.env.VERCEL_URL) allowed.add(`https://${process.env.VERCEL_URL}`);
+  if (allowed.has(origin)) response.setHeader('Access-Control-Allow-Origin', origin);
+  response.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
+  response.setHeader('Access-Control-Allow-Headers', 'Authorization, Content-Type');
+  response.setHeader('Cache-Control', 'no-store');
+  response.setHeader('Vary', 'Origin');
+}
+async function requireUserId(request: NativeRequest) {
+  const authorization = header(request, 'authorization');
+  if (!authorization.startsWith('Bearer ')) throw new Error('Unauthorized');
+  const url = process.env.SUPABASE_URL;
+  const anonKey = process.env.SUPABASE_ANON_KEY;
+  if (!url || !anonKey) throw new Error('Supabase is not configured');
+  const result = await fetch(`${url}/auth/v1/user`, { headers: { apikey: anonKey, authorization } });
+  if (!result.ok) throw new Error('Unauthorized');
+  const user = await result.json() as { id?: string };
+  if (!user.id) throw new Error('Unauthorized');
+  return user.id;
+}
 
 const REPEATABLE = new Set(['education', 'internships', 'work', 'projects', 'campus', 'certificates', 'languages']);
 const SECTIONS = ['personal', 'contact', 'identity', 'online', 'preferences', 'skills', ...REPEATABLE, 'extra'];
@@ -61,23 +86,28 @@ projects: name, role, startDate, endDate, highlights；highlights 使用字符�
 certificates: name, date, issuer；languages: language, level, score。
 日期尽量使用 YYYY-MM 或 YYYY-MM-DD。身份证、护照、手机号、邮箱、微信和详细住址不得出现在输出中。`;
 
-export default async function handler(request: NodeRequest, response: NodeResponse) {
-  setNodeCors(request, response);
+export default async function handler(request: NativeRequest, response: NativeResponse) {
+  setCors(request, response);
   if (request.method === 'OPTIONS') return response.status(204).end();
   if (request.method !== 'POST') return response.status(405).json({ error: 'Method not allowed' });
   try {
-    const user = await requireUserFromToken(header(request, 'authorization'));
-    if (!rateLimit(`profile-ai:${user.id}:${nodeClientIp(request)}`, 6, 60_000)) return response.status(429).json({ error: 'AI 请求过于频繁，请稍后再试。' });
-    const body = parseNodeBody<{ resume_text?: unknown }>(request);
+    const userId = await requireUserId(request);
+    if (!rateLimit(`profile-ai:${userId}:${clientIp(request)}`)) return response.status(429).json({ error: 'AI 请求过于频繁，请稍后再试。' });
+    const body = (typeof request.body === 'string' ? JSON.parse(request.body) : request.body ?? {}) as { resume_text?: unknown };
     const rawText = typeof body.resume_text === 'string' ? body.resume_text.trim() : '';
     if (rawText.length < 20) return response.status(400).json({ error: '简历内容太少，无法分析。' });
     if (rawText.length > 60_000) return response.status(400).json({ error: '简历内容过长，请使用 10MB 以内的精简版简历。' });
     const resumeText = redactResumeText(rawText).slice(0, 30_000);
 
-    const { data, error } = await getServiceSupabase().from('ai_credentials')
-      .select('provider,encrypted_secret,model').eq('user_id', user.id)
-      .order('updated_at', { ascending: false }).limit(1).maybeSingle();
-    if (error || !data || !AI_PROVIDERS[data.provider]) return response.status(404).json({ error: '请先在“插件与 AI”页面配置并测试 AI Key。' });
+    const supabaseUrl = process.env.SUPABASE_URL;
+    const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+    if (!supabaseUrl || !serviceKey) throw new Error('Supabase service is not configured');
+    const query = new URLSearchParams({ select: 'provider,encrypted_secret,model', user_id: `eq.${userId}`, order: 'updated_at.desc', limit: '1' });
+    const credentialResponse = await fetch(`${supabaseUrl}/rest/v1/ai_credentials?${query}`, { headers: { apikey: serviceKey, authorization: `Bearer ${serviceKey}` } });
+    if (!credentialResponse.ok) throw new Error('Credential lookup failed');
+    const [data] = await credentialResponse.json() as Array<{ provider: string; encrypted_secret: string; model?: string | null }>;
+    const [{ decryptSecret }, { AI_PROVIDERS }] = await Promise.all([import('./_lib/crypto'), import('./_lib/ai-providers')]);
+    if (!data || !AI_PROVIDERS[data.provider]) return response.status(404).json({ error: '请先在“插件与 AI”页面配置并测试 AI Key。' });
     const provider = AI_PROVIDERS[data.provider];
     const upstream = await fetch(`${provider.baseUrl}/chat/completions`, {
       method: 'POST',
