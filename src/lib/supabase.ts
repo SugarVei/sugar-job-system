@@ -19,8 +19,8 @@ if (!isSupabaseConfigured) {
 
 // 即便未配置也创建一个占位 client，避免 import 处报错；真实调用时会失败并被捕获。
 export const supabase = createClient(
-  supabaseUrl ?? 'https://placeholder.supabase.co',
-  supabaseAnonKey ?? 'placeholder-anon-key',
+  supabaseUrl || 'https://placeholder.supabase.co',
+  supabaseAnonKey || 'placeholder-anon-key',
   {
     auth: {
       persistSession: true,
