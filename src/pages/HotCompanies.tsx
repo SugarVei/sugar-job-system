@@ -1,5 +1,9 @@
 import { useEffect, useMemo, useState } from 'react';
-import { HOT_COMPANY_GROUPS, type HotCompany, type HotCompanyGroup } from '../data/hotCompanies';
+import { HOT_COMPANY_GROUPS, HOT_COMPANY_TOTAL, type HotCompany, type HotCompanyGroup } from '../data/hotCompanies';
+import {
+  CAMPUS_RECRUITMENT_STATUS_TOTALS,
+  type RecruitmentStatusKey,
+} from '../data/campusRecruitmentAudit20260811';
 import { useAppShell } from '../contexts/AppShellContext';
 import { useApiKeys } from '../contexts/ApiKeysContext';
 import { useCollection } from '../hooks/useCollection';
@@ -14,6 +18,22 @@ import { IconExternalLink, IconSearch, IconTrash } from '../components/icons';
 const ALL = '全部';
 const AI_GROUP_NAME = '我添加的公司';
 const IMPORT_STORAGE_KEY = 'sugar_hot_company_ai_imports';
+const ALL_RECRUITMENT_STATUSES = 'all';
+const AUDIT_OVERRIDE_AFTER = Date.parse('2026-08-12T07:00:00Z');
+
+const RECRUITMENT_STATUS_META = {
+  started: { label: '已开招', border: '#72a879', background: '#e6f3e7', color: '#2f7040' },
+  warmup: { label: '即将开招/预热', border: '#8ca6c7', background: '#eaf1fa', color: '#41658f' },
+  not_started: { label: '未开招', border: '#d7b56f', background: '#fff4d9', color: '#89631c' },
+  internship_only: { label: '仅社招/实习', border: '#c39aa0', background: '#f7e9ec', color: '#8b4d58' },
+  unknown: { label: '链接失效/无法判断', border: '#aaa39a', background: '#f1efeb', color: '#6f6961' },
+} satisfies Record<RecruitmentStatusKey, { label: string; border: string; background: string; color: string }>;
+
+const RECRUITMENT_STATUS_FILTERS = (Object.keys(RECRUITMENT_STATUS_META) as RecruitmentStatusKey[]).map((key) => ({
+  key,
+  ...RECRUITMENT_STATUS_META[key],
+  count: CAMPUS_RECRUITMENT_STATUS_TOTALS[key],
+}));
 
 interface AICompanyCandidate extends HotCompany {
   regionType: string;
@@ -50,6 +70,7 @@ export default function HotCompanies() {
   const { items: recruitmentStatuses, loading: statusesLoading } = useCampusRecruitmentStatuses();
   const toast = useToast();
   const [activeGroup, setActiveGroup] = useState(ALL);
+  const [activeRecruitmentStatus, setActiveRecruitmentStatus] = useState<RecruitmentStatusKey | typeof ALL_RECRUITMENT_STATUSES>(ALL_RECRUITMENT_STATUSES);
   const [pageSearch, setPageSearch] = useState('');
   const [aiPrompt, setAiPrompt] = useState('');
   const [aiLoading, setAiLoading] = useState(false);
@@ -98,15 +119,17 @@ export default function HotCompanies() {
       .map((group) => ({
         ...group,
         companies: group.companies.filter((company) => {
+          if (activeRecruitmentStatus !== ALL_RECRUITMENT_STATUSES && company.recruitment?.status !== activeRecruitmentStatus) {
+            return false;
+          }
           if (!q) return true;
-          // 页面内搜索：按公司名优先，行业/城市为辅
-          return [company.name, company.industry, company.city]
+          return [company.name, company.industry, company.city, company.recruitment?.evidence, company.recruitment?.entry]
             .filter(Boolean)
             .some((value) => value!.toLowerCase().includes(q));
         }),
       }))
       .filter((group) => group.companies.length > 0);
-  }, [activeGroup, allGroups, pageSearch]);
+  }, [activeGroup, activeRecruitmentStatus, allGroups, pageSearch]);
 
   const importedMatches = useMemo(() => {
     const q = pageSearch.trim().toLowerCase();
@@ -282,6 +305,58 @@ export default function HotCompanies() {
       <section style={{ ...CARD, padding: 18, borderRadius: 22 }}>
         <div className="flex items-start justify-between gap-4 flex-wrap">
           <div>
+            <div style={{ fontSize: 15, fontWeight: 750, color: '#1b1a17' }}>2027 届校招核查总览</div>
+            <div style={{ fontSize: 12.5, color: '#8a8478', marginTop: 4 }}>
+              共 {HOT_COMPANY_TOTAL} 家 · 核查于 2026-08-11 · 点击状态可筛选公司
+            </div>
+          </div>
+          {activeRecruitmentStatus !== ALL_RECRUITMENT_STATUSES && (
+            <button
+              type="button"
+              onClick={() => setActiveRecruitmentStatus(ALL_RECRUITMENT_STATUSES)}
+              className="btn-press"
+              style={{ ...secondaryButton, height: 34, background: '#faf7f0' }}
+            >
+              查看全部状态
+            </button>
+          )}
+        </div>
+        <div className="grid grid-cols-2 md:grid-cols-5 gap-2.5" style={{ marginTop: 14 }}>
+          {RECRUITMENT_STATUS_FILTERS.map((status) => {
+            const active = activeRecruitmentStatus === status.key;
+            return (
+              <button
+                key={status.key}
+                type="button"
+                onClick={() => setActiveRecruitmentStatus(active ? ALL_RECRUITMENT_STATUSES : status.key)}
+                aria-pressed={active}
+                className="btn-press"
+                style={{
+                  minHeight: 68,
+                  padding: '10px 12px',
+                  borderRadius: 14,
+                  border: `1.5px solid ${active ? status.color : status.border}`,
+                  background: active ? status.color : status.background,
+                  color: active ? '#fff' : status.color,
+                  textAlign: 'left',
+                  cursor: 'pointer',
+                }}
+              >
+                <span style={{ display: 'block', fontFamily: 'Poppins', fontSize: 20, fontWeight: 750, lineHeight: 1 }}>
+                  {status.count}
+                </span>
+                <span style={{ display: 'block', fontSize: 11.5, fontWeight: 700, marginTop: 7 }}>
+                  {status.label}
+                </span>
+              </button>
+            );
+          })}
+        </div>
+      </section>
+
+      <section style={{ ...CARD, padding: 18, borderRadius: 22 }}>
+        <div className="flex items-start justify-between gap-4 flex-wrap">
+          <div>
             <div style={{ fontFamily: 'Poppins', fontSize: 16, fontWeight: 700, color: '#1b1a17' }}>AI 找公司</div>
             <div style={{ fontSize: 12.5, color: '#8a8478', marginTop: 4 }}>
               输入你的目标，AI 会整理候选公司。确认导入后可在本页搜索或删除。
@@ -419,7 +494,7 @@ export default function HotCompanies() {
                 <span style={{ fontSize: 11.5, color: '#a08cb5', fontWeight: 600 }}>可删除</span>
               )}
             </div>
-            <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-4">
               {group.companies.map((company) => (
                 <CompanyCard
                   key={`${group.name}-${company.name}`}
@@ -475,7 +550,9 @@ function CompanyCard({
   onDelete?: () => void;
 }) {
   const color = avatarColor(company.name);
-  const recruitment = recruitmentStatusPresentation(recruitmentStatus, statusesLoading);
+  const recruitment = recruitmentStatusPresentation(company, recruitmentStatus, statusesLoading);
+  const suggestedEntry = company.recruitment?.entry;
+  const suggestedEntryUrl = isHttpUrl(suggestedEntry) ? suggestedEntry : undefined;
   return (
     <article
       className="card-hover"
@@ -487,7 +564,7 @@ function CompanyCard({
         padding: 16,
         display: 'flex',
         flexDirection: 'column',
-        gap: 14,
+        gap: 12,
         boxShadow: applied ? '0 7px 18px rgba(66,112,163,.16)' : '0 3px 10px rgba(60,50,35,.08)',
         minWidth: 0,
       }}
@@ -571,20 +648,65 @@ function CompanyCard({
           </div>
         </div>
       </div>
+      <div
+        style={{
+          minHeight: 58,
+          padding: '10px 11px',
+          borderRadius: 12,
+          border: `1px solid ${recruitment.style.borderColor ?? '#e0d8c9'}`,
+          background: recruitment.style.background,
+          color: recruitment.style.color,
+        }}
+      >
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
+          <span style={{ fontSize: 12.5, fontWeight: 800 }}>{recruitment.label}</span>
+          <span style={{ fontSize: 10.5, color: '#8a8478', whiteSpace: 'nowrap' }}>核查 08-11</span>
+        </div>
+        <div
+          title={recruitment.title}
+          style={{
+            marginTop: 5,
+            color: '#625d54',
+            fontSize: 11.5,
+            lineHeight: 1.45,
+            display: '-webkit-box',
+            WebkitLineClamp: 2,
+            WebkitBoxOrient: 'vertical',
+            overflow: 'hidden',
+          }}
+        >
+          {recruitment.title}
+        </div>
+      </div>
+      {suggestedEntry && !suggestedEntryUrl && (
+        <div
+          title={suggestedEntry}
+          style={{
+            color: '#756f65',
+            fontSize: 11.5,
+            lineHeight: 1.45,
+            whiteSpace: 'nowrap',
+            overflow: 'hidden',
+            textOverflow: 'ellipsis',
+          }}
+        >
+          建议入口：{suggestedEntry}
+        </div>
+      )}
       <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-        <a href={company.url} target="_blank" rel="noopener noreferrer" className="btn-press" style={primaryLink}>
-          校招官网 <IconExternalLink size={13} />
+        <a href={suggestedEntryUrl || company.url} target="_blank" rel="noopener noreferrer" className="btn-press" style={primaryLink}>
+          建议入口 <IconExternalLink size={13} />
         </a>
         <a
-          href={recruitmentStatus?.evidence_url || company.url}
+          href={recruitmentStatus?.evidence_url || suggestedEntryUrl || company.url}
           target="_blank"
           rel="noopener noreferrer"
           className="btn-press"
-          style={{ ...recruitmentButton, ...recruitment.style }}
-          aria-label={`${company.name}${recruitment.label}，查看官网依据`}
+          style={recruitmentButton}
+          aria-label={`${company.name}查看核查依据`}
           title={recruitment.title}
         >
-          {recruitment.label}
+          核查依据
         </a>
       </div>
     </article>
@@ -626,17 +748,41 @@ const secondaryButton: React.CSSProperties = {
 
 const recruitmentButton: React.CSSProperties = {
   ...secondaryButton,
-  minWidth: 112,
+  minWidth: 84,
   padding: '0 10px',
   textDecoration: 'none',
 };
 
-function recruitmentStatusPresentation(status: CampusRecruitmentStatus | undefined, loading: boolean) {
+function isHttpUrl(value?: string): value is string {
+  return Boolean(value && /^https?:\/\//iu.test(value));
+}
+
+function recruitmentStatusPresentation(
+  company: HotCompany,
+  status: CampusRecruitmentStatus | undefined,
+  loading: boolean,
+) {
+  const hasNewerAutomatedCheck = Boolean(
+    company.recruitment
+    && status?.last_checked_at
+    && !status.evidence_text?.startsWith('【核查状态：')
+    && Date.parse(status.last_checked_at) > AUDIT_OVERRIDE_AFTER,
+  );
+
+  if (company.recruitment && !hasNewerAutomatedCheck) {
+    const meta = RECRUITMENT_STATUS_META[company.recruitment.status];
+    return {
+      label: meta.label,
+      title: company.recruitment.evidence,
+      style: { borderColor: meta.border, background: meta.background, color: meta.color },
+    };
+  }
+
   if (loading && !status) {
     return {
       label: '27校招查询中',
       title: '正在读取每日同步结果',
-      style: { background: '#f3efe6', color: '#8a8478' },
+      style: { borderColor: '#d8d0c2', background: '#f3efe6', color: '#8a8478' },
     };
   }
 
@@ -644,7 +790,7 @@ function recruitmentStatusPresentation(status: CampusRecruitmentStatus | undefin
     return {
       label: '27校招已开始',
       title: status.evidence_text || '官网已发现 2027 届校园招聘信息；该公司已停止每日检查。',
-      style: { border: '1px solid #72a879', background: '#e6f3e7', color: '#2f7040' },
+      style: { borderColor: '#72a879', background: '#e6f3e7', color: '#2f7040' },
     };
   }
 
@@ -652,9 +798,9 @@ function recruitmentStatusPresentation(status: CampusRecruitmentStatus | undefin
     const announced = status.evidence_text?.startsWith('【豆包调查：已公布但尚未开始');
     if (announced) {
       return {
-        label: '27校招已公布',
-        title: status.evidence_text || '官方已公布 2027 届校招安排，但目前尚未开放投递。',
-        style: { border: '1px solid #8ca6c7', background: '#eaf1fa', color: '#41658f' },
+          label: '27校招已公布',
+          title: status.evidence_text || '官方已公布 2027 届校招安排，但目前尚未开放投递。',
+          style: { borderColor: '#8ca6c7', background: '#eaf1fa', color: '#41658f' },
       };
     }
     return {
@@ -662,7 +808,7 @@ function recruitmentStatusPresentation(status: CampusRecruitmentStatus | undefin
       title: status.last_checked_at
         ? `官网暂未发现明确的 2027 校招信息。最近检查：${new Date(status.last_checked_at).toLocaleString('zh-CN')}`
         : '官网暂未发现明确的 2027 校招信息。',
-      style: { border: '1px solid #d7b56f', background: '#fff4d9', color: '#89631c' },
+      style: { borderColor: '#d7b56f', background: '#fff4d9', color: '#89631c' },
     };
   }
 
@@ -670,13 +816,13 @@ function recruitmentStatusPresentation(status: CampusRecruitmentStatus | undefin
     return {
       label: '27校招待复查',
       title: `本次官网检查失败，将自动重试。${status.error_message ? ` ${status.error_message}` : ''}`,
-      style: { border: '1px solid #d8a19a', background: '#fbe9e7', color: '#a14b40' },
+      style: { borderColor: '#d8a19a', background: '#fbe9e7', color: '#a14b40' },
     };
   }
 
   return {
     label: '27校招待确认',
     title: '等待每日自动检查；点击可先打开校招官网。',
-    style: { background: '#f3efe6', color: '#756f65' },
+    style: { borderColor: '#d8d0c2', background: '#f3efe6', color: '#756f65' },
   };
 }

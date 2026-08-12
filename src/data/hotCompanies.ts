@@ -1,8 +1,14 @@
+import {
+  CAMPUS_RECRUITMENT_AUDIT,
+  type CampusRecruitmentAudit,
+} from './campusRecruitmentAudit20260811';
+
 export interface HotCompany {
   name: string;
   industry: string;
   city: string;
   url: string;
+  recruitment?: CampusRecruitmentAudit;
 }
 
 export interface HotCompanyGroup {
@@ -11,7 +17,7 @@ export interface HotCompanyGroup {
   companies: HotCompany[];
 }
 
-export const HOT_COMPANY_GROUPS: HotCompanyGroup[] = [
+const BASE_HOT_COMPANY_GROUPS: HotCompanyGroup[] = [
   { name: "半导体 · 芯片 · 显示", dot: "#8ba3bd", companies: [
     { name: "中芯国际", industry: "晶圆代工", city: "上海", url: "https://careers.smics.com" },
     { name: "长江存储", industry: "存储芯片", city: "武汉", url: "https://ymtc.zhiye.com" },
@@ -161,4 +167,15 @@ export const HOT_COMPANY_GROUPS: HotCompanyGroup[] = [
   ] },
 ];
 
-export const HOT_COMPANY_TOTAL = 131;
+export const HOT_COMPANY_GROUPS: HotCompanyGroup[] = BASE_HOT_COMPANY_GROUPS.map((group) => ({
+  ...group,
+  companies: group.companies.map((company) => ({
+    ...company,
+    recruitment: CAMPUS_RECRUITMENT_AUDIT[company.name],
+  })),
+}));
+
+export const HOT_COMPANY_TOTAL = HOT_COMPANY_GROUPS.reduce(
+  (total, group) => total + group.companies.length,
+  0,
+);
