@@ -22,7 +22,16 @@ function routeLabel(route: JobAssistRoute) {
   return route === 'campus' ? '校招' : '社招';
 }
 
-export function analyzeResumeProfile({
+function strings(value: unknown): string[] {
+  return Array.isArray(value) ? value.filter((item): item is string => typeof item === 'string' && Boolean(item.trim())) : [];
+}
+
+function score(value: unknown, maximum = 100) {
+  const numeric = Number(value);
+  return Number.isFinite(numeric) ? Math.max(0, Math.min(maximum, Math.round(numeric))) : 0;
+}
+
+export async function analyzeResumeProfile({
   config,
   route,
   resumeText,
@@ -33,7 +42,7 @@ export function analyzeResumeProfile({
   resumeText: string;
   corrections?: string;
 }) {
-  return callAIJson<JobAssistProfile>({
+  const raw = await callAIJson<JobAssistProfile>({
     config,
     maxTokens: 4096,
     messages: [
@@ -48,9 +57,27 @@ export function analyzeResumeProfile({
       },
     ],
   });
+  const profile: JobAssistProfile = {
+    snapshot: strings(raw.snapshot),
+    strengths: Array.isArray(raw.strengths) ? raw.strengths.filter((item) => item?.conclusion && item?.evidence) : [],
+    weaknesses: Array.isArray(raw.weaknesses) ? raw.weaknesses.filter((item) => item?.gap && item?.impact) : [],
+    directions: Array.isArray(raw.directions)
+      ? raw.directions.filter((item) => item?.title).slice(0, 3).map((item, index) => ({
+        ...item,
+        typical_titles: strings(item.typical_titles),
+        gaps: strings(item.gaps),
+        primary: index === 0,
+      }))
+      : [],
+    needs_confirmation: strings(raw.needs_confirmation),
+  };
+  if (!profile.snapshot.length || !profile.strengths.length || !profile.directions.length) {
+    throw new Error('AI 返回的画像字段不完整，请重试。');
+  }
+  return profile;
 }
 
-export function analyzeJd({
+export async function analyzeJd({
   config,
   route,
   resumeText,
@@ -70,7 +97,7 @@ export function analyzeJd({
   const weights = route === 'campus'
     ? '硬技能30、项目/实习25、学历/届别/专业20、证书语言10、城市行业意向15'
     : '职级硬性要求30、相关工作成果30、技能20、行业业务域10、城市到岗意向10';
-  return callAIJson<JobAssistJdAnalysis>({
+  const raw = await callAIJson<JobAssistJdAnalysis>({
     config,
     maxTokens: 4096,
     messages: [
@@ -82,9 +109,35 @@ export function analyzeJd({
       },
     ],
   });
+  const eligible = Boolean(raw.eligible);
+  const matchScore = eligible ? score(raw.match_score) : null;
+  const coverage = score(raw.coverage);
+  const matchLevel: JobAssistJdAnalysis['match_level'] = matchScore !== null && matchScore >= 80
+    ? '高匹配'
+    : matchScore !== null && matchScore >= 60 ? '中匹配' : '低匹配';
+  const confidence: JobAssistJdAnalysis['confidence'] = coverage >= 80
+    ? 'high'
+    : coverage >= 60 ? 'medium' : 'low';
+  return {
+    eligible,
+    hard_requirements: Array.isArray(raw.hard_requirements) ? raw.hard_requirements : [],
+    match_score: matchScore,
+    match_level: matchLevel,
+    score_breakdown: raw.score_breakdown && typeof raw.score_breakdown === 'object' ? raw.score_breakdown : {},
+    coverage,
+    confidence,
+    evidence: strings(raw.evidence),
+    presentation_gaps: strings(raw.presentation_gaps),
+    information_gaps: strings(raw.information_gaps),
+    capability_gaps: strings(raw.capability_gaps),
+    next_steps: strings(raw.next_steps).slice(0, 3),
+    summary: typeof raw.summary === 'string' ? raw.summary : '',
+    jd_requirements: strings(raw.jd_requirements),
+    skill_keywords: strings(raw.skill_keywords),
+  };
 }
 
-export function tailorResumeForJd({
+export async function tailorResumeForJd({
   config,
   resumeText,
   confirmedFacts,
@@ -97,7 +150,7 @@ export function tailorResumeForJd({
   jdText: string;
   analysis: JobAssistJdAnalysis;
 }) {
-  return callAIJson<TailoringResult>({
+  const raw = await callAIJson<TailoringResult>({
     config,
     maxTokens: 6144,
     messages: [
@@ -108,9 +161,15 @@ export function tailorResumeForJd({
       },
     ],
   });
+  if (!raw.revised_draft?.trim()) throw new Error('AI 没有返回可保存的简历草稿，请重试。');
+  return {
+    suggestions: strings(raw.suggestions),
+    revised_draft: raw.revised_draft.trim(),
+    questions_to_confirm: strings(raw.questions_to_confirm),
+  };
 }
 
-export function createInterviewPlan({
+export async function createInterviewPlan({
   config,
   route,
   resumeText,
@@ -125,7 +184,7 @@ export function createInterviewPlan({
   jdText: string;
   count?: number;
 }) {
-  return callAIJson<MockInterviewQuestion[]>({
+  const raw = await callAIJson<MockInterviewQuestion[]>({
     config,
     maxTokens: 2048,
     messages: [
@@ -133,9 +192,16 @@ export function createInterviewPlan({
       { role: 'user', content: `简历：\n${resumeText}\n已确认事实：${JSON.stringify(confirmedFacts)}\nJD：\n${jdText}\n返回：[ {"type":"题型","question":"问题","focus":"考察重点"} ]` },
     ],
   });
+  return Array.isArray(raw)
+    ? raw.filter((item) => item?.question).map((item) => ({
+      type: item.type || '综合题',
+      question: item.question,
+      focus: item.focus || '岗位匹配与事实表达',
+    }))
+    : [];
 }
 
-export function scoreInterviewAnswer({
+export async function scoreInterviewAnswer({
   config,
   question,
   answer,
@@ -150,7 +216,7 @@ export function scoreInterviewAnswer({
   confirmedFacts: string[];
   jdText: string;
 }) {
-  return callAIJson<InterviewFeedback>({
+  const raw = await callAIJson<InterviewFeedback>({
     config,
     maxTokens: 3072,
     messages: [
@@ -161,5 +227,22 @@ export function scoreInterviewAnswer({
       },
     ],
   });
+  const scores = {
+    relevance: score(raw.scores?.relevance, 25),
+    evidence: score(raw.scores?.evidence, 25),
+    structure: score(raw.scores?.structure, 20),
+    role_fit: score(raw.scores?.role_fit, 20),
+    clarity: score(raw.scores?.clarity, 10),
+  };
+  return {
+    ...raw,
+    scores,
+    total_score: Object.values(scores).reduce((total, item) => total + item, 0),
+    effective_point: raw.effective_point || '回答已完成，建议继续补充具体证据。',
+    main_issue: raw.main_issue || '事实证据不足。',
+    recommended_structure: raw.recommended_structure || '结论—证据—结果',
+    improved_example: raw.improved_example || '请基于真实经历补充后重答。',
+    issue_tags: strings(raw.issue_tags),
+    improvement_summary: raw.improvement_summary || '补充真实证据并把结论前置。',
+  };
 }
-

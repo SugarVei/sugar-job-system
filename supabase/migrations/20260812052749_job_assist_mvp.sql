@@ -107,6 +107,65 @@ begin
   end loop;
 end $$;
 
+-- 外键 ID 也必须属于当前账号，防止只靠 user_id 造成跨账号关联。
+drop policy if exists job_assist_campaigns_relationships_own on public.job_assist_campaigns;
+create policy job_assist_campaigns_relationships_own
+  on public.job_assist_campaigns as restrictive for all to authenticated
+  using (
+    (select auth.uid()) = user_id
+    and exists (select 1 from public.resumes r where r.id = resume_id and r.user_id = (select auth.uid()))
+  )
+  with check (
+    (select auth.uid()) = user_id
+    and exists (select 1 from public.resumes r where r.id = resume_id and r.user_id = (select auth.uid()))
+    and (resume_file_id is null or exists (
+      select 1 from public.resume_files rf
+      where rf.id = resume_file_id and rf.resume_id = resume_id and rf.user_id = (select auth.uid())
+    ))
+  );
+
+drop policy if exists job_assist_interview_sessions_relationships_own on public.job_assist_interview_sessions;
+create policy job_assist_interview_sessions_relationships_own
+  on public.job_assist_interview_sessions as restrictive for all to authenticated
+  using (
+    (select auth.uid()) = user_id
+    and exists (select 1 from public.job_assist_campaigns c where c.id = campaign_id and c.user_id = (select auth.uid()))
+  )
+  with check (
+    (select auth.uid()) = user_id
+    and exists (select 1 from public.job_assist_campaigns c where c.id = campaign_id and c.resume_id = resume_id and c.user_id = (select auth.uid()))
+    and (jd_match_id is null or exists (select 1 from public.jd_matches j where j.id = jd_match_id and j.user_id = (select auth.uid())))
+    and (application_id is null or exists (select 1 from public.applications a where a.id = application_id and a.user_id = (select auth.uid())))
+  );
+
+drop policy if exists job_assist_interview_questions_relationships_own on public.job_assist_interview_questions;
+create policy job_assist_interview_questions_relationships_own
+  on public.job_assist_interview_questions as restrictive for all to authenticated
+  using (
+    (select auth.uid()) = user_id
+    and exists (select 1 from public.job_assist_interview_sessions s where s.id = session_id and s.user_id = (select auth.uid()))
+  )
+  with check (
+    (select auth.uid()) = user_id
+    and exists (select 1 from public.job_assist_interview_sessions s where s.id = session_id and s.user_id = (select auth.uid()))
+  );
+
+drop policy if exists jd_matches_job_assist_relationships_own on public.jd_matches;
+create policy jd_matches_job_assist_relationships_own
+  on public.jd_matches as restrictive for all to authenticated
+  using (
+    (select auth.uid()) = user_id
+    and (resume_id is null or exists (select 1 from public.resumes r where r.id = resume_id and r.user_id = (select auth.uid())))
+    and (campaign_id is null or exists (select 1 from public.job_assist_campaigns c where c.id = campaign_id and c.user_id = (select auth.uid())))
+    and (application_id is null or exists (select 1 from public.applications a where a.id = application_id and a.user_id = (select auth.uid())))
+  )
+  with check (
+    (select auth.uid()) = user_id
+    and (resume_id is null or exists (select 1 from public.resumes r where r.id = resume_id and r.user_id = (select auth.uid())))
+    and (campaign_id is null or exists (select 1 from public.job_assist_campaigns c where c.id = campaign_id and c.user_id = (select auth.uid())))
+    and (application_id is null or exists (select 1 from public.applications a where a.id = application_id and a.user_id = (select auth.uid())))
+  );
+
 -- 2026-05 起新表可能不会自动暴露到 Data API；显式授权，RLS 仍负责账号隔离。
 revoke all on table public.job_assist_campaigns from anon, authenticated;
 revoke all on table public.job_assist_interview_sessions from anon, authenticated;
