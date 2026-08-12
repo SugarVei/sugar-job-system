@@ -26,6 +26,48 @@ const empty: NewRecord<Resume> = {
   notes: '',
 };
 
+const JOB_ASSIST_EXPLAINER = (
+  <section
+    aria-labelledby="job-assist-explainer-title"
+    style={{
+      flex: 1,
+      minHeight: 72,
+      display: 'flex',
+      alignItems: 'center',
+      gap: 13,
+      padding: '13px 16px',
+      border: '1px solid rgba(223,156,99,0.48)',
+      borderRadius: 16,
+      background: 'linear-gradient(135deg, rgba(255,248,238,0.92), rgba(255,253,249,0.78))',
+      boxShadow: '0 8px 24px rgba(123,91,54,0.06)',
+    }}
+  >
+    <span
+      aria-hidden="true"
+      style={{
+        width: 38,
+        height: 38,
+        flex: '0 0 38px',
+        display: 'grid',
+        placeItems: 'center',
+        borderRadius: 12,
+        background: '#fff0de',
+        fontSize: 19,
+      }}
+    >
+      ✨
+    </span>
+    <div>
+      <h2 id="job-assist-explainer-title" style={{ margin: 0, color: '#5f371b', fontSize: 14, fontWeight: 700 }}>
+        什么是“求职辅助”？
+      </h2>
+      <p style={{ margin: '4px 0 0', color: '#756b5e', fontSize: 12.5, lineHeight: 1.6 }}>
+        它会结合你上传的简历和目标岗位，帮你梳理求职方向、分析 JD 匹配、生成定制简历草稿、记录投递进度并进行模拟面试。内容由你确认，不会自动投递。
+      </p>
+    </div>
+  </section>
+);
+
 const SUPPORTED_UPLOAD_ACCEPT = '.pdf,.docx,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document';
 const SUPPORTED_UPLOAD_EXTENSIONS = new Set(['pdf', 'docx']);
 const SUPPORTED_UPLOAD_MIME_TYPES = new Set([
@@ -179,12 +221,15 @@ export default function Resumes() {
 
   return (
     <div className="animate-rise">
-      <div className="flex justify-end mb-[18px]">
-        <PrimaryButton accent={theme.accent} onClick={openCreate} style={{ height: 44 }}>
-          <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
-            <IconPlus size={16} /> 新增简历
-          </span>
-        </PrimaryButton>
+      <div className="flex flex-col sm:flex-row sm:items-center gap-3 mb-[18px]">
+        {JOB_ASSIST_EXPLAINER}
+        <div className="flex justify-end flex-none">
+          <PrimaryButton accent={theme.accent} onClick={openCreate} style={{ height: 44 }}>
+            <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+              <IconPlus size={16} /> 新增简历
+            </span>
+          </PrimaryButton>
+        </div>
       </div>
 
       {loading ? (
