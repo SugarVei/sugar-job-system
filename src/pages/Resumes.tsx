@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { lazy, Suspense, useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import type { DragEvent } from 'react';
 import type { Application, Resume, ResumeFile, ResumeFileKind, NewRecord } from '../types';
@@ -13,6 +13,11 @@ import { IconEdit, IconTrash, IconPlus, IconFile } from '../components/icons';
 import { CARD } from '../lib/appHelpers';
 import EmptyState from '../components/EmptyState';
 import { generateDocx, downloadBlob } from '../lib/generateDocx';
+import { extractResumeText } from '../lib/resumeText';
+import { streamAIChat } from '../lib/aiChatClient';
+import { RESUME_INTERVIEW_SCRIPT_PROMPT } from '../lib/resumeInterviewPrompt';
+
+const JobAssistDrawer = lazy(() => import('../components/job-assist/JobAssistDrawer'));
 
 const empty: NewRecord<Resume> = {
   resume_name: '',
@@ -59,7 +64,7 @@ export default function Resumes() {
     column: 'updated_at',
     ascending: false,
   });
-  const { items: applications } = useCollection<Application>('applications');
+  const { items: applications, create: createApplication } = useCollection<Application>('applications');
   const fileApi = useResumeFiles();
   const { query, registerAdd } = useAppShell();
   const { theme } = useTheme();
@@ -140,6 +145,26 @@ export default function Resumes() {
     fileApi.refresh();
   };
 
+  const createTailoredResumeVersion = async (
+    name: string,
+    targetPosition: string,
+    notes: string,
+    draft: string,
+  ) => {
+    const created = await create({
+      resume_name: name,
+      target_position: targetPosition,
+      file_url: '',
+      notes,
+    });
+    try {
+      await fileApi.saveAIContent(created.id, `${name}-文字草稿`, 'resume', draft);
+    } catch (error) {
+      await remove(created.id);
+      throw error;
+    }
+  };
+
   const filtered = useMemo(
     () =>
       items.filter((r) => {
@@ -179,6 +204,8 @@ export default function Resumes() {
               files={filesByResume.get(r.id) ?? []}
               linkCount={linkCount.get(r.id) ?? 0}
               fileApi={fileApi}
+              onCreateApplication={createApplication}
+              onCreateResumeVersion={createTailoredResumeVersion}
               onEdit={() => openEdit(r)}
               onDelete={() => del(r)}
             />
@@ -237,6 +264,8 @@ function ResumeCard({
   files,
   linkCount,
   fileApi,
+  onCreateApplication,
+  onCreateResumeVersion,
   onEdit,
   onDelete,
 }: {
@@ -244,6 +273,8 @@ function ResumeCard({
   files: ResumeFile[];
   linkCount: number;
   fileApi: ReturnType<typeof useResumeFiles>;
+  onCreateApplication: (payload: Record<string, unknown>) => Promise<Application>;
+  onCreateResumeVersion: (name: string, targetPosition: string, notes: string, draft: string) => Promise<void>;
   onEdit: () => void;
   onDelete: () => void;
 }) {
@@ -253,6 +284,7 @@ function ResumeCard({
   const [uploadingKind, setUploadingKind] = useState<ResumeFileKind | null>(null);
   const [downloadingId, setDownloadingId] = useState<string | null>(null);
   const [expandedScripts, setExpandedScripts] = useState<Set<string>>(new Set());
+  const [jobAssistOpen, setJobAssistOpen] = useState(false);
 
   // AI 生成状态
   const [aiOpen, setAiOpen] = useState(false);
@@ -314,48 +346,6 @@ function ResumeCard({
     }
   };
 
-  const extractResumeText = async (f: ResumeFile): Promise<string> => {
-    const signedUrl = await fileApi.getDownloadUrl(f.file_path!);
-    const ext = f.file_name.split('.').pop()?.toLowerCase() ?? '';
-
-    if (ext === 'pdf') {
-      const res = await fetch('/api/parse-resume', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ signedUrl }),
-      });
-      const json = await res.json();
-      if (!res.ok || json.error) throw new Error(json.error ?? 'PDF 解析失败');
-      return json.text as string;
-    }
-
-    if (ext === 'docx') {
-      const res = await fetch(signedUrl);
-      const buf = await res.arrayBuffer();
-      const { default: JSZip } = await import('jszip');
-      const zip = await JSZip.loadAsync(buf);
-      const xmlFile = zip.file('word/document.xml');
-      if (!xmlFile) throw new Error('无效的 DOCX 文件');
-      const xml = await xmlFile.async('string');
-      // Split at paragraph boundaries, extract <w:t> text per paragraph
-      const withBreaks = xml.replace(/<w:p[ />]/g, '\n__PARA__');
-      return withBreaks
-        .split('__PARA__')
-        .map((seg) => {
-          const segParts: string[] = [];
-          const segRe = /<w:t(?:\s[^>]*)?>([^<]*)<\/w:t>/g;
-          let sm: RegExpExecArray | null;
-          while ((sm = segRe.exec(seg)) !== null) segParts.push(sm[1]);
-          return segParts.join('');
-        })
-        .join('\n')
-        .replace(/\n{3,}/g, '\n\n')
-        .trim();
-    }
-
-    throw new Error('暂不支持该格式，请上传 PDF 或 DOCX 文件。');
-  };
-
   const startGeneration = async (fileId?: string) => {
     const targetId = fileId ?? aiSelectedId ?? uploadedResumes[0]?.id;
     const targetFile = uploadedResumes.find((f) => f.id === targetId);
@@ -365,55 +355,8 @@ function ResumeCard({
     setAiProgress('📄 正在读取简历文件…');
     setAiStreamText('');
 
-    const SYSTEM_PROMPT = `你现在是一名资深求职面试辅导老师，请根据我提供的简历内容，帮我生成一份"实习面试稿件"。
-
-要求你严格围绕我的简历内容展开，不要编造不存在的经历。如果简历中信息不足，可以用【需要我补充】标注。
-
-我的目标是：准备实习面试，希望能够流畅、自信、逻辑清楚地回答面试官的问题。
-
-请你按照以下结构输出：
-
-一、1分钟中文自我介绍
-要求：
-1. 语言自然，不要太像背稿；
-2. 体现我的学历背景、研究方向、项目经历、技能优势和求职意向；
-3. 控制在面试时1分钟左右能说完；
-4. 适合实习面试场景。
-
-二、3分钟中文自我介绍
-要求：
-1. 比1分钟版本更完整；
-2. 按照"教育背景—研究/项目经历—技能能力—岗位匹配—求职动机"的逻辑展开；
-3. 重点突出我简历中最有竞争力的经历；
-4. 语言要稳重、真实，不要夸张。
-
-三、面试官高频问题与参考回答
-请至少生成25个问题，分为以下类别：
-1. 基础类问题
-2. 简历深挖类问题（根据每段经历设计追问）
-3. 论文/科研/项目类问题
-4. 技能类问题（Python、R、SQL、Excel、建模等）
-5. 行为面试问题
-6. 压力面试问题
-每个问题都给出参考回答，回答使用"背景—任务—方法—结果—反思"结构。
-
-四、根据我的简历，指出面试官最可能重点追问的5个地方
-每个地方说明：为什么容易被追问、可能问什么、应该怎么答、哪些话不要说。
-
-五、项目经历讲述模板
-选择最重要的1-2个项目，按照：项目背景、目标、我负责的内容、使用方法/工具、遇到的问题、解决方案、最终结果、体现的能力。
-
-六、反问面试官的问题
-给我10个适合实习生在面试最后反问的问题，每个说明为什么适合问。
-
-七、面试前速记版
-用条目形式整理：自我介绍关键词、项目关键词、技能关键词、优势关键词。
-
-语言要求：真实、清晰、不油腻、不像AI生成、适合硕士研究生/实习生表达，不使用"赋能""闭环""抓手""沉淀""深度参与"等模板词。`;
-
-    let fullText = '';
     try {
-      const resumeText = await extractResumeText(targetFile);
+      const resumeText = await extractResumeText(targetFile, fileApi.getDownloadUrl);
       if (!resumeText.trim()) throw new Error('简历内容为空，无法生成稿件');
 
       setAiProgress('🤖 AI 正在生成面试稿件…');
@@ -425,44 +368,15 @@ function ResumeCard({
         return;
       }
 
-      const res = await fetch('/api/ai-chat', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          messages: [
-            { role: 'system', content: SYSTEM_PROMPT },
-            { role: 'user', content: `以下是我的简历内容：\n\n${resumeText}` },
-          ],
-          maxTokens: 8192,
-          provider: aiConfig.provider,
-          apiKey: aiConfig.apiKey,
-          model: aiConfig.model,
-        }),
+      const fullText = await streamAIChat({
+        config: aiConfig,
+        messages: [
+          { role: 'system', content: RESUME_INTERVIEW_SCRIPT_PROMPT },
+          { role: 'user', content: `以下是我的简历内容：\n\n${resumeText}` },
+        ],
+        maxTokens: 8192,
+        onToken: setAiStreamText,
       });
-
-      if (!res.body) throw new Error('无响应流');
-      const reader = res.body.getReader();
-      const decoder = new TextDecoder();
-      let buf = '';
-
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-        buf += decoder.decode(value, { stream: true });
-        const lines = buf.split('\n');
-        buf = lines.pop() ?? '';
-        for (const line of lines) {
-          if (!line.startsWith('data: ')) continue;
-          const data = line.slice(6).trim();
-          if (data === '[DONE]') break;
-          try {
-            const json = JSON.parse(data);
-            if (json.error) throw new Error(json.error);
-            const token: string | undefined = json.choices?.[0]?.delta?.content;
-            if (token) { fullText += token; setAiStreamText(fullText); }
-          } catch { /* skip */ }
-        }
-      }
 
       if (fullText) {
         // 用上传文件名（去扩展名）作为稿件名，避免 resume_name 为空的问题
@@ -521,7 +435,7 @@ function ResumeCard({
 
       {resume.notes && <p style={{ fontSize: 13, lineHeight: 1.6, color: '#8a8478', margin: '14px 0 16px' }}>{resume.notes}</p>}
 
-      <div className="grid grid-cols-1 sm:grid-cols-[1fr_1fr_auto] gap-3" style={{ margin: '4px 0 14px', alignItems: 'stretch' }}>
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3" style={{ margin: '4px 0 14px', alignItems: 'stretch' }}>
         <input
           ref={resumeInputRef}
           type="file"
@@ -592,7 +506,30 @@ function ResumeCard({
           }}
         >
           <span style={{ fontSize: 20 }}>🤖</span>
-          <span style={{ fontSize: 12, fontWeight: 700, color: '#4a3f96', lineHeight: 1.3 }}>AI 生成<br />面试稿件</span>
+          <span style={{ fontSize: 12, fontWeight: 700, color: '#4a3f96', lineHeight: 1.3 }}>AI 生成面试稿件</span>
+        </button>
+        <button
+          type="button"
+          onClick={() => setJobAssistOpen(true)}
+          className="btn-press"
+          style={{
+            border: '1.5px dashed #df9c63',
+            background: '#fff4e8',
+            borderRadius: 14,
+            padding: '14px 16px',
+            textAlign: 'center',
+            cursor: 'pointer',
+            minHeight: 70,
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: 6,
+            transition: 'background 160ms',
+          }}
+        >
+          <span style={{ fontSize: 20 }}>✨</span>
+          <span style={{ fontSize: 12, fontWeight: 700, color: '#8d4f20', lineHeight: 1.3 }}>求职辅助</span>
         </button>
       </div>
 
@@ -706,6 +643,20 @@ function ResumeCard({
         document.body,
       )}
 
+      {jobAssistOpen && (
+        <Suspense fallback={null}>
+          <JobAssistDrawer
+            open
+            resume={resume}
+            files={files}
+            onClose={() => setJobAssistOpen(false)}
+            getDownloadUrl={fileApi.getDownloadUrl}
+            onCreateApplication={onCreateApplication}
+            onCreateResumeVersion={onCreateResumeVersion}
+          />
+        </Suspense>
+      )}
+
       <div className="flex flex-col gap-[9px]">
         {files.length === 0 ? (
           <div style={{ fontSize: 12.5, color: '#a39d90', padding: '4px 2px' }}>暂无文件，点击或拖拽文件到上方区域上传。</div>
@@ -729,7 +680,7 @@ function ResumeCard({
                     <div style={{ minWidth: 0 }}>
                       <div style={{ fontSize: 13.5, fontWeight: 600, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{f.file_name}</div>
                       <div style={{ fontSize: 11.5, color: '#a39d90' }}>
-                        {isAI ? 'AI 生成稿件' : isResume ? '简历本体' : '面试稿件'} · {fmtDateTime(f.created_at)}
+                        {isAI ? (isResume ? 'AI 定制简历草稿' : 'AI 生成面试稿件') : isResume ? '简历本体' : '面试稿件'} · {fmtDateTime(f.created_at)}
                       </div>
                     </div>
                   </div>

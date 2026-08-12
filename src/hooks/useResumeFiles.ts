@@ -167,8 +167,8 @@ export function useResumeFiles() {
     setFiles((prev) => prev.filter((x) => x.id !== f.id));
   }, []);
 
-  const saveAIScript = useCallback(
-    async (resumeId: string, resumeName: string, content: string) => {
+  const saveAIContent = useCallback(
+    async (resumeId: string, fileName: string, kind: ResumeFileKind, content: string) => {
       if (!user) throw new Error('未登录');
       if (!isSupabaseConfigured) throw new Error('Supabase 尚未配置');
 
@@ -177,9 +177,9 @@ export function useResumeFiles() {
         .insert({
           user_id: user.id,
           resume_id: resumeId,
-          file_name: `${resumeName}-面试稿件`,
+          file_name: fileName,
           file_path: null,
-          kind: 'script',
+          kind,
           size: null,
           content,
           source: 'ai',
@@ -194,5 +194,12 @@ export function useResumeFiles() {
     [user],
   );
 
-  return { files, loading, refresh: fetchAll, upload, getDownloadUrl, remove, saveAIScript };
+  const saveAIScript = useCallback(
+    (resumeId: string, resumeName: string, content: string) => (
+      saveAIContent(resumeId, `${resumeName}-面试稿件`, 'script', content)
+    ),
+    [saveAIContent],
+  );
+
+  return { files, loading, refresh: fetchAll, upload, getDownloadUrl, remove, saveAIContent, saveAIScript };
 }
