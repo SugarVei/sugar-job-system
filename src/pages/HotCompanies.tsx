@@ -138,8 +138,10 @@ export default function HotCompanies() {
   }, [importedCompanies, pageSearch]);
 
   const viewApplications = (company: HotCompany) => {
+    const matchingApplication = applications.find((application) =>
+      applicationCompanyMatchesHotCompany(application.company_name, company.name));
     setScreen('applications');
-    setTimeout(() => setQuery(company.name), 0);
+    setTimeout(() => setQuery(matchingApplication?.company_name ?? company.name), 0);
   };
 
   const searchWithAI = async () => {
