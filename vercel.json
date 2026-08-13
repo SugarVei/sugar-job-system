@@ -8,6 +8,10 @@
       "maxDuration": 30,
       "memory": 1024
     },
+    "api/cron-campus-recruitment.ts": {
+      "maxDuration": 120,
+      "memory": 1024
+    },
     "api/profile-ai-analyze.ts": {
       "maxDuration": 120,
       "memory": 1024
@@ -18,6 +22,12 @@
       "includeFiles": "node_modules/pdf-parse/lib/pdf.js/v1.10.100/build/**"
     }
   },
+  "crons": [
+    {
+      "path": "/api/cron-campus-recruitment",
+      "schedule": "0 0 * * *"
+    }
+  ],
   "rewrites": [
     { "source": "/((?!api/).*)", "destination": "/" }
   ]
