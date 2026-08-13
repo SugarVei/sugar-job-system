@@ -10,7 +10,7 @@ const MAX_FILE_SIZE = 10 * 1024 * 1024;
 const PDF_MIME_TYPE = 'application/pdf';
 const DOCX_MIME_TYPE = 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
 
-type Result = { name: string; score: number; reason: string; industry?: string; city?: string; companyType?: string; website?: string };
+type Result = { name: string; score: number; reason: string; industry?: string; city?: string; companyType?: string; website?: string; sourceNote?: string };
 type ApiResult = { standardMatches: Result[]; privateRecommendations: Result[]; error?: string };
 
 function fileExtension(fileName: string) { return fileName.split('.').pop()?.toLowerCase() ?? ''; }
@@ -154,7 +154,7 @@ export default function ResumeCompanyFinder({
           const company = standardByName.get(item.name);
           return { user_id: user.id, run_id: run.id, source: 'resume', recommendation_type: 'standard', company_name: item.name, industry: company?.industry ?? null, city: company?.city ?? null, company_type: null, website: company?.url ?? null, match_score: item.score, reason: item.reason };
         }),
-        ...(data.privateRecommendations ?? []).map((item) => ({ user_id: user.id, run_id: run.id, source: 'resume', recommendation_type: 'private', company_name: item.name, industry: item.industry || null, city: item.city || null, company_type: item.companyType || null, website: item.website || null, match_score: item.score, reason: item.reason })),
+        ...(data.privateRecommendations ?? []).map((item) => ({ user_id: user.id, run_id: run.id, source: 'resume', recommendation_type: 'private', company_name: item.name, industry: item.industry || null, city: item.city || null, company_type: item.companyType || null, website: item.website || null, match_score: item.score, reason: [item.reason, item.sourceNote].filter(Boolean).join('｜') || null })),
       ];
       if (rows.length) {
         const { error: recommendationError } = await supabase.from('company_recommendations').insert(rows);
@@ -215,14 +215,26 @@ export default function ResumeCompanyFinder({
       <div className="flex items-center justify-between gap-3 flex-wrap" style={{ marginTop: 15 }}><span style={{ fontSize: 11.5, color: loading ? '#8a5a34' : '#9a9488' }}>{loading ? progress : '原文件存入私有空间；标准公司不会被修改。'}</span><button type="button" onClick={() => void analyze()} disabled={!file || loading} className="btn-press" style={{ border: 0, borderRadius: 12, height: 40, padding: '0 18px', background: !file || loading ? '#d8d0c2' : '#1b1a17', color: '#fffdf8', cursor: !file || loading ? 'not-allowed' : 'pointer', fontSize: 13, fontWeight: 750 }}>{loading ? '正在分析简历…' : '开始匹配公司'}</button></div>
 
       {results && <div style={{ marginTop: 18, borderTop: '1px solid #ebe3d7', paddingTop: 16 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', marginBottom: 12 }}><strong style={{ fontSize: 13.5, color: '#1b1a17' }}>本次建议投递 {results.standardMatches.length + results.privateRecommendations.length} 家</strong><span style={{ fontSize: 11.5, color: '#8a8478' }}>热门公司仅作参考，AI 已补充非热门候选；投递前请核实官网岗位。</span></div>
         <div style={{ fontSize: 13.5, fontWeight: 750, color: '#1b1a17' }}>为你匹配的标准公司</div>
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3" style={{ marginTop: 10 }}>{results.standardMatches.length ? results.standardMatches.map((item) => <ResultCard key={`standard-${item.name}`} item={{ ...item, industry: standardByName.get(item.name)?.industry, city: standardByName.get(item.name)?.city }} standard />) : <span style={{ fontSize: 12.5, color: '#8a8478' }}>本次没有找到足够贴合的标准公司，可以调整偏好后再试。</span>}</div>
-        {results.privateRecommendations.length > 0 && <><div style={{ marginTop: 16, fontSize: 13.5, fontWeight: 750, color: '#1b1a17' }}>为你新增的私有候选公司</div><div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3" style={{ marginTop: 10 }}>{results.privateRecommendations.map((item) => <ResultCard key={`private-${item.name}`} item={item} />)}</div></>}
+        {results.privateRecommendations.length > 0 && <><div style={{ marginTop: 16, fontSize: 13.5, fontWeight: 750, color: '#1b1a17' }}>AI 扩展的建议投递公司（非热门）</div><div style={{ fontSize: 11.5, color: '#8a8478', marginTop: 4 }}>这些公司会保存到当前账号的候选公司中，不会改变标准热门公司。</div><div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3" style={{ marginTop: 10 }}>{results.privateRecommendations.map((item) => <ResultCard key={`private-${item.name}`} item={item} />)}</div></>}
       </div>}
     </section>
   );
 }
 
 function ResultCard({ item, standard = false }: { item: Result; standard?: boolean }) {
-  return <article style={{ border: '1px solid #e0d8c9', borderRadius: 14, background: standard ? '#f6faf6' : '#fff', padding: 13 }}><div className="flex items-start justify-between gap-2"><div style={{ minWidth: 0 }}><div style={{ fontSize: 13.5, color: '#4a463e', fontWeight: 750 }}>{item.name}</div><div style={{ fontSize: 11.5, color: '#9a9488', marginTop: 3 }}>{[item.industry, item.city, item.companyType].filter(Boolean).join(' · ') || (standard ? '标准公司' : '私有候选')}</div></div><span style={{ flex: 'none', borderRadius: 999, background: standard ? '#dceedd' : '#f4e8d8', color: standard ? '#397245' : '#9b633d', padding: '3px 7px', fontSize: 11.5, fontWeight: 750 }}>{item.score}分</span></div><p style={{ margin: '9px 0 0', fontSize: 12, color: '#6b665c', lineHeight: 1.55 }}>{item.reason}</p>{item.website && <a href={item.website} target="_blank" rel="noopener noreferrer" style={{ display: 'inline-block', marginTop: 8, color: '#8a5a34', fontSize: 12, fontWeight: 700 }}>查看官网</a>}</article>;
+  return <article style={{ border: '1px solid #e0d8c9', borderRadius: 14, background: standard ? '#f6faf6' : '#fff', padding: 13 }}>
+    <div className="flex items-start justify-between gap-2">
+      <div style={{ minWidth: 0 }}>
+        <div style={{ fontSize: 13.5, color: '#4a463e', fontWeight: 750 }}>{item.name}</div>
+        <div style={{ fontSize: 11.5, color: '#9a9488', marginTop: 3 }}>{[item.industry, item.city, item.companyType].filter(Boolean).join(' · ') || (standard ? '标准公司' : '私有候选')}</div>
+      </div>
+      <span style={{ flex: 'none', borderRadius: 999, background: standard ? '#dceedd' : '#f4e8d8', color: standard ? '#397245' : '#9b633d', padding: '3px 7px', fontSize: 11.5, fontWeight: 750 }}>{item.score}分</span>
+    </div>
+    <p style={{ margin: '9px 0 0', fontSize: 12, color: '#6b665c', lineHeight: 1.55 }}>{item.reason}</p>
+    {!standard && <div style={{ marginTop: 8, color: '#8a5a34', fontSize: 11.5, fontWeight: 700 }}>建议投递 · {item.sourceNote || '投递前核实官网岗位与招聘状态'}</div>}
+    {item.website && <a href={item.website} target="_blank" rel="noopener noreferrer" style={{ display: 'inline-block', marginTop: 8, color: '#8a5a34', fontSize: 12, fontWeight: 700 }}>查看官网</a>}
+  </article>;
 }
