@@ -1,5 +1,3 @@
-import { HOT_COMPANY_GROUPS, type HotCompany } from '../src/data/hotCompanies';
-import { getServiceSupabase } from './_lib/auth';
 import type { IncomingMessage, ServerResponse } from 'node:http';
 
 export const config = { maxDuration: 120 };
@@ -11,6 +9,14 @@ type ExistingStatus = {
   evidence_url: string | null;
   started_at: string | null;
   check_count: number;
+};
+
+type HotCompany = {
+  name: string;
+  industry: string;
+  city: string;
+  url: string;
+  recruitment?: { entry?: string };
 };
 
 type CheckResult = {
@@ -25,6 +31,21 @@ type CheckResult = {
 const CHECK_CONCURRENCY = 16;
 const FETCH_TIMEOUT_MS = 10_000;
 const DAY_MS = 24 * 60 * 60 * 1000;
+const COMPANY_SOURCE_URL = 'https://sugar-job-system.vercel.app/api/hot-companies';
+
+function requiredEnv(name: string) {
+  const value = process.env[name];
+  if (!value) throw new Error(`${name} is not configured`);
+  return value;
+}
+
+function supabaseHeaders(serviceRoleKey: string, extras?: Record<string, string>) {
+  return {
+    apikey: serviceRoleKey,
+    authorization: `Bearer ${serviceRoleKey}`,
+    ...extras,
+  };
+}
 
 function normalizeCompanyName(name: string) {
   return name
@@ -153,16 +174,26 @@ export default async function handler(request: IncomingMessage, response: Vercel
   }
 
   try {
-    const db = getServiceSupabase();
-    const { data, error: readError } = await db
-      .from('campus_recruitment_statuses')
-      .select('company_key,status,evidence_text,evidence_url,started_at,check_count');
-    if (readError) throw readError;
+    const supabaseUrl = requiredEnv('SUPABASE_URL').replace(/\/$/, '');
+    const serviceRoleKey = requiredEnv('SUPABASE_SERVICE_ROLE_KEY');
+    const [companyResponse, statusResponse] = await Promise.all([
+      fetch(COMPANY_SOURCE_URL, { headers: { accept: 'application/json' } }),
+      fetch(
+        `${supabaseUrl}/rest/v1/campus_recruitment_statuses?select=company_key,status,evidence_text,evidence_url,started_at,check_count`,
+        { headers: supabaseHeaders(serviceRoleKey, { accept: 'application/json' }) },
+      ),
+    ]);
+    if (!companyResponse.ok) throw new Error(`公司清单读取失败：HTTP ${companyResponse.status}`);
+    if (!statusResponse.ok) throw new Error(`校招状态读取失败：HTTP ${statusResponse.status}`);
+
+    const companySource = await companyResponse.json() as { companies?: HotCompany[] };
+    const companies = (companySource.companies ?? []).filter((company) => company.name && company.url);
+    if (!companies.length) throw new Error('公司清单为空');
+    const data = await statusResponse.json() as ExistingStatus[];
 
     const previousByKey = new Map(
       ((data ?? []) as ExistingStatus[]).map((row) => [row.company_key, row]),
     );
-    const companies = HOT_COMPANY_GROUPS.flatMap((group) => group.companies);
     const results = await mapWithConcurrency(companies, CHECK_CONCURRENCY, (company) => {
       const companyKey = normalizeCompanyName(company.name);
       return inspectCompany(company, previousByKey.get(companyKey));
@@ -189,10 +220,20 @@ export default async function handler(request: IncomingMessage, response: Vercel
     });
 
     for (let index = 0; index < payloads.length; index += 50) {
-      const { error } = await db
-        .from('campus_recruitment_statuses')
-        .upsert(payloads.slice(index, index + 50), { onConflict: 'company_key' });
-      if (error) throw error;
+      const writeResponse = await fetch(
+        `${supabaseUrl}/rest/v1/campus_recruitment_statuses?on_conflict=company_key`,
+        {
+          method: 'POST',
+          headers: supabaseHeaders(serviceRoleKey, {
+            'content-type': 'application/json',
+            prefer: 'resolution=merge-duplicates,return=minimal',
+          }),
+          body: JSON.stringify(payloads.slice(index, index + 50)),
+        },
+      );
+      if (!writeResponse.ok) {
+        throw new Error(`校招状态写入失败：HTTP ${writeResponse.status}`);
+      }
     }
 
     const summary = results.reduce(
