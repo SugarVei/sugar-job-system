@@ -7,7 +7,10 @@ interface AuthContextValue {
   user: User | null;
   loading: boolean;
   signIn: (email: string, password: string) => Promise<void>;
-  signUp: (email: string, password: string) => Promise<{ needsConfirm: boolean }>;
+  signUp: (email: string, password: string) => Promise<{ needsConfirm: boolean; existingHint: boolean }>;
+  resetPassword: (email: string) => Promise<void>;
+  updatePassword: (password: string) => Promise<void>;
+  passwordRecovery: boolean;
   signOut: () => Promise<void>;
 }
 
@@ -15,6 +18,7 @@ const AuthContext = createContext<AuthContextValue | null>(null);
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
+  const [passwordRecovery, setPasswordRecovery] = useState(false);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -41,8 +45,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     // 监听登录/登出/刷新
     const {
       data: { subscription },
-    } = supabase.auth.onAuthStateChange((_event, newSession) => {
+    } = supabase.auth.onAuthStateChange((event, newSession) => {
       setSession(newSession);
+      if (event === 'PASSWORD_RECOVERY') setPasswordRecovery(true);
+      if (event === 'SIGNED_OUT') setPasswordRecovery(false);
     });
 
     return () => subscription.unsubscribe();
@@ -59,7 +65,23 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (error) throw error;
     if (data.session) setSession(data.session);
     // 若项目开启了邮箱确认，session 为空，需用户去邮箱点确认
-    return { needsConfirm: !data.session };
+    // Supabase deliberately returns an obfuscated user for an existing email
+    // when email confirmation is enabled. Keep the UI message neutral so this
+    // flow does not become an account-enumeration endpoint.
+    return { needsConfirm: !data.session, existingHint: !data.session && (data.user?.identities?.length ?? 0) === 0 };
+  };
+
+  const resetPassword = async (email: string) => {
+    const { error } = await supabase.auth.resetPasswordForEmail(email, {
+      redirectTo: window.location.origin,
+    });
+    if (error) throw error;
+  };
+
+  const updatePassword = async (password: string) => {
+    const { error } = await supabase.auth.updateUser({ password });
+    if (error) throw error;
+    setPasswordRecovery(false);
   };
 
   const signOut = async () => {
@@ -69,7 +91,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   return (
     <AuthContext.Provider
-      value={{ session, user: session?.user ?? null, loading, signIn, signUp, signOut }}
+      value={{ session, user: session?.user ?? null, loading, signIn, signUp, resetPassword, updatePassword, passwordRecovery, signOut }}
     >
       {children}
     </AuthContext.Provider>

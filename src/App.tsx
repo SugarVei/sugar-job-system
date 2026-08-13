@@ -37,7 +37,7 @@ function CurrentPage() {
   }
 }
 function Gate() {
-  const { session, loading } = useAuth();
+  const { session, loading, passwordRecovery } = useAuth();
   const initialized = useRef(false);
   const previousSession = useRef(session);
   const [showAiNotice, setShowAiNotice] = useState(false);
@@ -51,7 +51,7 @@ function Gate() {
   }, [loading, session]);
 
   if (loading) return <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#7a7468', fontSize: 15 }}>加载中…</div>;
-  if (!session) return <Login />;
+  if (!session || passwordRecovery) return <Login passwordRecovery={passwordRecovery} />;
   return <>
     <AppShellProvider><ApiKeysProvider><AppLayout><CurrentPage /></AppLayout></ApiKeysProvider></AppShellProvider>
     {showAiNotice && <AiNoticeModal onClose={() => setShowAiNotice(false)} />}

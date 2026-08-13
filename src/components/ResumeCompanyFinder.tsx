@@ -14,7 +14,14 @@ type ApiResult = { standardMatches: Result[]; privateRecommendations: Result[]; 
 
 function fileExtension(fileName: string) { return fileName.split('.').pop()?.toLowerCase() ?? ''; }
 function safeFileName(fileName: string) { return fileName.replace(/[^a-zA-Z0-9._-]/g, '_').slice(-80) || 'resume'; }
-function readableError(error: unknown) { return error instanceof Error ? error.message : '操作失败，请稍后重试。'; }
+function readableError(error: unknown) {
+  const message = error instanceof Error ? error.message : String(error ?? '');
+  if (/http 400|bad request|mime|file type|extension/i.test(message)) {
+    return '上传失败：请确认文件是未加密的 PDF 或 DOCX，且大小不超过 10MB；文件名无需改成英文。';
+  }
+  if (/row-level security|permission|unauthorized/i.test(message)) return '上传权限已失效，请刷新页面后重新登录再试。';
+  return message || '操作失败，请稍后重试。';
+}
 
 async function fileToDataUrl(file: File) {
   return new Promise<string>((resolve, reject) => {
@@ -83,7 +90,8 @@ export default function ResumeCompanyFinder({
       const session = (await supabase.auth.getSession()).data.session;
       if (!session) throw new Error('登录已失效，请重新登录后再试。');
       const extension = fileExtension(file.name);
-      uploadedPath = `${user.id}/${Date.now()}_${crypto.randomUUID()}_${safeFileName(file.name)}`;
+      const normalizedBaseName = safeFileName(file.name).replace(/\.[^.]+$/, '') || 'resume';
+      uploadedPath = `${user.id}/${Date.now()}_${crypto.randomUUID()}_${normalizedBaseName}.${extension}`;
       const contentType = extension === 'pdf' ? 'application/pdf' : 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
       const { error: uploadError } = await supabase.storage.from('company-resumes').upload(uploadedPath, file, { upsert: false, contentType });
       if (uploadError) throw uploadError;
