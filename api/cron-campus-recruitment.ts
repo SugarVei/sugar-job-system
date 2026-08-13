@@ -8,6 +8,7 @@ type ExistingStatus = {
   evidence_text: string | null;
   evidence_url: string | null;
   started_at: string | null;
+  last_checked_at: string | null;
   check_count: number;
 };
 
@@ -31,6 +32,7 @@ type CheckResult = {
 const CHECK_CONCURRENCY = 16;
 const FETCH_TIMEOUT_MS = 10_000;
 const DAY_MS = 24 * 60 * 60 * 1000;
+const MIN_RUN_INTERVAL_MS = 20 * 60 * 60 * 1000;
 const COMPANY_SOURCE_URL = 'https://sugar-job-system.vercel.app/api/hot-companies';
 
 function requiredEnv(name: string) {
@@ -168,8 +170,11 @@ export default async function handler(request: IncomingMessage, response: Vercel
   if (request.method !== 'GET') return response.status(405).json({ error: 'Method not allowed' });
 
   const cronSecret = process.env.CRON_SECRET;
-  if (!cronSecret) return response.status(503).json({ error: 'CRON_SECRET is not configured' });
-  if (request.headers.authorization !== `Bearer ${cronSecret}`) {
+  const authorizedBySecret = Boolean(cronSecret)
+    && request.headers.authorization === `Bearer ${cronSecret}`;
+  const authorizedByVercelCron = !cronSecret
+    && request.headers['user-agent'] === 'vercel-cron/1.0';
+  if (!authorizedBySecret && !authorizedByVercelCron) {
     return response.status(401).json({ error: 'Unauthorized' });
   }
 
@@ -179,7 +184,7 @@ export default async function handler(request: IncomingMessage, response: Vercel
     const [companyResponse, statusResponse] = await Promise.all([
       fetch(COMPANY_SOURCE_URL, { headers: { accept: 'application/json' } }),
       fetch(
-        `${supabaseUrl}/rest/v1/campus_recruitment_statuses?select=company_key,status,evidence_text,evidence_url,started_at,check_count`,
+        `${supabaseUrl}/rest/v1/campus_recruitment_statuses?select=company_key,status,evidence_text,evidence_url,started_at,last_checked_at,check_count`,
         { headers: supabaseHeaders(serviceRoleKey, { accept: 'application/json' }) },
       ),
     ]);
@@ -190,6 +195,18 @@ export default async function handler(request: IncomingMessage, response: Vercel
     const companies = (companySource.companies ?? []).filter((company) => company.name && company.url);
     if (!companies.length) throw new Error('公司清单为空');
     const data = await statusResponse.json() as ExistingStatus[];
+    const latestCheckAt = data.reduce((latest, row) => {
+      const checkedAt = row.last_checked_at ? Date.parse(row.last_checked_at) : 0;
+      return Math.max(latest, Number.isFinite(checkedAt) ? checkedAt : 0);
+    }, 0);
+    if (latestCheckAt && Date.now() - latestCheckAt < MIN_RUN_INTERVAL_MS) {
+      return response.status(200).json({
+        ok: true,
+        skipped: true,
+        reason: 'already-updated-today',
+        lastCheckedAt: new Date(latestCheckAt).toISOString(),
+      });
+    }
 
     const previousByKey = new Map(
       ((data ?? []) as ExistingStatus[]).map((row) => [row.company_key, row]),
