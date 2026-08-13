@@ -1,6 +1,6 @@
-import { useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { useApiKeys } from '../contexts/ApiKeysContext';
+import { OPEN_API_SETTINGS_EVENT, useApiKeys } from '../contexts/ApiKeysContext';
 import { PROVIDERS, type ProviderId } from '../lib/providers';
 import { IconSettings } from './icons';
 
@@ -30,13 +30,18 @@ export default function ApiKeySettingsGuide() {
   const [guideMode, setGuideMode] = useState<GuideMode>('choice');
   const [qrMissing, setQrMissing] = useState(false);
 
-  const openModal = () => {
+  const openModal = useCallback(() => {
     const next: Partial<Record<ProviderId, string>> = {};
     for (const id of PROVIDER_IDS) next[id] = keys[id] ?? '';
     setDrafts(next);
     setError('');
     setOpen(true);
-  };
+  }, [keys]);
+
+  useEffect(() => {
+    window.addEventListener(OPEN_API_SETTINGS_EVENT, openModal);
+    return () => window.removeEventListener(OPEN_API_SETTINGS_EVENT, openModal);
+  }, [openModal]);
 
   const openGuide = (provider: ProviderId) => {
     setSelectedGuideProvider(provider);

@@ -81,7 +81,7 @@ function clampQuota(value: number) {
 export default function JobAssistDrawer(props: JobAssistDrawerProps) {
   const { open, resume, files, onClose, getDownloadUrl, onCreateApplication, onCreateResumeVersion } = props;
   const { theme } = useTheme();
-  const { getActiveConfig } = useApiKeys();
+  const { requireActiveConfig } = useApiKeys();
   const assist = useJobAssist(resume.id);
   const resumeFiles = useMemo(
     () => files.filter((file) => file.kind === 'resume' && file.source !== 'ai' && file.file_path),
@@ -142,11 +142,7 @@ export default function JobAssistDrawer(props: JobAssistDrawerProps) {
     if (!selectedJdId && assist.jdMatches[0]) setSelectedJdId(assist.jdMatches[0].id);
   }, [assist.jdMatches, selectedJdId]);
 
-  const requireAI = () => {
-    const config = getActiveConfig();
-    if (!config) throw new Error('请先在侧边栏“AI 设置”中配置并选中一个可用的 API Key。');
-    return config;
-  };
+  const requireAI = () => requireActiveConfig('AI 求职辅助');
 
   const readResume = async () => {
     if (!selectedResumeFile) throw new Error('请先上传并选择一份 PDF 或 DOCX 简历。');
@@ -178,12 +174,14 @@ export default function JobAssistDrawer(props: JobAssistDrawerProps) {
 
   const analyzeProfile = (corrections?: string) => runAction('正在读取并分析简历…', async () => {
     if (!route) throw new Error('请先选择校招或社招。');
+    const config = requireAI();
+    if (!config) return;
     const resumeText = await readResume();
     await assist.saveCampaign(route, selectedResumeFile.id);
     const nextFacts = corrections?.trim()
       ? Array.from(new Set([...(assist.campaign?.confirmed_facts ?? []), corrections.trim()]))
       : assist.campaign?.confirmed_facts ?? [];
-    const result = await analyzeResumeProfile({ config: requireAI(), route, resumeText, corrections });
+    const result = await analyzeResumeProfile({ config, route, resumeText, corrections });
     await assist.saveProfile(result, nextFacts, false);
     setProfile(result);
     setCorrection('');
@@ -211,9 +209,11 @@ export default function JobAssistDrawer(props: JobAssistDrawerProps) {
   const runJdAnalysis = () => runAction('正在检查硬门槛并评分…', async () => {
     if (!route || !profile || !assist.campaign?.profile_confirmed) throw new Error('请先完成并确认简历画像。');
     if (jdText.trim().length < 80) throw new Error('JD 内容过短，请粘贴完整的岗位职责和任职要求。');
+    const config = requireAI();
+    if (!config) return;
     const resumeText = await readResume();
     const analysis = await analyzeJd({
-      config: requireAI(),
+      config,
       route,
       resumeText,
       profile,
@@ -229,9 +229,11 @@ export default function JobAssistDrawer(props: JobAssistDrawerProps) {
 
   const runTailoring = () => runAction('正在生成定制简历草稿…', async () => {
     if (!selectedJd || !route || !assist.campaign) throw new Error('请先完成一份 JD 匹配分析。');
+    const config = requireAI();
+    if (!config) return;
     const resumeText = await readResume();
     const result = await tailorResumeForJd({
-      config: requireAI(),
+      config,
       resumeText,
       confirmedFacts: assist.campaign.confirmed_facts,
       jdText: selectedJd.jd_text,
@@ -288,9 +290,11 @@ export default function JobAssistDrawer(props: JobAssistDrawerProps) {
 
   const startInterview = () => runAction('正在准备 3 道模拟面试题…', async () => {
     if (!selectedJd || !route || !assist.campaign) throw new Error('请先完成一份 JD 匹配分析。');
+    const config = requireAI();
+    if (!config) return;
     const resumeText = await readResume();
     const plan = await createInterviewPlan({
-      config: requireAI(),
+      config,
       route,
       resumeText,
       confirmedFacts: assist.campaign.confirmed_facts,
@@ -310,10 +314,12 @@ export default function JobAssistDrawer(props: JobAssistDrawerProps) {
   const scoreAnswer = () => runAction('正在评分并给出改进建议…', async () => {
     if (!session || !selectedJd || !assist.campaign) throw new Error('请先开始模拟面试。');
     if (answer.trim().length < 10) throw new Error('回答过短，请先完整回答当前问题。');
+    const config = requireAI();
+    if (!config) return;
     const question = session.plan[questionIndex];
     const resumeText = await readResume();
     const result = await scoreInterviewAnswer({
-      config: requireAI(),
+      config,
       question,
       answer,
       resumeText,

@@ -71,7 +71,7 @@ function loadImportedCompanies(): HotCompany[] {
 
 export default function HotCompanies() {
   const { setScreen, setQuery } = useAppShell();
-  const { getActiveConfig } = useApiKeys();
+  const { requireActiveConfig } = useApiKeys();
   const { items: savedCompanies, create, remove: removeCompany } = useCollection<Company>('companies');
   const { items: applications } = useCollection<Application>('applications');
   const { items: recruitmentStatuses, loading: statusesLoading } = useCampusRecruitmentStatuses();
@@ -187,23 +187,22 @@ export default function HotCompanies() {
   const searchWithAI = async () => {
     const prompt = aiPrompt.trim();
     if (!prompt || aiLoading) return;
+    const providerConfig = requireActiveConfig('AI 搜索公司');
+    if (!providerConfig) return;
 
     setAiLoading(true);
     setAiError('');
     setImportMessage('');
     try {
-      const providerConfig = getActiveConfig();
       const res = await fetch('/api/company-search', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           prompt,
           existingCompanies: Array.from(existingNames),
-          ...(providerConfig ? {
-            provider: providerConfig.provider,
-            apiKey: providerConfig.apiKey,
-            model: providerConfig.model,
-          } : {}),
+          provider: providerConfig.provider,
+          apiKey: providerConfig.apiKey,
+          model: providerConfig.model,
         }),
       });
       const data = await res.json() as { companies?: AICompanyCandidate[]; error?: string };

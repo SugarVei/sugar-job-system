@@ -113,7 +113,7 @@ function compressScreenshot(file: File): Promise<Screenshot> {
 }
 
 export default function AIRecordImporter<T extends ApplicationExtraction | OfferExtraction>({ kind, onApply }: Props<T>) {
-  const { getActiveConfig, activeProvider } = useApiKeys();
+  const { requireActiveConfig, activeProvider } = useApiKeys();
   const { theme } = useTheme();
   const [sourceText, setSourceText] = useState('');
   const [loading, setLoading] = useState(false);
@@ -155,12 +155,8 @@ export default function AIRecordImporter<T extends ApplicationExtraction | Offer
   const recognize = async () => {
     const text = sourceText.trim();
     if ((!text && screenshots.length === 0) || loading) return;
-    const config = getActiveConfig();
-    if (!config) {
-      setError('请先在左侧“AI 设置”中配置并选中一个可用的 API Key。');
-      setSuccess('');
-      return;
-    }
+    const config = requireActiveConfig(isApplication ? 'AI 智能识别岗位信息' : 'AI 智能识别 Offer');
+    if (!config) return;
     setLoading(true);
     setError('');
     setSuccess('');

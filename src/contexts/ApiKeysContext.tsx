@@ -2,10 +2,12 @@ import { createContext, useCallback, useContext, useEffect, useState, type React
 import { supabase, isSupabaseConfigured } from '../lib/supabase';
 import { useAuth } from './AuthContext';
 import { PROVIDERS, type ProviderId } from '../lib/providers';
+import ApiRequiredDialog from '../components/ApiRequiredDialog';
 
 type KeyMap = Partial<Record<ProviderId, string>>;
 
 const STORAGE_KEY = 'sugar_active_provider';
+export const OPEN_API_SETTINGS_EVENT = 'sugar:open-api-settings';
 
 export interface ActiveConfig {
   apiKey: string;
@@ -21,6 +23,7 @@ interface ApiKeysValue {
   saveKey: (provider: ProviderId, apiKey: string) => Promise<void>;
   removeKey: (provider: ProviderId) => Promise<void>;
   getActiveConfig: () => ActiveConfig | null;
+  requireActiveConfig: (featureName?: string) => ActiveConfig | null;
 }
 
 const Ctx = createContext<ApiKeysValue | null>(null);
@@ -32,6 +35,7 @@ export function ApiKeysProvider({ children }: { children: ReactNode }) {
   const [activeProvider, setActiveProviderState] = useState<ProviderId>(
     () => (localStorage.getItem(STORAGE_KEY) as ProviderId | null) ?? 'deepseek',
   );
+  const [requiredFeature, setRequiredFeature] = useState<string | null>(null);
 
   const fetchKeys = useCallback(async () => {
     if (!user || !isSupabaseConfigured) { setLoading(false); return; }
@@ -74,9 +78,27 @@ export function ApiKeysProvider({ children }: { children: ReactNode }) {
     return { apiKey, model, provider: activeProvider };
   }, [keys, activeProvider]);
 
+  const requireActiveConfig = useCallback((featureName = 'AI 功能'): ActiveConfig | null => {
+    const config = getActiveConfig();
+    if (config) return config;
+    setRequiredFeature(featureName);
+    return null;
+  }, [getActiveConfig]);
+
+  const openSettings = useCallback(() => {
+    setRequiredFeature(null);
+    window.dispatchEvent(new Event(OPEN_API_SETTINGS_EVENT));
+  }, []);
+
   return (
-    <Ctx.Provider value={{ keys, loading, activeProvider, setActiveProvider, saveKey, removeKey, getActiveConfig }}>
+    <Ctx.Provider value={{ keys, loading, activeProvider, setActiveProvider, saveKey, removeKey, getActiveConfig, requireActiveConfig }}>
       {children}
+      <ApiRequiredDialog
+        open={requiredFeature !== null}
+        featureName={requiredFeature ?? 'AI 功能'}
+        onClose={() => setRequiredFeature(null)}
+        onOpenSettings={openSettings}
+      />
     </Ctx.Provider>
   );
 }

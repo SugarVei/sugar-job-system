@@ -73,7 +73,7 @@ export default function AIChatDialog({
   buttonLabel = '💬 AI 分析助手',
 }: Props) {
   const { theme } = useTheme();
-  const { getActiveConfig } = useApiKeys();
+  const { requireActiveConfig } = useApiKeys();
   const [open, setOpen] = useState(false);
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState('');
@@ -100,6 +100,8 @@ export default function AIChatDialog({
   const send = async () => {
     const text = input.trim();
     if (!text || loading) return;
+    const providerConfig = requireActiveConfig(buttonLabel.replace(/^\p{Extended_Pictographic}+\s*/u, ''));
+    if (!providerConfig) return;
     setInput('');
     const userMsg: Message = { role: 'user', content: text };
     const newMessages = [...messages, userMsg];
@@ -112,7 +114,7 @@ export default function AIChatDialog({
     await streamChat(
       newMessages,
       systemPrompt,
-      getActiveConfig(),
+      providerConfig,
       (token) => {
         setMessages(prev => {
           const next = [...prev];
@@ -133,6 +135,11 @@ export default function AIChatDialog({
 
   const handleKey = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
     if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); send(); }
+  };
+
+  const openChat = () => {
+    if (!requireActiveConfig(buttonLabel.replace(/^\p{Extended_Pictographic}+\s*/u, ''))) return;
+    setOpen(true);
   };
 
   const modal = open ? createPortal(
@@ -264,7 +271,7 @@ export default function AIChatDialog({
     <>
       {/* 触发按钮 —— 内联放置，由调用方控制位置 */}
       <button
-        onClick={() => setOpen(true)}
+        onClick={openChat}
         className="btn-press"
         style={{
           height: 44,

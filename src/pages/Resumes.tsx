@@ -323,7 +323,7 @@ function ResumeCard({
   onEdit: () => void;
   onDelete: () => void;
 }) {
-  const { getActiveConfig } = useApiKeys();
+  const { requireActiveConfig } = useApiKeys();
   const resumeInputRef = useRef<HTMLInputElement>(null);
   const scriptInputRef = useRef<HTMLInputElement>(null);
   const [uploadingKind, setUploadingKind] = useState<ResumeFileKind | null>(null);
@@ -395,6 +395,8 @@ function ResumeCard({
     const targetId = fileId ?? aiSelectedId ?? uploadedResumes[0]?.id;
     const targetFile = uploadedResumes.find((f) => f.id === targetId);
     if (!targetFile) return;
+    const aiConfig = requireActiveConfig('AI 生成面试稿件');
+    if (!aiConfig) return;
 
     setAiStep('working');
     setAiProgress('📄 正在读取简历文件…');
@@ -405,13 +407,6 @@ function ResumeCard({
       if (!resumeText.trim()) throw new Error('简历内容为空，无法生成稿件');
 
       setAiProgress('🤖 AI 正在生成面试稿件…');
-
-      const aiConfig = getActiveConfig();
-      if (!aiConfig) {
-        alert('请先在侧边栏「⚙️ AI 设置」中配置 API Key');
-        closeAiModal();
-        return;
-      }
 
       const fullText = await streamAIChat({
         config: aiConfig,
@@ -521,6 +516,7 @@ function ResumeCard({
         <button
           type="button"
           onClick={() => {
+            if (!requireActiveConfig('AI 生成面试稿件')) return;
             if (uploadedResumes.length === 0) {
               alert('请先在上方上传一份简历文件（PDF / DOCX）');
               return;
@@ -555,7 +551,10 @@ function ResumeCard({
         </button>
         <button
           type="button"
-          onClick={() => setJobAssistOpen(true)}
+          onClick={() => {
+            if (!requireActiveConfig('AI 求职辅助')) return;
+            setJobAssistOpen(true);
+          }}
           className="btn-press"
           style={{
             border: '1.5px dashed #df9c63',
