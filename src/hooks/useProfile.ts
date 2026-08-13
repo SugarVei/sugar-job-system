@@ -30,7 +30,7 @@ export function useProfile() {
     } catch {
       /* ignore */
     }
-  }, [nameKey, avatarKey, user?.user_metadata?.avatar_url, defaultName]);
+  }, [nameKey, avatarKey, user, user?.user_metadata?.avatar_url, defaultName]);
 
   const updateName = useCallback(
     (v: string) => {
