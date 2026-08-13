@@ -884,6 +884,9 @@ function recruitmentStatusPresentation(
 }
 
 function recruitmentStatusKey(company: HotCompany, status?: CampusRecruitmentStatus): RecruitmentStatusKey {
+  if (company.recruitment && status?.evidence_text?.startsWith('【核查状态：')) {
+    return company.recruitment.status;
+  }
   if (status?.status === 'started') return 'started';
   if (status?.status === 'not_started') return 'not_started';
   if (status?.status === 'error') return 'unknown';

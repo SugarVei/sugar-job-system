@@ -2,6 +2,7 @@ import {
   CAMPUS_RECRUITMENT_AUDIT,
   type CampusRecruitmentAudit,
 } from './campusRecruitmentAudit20260811';
+import { STATE_OWNED_STANDARD_COMPANIES } from './stateOwnedStandardCompanies20260813';
 
 export interface HotCompany {
   name: string;
@@ -169,26 +170,8 @@ const BASE_HOT_COMPANY_GROUPS: HotCompanyGroup[] = [
 
 const BASE_FEATURED_COMPANY_GROUPS: HotCompanyGroup[] = [
   { name: "国企", dot: "#c14f3f", companies: [
-    { name: "国家电网", industry: "电力 · 能源", city: "全国", url: "https://zhaopin.sgcc.com.cn/sgcchr/static/home.html" },
-    { name: "中国石油", industry: "石油 · 天然气", city: "全国", url: "https://zhaopin.cnpc.com.cn" },
-    { name: "中国移动", industry: "通信运营", city: "全国", url: "https://job.10086.cn" },
-    { name: "南方电网", industry: "电力 · 能源", city: "南方五省区", url: "https://zhaopin.csg.cn" },
-    { name: "中国电信", industry: "通信运营", city: "全国", url: "https://job.chinatelecom.com.cn" },
-    { name: "国家电投", industry: "电力 · 新能源", city: "全国", url: "https://www.spic.com.cn/" },
-    { name: "中国华能", industry: "电力 · 能源", city: "全国", url: "https://zhaopin.chng.com.cn" },
-    { name: "三峡集团", industry: "水电 · 新能源", city: "全国", url: "https://www.ctg.com.cn/sxjt/rlzy71/rlzydt/index.html" },
-    { name: "华润集团", industry: "综合产业", city: "全国", url: "https://www.crc.com.cn/rczp/" },
-    { name: "中国海油", industry: "石油 · 天然气", city: "全国", url: "https://cnooc.zhaopin.com" },
-    { name: "国家能源集团", industry: "电力 · 煤炭", city: "全国", url: "https://zhaopin.chnenergy.com.cn" },
-    { name: "招商局集团", industry: "交通 · 金融", city: "全国", url: "https://cmhk.zhiye.com" },
+    ...STATE_OWNED_STANDARD_COMPANIES,
     { name: "中远海运", industry: "航运 · 物流", city: "全国", url: "https://job.coscoshipping.com" },
-    { name: "中国华电", industry: "电力 · 能源", city: "全国", url: "https://rencaishichang.chd.com.cn" },
-    { name: "中国铝业", industry: "有色金属 · 材料", city: "全国", url: "https://zlwebsite.chinalco.com.cn/pub/zljt/rlzy/rlzy_zpxx/" },
-    { name: "中国核工业", industry: "核能 · 核技术", city: "全国", url: "https://cnnc.zhiye.com" },
-    { name: "中国联通", industry: "通信运营", city: "全国", url: "https://zglt2026.zhaopin.com" },
-    { name: "中国航天科技", industry: "航天 · 高端制造", city: "全国", url: "https://www.spacetalent.com.cn" },
-    { name: "中国石化", industry: "石油 · 化工", city: "全国", url: "https://job.sinopec.com" },
-    { name: "中国广核", industry: "核电 · 新能源", city: "全国", url: "https://cgn.hotjob.cn" },
   ] },
   { name: "外企", dot: "#567da5", companies: [
     { name: "微软", industry: "软件 · 云计算 · AI", city: "北京 · 上海 · 苏州", url: "https://jobs.careers.microsoft.com/global/zh-cn/search?lc=China" },

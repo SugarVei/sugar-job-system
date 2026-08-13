@@ -2,6 +2,7 @@
  * Generated from docs/2027届校招核查结果-20260811.md.
  * Run scripts/generate-campus-recruitment-audit.mjs to refresh; do not hand-edit rows.
  */
+import { STATE_OWNED_CAMPUS_RECRUITMENT_AUDIT } from './stateOwnedStandardCompanies20260813';
 
 export type RecruitmentStatusKey = 'started' | 'warmup' | 'not_started' | 'internship_only' | 'unknown';
 
@@ -144,12 +145,11 @@ export const CAMPUS_RECRUITMENT_AUDIT: Record<string, CampusRecruitmentAudit> = 
   '三棵树': { status: 'unknown', evidence: 'skshu.zhiye报错；未见2027正式批', entry: 'https://3treesgroup.zhaopin.com/', checkedAt: '2026-08-11' },
   '迈瑞医疗': { status: 'internship_only', evidence: '技能人才/启瑞实习窗口多已过；未见常规研发秋招全面开', entry: 'https://career.mindray.com/campus', checkedAt: '2026-08-11' },
   '英科医疗': { status: 'internship_only', evidence: '多为提前批实习生转正通道', entry: 'https://www.intcomedical.com.cn/jobs/recruit?recruit=school', checkedAt: '2026-08-11' },
+  ...STATE_OWNED_CAMPUS_RECRUITMENT_AUDIT,
 };
 
-export const CAMPUS_RECRUITMENT_STATUS_TOTALS: Record<RecruitmentStatusKey, number> = {
-  "started": 45,
-  "warmup": 17,
-  "not_started": 36,
-  "internship_only": 21,
-  "unknown": 12
-};
+export const CAMPUS_RECRUITMENT_STATUS_TOTALS: Record<RecruitmentStatusKey, number> = Object.values(CAMPUS_RECRUITMENT_AUDIT)
+  .reduce<Record<RecruitmentStatusKey, number>>((totals, item) => {
+    totals[item.status] += 1;
+    return totals;
+  }, { started: 0, warmup: 0, not_started: 0, internship_only: 0, unknown: 0 });

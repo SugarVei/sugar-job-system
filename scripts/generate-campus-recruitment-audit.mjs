@@ -14,6 +14,7 @@ const migrationPath = resolve(root, migrationArg);
 const dataPath = resolve(root, 'src/data/campusRecruitmentAudit20260811.ts');
 const snapshotPath = resolve(root, 'docs/2027届校招核查结果-20260811.md');
 const hotCompaniesPath = resolve(root, 'src/data/hotCompanies.ts');
+const stateOwnedPath = resolve(root, 'src/data/stateOwnedStandardCompanies20260813.ts');
 
 const statusKeys = new Map([
   ['已开招', 'started'],
@@ -66,8 +67,12 @@ const currentUrls = new Map(
     .map((match) => [match[1], match[2]]),
 );
 const currentNames = new Set(currentUrls.keys());
+const stateOwnedNames = new Set(
+  [...readFileSync(stateOwnedPath, 'utf8').matchAll(/\{ name: '([^']+)', industry:/gu)]
+    .map((match) => match[1]),
+);
 const incomingNames = new Set(rows.map((row) => row.name));
-const onlyCurrent = [...currentNames].filter((name) => !incomingNames.has(name));
+const onlyCurrent = [...currentNames].filter((name) => !incomingNames.has(name) && !stateOwnedNames.has(name));
 const onlyIncoming = [...incomingNames].filter((name) => !currentNames.has(name));
 if (onlyCurrent.length || onlyIncoming.length) {
   throw new Error(`Company mismatch. Only current: ${onlyCurrent.join(', ')}; only incoming: ${onlyIncoming.join(', ')}`);
@@ -86,7 +91,7 @@ const generatedHeader = `/**\n * Generated from docs/2027届校招核查结果-2
 const tsRows = rows.map((row) =>
   `  ${tsString(row.name)}: { status: ${tsString(row.status)}, evidence: ${tsString(row.evidence)}, entry: ${tsString(row.entry)}, checkedAt: '2026-08-11' },`,
 );
-const tsOutput = `${generatedHeader}\n\nexport type RecruitmentStatusKey = 'started' | 'warmup' | 'not_started' | 'internship_only' | 'unknown';\n\nexport interface CampusRecruitmentAudit {\n  status: RecruitmentStatusKey;\n  evidence: string;\n  entry: string;\n  checkedAt: string;\n}\n\nexport const CAMPUS_RECRUITMENT_AUDIT: Record<string, CampusRecruitmentAudit> = {\n${tsRows.join('\n')}\n};\n\nexport const CAMPUS_RECRUITMENT_STATUS_TOTALS: Record<RecruitmentStatusKey, number> = ${JSON.stringify(summary, null, 2)};\n`;
+const tsOutput = `${generatedHeader}\n\nimport { STATE_OWNED_CAMPUS_RECRUITMENT_AUDIT } from './stateOwnedStandardCompanies20260813';\n\nexport type RecruitmentStatusKey = 'started' | 'warmup' | 'not_started' | 'internship_only' | 'unknown';\n\nexport interface CampusRecruitmentAudit {\n  status: RecruitmentStatusKey;\n  evidence: string;\n  entry: string;\n  checkedAt: string;\n}\n\nexport const CAMPUS_RECRUITMENT_AUDIT: Record<string, CampusRecruitmentAudit> = {\n${tsRows.join('\n')}\n  ...STATE_OWNED_CAMPUS_RECRUITMENT_AUDIT,\n};\n\nexport const CAMPUS_RECRUITMENT_STATUS_TOTALS: Record<RecruitmentStatusKey, number> = Object.values(CAMPUS_RECRUITMENT_AUDIT)\n  .reduce<Record<RecruitmentStatusKey, number>>((totals, item) => {\n    totals[item.status] += 1;\n    return totals;\n  }, { started: 0, warmup: 0, not_started: 0, internship_only: 0, unknown: 0 });\n`;
 
 const checkedAtSql = "'2026-08-11T08:00:00-07:00'::timestamptz";
 const sqlRows = rows.map((row) => {
