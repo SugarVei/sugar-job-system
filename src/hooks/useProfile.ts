@@ -18,9 +18,15 @@ export function useProfile() {
   useEffect(() => {
     try {
       const n = localStorage.getItem(nameKey);
-      const a = user?.user_metadata?.avatar_url ?? localStorage.getItem(avatarKey);
+      const localAvatar = localStorage.getItem(avatarKey);
+      const cloudAvatar = user?.user_metadata?.avatar_url;
+      const a = cloudAvatar ?? localAvatar;
       setName(n ?? defaultName);
       setAvatar(a ?? '');
+      // 将旧版本只保存在本机的头像迁移到云端，用户无需重新选择图片。
+      if (user && !cloudAvatar && localAvatar) {
+        void supabase.auth.updateUser({ data: { avatar_url: localAvatar } });
+      }
     } catch {
       /* ignore */
     }
