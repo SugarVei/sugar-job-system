@@ -15,7 +15,6 @@ type Result = { name: string; score: number; reason: string; industry?: string; 
 type ApiResult = { standardMatches: Result[]; privateRecommendations: Result[]; error?: string };
 
 function fileExtension(fileName: string) { return fileName.split('.').pop()?.toLowerCase() ?? ''; }
-function safeFileName(fileName: string) { return fileName.replace(/[^a-zA-Z0-9._-]/g, '_').slice(-80) || 'resume'; }
 function readableError(error: unknown) {
   const message = error instanceof Error ? error.message : String(error ?? '');
   if (/http 400|bad request|mime|file type|extension/i.test(message)) {
@@ -34,6 +33,25 @@ async function fileToDataUrl(file: File, contentType: string) {
     // MIME type. Re-wrap it so both Storage and the PDF parser receive its
     // canonical type instead of relying on browser-specific file metadata.
     reader.readAsDataURL(new Blob([file], { type: contentType }));
+  });
+}
+
+async function uploadResume(file: File, sessionToken: string) {
+  const response = await fetch('/api/resume-company-upload', {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${sessionToken}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ file_name: file.name, file_data: await fileToDataUrl(file, file.type) }),
+  });
+  const data = await response.json().catch(() => ({})) as { path?: string; error?: string };
+  if (!response.ok || !data.path) throw new Error(data.error || '简历上传失败。');
+  return data.path;
+}
+
+async function removeUploadedResume(path: string, sessionToken: string) {
+  await fetch('/api/resume-company-upload', {
+    method: 'DELETE',
+    headers: { Authorization: `Bearer ${sessionToken}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ path }),
   });
 }
 
@@ -91,18 +109,15 @@ export default function ResumeCompanyFinder({
     if (!config) return;
     setLoading(true); setError(''); setResults(null);
     let uploadedPath = '';
+    let sessionToken = '';
     try {
       const session = (await supabase.auth.getSession()).data.session;
       if (!session) throw new Error('登录已失效，请重新登录后再试。');
+      sessionToken = session.access_token;
       const extension = fileExtension(file.name);
-      const normalizedBaseName = safeFileName(file.name).replace(/\.[^.]+$/, '') || 'resume';
-      uploadedPath = `${user.id}/${Date.now()}_${crypto.randomUUID()}_${normalizedBaseName}.${extension}`;
       const contentType = extension === 'pdf' ? PDF_MIME_TYPE : DOCX_MIME_TYPE;
-      // Do not trust File.type here: it varies by browser and can make a valid
-      // PDF fail the bucket's MIME allow-list. The extension is validated above.
       const uploadFile = new File([file], file.name, { type: contentType, lastModified: file.lastModified });
-      const { error: uploadError } = await supabase.storage.from('company-resumes').upload(uploadedPath, uploadFile, { cacheControl: '3600', upsert: false, contentType });
-      if (uploadError) throw uploadError;
+      uploadedPath = await uploadResume(uploadFile, sessionToken);
 
       let resumeText: string;
       if (extension === 'pdf') {
@@ -162,7 +177,7 @@ export default function ResumeCompanyFinder({
       setResults(data);
       await onSaved();
     } catch (caught) {
-      if (uploadedPath) await supabase.storage.from('company-resumes').remove([uploadedPath]);
+      if (uploadedPath && sessionToken) await removeUploadedResume(uploadedPath, sessionToken);
       setError(readableError(caught));
     } finally { setLoading(false); }
   };
