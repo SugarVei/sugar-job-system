@@ -1,7 +1,13 @@
 import { useEffect, useMemo, useState } from 'react';
-import { HOT_COMPANY_GROUPS, HOT_COMPANY_TOTAL, type HotCompany, type HotCompanyGroup } from '../data/hotCompanies';
 import {
-  CAMPUS_RECRUITMENT_STATUS_TOTALS,
+  ALL_HOT_COMPANIES,
+  FEATURED_COMPANY_GROUPS,
+  HOT_COMPANY_GROUPS,
+  HOT_COMPANY_TOTAL,
+  type HotCompany,
+  type HotCompanyGroup,
+} from '../data/hotCompanies';
+import {
   type RecruitmentStatusKey,
 } from '../data/campusRecruitmentAudit20260811';
 import { useAppShell } from '../contexts/AppShellContext';
@@ -32,8 +38,9 @@ const RECRUITMENT_STATUS_META = {
 const RECRUITMENT_STATUS_FILTERS = (Object.keys(RECRUITMENT_STATUS_META) as RecruitmentStatusKey[]).map((key) => ({
   key,
   ...RECRUITMENT_STATUS_META[key],
-  count: CAMPUS_RECRUITMENT_STATUS_TOTALS[key],
 }));
+
+const FEATURED_GROUP_NAMES = new Set(FEATURED_COMPANY_GROUPS.map((group) => group.name));
 
 interface AICompanyCandidate extends HotCompany {
   regionType: string;
@@ -86,16 +93,15 @@ export default function HotCompanies() {
   }, [importedCompanies]);
 
   const allGroups = useMemo<HotCompanyGroup[]>(() => {
-    if (importedCompanies.length === 0) return HOT_COMPANY_GROUPS;
-    return [
-      { name: AI_GROUP_NAME, dot: '#a08cb5', companies: importedCompanies },
-      ...HOT_COMPANY_GROUPS,
-    ];
+    const importedGroup = importedCompanies.length > 0
+      ? [{ name: AI_GROUP_NAME, dot: '#a08cb5', companies: importedCompanies }]
+      : [];
+    return [...FEATURED_COMPANY_GROUPS, ...HOT_COMPANY_GROUPS, ...importedGroup];
   }, [importedCompanies]);
 
   const existingNames = useMemo(
     () => new Set([
-      ...HOT_COMPANY_GROUPS.flatMap((group) => group.companies.map((company) => company.name)),
+      ...ALL_HOT_COMPANIES.map((company) => company.name),
       ...importedCompanies.map((company) => company.name),
       ...savedCompanies.map((company) => company.company_name),
     ]),
@@ -115,11 +121,15 @@ export default function HotCompanies() {
   const groups = useMemo(() => {
     const q = pageSearch.trim().toLowerCase();
     return allGroups
-      .filter((group) => activeGroup === ALL || group.name === activeGroup)
+      .filter((group) => activeGroup === ALL
+        ? !FEATURED_GROUP_NAMES.has(group.name)
+        : group.name === activeGroup)
       .map((group) => ({
         ...group,
         companies: group.companies.filter((company) => {
-          if (activeRecruitmentStatus !== ALL_RECRUITMENT_STATUSES && company.recruitment?.status !== activeRecruitmentStatus) {
+          const dbStatus = recruitmentStatusByCompany.get(normalizeCompanyName(company.name));
+          if (activeRecruitmentStatus !== ALL_RECRUITMENT_STATUSES
+            && recruitmentStatusKey(company, dbStatus) !== activeRecruitmentStatus) {
             return false;
           }
           if (!q) return true;
@@ -129,7 +139,37 @@ export default function HotCompanies() {
         }),
       }))
       .filter((group) => group.companies.length > 0);
-  }, [activeGroup, activeRecruitmentStatus, allGroups, pageSearch]);
+  }, [activeGroup, activeRecruitmentStatus, allGroups, pageSearch, recruitmentStatusByCompany]);
+
+  const recruitmentStatusFilters = useMemo(() => {
+    const companies = activeGroup === ALL
+      ? [...HOT_COMPANY_GROUPS.flatMap((group) => group.companies), ...importedCompanies]
+      : allGroups.find((group) => group.name === activeGroup)?.companies ?? [];
+    const uniqueCompanies = new Map(companies.map((company) => [normalizeCompanyName(company.name), company]));
+    const counts = new Map<RecruitmentStatusKey, number>();
+    uniqueCompanies.forEach((company, companyKey) => {
+      const key = recruitmentStatusKey(company, recruitmentStatusByCompany.get(companyKey));
+      counts.set(key, (counts.get(key) ?? 0) + 1);
+    });
+    return RECRUITMENT_STATUS_FILTERS.map((status) => ({
+      ...status,
+      count: counts.get(status.key) ?? 0,
+    }));
+  }, [activeGroup, allGroups, importedCompanies, recruitmentStatusByCompany]);
+
+  const latestCheckLabel = useMemo(() => {
+    const dates = [
+      ...recruitmentStatuses.map((status) => status.last_checked_at),
+      ...ALL_HOT_COMPANIES.map((company) => company.recruitment?.checkedAt),
+    ]
+      .filter((value): value is string => Boolean(value))
+      .map((value) => Date.parse(value))
+      .filter(Number.isFinite);
+    if (dates.length === 0) return '等待首次核查';
+    return `最新核查 ${new Date(Math.max(...dates)).toLocaleDateString('zh-CN')}`;
+  }, [recruitmentStatuses]);
+
+  const activeModuleCompanyCount = recruitmentStatusFilters.reduce((total, status) => total + status.count, 0);
 
   const importedMatches = useMemo(() => {
     const q = pageSearch.trim().toLowerCase();
@@ -309,7 +349,7 @@ export default function HotCompanies() {
           <div>
             <div style={{ fontSize: 15, fontWeight: 750, color: '#1b1a17' }}>2027 届校招核查总览</div>
             <div style={{ fontSize: 12.5, color: '#8a8478', marginTop: 4 }}>
-              共 {HOT_COMPANY_TOTAL} 家 · 核查于 2026-08-11 · 点击状态可筛选公司
+              精选库 {HOT_COMPANY_TOTAL} 家 · 当前标签 {activeModuleCompanyCount} 家 · {latestCheckLabel} · 每日自动更新
             </div>
           </div>
           {activeRecruitmentStatus !== ALL_RECRUITMENT_STATUSES && (
@@ -324,7 +364,7 @@ export default function HotCompanies() {
           )}
         </div>
         <div className="grid grid-cols-2 md:grid-cols-5 gap-2.5" style={{ marginTop: 14 }}>
-          {RECRUITMENT_STATUS_FILTERS.map((status) => {
+          {recruitmentStatusFilters.map((status) => {
             const active = activeRecruitmentStatus === status.key;
             return (
               <button
@@ -662,7 +702,9 @@ function CompanyCard({
       >
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
           <span style={{ fontSize: 12.5, fontWeight: 800 }}>{recruitment.label}</span>
-          <span style={{ fontSize: 10.5, color: '#8a8478', whiteSpace: 'nowrap' }}>核查 08-11</span>
+          <span style={{ fontSize: 10.5, color: '#8a8478', whiteSpace: 'nowrap' }}>
+            {recruitmentCheckLabel(recruitmentStatus, company)}
+          </span>
         </div>
         <div
           title={recruitment.title}
@@ -827,4 +869,19 @@ function recruitmentStatusPresentation(
     title: '等待每日自动检查；点击可先打开校招官网。',
     style: { borderColor: '#d8d0c2', background: '#f3efe6', color: '#756f65' },
   };
+}
+
+function recruitmentStatusKey(company: HotCompany, status?: CampusRecruitmentStatus): RecruitmentStatusKey {
+  if (status?.status === 'started') return 'started';
+  if (status?.status === 'not_started') return 'not_started';
+  if (status?.status === 'error') return 'unknown';
+  return company.recruitment?.status ?? 'unknown';
+}
+
+function recruitmentCheckLabel(status: CampusRecruitmentStatus | undefined, company: HotCompany) {
+  const value = status?.last_checked_at || company.recruitment?.checkedAt;
+  if (!value) return '等待首检';
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return '等待首检';
+  return `核查 ${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
 }

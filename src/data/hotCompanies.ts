@@ -167,15 +167,73 @@ const BASE_HOT_COMPANY_GROUPS: HotCompanyGroup[] = [
   ] },
 ];
 
-export const HOT_COMPANY_GROUPS: HotCompanyGroup[] = BASE_HOT_COMPANY_GROUPS.map((group) => ({
-  ...group,
-  companies: group.companies.map((company) => ({
-    ...company,
-    recruitment: CAMPUS_RECRUITMENT_AUDIT[company.name],
-  })),
-}));
+const BASE_FEATURED_COMPANY_GROUPS: HotCompanyGroup[] = [
+  { name: "国企", dot: "#c14f3f", companies: [
+    { name: "国家电网", industry: "电力 · 能源", city: "全国", url: "https://zhaopin.sgcc.com.cn/sgcchr/static/home.html" },
+    { name: "中国石油", industry: "石油 · 天然气", city: "全国", url: "https://zhaopin.cnpc.com.cn" },
+    { name: "中国移动", industry: "通信运营", city: "全国", url: "https://job.10086.cn" },
+    { name: "南方电网", industry: "电力 · 能源", city: "南方五省区", url: "https://zhaopin.csg.cn" },
+    { name: "中国电信", industry: "通信运营", city: "全国", url: "https://job.chinatelecom.com.cn" },
+    { name: "国家电投", industry: "电力 · 新能源", city: "全国", url: "https://www.spic.com.cn/" },
+    { name: "中国华能", industry: "电力 · 能源", city: "全国", url: "https://zhaopin.chng.com.cn" },
+    { name: "三峡集团", industry: "水电 · 新能源", city: "全国", url: "https://www.ctg.com.cn/sxjt/rlzy71/rlzydt/index.html" },
+    { name: "华润集团", industry: "综合产业", city: "全国", url: "https://www.crc.com.cn/rczp/" },
+    { name: "中国海油", industry: "石油 · 天然气", city: "全国", url: "https://cnooc.zhaopin.com" },
+    { name: "国家能源集团", industry: "电力 · 煤炭", city: "全国", url: "https://zhaopin.chnenergy.com.cn" },
+    { name: "招商局集团", industry: "交通 · 金融", city: "全国", url: "https://cmhk.zhiye.com" },
+    { name: "中远海运", industry: "航运 · 物流", city: "全国", url: "https://job.coscoshipping.com" },
+    { name: "中国华电", industry: "电力 · 能源", city: "全国", url: "https://rencaishichang.chd.com.cn" },
+    { name: "中国铝业", industry: "有色金属 · 材料", city: "全国", url: "https://zlwebsite.chinalco.com.cn/pub/zljt/rlzy/rlzy_zpxx/" },
+    { name: "中国核工业", industry: "核能 · 核技术", city: "全国", url: "https://cnnc.zhiye.com" },
+    { name: "中国联通", industry: "通信运营", city: "全国", url: "https://zglt2026.zhaopin.com" },
+    { name: "中国航天科技", industry: "航天 · 高端制造", city: "全国", url: "https://www.spacetalent.com.cn" },
+    { name: "中国石化", industry: "石油 · 化工", city: "全国", url: "https://job.sinopec.com" },
+    { name: "中国广核", industry: "核电 · 新能源", city: "全国", url: "https://cgn.hotjob.cn" },
+  ] },
+  { name: "外企", dot: "#567da5", companies: [
+    { name: "微软", industry: "软件 · 云计算 · AI", city: "北京 · 上海 · 苏州", url: "https://jobs.careers.microsoft.com/global/zh-cn/search?lc=China" },
+    { name: "苹果", industry: "消费电子 · 软件", city: "北京 · 上海 · 深圳", url: "https://jobs.apple.com/zh-cn/search?location=中国大陆-CHNC" },
+    { name: "亚马逊", industry: "云计算 · 电商", city: "北京 · 上海 · 深圳", url: "https://www.amazon.jobs/en/location/beijing-CHINA" },
+    { name: "IBM", industry: "企业服务 · AI", city: "北京 · 上海 · 深圳", url: "https://www.ibm.com/cn-zh/careers/search" },
+    { name: "英特尔", industry: "半导体 · 芯片", city: "北京 · 上海 · 深圳", url: "https://chinacampus.jobs.intel.cn/intel/position/index" },
+    { name: "英伟达", industry: "AI · 芯片", city: "北京 · 上海 · 深圳", url: "https://nvidia.wd5.myworkdayjobs.com/NVIDIAExternalCareerSite?locationCountry=China" },
+    { name: "特斯拉", industry: "新能源汽车 · 能源", city: "上海 · 北京", url: "https://www.tesla.cn/careers/search/?country=CN" },
+    { name: "西门子", industry: "工业科技 · 数字化", city: "北京 · 上海 · 苏州", url: "https://jobs.siemens.com/careers?location=China" },
+    { name: "博世", industry: "汽车零部件 · 工业", city: "上海 · 苏州 · 无锡", url: "https://www.bosch.com.cn/careers/" },
+    { name: "施耐德", industry: "能源管理 · 自动化", city: "北京 · 上海 · 无锡", url: "https://www.se.com/cn/zh/about-us/careers/overview.jsp" },
+    { name: "ABB", industry: "电气 · 自动化", city: "北京 · 上海 · 厦门", url: "https://careers.abb/global/zh/search-results?keywords=&location=China" },
+    { name: "宝洁", industry: "日化 · 快消", city: "广州 · 北京 · 上海", url: "https://www.pgcareers.com.cn" },
+    { name: "联合利华", industry: "快消 · 食品", city: "上海 · 合肥 · 广州", url: "https://careers.unilever.com/china" },
+    { name: "欧莱雅", industry: "美妆 · 消费品", city: "上海 · 苏州 · 广州", url: "https://careers.loreal.com/zh_CN/content/China" },
+    { name: "雀巢", industry: "食品 · 饮料", city: "北京 · 上海 · 广州", url: "https://www.nestle.com.cn/jobs" },
+    { name: "玛氏", industry: "食品 · 宠物护理", city: "北京 · 上海 · 广州", url: "https://careers.mars.com/cn/zh/search-results" },
+    { name: "耐克", industry: "运动消费品", city: "上海 · 深圳", url: "https://careers.nike.com/zh-cn/jobs" },
+    { name: "迪卡侬", industry: "体育零售", city: "上海 · 全国", url: "https://careers.decathlon.com.cn" },
+    { name: "强生", industry: "医疗健康", city: "上海 · 北京 · 苏州", url: "https://www.careers.jnj.com/zh-cn/jobs/?location=China" },
+    { name: "阿斯利康", industry: "医药 · 生物科技", city: "上海 · 无锡 · 北京", url: "https://careers.astrazeneca.com.cn" },
+  ] },
+];
 
-export const HOT_COMPANY_TOTAL = HOT_COMPANY_GROUPS.reduce(
-  (total, group) => total + group.companies.length,
-  0,
+function attachRecruitmentAudit(groups: HotCompanyGroup[]) {
+  return groups.map((group) => ({
+    ...group,
+    companies: group.companies.map((company) => ({
+      ...company,
+      recruitment: CAMPUS_RECRUITMENT_AUDIT[company.name],
+    })),
+  }));
+}
+
+export const HOT_COMPANY_GROUPS: HotCompanyGroup[] = attachRecruitmentAudit(BASE_HOT_COMPANY_GROUPS);
+
+export const FEATURED_COMPANY_GROUPS: HotCompanyGroup[] = attachRecruitmentAudit(BASE_FEATURED_COMPANY_GROUPS);
+
+export const ALL_HOT_COMPANIES = Array.from(
+  new Map(
+    [...HOT_COMPANY_GROUPS, ...FEATURED_COMPANY_GROUPS]
+      .flatMap((group) => group.companies)
+      .map((company) => [company.name.trim().toLocaleLowerCase('zh-CN'), company]),
+  ).values(),
 );
+
+export const HOT_COMPANY_TOTAL = ALL_HOT_COMPANIES.length;

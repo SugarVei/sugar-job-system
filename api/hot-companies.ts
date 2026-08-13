@@ -1,14 +1,9 @@
-import { HOT_COMPANY_GROUPS } from '../src/data/hotCompanies';
+import { ALL_HOT_COMPANIES } from '../src/data/hotCompanies';
 
 export const config = { runtime: 'edge' };
 
 export default function handler() {
-  const companies = HOT_COMPANY_GROUPS.flatMap((group) =>
-    group.companies.map((company) => ({
-      ...company,
-      group: group.name,
-    })),
-  );
+  const companies = ALL_HOT_COMPANIES;
 
   return new Response(JSON.stringify({ companies, count: companies.length }), {
     headers: {
