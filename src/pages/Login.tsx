@@ -1,8 +1,40 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { isSupabaseConfigured } from '../lib/supabase';
 import EmojiRings from '../components/EmojiRings';
 import { SugarMark, IconEye } from '../components/icons';
+
+const SIGNUP_COOLDOWN_SECONDS = 60;
+
+type AuthErrorLike = {
+  code?: string;
+  message?: string;
+  status?: number;
+};
+
+function isEmailRateLimitError(error: unknown) {
+  const authError = error as AuthErrorLike;
+  const details = `${authError?.code ?? ''} ${authError?.message ?? ''}`.toLowerCase();
+  return (authError?.status === 429 && details.includes('email'))
+    || details.includes('email rate limit')
+    || details.includes('over_email_send_rate_limit');
+}
+
+function getAuthErrorMessage(error: unknown) {
+  const authError = error as AuthErrorLike;
+  const details = `${authError?.code ?? ''} ${authError?.message ?? ''}`.toLowerCase();
+
+  if (isEmailRateLimitError(error)) {
+    return '确认邮件发送过于频繁，已达到平台临时上限。请稍后再试；如果已经收到确认邮件，请直接点击最新一封邮件中的链接，无需重复注册。';
+  }
+  if (details.includes('invalid login credentials')) return '邮箱或密码不正确，请检查后重试。';
+  if (details.includes('email not confirmed')) return '邮箱还未完成确认，请先点击确认邮件中的链接。';
+  if (details.includes('user already registered')) return '该邮箱已经注册，请直接登录。';
+  if (details.includes('password should be at least')) return '密码长度不足，请至少输入 6 位。';
+  if (authError?.status === 429 || details.includes('rate limit')) return '操作过于频繁，请稍后再试。';
+
+  return '操作失败，请稍后重试。';
+}
 
 // ============================================================
 // 登录 / 注册页
@@ -17,6 +49,15 @@ export default function Login() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const [info, setInfo] = useState('');
+  const [signupCooldown, setSignupCooldown] = useState(0);
+
+  useEffect(() => {
+    if (signupCooldown <= 0) return;
+    const timer = window.setTimeout(() => {
+      setSignupCooldown(signupCooldown - 1);
+    }, 1000);
+    return () => window.clearTimeout(timer);
+  }, [signupCooldown]);
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -28,6 +69,10 @@ export default function Login() {
     }
     if (!email || !password) {
       setError('请输入邮箱和密码');
+      return;
+    }
+    if (mode === 'signup' && signupCooldown > 0) {
+      setError(`确认邮件刚刚发送得过于频繁，请在 ${signupCooldown} 秒后再试。`);
       return;
     }
     setBusy(true);
@@ -42,7 +87,10 @@ export default function Login() {
         }
       }
     } catch (err) {
-      setError((err as Error).message || '操作失败，请重试');
+      if (mode === 'signup' && isEmailRateLimitError(err)) {
+        setSignupCooldown(SIGNUP_COOLDOWN_SECONDS);
+      }
+      setError(getAuthErrorMessage(err));
     } finally {
       setBusy(false);
     }
@@ -129,11 +177,22 @@ export default function Login() {
               </button>
             </div>
 
-            {error && <div style={msgBox('#fbe0d8', '#a23d24')}>{error}</div>}
-            {info && <div style={msgBox('#dcebd5', '#2f5d36')}>{info}</div>}
+            {error && <div role="alert" style={msgBox('#fbe0d8', '#a23d24')}>{error}</div>}
+            {info && <div role="status" style={msgBox('#dcebd5', '#2f5d36')}>{info}</div>}
 
-            <button type="submit" disabled={busy} className="btn-press" style={{ ...primaryBtn, opacity: busy ? 0.7 : 1 }}>
-              {busy ? '处理中…' : mode === 'login' ? '登录' : '注册'}
+            <button
+              type="submit"
+              disabled={busy || (mode === 'signup' && signupCooldown > 0)}
+              className="btn-press"
+              style={{ ...primaryBtn, opacity: busy || (mode === 'signup' && signupCooldown > 0) ? 0.7 : 1 }}
+            >
+              {busy
+                ? '处理中…'
+                : mode === 'login'
+                  ? '登录'
+                  : signupCooldown > 0
+                    ? `${signupCooldown} 秒后可重试`
+                    : '注册'}
             </button>
           </form>
 
