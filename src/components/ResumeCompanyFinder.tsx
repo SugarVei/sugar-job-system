@@ -54,16 +54,6 @@ async function removeUploadedResume(path: string, sessionToken: string) {
   });
 }
 
-async function requireConfiguredAiCredential(sessionToken: string) {
-  const response = await fetch('/api/ai-credentials-status', {
-    headers: { Authorization: `Bearer ${sessionToken}` },
-  });
-  const data = await response.json().catch(() => ({})) as { credential?: unknown; error?: string };
-  if (response.status === 401) throw new Error('登录已失效，请重新登录后再试。');
-  if (!response.ok) throw new Error(data.error || '无法检查 AI 配置，请稍后重试。');
-  if (!data.credential) throw new Error('请先到“简历助手 > 插件与 AI”页面配置并测试 AI Key。');
-}
-
 async function extractDocxText(file: File) {
   const zip = await JSZip.loadAsync(file);
   const documentXml = await zip.file('word/document.xml')?.async('text');
@@ -114,15 +104,13 @@ export default function ResumeCompanyFinder({
   const analyze = async () => {
     if (!file || !user || loading) return;
     if (!consented) { setError('请先确认同意使用脱敏后的简历内容进行 AI 匹配。'); return; }
-    setLoading(true); setProgress('正在检查 AI 配置…'); setError(''); setResults(null);
+    setLoading(true); setProgress('正在安全上传简历…'); setError(''); setResults(null);
     let uploadedPath = '';
     let sessionToken = '';
     try {
       const session = (await supabase.auth.getSession()).data.session;
       if (!session) throw new Error('登录已失效，请重新登录后再试。');
       sessionToken = session.access_token;
-      await requireConfiguredAiCredential(sessionToken);
-      setProgress('正在安全上传简历…');
       const extension = fileExtension(file.name);
       const contentType = extension === 'pdf' ? PDF_MIME_TYPE : DOCX_MIME_TYPE;
       const uploadFile = new File([file], file.name, { type: contentType, lastModified: file.lastModified });
