@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import {
   ALL_HOT_COMPANIES,
   FEATURED_COMPANY_GROUPS,
@@ -20,10 +20,12 @@ import { CARD, avatarColor, initialOf } from '../lib/appHelpers';
 import { applicationCompanyMatchesHotCompany, normalizeCompanyName } from '../lib/companyName';
 import { seedStatusForCompany } from '../data/campusRecruitmentSeed';
 import { IconExternalLink, IconSearch, IconTrash } from '../components/icons';
+import ResumeCompanyFinder from '../components/ResumeCompanyFinder';
+import { useCompanyRecommendations } from '../hooks/useCompanyRecommendations';
+import { supabase } from '../lib/supabase';
 
 const ALL = '全部';
 const AI_GROUP_NAME = '我添加的公司';
-const IMPORT_STORAGE_KEY = 'sugar_hot_company_ai_imports';
 const ALL_RECRUITMENT_STATUSES = 'all';
 const AUDIT_OVERRIDE_AFTER = Date.parse('2026-08-12T07:00:00Z');
 
@@ -58,22 +60,12 @@ function errorText(error: unknown) {
   }
 }
 
-function loadImportedCompanies(): HotCompany[] {
-  try {
-    const raw = localStorage.getItem(IMPORT_STORAGE_KEY);
-    if (!raw) return [];
-    const parsed = JSON.parse(raw) as HotCompany[];
-    return Array.isArray(parsed) ? parsed.filter((item) => item.name && item.industry) : [];
-  } catch {
-    return [];
-  }
-}
-
 export default function HotCompanies() {
   const { setScreen, setQuery } = useAppShell();
   const { requireActiveConfig } = useApiKeys();
   const { items: savedCompanies, create, remove: removeCompany } = useCollection<Company>('companies');
   const { items: applications } = useCollection<Application>('applications');
+  const { items: companyRecommendations, refresh: refreshCompanyRecommendations, remove: removeRecommendation } = useCompanyRecommendations();
   const { items: recruitmentStatuses, loading: statusesLoading } = useCampusRecruitmentStatuses();
   const toast = useToast();
   const [activeGroup, setActiveGroup] = useState(ALL);
@@ -83,14 +75,22 @@ export default function HotCompanies() {
   const [aiLoading, setAiLoading] = useState(false);
   const [aiError, setAiError] = useState('');
   const [aiResults, setAiResults] = useState<AICompanyCandidate[]>([]);
-  const [importedCompanies, setImportedCompanies] = useState<HotCompany[]>(() => loadImportedCompanies());
   const [importingName, setImportingName] = useState('');
   const [importMessage, setImportMessage] = useState('');
   const [deletingName, setDeletingName] = useState('');
 
-  useEffect(() => {
-    localStorage.setItem(IMPORT_STORAGE_KEY, JSON.stringify(importedCompanies));
-  }, [importedCompanies]);
+  const importedCompanies = useMemo(() => Array.from(
+    new Map(
+      companyRecommendations
+        .filter((item) => item.recommendation_type === 'private')
+        .map((item) => [normalizeCompanyName(item.company_name), {
+          name: item.company_name,
+          industry: item.industry || '其他',
+          city: item.city || '',
+          url: item.website || '',
+        } satisfies HotCompany]),
+    ).values(),
+  ), [companyRecommendations]);
 
   const allGroups = useMemo<HotCompanyGroup[]>(() => {
     const importedGroup = importedCompanies.length > 0
@@ -228,10 +228,17 @@ export default function HotCompanies() {
         city: candidate.city,
         url: candidate.url,
       };
-      setImportedCompanies((prev) => {
-        if (prev.some((item) => item.name === candidate.name)) return prev;
-        return [hotCompany, ...prev].slice(0, 40);
+      const { error: recommendationError } = await supabase.from('company_recommendations').insert({
+        source: 'ai_search',
+        recommendation_type: 'private',
+        company_name: hotCompany.name,
+        industry: hotCompany.industry,
+        city: hotCompany.city || null,
+        company_type: candidate.regionType || null,
+        website: hotCompany.url || null,
+        reason: candidate.reason || candidate.sourceNote || null,
       });
+      if (recommendationError) throw recommendationError;
 
       if (!savedCompanies.some((company) => normalizeCompanyName(company.company_name) === normalizeCompanyName(candidate.name))) {
         const payload: NewRecord<Company> = {
@@ -244,6 +251,7 @@ export default function HotCompanies() {
         };
         await create(payload);
       }
+      await refreshCompanyRecommendations();
 
       setImportMessage(`已导入「${candidate.name}」；产生投递记录后会自动出现在公司库。`);
       toast.success(`已添加「${candidate.name}」`);
@@ -260,7 +268,10 @@ export default function HotCompanies() {
     if (!confirm(`从「我添加的公司」中删除「${company.name}」？\n（不会删除已有投递记录）`)) return;
     setDeletingName(company.name);
     try {
-      setImportedCompanies((prev) => prev.filter((item) => item.name !== company.name));
+      const recommendationRows = companyRecommendations.filter((item) =>
+        item.recommendation_type === 'private'
+        && normalizeCompanyName(item.company_name) === normalizeCompanyName(company.name));
+      await Promise.all(recommendationRows.map((row) => removeRecommendation(row.id)));
       // 若公司库中有同名且备注含 AI 推荐，则同步移除（有投递关联时跳过，避免破坏外键）
       const matched = savedCompanies.filter(
         (c) => normalizeCompanyName(c.company_name) === normalizeCompanyName(company.name),
@@ -394,6 +405,8 @@ export default function HotCompanies() {
           })}
         </div>
       </section>
+
+      <ResumeCompanyFinder standardCompanies={ALL_HOT_COMPANIES} onSaved={refreshCompanyRecommendations} />
 
       <section style={{ ...CARD, padding: 18, borderRadius: 22 }}>
         <div className="flex items-start justify-between gap-4 flex-wrap">
