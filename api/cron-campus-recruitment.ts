@@ -1,5 +1,6 @@
 import { HOT_COMPANY_GROUPS, type HotCompany } from '../src/data/hotCompanies';
 import { getServiceSupabase } from './_lib/auth';
+import type { IncomingMessage, ServerResponse } from 'node:http';
 
 export const config = { maxDuration: 120 };
 
@@ -137,13 +138,18 @@ async function mapWithConcurrency<T, R>(items: T[], limit: number, worker: (item
   return results;
 }
 
-export default async function handler(request: Request) {
-  if (request.method !== 'GET') return Response.json({ error: 'Method not allowed' }, { status: 405 });
+type VercelResponse = ServerResponse & {
+  status: (statusCode: number) => VercelResponse;
+  json: (body: unknown) => void;
+};
+
+export default async function handler(request: IncomingMessage, response: VercelResponse) {
+  if (request.method !== 'GET') return response.status(405).json({ error: 'Method not allowed' });
 
   const cronSecret = process.env.CRON_SECRET;
-  if (!cronSecret) return Response.json({ error: 'CRON_SECRET is not configured' }, { status: 503 });
-  if (request.headers.get('authorization') !== `Bearer ${cronSecret}`) {
-    return Response.json({ error: 'Unauthorized' }, { status: 401 });
+  if (!cronSecret) return response.status(503).json({ error: 'CRON_SECRET is not configured' });
+  if (request.headers.authorization !== `Bearer ${cronSecret}`) {
+    return response.status(401).json({ error: 'Unauthorized' });
   }
 
   try {
@@ -193,9 +199,9 @@ export default async function handler(request: Request) {
       (counts, result) => ({ ...counts, [result.status]: counts[result.status] + 1 }),
       { pending: 0, not_started: 0, started: 0, error: 0 },
     );
-    return Response.json({ ok: true, checked: results.length, summary, checkedAt });
+    return response.status(200).json({ ok: true, checked: results.length, summary, checkedAt });
   } catch (error) {
     console.error('[cron-campus-recruitment] failed', error);
-    return Response.json({ error: 'Campus recruitment update failed' }, { status: 500 });
+    return response.status(500).json({ error: 'Campus recruitment update failed' });
   }
 }
