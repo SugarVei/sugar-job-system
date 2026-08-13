@@ -1,10 +1,10 @@
 import { useCallback, useEffect, useState } from 'react';
 import { useAuth } from '../contexts/AuthContext';
+import { supabase } from '../lib/supabase';
 
 // ============================================================
 // 个人资料（昵称 + 头像）
-// 这两项属于轻量本地偏好，按用户 ID 存于 localStorage；
-// 核心业务数据（投递/公司/简历/面试）才走 Supabase 云端。
+// 昵称和头像同时保存到 Supabase 用户资料，并保留 localStorage 作为离线兜底。
 // ============================================================
 export function useProfile() {
   const { user } = useAuth();
@@ -18,14 +18,13 @@ export function useProfile() {
   useEffect(() => {
     try {
       const n = localStorage.getItem(nameKey);
-      const a = localStorage.getItem(avatarKey);
+      const a = user?.user_metadata?.avatar_url ?? localStorage.getItem(avatarKey);
       setName(n ?? defaultName);
       setAvatar(a ?? '');
     } catch {
       /* ignore */
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [nameKey, avatarKey]);
+  }, [nameKey, avatarKey, user?.user_metadata?.avatar_url, defaultName]);
 
   const updateName = useCallback(
     (v: string) => {
@@ -40,16 +39,40 @@ export function useProfile() {
   );
 
   const updateAvatar = useCallback(
-    (dataUrl: string) => {
-      setAvatar(dataUrl);
+    async (dataUrl: string) => {
+      const optimized = await optimizeAvatar(dataUrl);
+      setAvatar(optimized);
       try {
-        localStorage.setItem(avatarKey, dataUrl);
+        localStorage.setItem(avatarKey, optimized);
       } catch {
         /* ignore */
       }
+      if (user && supabase) {
+        const { error } = await supabase.auth.updateUser({ data: { avatar_url: optimized } });
+        if (error) console.warn('头像云端保存失败，已保留本地头像。', error.message);
+      }
     },
-    [avatarKey],
+    [avatarKey, user],
   );
 
   return { name, avatar, updateName, updateAvatar };
+}
+
+function optimizeAvatar(dataUrl: string): Promise<string> {
+  return new Promise((resolve) => {
+    const image = new Image();
+    image.onload = () => {
+      const maxSize = 256;
+      const scale = Math.min(1, maxSize / Math.max(image.width, image.height));
+      const canvas = document.createElement('canvas');
+      canvas.width = Math.max(1, Math.round(image.width * scale));
+      canvas.height = Math.max(1, Math.round(image.height * scale));
+      const context = canvas.getContext('2d');
+      if (!context) return resolve(dataUrl);
+      context.drawImage(image, 0, 0, canvas.width, canvas.height);
+      resolve(canvas.toDataURL('image/jpeg', 0.82));
+    };
+    image.onerror = () => resolve(dataUrl);
+    image.src = dataUrl;
+  });
 }
