@@ -116,9 +116,20 @@
   max-width: 100%;
   overflow: hidden;
   gap: 4px;
-  mask-image: linear-gradient(to right, transparent 0, #000 11%, #000 89%, transparent 100%);
-  -webkit-mask-image: linear-gradient(to right, transparent 0, #000 11%, #000 89%, transparent 100%);
 }
+.action-queue-mask::before,
+.action-queue-mask::after {
+  position: absolute;
+  z-index: 2;
+  top: 0;
+  bottom: 0;
+  width: 8%;
+  content: '';
+  pointer-events: none;
+  /* Overlay fades are cheaper than masking every animated row each frame. */
+}
+.action-queue-mask::before { left: 0; background: linear-gradient(to right, var(--aq-surface), transparent); }
+.action-queue-mask::after { right: 0; background: linear-gradient(to left, var(--aq-surface), transparent); }
 .action-queue-row { width: 100%; min-width: 0; max-width: 100%; overflow: hidden; padding: 5px 0; scrollbar-width: thin; contain: paint; }
 .action-queue-row::-webkit-scrollbar { height: 6px; }
 .action-queue-row::-webkit-scrollbar-thumb { border-radius: 3px; background: var(--aq-line); }
@@ -181,9 +192,7 @@ button.action-queue-card:hover { transform: translateY(-4px); border-color: var(
 .action-queue-card__company { color: var(--aq-ink-2); font-size: 12.5px; font-weight: 500; }
 .action-queue-card__position { font-size: 15px; font-weight: 650; letter-spacing: .01em; }
 
-.action-queue-edge { position: absolute; inset: 0 auto 0 0; z-index: 1; width: 9%; pointer-events: none; backdrop-filter: blur(2.5px); -webkit-backdrop-filter: blur(2.5px); }
-.action-queue-edge--left { mask-image: linear-gradient(to right, #000, transparent); -webkit-mask-image: linear-gradient(to right, #000, transparent); }
-.action-queue-edge--right { right: 0; left: auto; mask-image: linear-gradient(to left, #000, transparent); -webkit-mask-image: linear-gradient(to left, #000, transparent); }
+.action-queue-edge { display: none; }
 .action-queue-empty { margin: 8px 0 4px; padding: 24px 4px; color: var(--aq-ink-2); font-size: 13.5px; text-align: center; }
 
 .action-queue-drawer-backdrop {
@@ -264,7 +273,8 @@ button.action-queue-card:hover { transform: translateY(-4px); border-color: var(
   .action-queue-row { overflow-x: auto; }
   .action-queue-card-set--duplicate,
   .action-queue-edge { display: none; }
-  .action-queue-mask { mask-image: none; -webkit-mask-image: none; }
+  .action-queue-mask::before,
+  .action-queue-mask::after { display: none; }
   .action-queue-drawer-backdrop,
   .action-queue-drawer { animation: none; }
 }
