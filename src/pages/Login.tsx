@@ -99,8 +99,8 @@ export default function Login({ passwordRecovery = false }: { passwordRecovery?:
           <button type="submit" disabled={busy || (mode === 'signup' && signupCooldown > 0)} className="btn-press" style={{ ...primaryBtn, opacity: busy || (mode === 'signup' && signupCooldown > 0) ? 0.7 : 1 }}>{busy ? '处理中…' : action}</button>
         </form>
         {!passwordRecovery && <div style={{ display: 'grid', gap: 10 }}>
-          {mode === 'login' && <button type="button" onClick={() => switchMode('forgot')} className="btn-press" style={textBtn}>忘记密码？找回账号</button>}
           <button type="button" onClick={() => switchMode(mode === 'signup' ? 'login' : 'signup')} className="btn-press" style={secondaryBtn}>{mode === 'signup' ? '已有账号？去登录' : '没有账号？去注册'}</button>
+          {mode === 'login' && <button type="button" onClick={() => switchMode('forgot')} className="btn-press" style={accountRecoveryBtn}>忘记密码？找回账号</button>}
           {mode === 'forgot' && <button type="button" onClick={() => switchMode('login')} className="btn-press" style={textBtn}>返回登录</button>}
         </div>}
         {!isSupabaseConfigured && <p style={{ textAlign: 'center', fontSize: 12, color: '#a23d24', marginTop: 14 }}>未检测到 Supabase 配置，登录与找回密码不可用。</p>}
@@ -117,4 +117,5 @@ const underlineInput: React.CSSProperties = { width: '100%', height: 42, border:
 const primaryBtn: React.CSSProperties = { width: '100%', height: 48, border: 'none', borderRadius: 999, background: '#1b1a17', color: '#f4f1ea', fontSize: 15, fontWeight: 600, cursor: 'pointer', marginBottom: 12 };
 const secondaryBtn: React.CSSProperties = { width: '100%', height: 48, border: '1.5px solid #e4ddcf', borderRadius: 999, background: '#fffdf8', color: '#1b1a17', fontSize: 15, fontWeight: 600, cursor: 'pointer' };
 const textBtn: React.CSSProperties = { border: 'none', background: 'transparent', color: '#8a5a34', fontSize: 13, fontWeight: 700, cursor: 'pointer', padding: '4px 0' };
+const accountRecoveryBtn: React.CSSProperties = { ...textBtn, color: '#9a7148', fontWeight: 600, marginTop: 2, padding: '8px 0 2px' };
 function msgBox(bg: string, fg: string): React.CSSProperties { return { background: bg, color: fg, fontSize: 13, fontWeight: 600, padding: '10px 14px', borderRadius: 12, marginBottom: 14, lineHeight: 1.5 }; }
