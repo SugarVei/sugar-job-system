@@ -44,10 +44,16 @@ export default async function handler(request: NativeRequest, response: NativeRe
     const fileName = typeof body.file_name === 'string' ? body.file_name.slice(0, 180) : '';
     const encoded = typeof body.file_data === 'string' ? body.file_data : '';
     if (!/\.pdf$/i.test(fileName)) return response.status(400).json({ error: '服务器解析仅支持 PDF；DOCX 会在浏览器本地读取。' });
-    if (!/^data:application\/pdf;base64,[A-Za-z0-9+/=]+$/.test(encoded)) return response.status(400).json({ error: 'PDF 文件格式无效。' });
-    const base64 = encoded.slice(encoded.indexOf(',') + 1);
+    // FileReader MIME metadata differs across browsers. The client validates
+    // the extension and normalizes it, while the PDF signature below validates
+    // the actual file before it is passed to the parser.
+    const dataUrl = /^data:[^;,]+;base64,([A-Za-z0-9+/=]+)$/.exec(encoded);
+    if (!dataUrl) return response.status(400).json({ error: 'PDF 文件格式无效。' });
+    const base64 = dataUrl[1];
     if (base64.length > 14_000_000) return response.status(413).json({ error: 'PDF 不能超过 10MB。' });
-    const result = await pdfParse(Buffer.from(base64, 'base64'));
+    const pdfBuffer = Buffer.from(base64, 'base64');
+    if (pdfBuffer.subarray(0, 5).toString() !== '%PDF-') return response.status(400).json({ error: '所选文件不是有效的 PDF。' });
+    const result = await pdfParse(pdfBuffer);
     const text = String(result.text ?? '').split(String.fromCharCode(0)).join('').trim().slice(0, 60_000);
     if (text.length < 20) return response.status(422).json({ error: '没有从 PDF 中读取到足够文字；扫描版请先转换为可复制文字的 PDF。' });
     return response.status(200).json({ text });

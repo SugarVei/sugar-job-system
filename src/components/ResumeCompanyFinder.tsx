@@ -8,6 +8,8 @@ import { IconFile, IconTrash } from './icons';
 
 const PREFERENCES = ['大公司', '小公司', '外企', '国企', '民企', '互联网', '制造业', '服务业', '新能源', '芯片半导体', '汽车', '金融'];
 const MAX_FILE_SIZE = 10 * 1024 * 1024;
+const PDF_MIME_TYPE = 'application/pdf';
+const DOCX_MIME_TYPE = 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
 
 type Result = { name: string; score: number; reason: string; industry?: string; city?: string; companyType?: string; website?: string };
 type ApiResult = { standardMatches: Result[]; privateRecommendations: Result[]; error?: string };
@@ -23,12 +25,15 @@ function readableError(error: unknown) {
   return message || '操作失败，请稍后重试。';
 }
 
-async function fileToDataUrl(file: File) {
+async function fileToDataUrl(file: File, contentType: string) {
   return new Promise<string>((resolve, reject) => {
     const reader = new FileReader();
     reader.onerror = () => reject(new Error('无法读取文件。'));
     reader.onload = () => resolve(String(reader.result));
-    reader.readAsDataURL(file);
+    // Some browsers report a valid PDF as application/octet-stream or an empty
+    // MIME type. Re-wrap it so both Storage and the PDF parser receive its
+    // canonical type instead of relying on browser-specific file metadata.
+    reader.readAsDataURL(new Blob([file], { type: contentType }));
   });
 }
 
@@ -92,13 +97,16 @@ export default function ResumeCompanyFinder({
       const extension = fileExtension(file.name);
       const normalizedBaseName = safeFileName(file.name).replace(/\.[^.]+$/, '') || 'resume';
       uploadedPath = `${user.id}/${Date.now()}_${crypto.randomUUID()}_${normalizedBaseName}.${extension}`;
-      const contentType = extension === 'pdf' ? 'application/pdf' : 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
-      const { error: uploadError } = await supabase.storage.from('company-resumes').upload(uploadedPath, file, { upsert: false, contentType });
+      const contentType = extension === 'pdf' ? PDF_MIME_TYPE : DOCX_MIME_TYPE;
+      // Do not trust File.type here: it varies by browser and can make a valid
+      // PDF fail the bucket's MIME allow-list. The extension is validated above.
+      const uploadFile = new File([file], file.name, { type: contentType, lastModified: file.lastModified });
+      const { error: uploadError } = await supabase.storage.from('company-resumes').upload(uploadedPath, uploadFile, { cacheControl: '3600', upsert: false, contentType });
       if (uploadError) throw uploadError;
 
       let resumeText: string;
       if (extension === 'pdf') {
-        const response = await fetch('/api/profile-resume-parse', { method: 'POST', headers: { Authorization: `Bearer ${session.access_token}`, 'Content-Type': 'application/json' }, body: JSON.stringify({ file_name: file.name, file_data: await fileToDataUrl(file) }) });
+        const response = await fetch('/api/profile-resume-parse', { method: 'POST', headers: { Authorization: `Bearer ${session.access_token}`, 'Content-Type': 'application/json' }, body: JSON.stringify({ file_name: file.name, file_data: await fileToDataUrl(uploadFile, PDF_MIME_TYPE) }) });
         const data = await response.json() as { text?: string; error?: string };
         if (!response.ok || !data.text) throw new Error(data.error || 'PDF 解析失败。');
         resumeText = data.text;
