@@ -7,7 +7,16 @@ import { useToast } from '../components/Toast';
 import { CARD } from '../lib/appHelpers';
 import { Field, FormError, GhostButton, PrimaryButton, TextInput } from '../components/Field';
 import EmptyState from '../components/EmptyState';
-import { IconMail, IconEye, IconEyeOff } from '../components/icons';
+import {
+  IconCheck,
+  IconClock,
+  IconEye,
+  IconEyeOff,
+  IconInterviews,
+  IconMail,
+  IconSearch,
+  IconSettings,
+} from '../components/icons';
 
 type ProviderOption = {
   id: MailboxProvider;
@@ -99,9 +108,55 @@ function providerOfEmail(email: string): MailboxProvider {
   return 'custom';
 }
 
+function cleanSender(from: string) {
+  return (from || '未知发件人').replace(/<.*>/, '').replace(/^['"]|['"]$/g, '').trim() || '未知发件人';
+}
+
+function senderMeta(message: MailboxMessage) {
+  const text = `${message.from} ${message.subject}`.toLowerCase();
+  const match = [
+    { test: /字节|bytedance|抖音/, short: '字节', bg: '#3478e5', color: '#fff' },
+    { test: /腾讯|tencent/, short: '腾讯', bg: '#2776e8', color: '#fff' },
+    { test: /美团|meituan/, short: '美团', bg: '#ffd323', color: '#1b1a17' },
+    { test: /阿里|alibaba|淘天|蚂蚁/, short: '阿里', bg: '#ff7a1a', color: '#fff' },
+    { test: /网易|netease/, short: '网易', bg: '#ef3f3a', color: '#fff' },
+  ].find((item) => item.test.test(text));
+  if (match) return match;
+  const sender = cleanSender(message.from);
+  return { short: sender.slice(0, 2).toUpperCase(), bg: '#e9e3d8', color: '#5d584d' };
+}
+
+function formatMailDate(value: string | null) {
+  if (!value) return '';
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return '';
+  return date.toLocaleString('zh-CN', { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+}
+
+function mailSummary(message: MailboxMessage) {
+  const raw = `${message.subject} ${message.snippet} ${(message.html || '').replace(/<[^>]+>/g, ' ')}`.replace(/&nbsp;/g, ' ');
+  const dateMatch = raw.match(/(20\d{2})[年/.-](\d{1,2})[月/.-](\d{1,2})日?/);
+  const timeMatch = raw.match(/(?:上午|下午)?\s*([01]?\d|2[0-3])[:：]([0-5]\d)/);
+  const form = /腾讯会议/i.test(raw)
+    ? '腾讯会议'
+    : /飞书/i.test(raw)
+      ? '飞书会议'
+      : /zoom/i.test(raw)
+        ? 'Zoom'
+        : /线下|现场|到店|到场/.test(raw)
+          ? '线下面试'
+          : /线上|视频|远程/.test(raw)
+            ? '线上面试'
+            : '查看邮件正文';
+  const positionMatch = raw.match(/([\u4e00-\u9fa5A-Za-z0-9+.#-]{2,24}(?:实习生|工程师|分析师|设计师|产品经理|管培生|专员))/);
+  const date = dateMatch ? `${Number(dateMatch[2])}月${Number(dateMatch[3])}日` : '查看邮件';
+  const time = timeMatch ? `${timeMatch[1].padStart(2, '0')}:${timeMatch[2]}` : '';
+  return { interviewTime: `${date}${time ? ` ${time}` : ''}`, form, position: positionMatch?.[1] || '查看邮件主题' };
+}
+
 export default function Mailbox() {
   const db = useCollection<MailboxAccount>('mailbox_accounts');
-  const { registerAdd } = useAppShell();
+  const { registerAdd, navigate } = useAppShell();
   const { theme } = useTheme();
   const toast = useToast();
 
@@ -128,16 +183,24 @@ export default function Mailbox() {
   const [selected, setSelected] = useState<MailboxMessage | null>(null);
   const [detailLoading, setDetailLoading] = useState(false);
   const [addingNew, setAddingNew] = useState(false);
+  const [settingsOpen, setSettingsOpen] = useState(false);
+  const [unreadFirst, setUnreadFirst] = useState(false);
+  const [processed, setProcessed] = useState<Set<number>>(() => new Set());
 
   const providerMeta = PROVIDERS.find((p) => p.id === provider) ?? PROVIDERS[0];
 
   useEffect(() => {
     registerAdd(() => {
       setAddingNew(true);
+      setSettingsOpen(true);
       document.getElementById('mailbox-email')?.focus();
     });
     return () => registerAdd(null);
   }, [registerAdd]);
+
+  useEffect(() => {
+    if (!db.loading && db.items.length === 0) setSettingsOpen(true);
+  }, [db.items.length, db.loading]);
 
   useEffect(() => {
     if (account && !addingNew) {
@@ -152,11 +215,11 @@ export default function Mailbox() {
 
   const filtered = useMemo(() => {
     const q = keyword.trim().toLowerCase();
-    if (!q) return messages;
-    return messages.filter((m) =>
+    const result = q ? messages.filter((m) =>
       [m.subject, m.from, m.snippet].some((v) => (v || '').toLowerCase().includes(q)),
-    );
-  }, [messages, keyword]);
+    ) : [...messages];
+    return unreadFirst ? result.sort((a, b) => Number(a.seen) - Number(b.seen)) : result;
+  }, [messages, keyword, unreadFirst]);
 
   const interviewHint = (m: MailboxMessage) => {
     const text = `${m.subject} ${m.snippet}`.toLowerCase();
@@ -198,6 +261,7 @@ export default function Mailbox() {
         setAddingNew(false);
         toast.success('邮箱已绑定');
       }
+      setSettingsOpen(false);
     } catch (err) {
       setFormError(err instanceof Error ? err.message : String(err));
     } finally {
@@ -239,7 +303,9 @@ export default function Mailbox() {
         total?: number;
       };
       if (!res.ok || data.error) throw new Error((data.error as string) || '拉取失败');
-      setMessages(data.messages ?? []);
+      const nextMessages = data.messages ?? [];
+      setMessages(nextMessages);
+      setSelected(nextMessages[0] ?? null);
       setUnseen(data.unseen ?? 0);
       setTotal(data.total ?? 0);
       if (acc) await db.update(acc.id, { last_synced_at: new Date().toISOString() });
@@ -288,6 +354,7 @@ export default function Mailbox() {
     setMessages([]);
     setSelected(null);
     setAddingNew(db.items.length <= 1);
+    setSettingsOpen(true);
     toast.info('已解除邮箱绑定');
   };
 
@@ -301,231 +368,125 @@ export default function Mailbox() {
     setProvider('netease163');
     setMessages([]);
     setSelected(null);
+    setSettingsOpen(true);
+  };
+
+  const selectedMeta = selected ? senderMeta(selected) : null;
+  const selectedSummary = selected ? mailSummary(selected) : null;
+  const selectedProcessed = selected ? processed.has(selected.uid) : false;
+
+  const toggleProcessed = () => {
+    if (!selected) return;
+    setProcessed((current) => {
+      const next = new Set(current);
+      if (next.has(selected.uid)) next.delete(selected.uid);
+      else next.add(selected.uid);
+      return next;
+    });
+  };
+
+  const addToInterviewCalendar = () => {
+    toast.info('已进入面试日历，请确认时间后新增安排');
+    navigate('interviews');
   };
 
   return (
-    <div className="flex flex-col gap-[16px] animate-rise">
+    <div className="flex flex-col gap-[12px] animate-rise">
       {db.error && <FormError message={db.error} />}
 
-      {db.items.length > 0 && (
-        <div style={{ ...CARD, padding: 12, borderRadius: 18, display: 'flex', flexWrap: 'wrap', gap: 8, alignItems: 'center' }}>
-          <span style={{ fontSize: 12.5, color: '#8a8478', fontWeight: 600, marginRight: 4 }}>我的邮箱</span>
-          {db.items.map((item) => {
-            const active = !addingNew && account?.id === item.id;
-            const meta = PROVIDERS.find((p) => p.id === item.provider);
-            return (
-              <button
-                key={item.id}
-                type="button"
-                onClick={() => {
-                  setAddingNew(false);
-                  setActiveId(item.id);
-                  setMessages([]);
-                  setSelected(null);
-                }}
-                className="btn-press"
-                style={{
-                  height: 34,
-                  padding: '0 12px',
-                  borderRadius: 999,
-                  border: active ? '1.5px solid #1b1a17' : '1px solid #e0d8c9',
-                  background: active ? '#1b1a17' : '#fffdf8',
-                  color: active ? '#f4f1ea' : '#5d584d',
-                  fontSize: 12.5,
-                  fontWeight: 700,
-                  cursor: 'pointer',
-                }}
-              >
-                {meta?.short || '邮箱'} · {item.email.split('@')[0]}
-              </button>
-            );
-          })}
-          <button
-            type="button"
-            onClick={startAdd}
-            className="btn-press"
-            style={{
-              height: 34,
-              padding: '0 12px',
-              borderRadius: 999,
-              border: addingNew ? '1.5px solid #1b1a17' : '1px dashed #cfc5b4',
-              background: addingNew ? '#f5f0e7' : 'transparent',
-              color: '#6b665c',
-              fontSize: 12.5,
-              fontWeight: 700,
-              cursor: 'pointer',
-            }}
-          >
-            + 绑定新邮箱
-          </button>
-        </div>
-      )}
-
-      <section style={{ ...CARD, padding: 20, borderRadius: 22 }}>
-        <div className="flex items-start justify-between gap-3 flex-wrap">
-          <div className="flex items-center gap-3">
-            <div style={{ width: 42, height: 42, borderRadius: 14, background: theme.accentSoft, color: theme.accent, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+      <section style={{ ...CARD, padding: '14px 18px', borderRadius: 18 }}>
+        <div className="flex items-center justify-between gap-3 flex-wrap">
+          <div className="flex items-center gap-3" style={{ minWidth: 0 }}>
+            <div style={{ width: 44, height: 44, borderRadius: 13, background: theme.accentSoft, color: theme.accent, display: 'flex', alignItems: 'center', justifyContent: 'center', flex: 'none' }}>
               <IconMail size={20} />
             </div>
-            <div>
-              <div style={{ fontFamily: 'Poppins', fontSize: 16, fontWeight: 700 }}>
-                {addingNew || !account ? '选择邮箱服务商并绑定' : '邮箱连接'}
+            <div style={{ minWidth: 0 }}>
+              <div className="flex items-center gap-3 flex-wrap">
+                <strong style={{ fontFamily: 'Poppins', fontSize: 16.5 }}>{account ? `${PROVIDERS.find((p) => p.id === account.provider)?.short || '邮箱'} · ${account.email.split('@')[0]}` : '尚未绑定邮箱'}</strong>
+                {account && <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, color: '#2f7a45', fontSize: 12.5, fontWeight: 700 }}><span style={{ width: 8, height: 8, borderRadius: 99, background: '#2f9b50' }} />已连接</span>}
+                {account && <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, color: '#9a9488', fontSize: 12 }}><IconClock size={14} />{account.last_synced_at ? `同步于 ${new Date(account.last_synced_at).toLocaleString('zh-CN')}` : '尚未同步'}</span>}
               </div>
-              <div style={{ fontSize: 12.5, color: '#8a8478', marginTop: 2 }}>
-                支持网易 / QQ / Gmail / Outlook / 学校邮箱
+              <div style={{ marginTop: 3, color: '#8a8478', fontSize: 12 }}>
+                {account ? account.email : '支持网易、QQ、Gmail、Outlook 与学校邮箱'}
+                {total > 0 && ` · 共 ${total} 封 · 未读 ${unseen}`}
               </div>
             </div>
           </div>
-          {providerMeta.guideUrl && (
-            <a href={providerMeta.guideUrl} target="_blank" rel="noreferrer" style={{ fontSize: 12.5, fontWeight: 700, color: theme.accent }}>
-              如何获取授权码 →
-            </a>
-          )}
-        </div>
-
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2" style={{ marginTop: 14 }}>
-          {PROVIDERS.map((p) => {
-            const active = provider === p.id;
-            return (
-              <button
-                key={p.id}
-                type="button"
-                onClick={() => setProvider(p.id)}
-                className="btn-press"
-                style={{
-                  textAlign: 'left',
-                  borderRadius: 14,
-                  border: active ? '1.5px solid #1b1a17' : '1px solid #e8e0d2',
-                  background: active ? '#1b1a17' : '#fffdf8',
-                  color: active ? '#f4f1ea' : '#4a463e',
-                  padding: '10px 12px',
-                  cursor: 'pointer',
-                }}
-              >
-                <div style={{ fontSize: 13, fontWeight: 800 }}>{p.label}</div>
-                <div style={{ fontSize: 11, opacity: 0.75, marginTop: 2 }}>{p.hint}</div>
-              </button>
-            );
-          })}
-        </div>
-
-        <div style={{ marginTop: 12, padding: 12, borderRadius: 12, background: '#faf7f0', fontSize: 12.5, color: '#5d584d', lineHeight: 1.65 }}>
-          <strong>{providerMeta.label}：</strong>{providerMeta.guide}
-          <br />
-          授权信息仅保存在你的账号下（RLS），服务端不写日志。
-        </div>
-
-        <FormError message={formError} />
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-3" style={{ marginTop: 12 }}>
-          <Field label="邮箱地址">
-            <TextInput
-              id="mailbox-email"
-              value={email}
-              onChange={(e) => {
-                setEmail(e.target.value);
-                if (addingNew || !account) {
-                  const detected = providerOfEmail(e.target.value);
-                  if (detected !== 'custom') setProvider(detected);
-                }
-              }}
-              placeholder={providerMeta.placeholder}
-              autoComplete="username"
-            />
-          </Field>
-          <Field label={providerMeta.secretLabel}>
-            <div style={{ position: 'relative' }}>
-              <TextInput
-                type={showCode ? 'text' : 'password'}
-                value={authCode}
-                onChange={(e) => setAuthCode(e.target.value)}
-                placeholder={providerMeta.secretLabel}
-                autoComplete="current-password"
-                style={{ paddingRight: 44 }}
-              />
-              <button
-                type="button"
-                onClick={() => setShowCode((v) => !v)}
-                aria-label={showCode ? '隐藏' : '显示'}
-                style={{
-                  position: 'absolute',
-                  right: 10,
-                  top: '50%',
-                  transform: 'translateY(-50%)',
-                  border: 'none',
-                  background: 'none',
-                  cursor: 'pointer',
-                  color: '#8a8478',
-                  display: 'flex',
-                }}
-              >
-                {showCode ? <IconEyeOff size={16} /> : <IconEye size={16} />}
-              </button>
-            </div>
-          </Field>
-          {provider === 'custom' && (
-            <>
-              <Field label="IMAP 服务器">
-                <TextInput value={imapHost} onChange={(e) => setImapHost(e.target.value)} placeholder="imap.xxx.edu.cn" />
-              </Field>
-              <Field label="端口（SSL）">
-                <TextInput value={imapPort} onChange={(e) => setImapPort(e.target.value)} placeholder="993" />
-              </Field>
-            </>
-          )}
-        </div>
-        <div className="flex flex-wrap gap-2" style={{ marginTop: 8 }}>
-          <PrimaryButton accent={theme.accent} onClick={() => void saveAccount()} disabled={saving}>
-            {saving ? '保存中…' : account && !addingNew ? '更新账号' : '保存并绑定'}
-          </PrimaryButton>
-          <PrimaryButton accent="#1b1a17" onClick={() => void fetchMail()} disabled={loadingMail}>
-            {loadingMail ? '同步中…' : '同步最近邮件'}
-          </PrimaryButton>
-          {account && !addingNew && (
-            <GhostButton onClick={() => void removeAccount()}>解除绑定</GhostButton>
-          )}
-        </div>
-        {account?.last_synced_at && !addingNew && (
-          <div style={{ marginTop: 10, fontSize: 12, color: '#9a9488' }}>
-            上次同步：{new Date(account.last_synced_at).toLocaleString('zh-CN')}
-            {total > 0 && ` · 收件箱 ${total} 封 · 未读 ${unseen}`}
+          <div className="flex items-center gap-2">
+            <button type="button" className="btn-press" disabled={!account || loadingMail} onClick={() => void fetchMail()} style={outlineAction}>
+              <span style={{ fontSize: 17, lineHeight: 1 }}>{loadingMail ? '…' : '↻'}</span>{loadingMail ? '同步中' : '同步邮件'}
+            </button>
+            <button type="button" className="btn-press" onClick={() => setSettingsOpen((open) => !open)} style={outlineAction}>
+              <IconSettings size={16} />{account ? '管理邮箱' : '绑定邮箱'}
+            </button>
           </div>
-        )}
+        </div>
       </section>
+
+      {settingsOpen && (
+        <section style={{ ...CARD, padding: 18, borderRadius: 18, border: '1px solid #ece4d6' }}>
+          <div className="flex items-start justify-between gap-3 flex-wrap">
+            <div>
+              <div style={{ fontSize: 15, fontWeight: 800 }}>{addingNew || !account ? '绑定邮箱' : '邮箱设置'}</div>
+              <div style={{ fontSize: 12, color: '#8a8478', marginTop: 3 }}>授权信息仅保存在你的账号下（RLS），服务端不写日志。</div>
+            </div>
+            {providerMeta.guideUrl && <a href={providerMeta.guideUrl} target="_blank" rel="noreferrer" style={{ fontSize: 12.5, fontWeight: 700, color: theme.accent }}>如何获取授权码 →</a>}
+          </div>
+
+          {db.items.length > 0 && (
+            <div className="flex flex-wrap gap-2" style={{ marginTop: 12 }}>
+              {db.items.map((item) => {
+                const active = !addingNew && account?.id === item.id;
+                return <button key={item.id} type="button" className="btn-press" onClick={() => { setAddingNew(false); setActiveId(item.id); setMessages([]); setSelected(null); }} style={{ ...accountChip, background: active ? '#1b1a17' : '#fffdf8', color: active ? '#fffdf8' : '#5d584d', borderColor: active ? '#1b1a17' : '#e0d8c9' }}>{PROVIDERS.find((p) => p.id === item.provider)?.short || '邮箱'} · {item.email.split('@')[0]}</button>;
+              })}
+              <button type="button" className="btn-press" onClick={startAdd} style={{ ...accountChip, borderStyle: 'dashed', background: 'transparent' }}>＋ 绑定新邮箱</button>
+            </div>
+          )}
+
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2" style={{ marginTop: 12 }}>
+            {PROVIDERS.map((p) => {
+              const active = provider === p.id;
+              return <button key={p.id} type="button" onClick={() => setProvider(p.id)} className="btn-press" style={{ textAlign: 'left', borderRadius: 12, border: active ? '1.5px solid #1b1a17' : '1px solid #e8e0d2', background: active ? '#1b1a17' : '#fffdf8', color: active ? '#f4f1ea' : '#4a463e', padding: '9px 11px', cursor: 'pointer' }}><div style={{ fontSize: 12.5, fontWeight: 800 }}>{p.label}</div><div style={{ fontSize: 10.5, opacity: 0.75, marginTop: 2 }}>{p.hint}</div></button>;
+            })}
+          </div>
+          <div style={{ marginTop: 10, padding: '9px 11px', borderRadius: 10, background: '#faf7f0', fontSize: 12, color: '#5d584d' }}><strong>{providerMeta.label}：</strong>{providerMeta.guide}</div>
+          <FormError message={formError} />
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-3" style={{ marginTop: 8 }}>
+            <Field label="邮箱地址"><TextInput id="mailbox-email" value={email} onChange={(e) => { setEmail(e.target.value); if (addingNew || !account) { const detected = providerOfEmail(e.target.value); if (detected !== 'custom') setProvider(detected); } }} placeholder={providerMeta.placeholder} autoComplete="username" /></Field>
+            <Field label={providerMeta.secretLabel}><div style={{ position: 'relative' }}><TextInput type={showCode ? 'text' : 'password'} value={authCode} onChange={(e) => setAuthCode(e.target.value)} placeholder={providerMeta.secretLabel} autoComplete="current-password" style={{ paddingRight: 44 }} /><button type="button" onClick={() => setShowCode((v) => !v)} aria-label={showCode ? '隐藏' : '显示'} style={eyeButton}>{showCode ? <IconEyeOff size={16} /> : <IconEye size={16} />}</button></div></Field>
+            {provider === 'custom' && <><Field label="IMAP 服务器"><TextInput value={imapHost} onChange={(e) => setImapHost(e.target.value)} placeholder="imap.xxx.edu.cn" /></Field><Field label="端口（SSL）"><TextInput value={imapPort} onChange={(e) => setImapPort(e.target.value)} placeholder="993" /></Field></>}
+          </div>
+          <div className="flex flex-wrap gap-2" style={{ marginTop: 6 }}>
+            <PrimaryButton accent={theme.accent} onClick={() => void saveAccount()} disabled={saving}>{saving ? '保存中…' : account && !addingNew ? '更新账号' : '保存并绑定'}</PrimaryButton>
+            {account && !addingNew && <GhostButton onClick={() => void removeAccount()}>解除绑定</GhostButton>}
+            <GhostButton onClick={() => setSettingsOpen(false)}>收起设置</GhostButton>
+          </div>
+        </section>
+      )}
 
       {mailError && <FormError message={mailError} />}
 
-      <div className="grid grid-cols-1 lg:grid-cols-[minmax(280px,0.95fr)_minmax(320px,1.15fr)] gap-3" style={{ minHeight: 480 }}>
+      <div className="grid grid-cols-1 lg:grid-cols-[minmax(330px,0.42fr)_minmax(430px,0.58fr)] gap-3" style={{ minHeight: 535 }}>
         <section
           style={{
             ...CARD,
             padding: 0,
-            borderRadius: 18,
+            borderRadius: 20,
             overflow: 'hidden',
             display: 'flex',
             flexDirection: 'column',
-            minHeight: 420,
+            minHeight: 500,
           }}
         >
           <div
             className="flex items-center justify-between gap-2"
-            style={{ padding: '12px 14px', borderBottom: '1px solid #efe8db', background: '#faf7f0' }}
+            style={{ padding: '14px 14px 12px', borderBottom: '1px solid #efe8db', background: '#fffdf8' }}
           >
-            <div style={{ fontWeight: 800, fontSize: 14 }}>收件箱</div>
-            <input
-              value={keyword}
-              onChange={(e) => setKeyword(e.target.value)}
-              placeholder="搜索邮件"
-              style={{
-                height: 32,
-                borderRadius: 8,
-                border: '1px solid #e0d8c9',
-                background: '#fff',
-                padding: '0 10px',
-                fontSize: 12.5,
-                minWidth: 120,
-                outline: 'none',
-              }}
-            />
+            <div style={{ fontWeight: 800, fontSize: 15 }}>面试邮件</div>
+            <div className="flex items-center gap-2" style={{ minWidth: 0 }}>
+              <label style={{ height: 34, display: 'flex', alignItems: 'center', gap: 7, border: '1px solid #e0d8c9', background: '#fff', borderRadius: 9, padding: '0 10px', color: '#9a9488', minWidth: 0 }}><IconSearch size={14} /><input value={keyword} onChange={(e) => setKeyword(e.target.value)} placeholder="搜索邮件" style={{ border: 0, outline: 0, background: 'transparent', width: 104, minWidth: 0, fontSize: 12 }} /></label>
+              <button type="button" className="btn-press" aria-pressed={unreadFirst} onClick={() => setUnreadFirst((value) => !value)} style={{ height: 34, borderRadius: 9, border: `1px solid ${unreadFirst ? '#1b1a17' : '#e0d8c9'}`, background: unreadFirst ? '#1b1a17' : '#fffdf8', color: unreadFirst ? '#fffdf8' : '#5d584d', padding: '0 10px', fontSize: 12, fontWeight: 700, whiteSpace: 'nowrap', cursor: 'pointer' }}>未读优先</button>
+            </div>
           </div>
 
           <div style={{ flex: 1, overflowY: 'auto', minHeight: 0 }}>
@@ -541,6 +502,8 @@ export default function Mailbox() {
               filtered.map((m) => {
                 const hot = interviewHint(m);
                 const active = selected?.uid === m.uid;
+                const meta = senderMeta(m);
+                const isProcessed = processed.has(m.uid);
                 return (
                   <button
                     key={m.uid}
@@ -551,18 +514,16 @@ export default function Mailbox() {
                       textAlign: 'left',
                       border: 'none',
                       borderBottom: '1px solid #f0ebe0',
-                      borderLeft: active ? `3px solid ${theme.accent}` : '3px solid transparent',
-                      background: active ? '#fff8ee' : hot ? '#fffdf6' : '#fffdf8',
-                      padding: '12px 14px',
+                      borderLeft: active ? '3px solid #f0613f' : '3px solid transparent',
+                      background: active ? '#fff8e9' : '#fffdf8',
+                      padding: '13px 14px 13px 12px',
                       cursor: 'pointer',
                     }}
                   >
-                    <div className="flex items-start justify-between gap-2">
+                    <div className="flex items-start gap-3">
+                      <span style={{ width: 42, height: 42, borderRadius: 12, display: 'grid', placeItems: 'center', flex: 'none', background: meta.bg, color: meta.color, fontSize: meta.short.length > 2 ? 10 : 12, fontWeight: 800 }}>{meta.short}</span>
                       <div style={{ minWidth: 0, flex: 1 }}>
-                        <div className="flex items-center gap-2" style={{ marginBottom: 3 }}>
-                          {!m.seen && (
-                            <span style={{ width: 7, height: 7, borderRadius: 99, background: '#3b82f6', flex: 'none' }} />
-                          )}
+                        <div className="flex items-start justify-between gap-2" style={{ marginBottom: 3 }}>
                           <span
                             style={{
                               fontSize: 12.5,
@@ -573,8 +534,9 @@ export default function Mailbox() {
                               whiteSpace: 'nowrap',
                             }}
                           >
-                            {(m.from || '未知发件人').replace(/<.*>/, '').trim() || m.from}
+                            {cleanSender(m.from)}
                           </span>
+                          <span style={{ fontSize: 10.5, color: '#9a9488', whiteSpace: 'nowrap' }}>{formatMailDate(m.date)}</span>
                         </div>
                         <div
                           style={{
@@ -595,16 +557,10 @@ export default function Mailbox() {
                             {m.snippet}
                           </div>
                         )}
-                      </div>
-                      <div style={{ flex: 'none', textAlign: 'right' }}>
-                        <div style={{ fontSize: 11, color: '#9a9488', whiteSpace: 'nowrap' }}>
-                          {m.date ? new Date(m.date).toLocaleString('zh-CN', { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' }) : ''}
+                        <div className="flex items-center justify-between gap-2" style={{ marginTop: 6, minHeight: 18 }}>
+                          <div>{(hot || isProcessed) && <span style={{ display: 'inline-block', fontSize: 9.5, fontWeight: 800, padding: '2px 7px', borderRadius: 999, background: isProcessed ? '#e7eee2' : '#fbeec2', color: isProcessed ? '#477051' : '#7a5a12' }}>{isProcessed ? '已处理' : '待处理'}</span>}</div>
+                          {!m.seen && <span title="未读" style={{ width: 7, height: 7, borderRadius: 99, background: '#f0613f', flex: 'none' }} />}
                         </div>
-                        {hot && (
-                          <span style={{ display: 'inline-block', marginTop: 6, fontSize: 10, fontWeight: 800, padding: '2px 7px', borderRadius: 999, background: '#fbeec2', color: '#7a5a12' }}>
-                            可能面试
-                          </span>
-                        )}
                       </div>
                     </div>
                   </button>
@@ -618,12 +574,12 @@ export default function Mailbox() {
           style={{
             ...CARD,
             padding: 0,
-            borderRadius: 18,
+            borderRadius: 20,
             overflow: 'hidden',
-            minHeight: 420,
+            minHeight: 500,
             display: 'flex',
             flexDirection: 'column',
-            background: '#fff',
+            background: '#fffdf8',
           }}
         >
           {!selected ? (
@@ -636,29 +592,30 @@ export default function Mailbox() {
             <div style={{ padding: 28 }}><EmptyState text="正在加载正文…" /></div>
           ) : (
             <>
-              <div style={{ padding: '16px 20px 12px', borderBottom: '1px solid #efe8db', background: '#faf7f0' }}>
-                <h2 style={{ margin: 0, fontSize: 18, fontWeight: 800, lineHeight: 1.35, color: '#1b1a17' }}>
-                  {selected.subject}
-                </h2>
-                <div style={{ marginTop: 10, fontSize: 13, color: '#5d584d', lineHeight: 1.7 }}>
-                  <div><span style={{ color: '#9a9488' }}>发件人：</span>{selected.from || '—'}</div>
-                  <div>
-                    <span style={{ color: '#9a9488' }}>时间：</span>
-                    {selected.date ? new Date(selected.date).toLocaleString('zh-CN') : '—'}
+              <div style={{ padding: '18px 20px 14px', borderBottom: '1px solid #efe8db', background: '#fffdf8' }}>
+                <div className="flex items-start justify-between gap-3">
+                  <div className="flex items-center gap-3" style={{ minWidth: 0 }}>
+                    <span style={{ width: 42, height: 42, borderRadius: 13, display: 'grid', placeItems: 'center', flex: 'none', background: selectedMeta?.bg, color: selectedMeta?.color, fontSize: selectedMeta && selectedMeta.short.length > 2 ? 10 : 12, fontWeight: 800 }}>{selectedMeta?.short}</span>
+                    <div style={{ minWidth: 0 }}><div style={{ fontSize: 14, fontWeight: 800 }}>{cleanSender(selected.from)}</div><div style={{ fontSize: 11.5, color: '#9a9488', marginTop: 2 }}>发送至 {account?.email || '我的邮箱'}</div></div>
                   </div>
-                  {selected.hasAttachment && (
-                    <div style={{ color: '#89631c' }}>含附件（请到原邮箱网页端下载）</div>
-                  )}
+                  <div style={{ textAlign: 'right', flex: 'none' }}><span style={{ display: 'inline-block', fontSize: 10.5, fontWeight: 800, padding: '3px 8px', borderRadius: 999, background: selectedProcessed ? '#e7eee2' : '#fbeec2', color: selectedProcessed ? '#477051' : '#7a5a12' }}>{selectedProcessed ? '已处理' : '待处理'}</span><div style={{ fontSize: 11, color: '#9a9488', marginTop: 6 }}>{formatMailDate(selected.date)}</div></div>
+                </div>
+                <h2 style={{ margin: '14px 0 0', fontSize: 19, fontWeight: 800, lineHeight: 1.35, color: '#1b1a17' }}>{selected.subject}</h2>
+                {selected.hasAttachment && <div style={{ marginTop: 6, color: '#89631c', fontSize: 11.5 }}>含附件（请到原邮箱网页端下载）</div>}
+                <div className="grid grid-cols-1 sm:grid-cols-[repeat(3,minmax(0,1fr))_auto] gap-0" style={{ marginTop: 16, padding: '14px 14px', border: '1px solid #e8e0d2', borderRadius: 14, background: '#faf7f0' }}>
+                  <SummaryCell icon={<IconInterviews size={16} />} label="面试时间" value={selectedSummary?.interviewTime || '查看邮件'} />
+                  <SummaryCell icon={<IconMail size={16} />} label="面试形式" value={selectedSummary?.form || '查看邮件正文'} />
+                  <SummaryCell icon={<IconSettings size={16} />} label="岗位" value={selectedSummary?.position || '查看邮件主题'} />
+                  <div className="flex flex-col justify-center gap-2" style={{ paddingLeft: 12 }}><button type="button" className="btn-press" onClick={addToInterviewCalendar} style={{ height: 38, padding: '0 14px', border: 0, borderRadius: 10, background: '#1b1a17', color: '#fffdf8', fontSize: 12.5, fontWeight: 700, whiteSpace: 'nowrap', cursor: 'pointer' }}><span className="flex items-center gap-2"><IconInterviews size={15} />添加到面试日历</span></button><button type="button" className="btn-press" onClick={toggleProcessed} style={{ height: 36, padding: '0 14px', border: '1px solid #d9d0c1', borderRadius: 10, background: '#fffdf8', color: '#4a463e', fontSize: 12.5, fontWeight: 700, whiteSpace: 'nowrap', cursor: 'pointer' }}><span className="flex items-center gap-2"><IconCheck size={15} />{selectedProcessed ? '取消已处理' : '标记已处理'}</span></button></div>
                 </div>
               </div>
-              <div style={{ flex: 1, overflowY: 'auto', padding: '8px 4px 16px', background: '#f3f0ea' }}>
+              <div style={{ flex: 1, overflowY: 'auto', padding: '2px 4px 16px', background: '#fffdf8' }}>
                 <div
                   style={{
-                    margin: '12px 12px 0',
-                    background: '#fff',
-                    borderRadius: 8,
-                    boxShadow: '0 2px 12px rgba(60,50,35,.06)',
-                    padding: '22px 24px',
+                    margin: '10px 12px 0',
+                    background: '#fffdf8',
+                    borderRadius: 10,
+                    padding: '14px 18px',
                     minHeight: 240,
                   }}
                 >
@@ -688,3 +645,11 @@ export default function Mailbox() {
     </div>
   );
 }
+
+function SummaryCell({ icon, label, value }: { icon: React.ReactNode; label: string; value: string }) {
+  return <div style={{ minWidth: 0, padding: '2px 14px', borderRight: '1px solid #e8e0d2' }}><div className="flex items-center gap-2" style={{ color: '#8a8478', fontSize: 11.5 }}>{icon}{label}</div><div title={value} style={{ marginTop: 8, color: '#1b1a17', fontSize: 13.5, fontWeight: 800, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{value}</div></div>;
+}
+
+const outlineAction: React.CSSProperties = { height: 40, display: 'inline-flex', alignItems: 'center', gap: 7, padding: '0 14px', border: '1px solid #ded5c7', borderRadius: 11, background: '#fffdf8', color: '#3f3b34', fontSize: 12.5, fontWeight: 700, cursor: 'pointer', whiteSpace: 'nowrap' };
+const accountChip: React.CSSProperties = { height: 32, padding: '0 11px', border: '1px solid #e0d8c9', borderRadius: 999, color: '#5d584d', fontSize: 12, fontWeight: 700, cursor: 'pointer' };
+const eyeButton: React.CSSProperties = { position: 'absolute', right: 10, top: '50%', transform: 'translateY(-50%)', border: 'none', background: 'none', cursor: 'pointer', color: '#8a8478', display: 'flex' };
