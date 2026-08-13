@@ -35,8 +35,11 @@ const STATUS: Record<QueueStatus, { label: string; next: string }> = {
 };
 
 const VARIANTS: ColorVariant[] = ['blue', 'purple', 'peach', 'mint', 'slate', 'sand'];
-const DURATIONS = [38, 45, 40, 48];
-const DELAYS = [-6, -19, -11, -27];
+// Keep the queue readable: each row now takes roughly 80–100 seconds for a
+// complete cycle instead of about 40 seconds. Delays are scaled accordingly
+// so the rows still enter at staggered positions rather than moving in sync.
+const DURATIONS = [80, 94, 84, 100];
+const DELAYS = [-13, -40, -23, -56];
 
 function rotate<T>(items: T[], amount: number) {
   if (items.length === 0) return items;
