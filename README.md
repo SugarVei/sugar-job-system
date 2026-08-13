@@ -8,7 +8,9 @@
 
 项目已经上线，可以通过下面的网址打开：
 
-**[https://sugar-job-system.vercel.app/](https://sugar-job-system.vercel.app/)**
+**[https://sugarv.mom](https://sugarv.mom)**
+
+备用访问地址：[https://sugar-job-system.vercel.app/](https://sugar-job-system.vercel.app/)
 
 > 目前需要先开启网络代理（梯子）再访问。如果页面打不开，请先确认代理是否已经打开。
 
