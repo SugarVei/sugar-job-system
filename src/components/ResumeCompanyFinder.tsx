@@ -85,6 +85,7 @@ export default function ResumeCompanyFinder({
   const [dragging, setDragging] = useState(false);
   const [consented, setConsented] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [progress, setProgress] = useState('');
   const [error, setError] = useState('');
   const [results, setResults] = useState<ApiResult | null>(null);
 
@@ -107,7 +108,7 @@ export default function ResumeCompanyFinder({
     if (!consented) { setError('请先确认同意使用脱敏后的简历内容进行 AI 匹配。'); return; }
     const config = requireActiveConfig('通过简历找公司');
     if (!config) return;
-    setLoading(true); setError(''); setResults(null);
+    setLoading(true); setProgress('正在安全上传简历…'); setError(''); setResults(null);
     let uploadedPath = '';
     let sessionToken = '';
     try {
@@ -121,14 +122,17 @@ export default function ResumeCompanyFinder({
 
       let resumeText: string;
       if (extension === 'pdf') {
+        setProgress('正在读取简历内容…');
         const response = await fetch('/api/profile-resume-parse', { method: 'POST', headers: { Authorization: `Bearer ${session.access_token}`, 'Content-Type': 'application/json' }, body: JSON.stringify({ file_name: file.name, file_data: await fileToDataUrl(uploadFile, PDF_MIME_TYPE) }) });
         const data = await response.json() as { text?: string; error?: string };
         if (!response.ok || !data.text) throw new Error(data.error || 'PDF 解析失败。');
         resumeText = data.text;
       } else {
+        setProgress('正在读取简历内容…');
         resumeText = await extractDocxText(file);
       }
 
+      setProgress('正在通过 AI 匹配公司…');
       const response = await fetch('/api/resume-company-match', {
         method: 'POST',
         headers: { Authorization: `Bearer ${session.access_token}`, 'Content-Type': 'application/json' },
@@ -144,6 +148,7 @@ export default function ResumeCompanyFinder({
       const data = await response.json() as ApiResult;
       if (!response.ok) throw new Error(data.error || 'AI 匹配失败。');
 
+      setProgress('正在保存匹配结果…');
       const { data: run, error: runError } = await supabase
         .from('company_recommendation_runs')
         .insert({ user_id: user.id, resume_file_name: file.name, resume_file_path: uploadedPath, preferences })
@@ -179,7 +184,7 @@ export default function ResumeCompanyFinder({
     } catch (caught) {
       if (uploadedPath && sessionToken) await removeUploadedResume(uploadedPath, sessionToken);
       setError(readableError(caught));
-    } finally { setLoading(false); }
+    } finally { setLoading(false); setProgress(''); }
   };
 
   return (
@@ -214,7 +219,7 @@ export default function ResumeCompanyFinder({
       <div style={{ marginTop: 15 }}><div style={{ fontSize: 12.5, fontWeight: 700, color: '#6b665c', marginBottom: 9 }}>公司倾向（可多选）</div><div className="flex flex-wrap gap-2">{PREFERENCES.map((item) => { const selected = preferences.includes(item); return <button key={item} type="button" onClick={() => togglePreference(item)} aria-pressed={selected} style={{ border: `1px solid ${selected ? '#1b1a17' : '#e0d8c9'}`, background: selected ? '#1b1a17' : '#fff', color: selected ? '#fff' : '#6b665c', borderRadius: 999, height: 32, padding: '0 12px', cursor: 'pointer', fontSize: 12.5, fontWeight: 650 }}>{item}</button>; })}</div></div>
       <label className="flex items-start gap-2" style={{ marginTop: 15, color: '#6b665c', fontSize: 12, lineHeight: 1.5, cursor: 'pointer' }}><input type="checkbox" checked={consented} onChange={(event) => setConsented(event.target.checked)} style={{ marginTop: 2, accentColor: '#1b1a17' }} />我同意系统先脱敏手机号、邮箱和身份证号后，将简历内容发送给我配置的 AI 服务商用于本次匹配。</label>
       {error && <div style={{ marginTop: 12, color: '#a23d24', fontSize: 12.5, lineHeight: 1.55 }}>{error}</div>}
-      <div className="flex items-center justify-between gap-3 flex-wrap" style={{ marginTop: 15 }}><span style={{ fontSize: 11.5, color: '#9a9488' }}>原文件存入私有空间；标准公司不会被修改。</span><button type="button" onClick={() => void analyze()} disabled={!file || loading} className="btn-press" style={{ border: 0, borderRadius: 12, height: 40, padding: '0 18px', background: !file || loading ? '#d8d0c2' : '#1b1a17', color: '#fffdf8', cursor: !file || loading ? 'not-allowed' : 'pointer', fontSize: 13, fontWeight: 750 }}>{loading ? '正在分析简历…' : '开始匹配公司'}</button></div>
+      <div className="flex items-center justify-between gap-3 flex-wrap" style={{ marginTop: 15 }}><span style={{ fontSize: 11.5, color: loading ? '#8a5a34' : '#9a9488' }}>{loading ? progress : '原文件存入私有空间；标准公司不会被修改。'}</span><button type="button" onClick={() => void analyze()} disabled={!file || loading} className="btn-press" style={{ border: 0, borderRadius: 12, height: 40, padding: '0 18px', background: !file || loading ? '#d8d0c2' : '#1b1a17', color: '#fffdf8', cursor: !file || loading ? 'not-allowed' : 'pointer', fontSize: 13, fontWeight: 750 }}>{loading ? '正在分析简历…' : '开始匹配公司'}</button></div>
 
       {results && <div style={{ marginTop: 18, borderTop: '1px solid #ebe3d7', paddingTop: 16 }}>
         <div style={{ fontSize: 13.5, fontWeight: 750, color: '#1b1a17' }}>为你匹配的标准公司</div>
