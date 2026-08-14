@@ -41,6 +41,57 @@ final result: passed
 
 ---
 
+# 智能填表助手五色主题 Design QA
+
+- Source visual truth: `C:\Users\86181\.codex\generated_images\019ffde0-f681-7f82-b80a-c38cdbe920d9\exec-712071a9-7cd3-43ef-ae6b-d4f69355d19d.png`
+- Implementation screenshot: `D:\Users\86181\Documents\简历\sugar-job-system\design-qa-assets\resume-assistant-desktop.png`
+- Full-view comparison: `D:\Users\86181\Documents\简历\sugar-job-system\design-qa-assets\resume-assistant-qa-comparison.png`
+- Focused comparison: `D:\Users\86181\Documents\简历\sugar-job-system\design-qa-assets\resume-assistant-qa-focused.png`
+- Responsive screenshot: `D:\Users\86181\Documents\简历\sugar-job-system\design-qa-assets\resume-assistant-mobile.png`
+- Source pixels: 1821 × 864; implementation pixels: 1884 × 892
+- CSS viewport: 1884 × 892 desktop and 390 × 844 mobile; device scale factor: 1
+- State: overview tab, pink theme, no paired extension, empty profile and runs in local QA session
+
+## Full-view comparison evidence
+
+The side-by-side comparison confirms the approved structure: the existing Sugar sidebar remains unchanged; the right side retains the page header, five theme controls, primary action and four tabs; overview content is reorganized into four compact top cards plus recent-runs and capability-boundary panels. The implementation keeps the same low-saturation card treatment, rounded geometry and clear hierarchy while using the project's real header and navigation shell.
+
+## Focused region comparison evidence
+
+The focused comparison verifies the status, profile, AI and workflow cards at readable scale. Card order, labels, compact workflow steps, icon treatment, button hierarchy, borders and theme accents match the selected direction. The implementation uses actual project data, so the local empty profile renders `0%` instead of the mock's illustrative `86%`; this is expected data behavior rather than design drift.
+
+## Required fidelity surfaces
+
+- Fonts and typography: existing Sugar font stack, weights and Chinese text rendering are preserved; headings, eyebrows, body copy and actions maintain clear hierarchy without wrapping regressions.
+- Spacing and layout rhythm: desktop uses a 12-column grid with 16 px gaps and consistent 20 px card radii; mobile collapses to one column with no horizontal overflow.
+- Colors and visual tokens: pink, blue, green, gray-lavender and cream themes map to distinct component-level CSS tokens and persist through the existing theme context.
+- Image quality and asset fidelity: the screen uses the project's existing SVG icon library; no raster placeholders or generated decorative assets were introduced.
+- Copy and content: all approved labels are present; data-dependent values remain connected to the existing profile, device, AI credential and run hooks.
+
+## Interaction and browser checks
+
+- Five theme controls changed both the persisted `sugar_theme` value and the component accent token: pink `#e96883`, blue `#4f8fd5`, green `#72a962`, gray-lavender `#8c86c7`, cream `#c09b62`.
+- Overview, standard profile, plugin and AI, and run-history tabs updated their hash routes successfully.
+- The connect-extension dialog opened and closed successfully.
+- Mobile viewport 390 × 844 reported `scrollWidth=390`; no horizontal overflow.
+- No page errors or Vite error overlay were detected. The existing Vite stream-browser compatibility warning is unrelated to this UI change.
+
+## Findings
+
+- P0: none.
+- P1: none.
+- P2: none.
+- Accepted environment difference: the local QA session used an intentionally invalid demo session, so the existing cloud-reconnect notice is visible. It is not shown during a healthy authenticated production session.
+
+## Comparison history
+
+- Initial coded implementation already matched the approved right-side structure with no actionable P0/P1/P2 issue.
+- Browser verification confirmed theme persistence, tab navigation, dialog behavior and mobile responsiveness; no visual correction loop was required.
+
+final result: passed
+
+---
+
 # Action Queue Orbit Design QA
 
 - Reference: `D:\google download\Sugar-ActionQueue-Orbit-Prototype.html`
