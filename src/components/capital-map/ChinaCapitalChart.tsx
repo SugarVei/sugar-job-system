@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import * as echarts from 'echarts';
 import type { ECharts } from 'echarts';
 import {
@@ -11,10 +11,10 @@ import { MAP_COLORS, prefersReducedMotion } from './theme';
 
 const LOCAL_GEO = '/geo/china-100000-full.json';
 const REMOTE_GEO = 'https://geo.datav.aliyun.com/areas_v3/bound/100000_full.json';
+const COMPACT_QUERY = '(max-width: 1023px)';
 
-/** 锁死大陆+海南+台湾的视野，不把南海诸岛算进包围盒，避免地图偏上。 */
+/** 锁死大陆+海南+台湾的初始视野，不把南海诸岛算进包围盒。 */
 const MAP_VIEW = {
-  roam: false as const,
   layoutCenter: ['50%', '50%'] as [string, string],
   layoutSize: '96%',
   boundingCoords: [
@@ -22,6 +22,20 @@ const MAP_VIEW = {
     [135.2, 53.7],
   ] as [[number, number], [number, number]],
 };
+
+function isCompactViewport(): boolean {
+  return typeof window !== 'undefined' && window.matchMedia(COMPACT_QUERY).matches;
+}
+
+function viewOption(allowRoam: boolean) {
+  return {
+    roam: allowRoam,
+    layoutCenter: MAP_VIEW.layoutCenter,
+    layoutSize: MAP_VIEW.layoutSize,
+    boundingCoords: MAP_VIEW.boundingCoords,
+    scaleLimit: allowRoam ? { min: 0.85, max: 8 } : { min: 1, max: 1 },
+  };
+}
 
 interface ChinaCapitalChartProps {
   selectedName: string | null;
@@ -65,10 +79,6 @@ function highlightOption(selectedName: string | null, pulsing: boolean, reduceMo
   const selected = selectedName ? CAPITAL_CAMPUS_BY_NAME[selectedName] : null;
   return {
     geo: {
-      roam: MAP_VIEW.roam,
-      layoutCenter: MAP_VIEW.layoutCenter,
-      layoutSize: MAP_VIEW.layoutSize,
-      boundingCoords: MAP_VIEW.boundingCoords,
       regions: [
         ...[...UNSELECTABLE_GEO_NAMES].map((name) => ({
           name,
@@ -99,7 +109,7 @@ function highlightOption(selectedName: string | null, pulsing: boolean, reduceMo
   };
 }
 
-function buildOption(selectedName: string | null, pulsing: boolean, reduceMotion: boolean) {
+function buildOption(selectedName: string | null, pulsing: boolean, reduceMotion: boolean, allowRoam: boolean) {
   return {
     backgroundColor: 'transparent',
     animation: !reduceMotion,
@@ -130,6 +140,7 @@ function buildOption(selectedName: string | null, pulsing: boolean, reduceMotion
       },
       select: { disabled: true },
       label: { show: false },
+      ...viewOption(allowRoam),
       ...highlightOption(selectedName, pulsing, reduceMotion).geo,
     },
     series: [{
@@ -167,9 +178,19 @@ export default function ChinaCapitalChart({ selectedName, onSelect, onMapFailed 
   const onSelectRef = useRef(onSelect);
   const readyRef = useRef(false);
   const pulseTimerRef = useRef<number | null>(null);
+  const roamingRef = useRef(false);
+  const [allowRoam, setAllowRoam] = useState(isCompactViewport);
 
   selectedRef.current = selectedName;
   onSelectRef.current = onSelect;
+
+  useEffect(() => {
+    const media = window.matchMedia(COMPACT_QUERY);
+    const sync = () => setAllowRoam(media.matches);
+    sync();
+    media.addEventListener('change', sync);
+    return () => media.removeEventListener('change', sync);
+  }, []);
 
   useEffect(() => {
     const host = hostRef.current;
@@ -182,7 +203,15 @@ export default function ChinaCapitalChart({ selectedName, onSelect, onMapFailed 
       onSelectRef.current(selectedRef.current === name ? null : name);
     };
 
+    chart.on('georoam', () => {
+      roamingRef.current = true;
+      window.setTimeout(() => {
+        roamingRef.current = false;
+      }, 120);
+    });
+
     chart.on('click', (params: { seriesType?: string; componentType?: string; name?: string }) => {
+      if (roamingRef.current) return;
       if (params.seriesType === 'scatter' && params.name && CAPITAL_CAMPUS_BY_NAME[params.name]) {
         toggleCity(params.name);
         return;
@@ -195,6 +224,7 @@ export default function ChinaCapitalChart({ selectedName, onSelect, onMapFailed 
     });
 
     chart.getZr().on('click', (event: { target?: unknown }) => {
+      if (roamingRef.current) return;
       if (event.target) return;
       onSelectRef.current(null);
     });
@@ -210,7 +240,7 @@ export default function ChinaCapitalChart({ selectedName, onSelect, onMapFailed 
         echarts.registerMap('china', geo as Parameters<typeof echarts.registerMap>[1]);
         readyRef.current = true;
         onMapFailed(false);
-        chart.setOption(buildOption(selectedRef.current, false, prefersReducedMotion()), true);
+        chart.setOption(buildOption(selectedRef.current, false, prefersReducedMotion(), isCompactViewport()), true);
       })
       .catch(() => {
         if (cancelled) return;
@@ -227,6 +257,12 @@ export default function ChinaCapitalChart({ selectedName, onSelect, onMapFailed 
       chartRef.current = null;
     };
   }, [onMapFailed]);
+
+  useEffect(() => {
+    const chart = chartRef.current;
+    if (!chart || !readyRef.current) return;
+    chart.setOption({ geo: viewOption(allowRoam) });
+  }, [allowRoam]);
 
   useEffect(() => {
     const chart = chartRef.current;
