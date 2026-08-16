@@ -12,6 +12,17 @@ import { MAP_COLORS, prefersReducedMotion } from './theme';
 const LOCAL_GEO = '/geo/china-100000-full.json';
 const REMOTE_GEO = 'https://geo.datav.aliyun.com/areas_v3/bound/100000_full.json';
 
+/** 锁死大陆+海南+台湾的视野，不把南海诸岛算进包围盒，避免地图偏上。 */
+const MAP_VIEW = {
+  roam: false as const,
+  layoutCenter: ['50%', '50%'] as [string, string],
+  layoutSize: '96%',
+  boundingCoords: [
+    [73.2, 17.8],
+    [135.2, 53.7],
+  ] as [[number, number], [number, number]],
+};
+
 interface ChinaCapitalChartProps {
   selectedName: string | null;
   onSelect: (name: string | null) => void;
@@ -54,6 +65,10 @@ function highlightOption(selectedName: string | null, pulsing: boolean, reduceMo
   const selected = selectedName ? CAPITAL_CAMPUS_BY_NAME[selectedName] : null;
   return {
     geo: {
+      roam: MAP_VIEW.roam,
+      layoutCenter: MAP_VIEW.layoutCenter,
+      layoutSize: MAP_VIEW.layoutSize,
+      boundingCoords: MAP_VIEW.boundingCoords,
       regions: [
         ...[...UNSELECTABLE_GEO_NAMES].map((name) => ({
           name,
@@ -104,11 +119,6 @@ function buildOption(selectedName: string | null, pulsing: boolean, reduceMotion
     },
     geo: {
       map: 'china',
-      roam: true,
-      zoom: 1.2,
-      top: 18,
-      bottom: 12,
-      scaleLimit: { min: 0.9, max: 6 },
       itemStyle: {
         areaColor: MAP_COLORS.area,
         borderColor: MAP_COLORS.line,
