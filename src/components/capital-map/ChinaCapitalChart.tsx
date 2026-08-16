@@ -11,8 +11,6 @@ import { MAP_COLORS, prefersReducedMotion } from './theme';
 
 const LOCAL_GEO = '/geo/china-100000-full.json';
 const REMOTE_GEO = 'https://geo.datav.aliyun.com/areas_v3/bound/100000_full.json';
-const DEFAULT_CENTER: [number, number] = [104.2, 35.6];
-const DEFAULT_ZOOM = 1.18;
 
 interface ChinaCapitalChartProps {
   selectedName: string | null;
@@ -42,16 +40,6 @@ async function loadChinaGeo(): Promise<object> {
   throw new Error(errors.join('；'));
 }
 
-function viewFor(name: string | null, reduceMotion: boolean): { center: [number, number]; zoom: number } {
-  if (!name || reduceMotion) return { center: DEFAULT_CENTER, zoom: DEFAULT_ZOOM };
-  const city = CAPITAL_CAMPUS_BY_NAME[name];
-  if (!city) return { center: DEFAULT_CENTER, zoom: DEFAULT_ZOOM };
-  const large = new Set(['新疆维吾尔自治区', '西藏自治区', '内蒙古自治区', '青海省', '黑龙江省']);
-  const small = new Set(['北京市', '天津市', '上海市', '重庆市', '海南省', '宁夏回族自治区']);
-  const zoom = large.has(city.province) ? 1.42 : small.has(city.province) ? 2.25 : 1.78;
-  return { center: [city.lng, city.lat], zoom };
-}
-
 function regionStyle(pulsing: boolean) {
   return {
     areaColor: MAP_COLORS.selectedArea,
@@ -62,9 +50,41 @@ function regionStyle(pulsing: boolean) {
   };
 }
 
-function buildOption(selectedName: string | null, pulsing: boolean, reduceMotion: boolean) {
-  const view = viewFor(selectedName, reduceMotion);
+function highlightOption(selectedName: string | null, pulsing: boolean, reduceMotion: boolean) {
   const selected = selectedName ? CAPITAL_CAMPUS_BY_NAME[selectedName] : null;
+  return {
+    geo: {
+      regions: [
+        ...[...UNSELECTABLE_GEO_NAMES].map((name) => ({
+          name,
+          silent: true,
+          itemStyle: { areaColor: MAP_COLORS.area, borderColor: MAP_COLORS.line, borderWidth: 1 },
+          emphasis: { itemStyle: { areaColor: MAP_COLORS.area } },
+        })),
+        ...(selected ? [{
+          name: selected.province,
+          itemStyle: regionStyle(pulsing && !reduceMotion),
+          emphasis: { itemStyle: { areaColor: MAP_COLORS.selectedArea } },
+        }] : []),
+      ],
+    },
+    series: [{
+      data: CAPITAL_CAMPUS_CITIES.map((city, index) => ({
+        name: city.name,
+        value: [city.lng, city.lat, city.companies.length],
+        label: { position: city.labelPos },
+        itemStyle: city.name === selectedName
+          ? { color: MAP_COLORS.selectedDot, shadowBlur: 10, shadowColor: 'rgba(244,200,74,0.45)' }
+          : { color: MAP_COLORS.dots[index % MAP_COLORS.dots.length] },
+      })),
+      symbolSize: (_value: number[], params: { name: string }) => (
+        params.name === selectedName ? 16 : 11
+      ),
+    }],
+  };
+}
+
+function buildOption(selectedName: string | null, pulsing: boolean, reduceMotion: boolean) {
   return {
     backgroundColor: 'transparent',
     animation: !reduceMotion,
@@ -85,8 +105,7 @@ function buildOption(selectedName: string | null, pulsing: boolean, reduceMotion
     geo: {
       map: 'china',
       roam: true,
-      zoom: view.zoom,
-      center: view.center,
+      zoom: 1.2,
       top: 18,
       bottom: 12,
       scaleLimit: { min: 0.9, max: 6 },
@@ -101,34 +120,12 @@ function buildOption(selectedName: string | null, pulsing: boolean, reduceMotion
       },
       select: { disabled: true },
       label: { show: false },
-      regions: [
-        ...[...UNSELECTABLE_GEO_NAMES].map((name) => ({
-          name,
-          silent: true,
-          itemStyle: { areaColor: MAP_COLORS.area, borderColor: MAP_COLORS.line, borderWidth: 1 },
-          emphasis: { itemStyle: { areaColor: MAP_COLORS.area } },
-        })),
-        ...(selected ? [{
-          name: selected.province,
-          itemStyle: regionStyle(pulsing && !reduceMotion),
-          emphasis: { itemStyle: { areaColor: MAP_COLORS.selectedArea } },
-        }] : []),
-      ],
+      ...highlightOption(selectedName, pulsing, reduceMotion).geo,
     },
     series: [{
       type: 'scatter' as const,
       coordinateSystem: 'geo',
-      data: CAPITAL_CAMPUS_CITIES.map((city, index) => ({
-        name: city.name,
-        value: [city.lng, city.lat, city.companies.length],
-        label: { position: city.labelPos },
-        itemStyle: city.name === selectedName
-          ? { color: MAP_COLORS.selectedDot, shadowBlur: 10, shadowColor: 'rgba(244,200,74,0.45)' }
-          : { color: MAP_COLORS.dots[index % MAP_COLORS.dots.length] },
-      })),
-      symbolSize: (_value: number[], params: { name: string }) => (
-        params.name === selectedName ? 16 : 11
-      ),
+      ...highlightOption(selectedName, pulsing, reduceMotion).series[0],
       label: {
         show: true,
         formatter: '{b}',
@@ -226,12 +223,12 @@ export default function ChinaCapitalChart({ selectedName, onSelect, onMapFailed 
     if (!chart || !readyRef.current) return;
     const reduceMotion = prefersReducedMotion();
     const shouldPulse = Boolean(selectedName) && !reduceMotion;
-    chart.setOption(buildOption(selectedName, shouldPulse, reduceMotion), { notMerge: false, lazyUpdate: false });
+    chart.setOption(highlightOption(selectedName, shouldPulse, reduceMotion));
     if (pulseTimerRef.current) window.clearTimeout(pulseTimerRef.current);
     if (!shouldPulse) return undefined;
     pulseTimerRef.current = window.setTimeout(() => {
       if (!chartRef.current || !readyRef.current) return;
-      chartRef.current.setOption(buildOption(selectedRef.current, false, prefersReducedMotion()));
+      chartRef.current.setOption(highlightOption(selectedRef.current, false, prefersReducedMotion()));
     }, 780);
     return () => {
       if (pulseTimerRef.current) window.clearTimeout(pulseTimerRef.current);
