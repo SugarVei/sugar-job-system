@@ -6,7 +6,7 @@ export type ApplicationsListFilter = 'all' | 'active' | ApplicationStatus;
 export type HeaderChrome = { searchPlaceholder: string | null; showAdd: boolean; primaryAction?: { label: string; onClick: () => void; loading?: boolean } | null };
 
 const SCREEN_STORAGE_KEY = 'sugar.screen';
-const VALID_SCREENS: ScreenKey[] = ['dashboard', 'overview', 'applications', 'companies', 'referralCodes', 'hotCompanies', 'resumes', 'interviews', 'offers', 'resumeAssistant', 'mailbox'];
+const VALID_SCREENS: ScreenKey[] = ['dashboard', 'overview', 'applications', 'capitalMap', 'companies', 'referralCodes', 'hotCompanies', 'resumes', 'interviews', 'offers', 'resumeAssistant', 'mailbox'];
 function readStoredScreen(): ScreenKey {
   try {
     const raw = sessionStorage.getItem(SCREEN_STORAGE_KEY);
