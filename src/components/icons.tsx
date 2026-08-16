@@ -51,6 +51,13 @@ export const IconCompanies = ({ size = 20, ...p }: IconProps) => (
   </svg>
 );
 
+export const IconMap = ({ size = 20, ...p }: IconProps) => (
+  <svg {...base(size, p)}>
+    <path d="M9 3 3 5.5v15L9 18l6 2.5L21 18V3l-6 2.5L9 3z" />
+    <path d="M9 3v15M15 5.5v15" />
+  </svg>
+);
+
 export const IconResumes = ({ size = 20, ...p }: IconProps) => (
   <svg {...base(size, p)}>
     <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />

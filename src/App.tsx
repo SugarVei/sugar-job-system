@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { lazy, Suspense, useEffect, useRef, useState } from 'react';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { ApiKeysProvider } from './contexts/ApiKeysContext';
 import { ThemeProvider } from './contexts/ThemeContext';
@@ -19,12 +19,15 @@ import Offers from './pages/Offers';
 import Mailbox from './pages/Mailbox';
 import ResumeAssistant from './pages/ResumeAssistant';
 
+const CapitalMap = lazy(() => import('./pages/CapitalMap'));
+
 function CurrentPage() {
   const { screen } = useAppShell();
   switch (screen) {
     case 'dashboard': return <Dashboard />;
     case 'overview': return <Overview />;
     case 'applications': return <Applications />;
+    case 'capitalMap': return <Suspense fallback={<div style={{ color: '#8a8478', fontSize: 14, padding: 12 }}>正在打开省会校招…</div>}><CapitalMap /></Suspense>;
     case 'companies': return <Companies />;
     case 'referralCodes': return <ReferralCodes />;
     case 'hotCompanies': return <HotCompanies />;
