@@ -200,6 +200,7 @@ export type ScreenKey =
   | 'dashboard'
   | 'overview'
   | 'applications'
+  | 'capitalMap'
   | 'companies'
   | 'referralCodes'
   | 'hotCompanies'

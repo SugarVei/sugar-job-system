@@ -12,6 +12,7 @@
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.45.4",
+    "echarts": "^6.1.0",
     "imapflow": "^1.6.6",
     "jszip": "^3.10.1",
     "pdf-parse": "^1.1.4",
