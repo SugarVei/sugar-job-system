@@ -18,11 +18,11 @@ export default function CapitalMapPanel({ selected, mapFailed, onSelect }: Capit
       <div className="capital-map-panel__head">
         {selected ? (
           <button type="button" className="capital-map-back" onClick={() => onSelect(null)}>
-            ← 全部省会
+            ← 返回省会列表
           </button>
         ) : null}
         <h2>
-          {selected ? selected.name : '点击省会查看企业'}
+          {selected ? selected.name : '当地龙头 · 点击省会查看企业'}
           {selected ? <span className="capital-map-badge">{selected.companies.length} 家</span> : null}
         </h2>
         <p>

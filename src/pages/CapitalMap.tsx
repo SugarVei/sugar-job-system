@@ -34,6 +34,7 @@ export default function CapitalMap() {
   const [selectedName, setSelectedName] = useState<string | null>(null);
   const [mapFailed, setMapFailed] = useState(false);
   const [mapReady, setMapReady] = useState(false);
+  const [geoKind, setGeoKind] = useState<'prefecture' | 'province' | null>(null);
   const viewRef = useRef<ChinaMapViewApi | null>(null);
 
   useEffect(() => {
@@ -119,81 +120,92 @@ export default function CapitalMap() {
   };
 
   return (
-    <div className="capital-map-page">
-      <section className="capital-map-stage">
-        {!mapReady && !mapFailed ? <div className="capital-map-loading">正在加载中国地图…</div> : null}
-        {mapFailed ? <div className="capital-map-loading">底图未加载，右侧列表仍可使用</div> : null}
+    <div className="capital-map-shell">
+      <div className="capital-map-chrome">
+        <div className="capital-map-switch" role="tablist" aria-label="地图类型">
+          {([
+            ['companies', '全部企业'],
+            ['capitals', '当地龙头'],
+          ] as const).map(([key, label]) => (
+            <button
+              key={key}
+              type="button"
+              role="tab"
+              aria-selected={mode === key}
+              className={mode === key ? 'is-active' : undefined}
+              onClick={() => switchMode(key)}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+        <p className="capital-map-chrome__hint">
+          {mode === 'companies'
+            ? '按公司总部看全国分布。缩小只标省会，放大后标出其他地级市。'
+            : '当地龙头仍按省会点开。缩小只标省会，放大后能看到其他地级市，但只有省会可点。'}
+        </p>
+      </div>
 
-        <div className="capital-map-overlay capital-map-overlay--top">
-          <div className="capital-map-switch" role="tablist" aria-label="地图类型">
-            {([
-              ['companies', '全部企业'],
-              ['capitals', '当地龙头'],
-            ] as const).map(([key, label]) => (
+      {mode === 'companies' ? (
+        <div className="capital-map-legend" aria-label="公司分类图例">
+          {catalog.legendGroupNames.map((name) => {
+            const active = activeGroup === name;
+            return (
               <button
-                key={key}
+                key={name}
                 type="button"
-                role="tab"
-                aria-selected={mode === key}
-                className={mode === key ? 'is-active' : undefined}
-                onClick={() => switchMode(key)}
+                className={active ? 'is-active' : undefined}
+                onClick={() => {
+                  setActiveGroup(name);
+                  setSelectedName(null);
+                }}
               >
-                {label}
+                {name}
               </button>
-            ))}
-          </div>
+            );
+          })}
+        </div>
+      ) : null}
+
+      {geoKind === 'province' ? (
+        <p className="capital-map-fallback">地级市底图未加载成功，当前仍是省级轮廓。刷新后再试。</p>
+      ) : null}
+
+      <div className="capital-map-page">
+        <section className="capital-map-stage">
+          {!mapReady && !mapFailed ? <div className="capital-map-loading">正在加载中国地图…</div> : null}
+          {mapFailed ? <div className="capital-map-loading">底图未加载，右侧列表仍可使用</div> : null}
+
           <div className="capital-map-zoom" aria-label="地图缩放">
             <button type="button" onClick={() => viewRef.current?.zoomBy(1.25)} aria-label="放大">+</button>
             <button type="button" onClick={() => viewRef.current?.zoomBy(0.8)} aria-label="缩小">−</button>
             <button type="button" onClick={() => viewRef.current?.resetView()} aria-label="回到全国">全</button>
           </div>
-        </div>
+
+          <ChinaCapitalChart
+            selectedName={selectedName}
+            onSelect={onSelect}
+            onMapFailed={onMapFailed}
+            onGeoKind={setGeoKind}
+            markers={markers}
+            viewRef={viewRef}
+            ariaLabel={mode === 'companies' ? '全部企业总部地图' : '当地龙头省会地图'}
+          />
+        </section>
 
         {mode === 'companies' ? (
-          <div className="capital-map-legend" aria-label="公司分类图例">
-            {catalog.legendGroupNames.map((name) => {
-              const active = activeGroup === name;
-              return (
-                <button
-                  key={name}
-                  type="button"
-                  className={active ? 'is-active' : undefined}
-                  onClick={() => {
-                    setActiveGroup(name);
-                    setSelectedName(null);
-                  }}
-                >
-                  {name}
-                </button>
-              );
-            })}
-          </div>
+          <CompanyMapPanel
+            activeGroup={activeGroup}
+            cities={mapCities}
+            selectedCity={selectedCity}
+            unmappedEntries={unmappedEntries}
+            mapFailed={mapFailed}
+            onSelect={onSelect}
+          />
         ) : (
-          <p className="capital-map-hint">缩小只看省会，放大后标出其他地级市。仅省会可点开当地龙头企业。</p>
+          <CapitalMapPanel selected={selectedCapital} mapFailed={mapFailed} onSelect={onSelect} />
         )}
-
-        <ChinaCapitalChart
-          selectedName={selectedName}
-          onSelect={onSelect}
-          onMapFailed={onMapFailed}
-          markers={markers}
-          viewRef={viewRef}
-          ariaLabel={mode === 'companies' ? '全部企业总部地图' : '当地龙头省会地图'}
-        />
-      </section>
-
-      {mode === 'companies' ? (
-        <CompanyMapPanel
-          activeGroup={activeGroup}
-          cities={mapCities}
-          selectedCity={selectedCity}
-          unmappedEntries={unmappedEntries}
-          mapFailed={mapFailed}
-          onSelect={onSelect}
-        />
-      ) : (
-        <CapitalMapPanel selected={selectedCapital} mapFailed={mapFailed} onSelect={onSelect} />
-      )}
+      </div>
     </div>
   );
 }
