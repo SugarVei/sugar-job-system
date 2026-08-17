@@ -351,55 +351,6 @@ export default function HotCompanies() {
 
   return (
     <div className="flex flex-col gap-[22px] animate-rise">
-      {/* 页面内公司名搜索 */}
-      <div style={{ ...CARD, padding: 16, borderRadius: 20 }}>
-        <div className="flex items-center gap-3 flex-wrap">
-          <div
-            style={{
-              flex: 1,
-              minWidth: 200,
-              display: 'flex',
-              alignItems: 'center',
-              gap: 10,
-              height: 46,
-              background: '#faf7f0',
-              border: '1.5px solid #e0d8c9',
-              borderRadius: 14,
-              padding: '0 14px',
-            }}
-          >
-            <IconSearch size={17} color="#a39d90" />
-            <input
-              value={pageSearch}
-              onChange={(e) => setPageSearch(e.target.value)}
-              placeholder="搜索公司名称（支持已添加与精选列表）…"
-              aria-label="搜索公司名称"
-              style={{ border: 'none', background: 'none', outline: 'none', fontSize: 14, width: '100%', color: '#1b1a17' }}
-            />
-            {pageSearch && (
-              <button
-                type="button"
-                onClick={() => setPageSearch('')}
-                className="btn-press"
-                style={{ border: 'none', background: 'none', color: '#9a9488', fontSize: 12, fontWeight: 700, cursor: 'pointer' }}
-              >
-                清除
-              </button>
-            )}
-          </div>
-          <div style={{ fontSize: 12.5, color: '#9a9488' }}>
-            {pageSearch
-              ? `匹配 ${groups.reduce((n, g) => n + g.companies.length, 0)} 家`
-              : `已添加 ${importedCompanies.length} 家 · 可删除`}
-          </div>
-        </div>
-        {pageSearch.trim() && importedCompanies.length > 0 && (
-          <div style={{ marginTop: 12, fontSize: 12.5, color: '#6b665c' }}>
-            在「我添加的公司」中命中 {importedMatches.length} 家
-          </div>
-        )}
-      </div>
-
       <section style={{ ...CARD, padding: 18, borderRadius: 22 }}>
         <div className="flex items-start justify-between gap-4 flex-wrap">
           <div>
@@ -580,6 +531,55 @@ export default function HotCompanies() {
             </button>
           );
         })}
+      </div>
+
+      {/* 页面内公司名搜索 */}
+      <div style={{ ...CARD, padding: 16, borderRadius: 20 }}>
+        <div className="flex items-center gap-3 flex-wrap">
+          <div
+            style={{
+              flex: 1,
+              minWidth: 200,
+              display: 'flex',
+              alignItems: 'center',
+              gap: 10,
+              height: 46,
+              background: '#faf7f0',
+              border: '1.5px solid #e0d8c9',
+              borderRadius: 14,
+              padding: '0 14px',
+            }}
+          >
+            <IconSearch size={17} color="#a39d90" />
+            <input
+              value={pageSearch}
+              onChange={(e) => setPageSearch(e.target.value)}
+              placeholder="搜索公司名称（支持已添加与精选列表）…"
+              aria-label="搜索公司名称"
+              style={{ border: 'none', background: 'none', outline: 'none', fontSize: 14, width: '100%', color: '#1b1a17' }}
+            />
+            {pageSearch && (
+              <button
+                type="button"
+                onClick={() => setPageSearch('')}
+                className="btn-press"
+                style={{ border: 'none', background: 'none', color: '#9a9488', fontSize: 12, fontWeight: 700, cursor: 'pointer' }}
+              >
+                清除
+              </button>
+            )}
+          </div>
+          <div style={{ fontSize: 12.5, color: '#9a9488' }}>
+            {pageSearch
+              ? `匹配 ${groups.reduce((n, g) => n + g.companies.length, 0)} 家`
+              : `已添加 ${importedCompanies.length} 家 · 可删除`}
+          </div>
+        </div>
+        {pageSearch.trim() && importedCompanies.length > 0 && (
+          <div style={{ marginTop: 12, fontSize: 12.5, color: '#6b665c' }}>
+            在「我添加的公司」中命中 {importedMatches.length} 家
+          </div>
+        )}
       </div>
 
       {groups.length === 0 ? (
