@@ -110,16 +110,6 @@ function showAllCities(zoom: number): boolean {
   return zoom >= ALL_CITY_ZOOM;
 }
 
-function regionStyle(pulsing: boolean, focused: boolean) {
-  return {
-    areaColor: focused ? '#e9eff9' : MAP_COLORS.selectedArea,
-    borderColor: pulsing ? '#c9a36a' : MAP_COLORS.selectedStroke,
-    borderWidth: pulsing ? 2.2 : 1.25,
-    shadowBlur: pulsing ? 14 : 0,
-    shadowColor: 'rgba(201, 163, 106, 0.4)',
-  };
-}
-
 function isVisibleCity(name: string, selectedName: string | null, zoom: number, selectable: Set<string>) {
   if (UNSELECTABLE_GEO_NAMES.has(name)) return false;
   if (name === selectedName) return true;
@@ -139,7 +129,7 @@ function buildOption(
 ) {
   const markerByName = new Map(markers.map((marker) => [marker.name, marker]));
   const selectable = new Set(markers.map((marker) => marker.name));
-  const showSelectableRegions = showCompanyCities(zoom);
+  const selectedMarker = selectedName ? markerByName.get(selectedName) : undefined;
 
   return {
     backgroundColor: 'transparent',
@@ -183,66 +173,96 @@ function buildOption(
       label: { show: false },
       regions: PREFECTURE_CITIES.map((city) => {
         const canSelect = selectable.has(city.name);
-        const selected = city.name === selectedName;
-        const highlight = selected || (canSelect && (city.isCapital || showSelectableRegions));
         return {
           name: city.name,
           silent: !canSelect,
-          itemStyle: selected
-            ? regionStyle(false, true)
-            : highlight
-              ? { areaColor: '#f6ead6', borderColor: '#d4b48a', borderWidth: 1 }
-              : { areaColor: MAP_COLORS.area, borderColor: '#c9bfae', borderWidth: 0.9 },
+          itemStyle: {
+            areaColor: MAP_COLORS.area,
+            borderColor: '#c9bfae',
+            borderWidth: 0.9,
+          },
           emphasis: {
-            itemStyle: { areaColor: selected ? '#e9eff9' : canSelect ? MAP_COLORS.areaHover : MAP_COLORS.area },
+            itemStyle: { areaColor: canSelect ? MAP_COLORS.areaHover : MAP_COLORS.area },
           },
         };
       }),
     },
-    series: [{
-      type: 'scatter' as const,
-      coordinateSystem: 'geo',
-      data: PREFECTURE_CITIES
-        .filter((city) => isVisibleCity(city.name, selectedName, zoom, selectable))
-        .map((city, index) => {
-          const marker = markerByName.get(city.name);
-          const selected = city.name === selectedName;
-          const canSelect = selectable.has(city.name);
-          return {
-            name: city.name,
-            value: [city.lng, city.lat, marker?.count ?? 0],
-            silent: !canSelect,
-            label: {
-              show: true,
-              position: marker?.labelPos ?? CAPITAL_LABEL_POS.get(city.name) ?? city.labelPos,
-              formatter: '{b}',
-              fontWeight: city.isCapital || selected ? 'bold' : 600,
-              fontSize: city.isCapital || selected ? 12 : 10,
-              color: canSelect ? MAP_COLORS.label : '#8a8478',
-              textBorderColor: MAP_COLORS.labelHalo,
-              textBorderWidth: 3,
-            },
-            itemStyle: selected
-              ? { color: marker?.color ?? MAP_COLORS.selectedDot, borderColor: '#fffdf8', borderWidth: 2, shadowBlur: 10, shadowColor: 'rgba(103, 89, 66, .28)' }
-              : {
+    series: [
+      {
+        type: 'scatter' as const,
+        coordinateSystem: 'geo',
+        z: 2,
+        data: PREFECTURE_CITIES
+          .filter((city) => city.name !== selectedName && isVisibleCity(city.name, selectedName, zoom, selectable))
+          .map((city, index) => {
+            const marker = markerByName.get(city.name);
+            const canSelect = selectable.has(city.name);
+            return {
+              name: city.name,
+              value: [city.lng, city.lat, marker?.count ?? 0],
+              silent: !canSelect,
+              label: {
+                show: true,
+                position: marker?.labelPos ?? CAPITAL_LABEL_POS.get(city.name) ?? city.labelPos,
+                formatter: '{b}',
+                fontWeight: city.isCapital ? 'bold' : 600,
+                fontSize: city.isCapital ? 12 : 10,
+                color: canSelect ? MAP_COLORS.label : '#8a8478',
+                textBorderColor: MAP_COLORS.labelHalo,
+                textBorderWidth: 3,
+              },
+              itemStyle: {
                 color: canSelect
                   ? marker?.color ?? MAP_COLORS.dots[index % MAP_COLORS.dots.length]
                   : '#c8c0b3',
                 borderColor: '#fffdf8',
                 borderWidth: 1,
               },
-            symbolSize: selected
-              ? 17
-              : canSelect
+              symbolSize: canSelect
                 ? Math.min(18, 8 + Math.sqrt(marker?.count || 1) * 2.6)
                 : 5,
-          };
-        }),
-      emphasis: {
-        scale: 1.12,
-        label: { show: true },
+            };
+          }),
+        emphasis: {
+          scale: 1.12,
+          label: { show: true },
+        },
       },
-    }],
+      ...(selectedMarker ? [{
+        type: (reduceMotion ? 'scatter' : 'effectScatter') as 'scatter' | 'effectScatter',
+        coordinateSystem: 'geo' as const,
+        z: 3,
+        symbolSize: 18,
+        rippleEffect: reduceMotion ? undefined : { brushType: 'stroke' as const, scale: 3.4, period: 3.2 },
+        data: [{
+          name: selectedMarker.name,
+          value: [selectedMarker.lng, selectedMarker.lat, selectedMarker.count],
+        }],
+        itemStyle: {
+          color: MAP_COLORS.selectedDot,
+          borderColor: '#fffdf8',
+          borderWidth: 3,
+          shadowBlur: 22,
+          shadowColor: MAP_COLORS.selectedHalo,
+        },
+        label: {
+          show: true,
+          position: 'right' as const,
+          distance: 12,
+          formatter: `${selectedMarker.name} · ${selectedMarker.count} 家`,
+          backgroundColor: '#fffdf8',
+          borderColor: MAP_COLORS.line,
+          borderWidth: 1,
+          borderRadius: 12,
+          padding: [7, 10, 7, 10],
+          color: MAP_COLORS.ink,
+          fontSize: 12.5,
+          fontWeight: 800,
+          shadowBlur: 12,
+          shadowColor: 'rgba(60, 50, 35, 0.12)',
+        },
+      }] : []),
+    ],
   };
 }
 
@@ -327,7 +347,7 @@ export default function ChinaCapitalChart({
       if (!rawName) return;
       const name = resolveClickedName(rawName);
       if (!name || UNSELECTABLE_GEO_NAMES.has(name)) return;
-      if (params.seriesType === 'scatter' || params.componentType === 'geo') {
+      if (params.seriesType === 'scatter' || params.seriesType === 'effectScatter' || params.componentType === 'geo') {
         toggleCity(name);
       }
     });
