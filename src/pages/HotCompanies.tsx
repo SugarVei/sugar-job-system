@@ -332,7 +332,6 @@ export default function HotCompanies() {
                 onClick={() => {
                   setActiveRecruitmentStatus(active ? ALL_RECRUITMENT_STATUSES : status.key);
                   if (!active) setActiveGroup(ALL);
-                  setSelectedMapCity(null);
                 }}
                 aria-pressed={active}
                 className="btn-press"
