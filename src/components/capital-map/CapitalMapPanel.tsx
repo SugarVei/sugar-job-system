@@ -14,7 +14,7 @@ interface CapitalMapPanelProps {
 
 export default function CapitalMapPanel({ selected, mapFailed, onSelect }: CapitalMapPanelProps) {
   return (
-    <aside className="capital-map-panel" aria-label="省会校招列表">
+    <aside className="capital-map-panel" aria-label="当地龙头企业列表">
       <div className="capital-map-panel__head">
         {selected ? (
           <button type="button" className="capital-map-back" onClick={() => onSelect(null)}>
@@ -28,7 +28,7 @@ export default function CapitalMapPanel({ selected, mapFailed, onSelect }: Capit
         <p>
           {selected
             ? `${selected.province} · 点击公司名称打开校招页（新标签）。只收录公开页，未编造。`
-            : `31 个省会 / 直辖市，共 ${CAPITAL_CAMPUS_TOTAL} 家。整理日 ${CAPITAL_CAMPUS_SOURCE_DATE}。`}
+            : `31 个省会 / 直辖市，共 ${CAPITAL_CAMPUS_TOTAL} 家当地龙头。整理日 ${CAPITAL_CAMPUS_SOURCE_DATE}。`}
         </p>
         {mapFailed ? <p className="capital-map-warn">地图底图加载失败，仍可从下方选择省会。</p> : null}
       </div>
