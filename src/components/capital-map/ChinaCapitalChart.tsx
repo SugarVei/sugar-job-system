@@ -2,10 +2,10 @@ import { useEffect, useRef, useState } from 'react';
 import * as echarts from 'echarts';
 import type { ECharts } from 'echarts';
 import {
-  CAPITAL_CAMPUS_BY_NAME,
   CAPITAL_CAMPUS_BY_PROVINCE,
   CAPITAL_CAMPUS_CITIES,
   UNSELECTABLE_GEO_NAMES,
+  type CapitalLabelPos,
 } from '../../data/capitalCampusCompanies';
 import { MAP_COLORS, prefersReducedMotion } from './theme';
 
@@ -37,11 +37,35 @@ function viewOption(allowRoam: boolean) {
   };
 }
 
+export interface ChinaMapMarker {
+  name: string;
+  province: string;
+  lng: number;
+  lat: number;
+  count: number;
+  color?: string;
+  labelPos?: CapitalLabelPos;
+}
+
 interface ChinaCapitalChartProps {
   selectedName: string | null;
   onSelect: (name: string | null) => void;
   onMapFailed: (failed: boolean) => void;
+  markers?: ChinaMapMarker[];
+  highlightAllProvinces?: boolean;
+  allowProvinceSelect?: boolean;
+  ariaLabel?: string;
 }
+
+const DEFAULT_MARKERS: ChinaMapMarker[] = CAPITAL_CAMPUS_CITIES.map((city, index) => ({
+  name: city.name,
+  province: city.province,
+  lng: city.lng,
+  lat: city.lat,
+  count: city.companies.length,
+  color: MAP_COLORS.dots[index % MAP_COLORS.dots.length],
+  labelPos: city.labelPos,
+}));
 
 function escapeHtml(value: string): string {
   return value
@@ -65,9 +89,9 @@ async function loadChinaGeo(): Promise<object> {
   throw new Error(errors.join('；'));
 }
 
-function regionStyle(pulsing: boolean) {
+function regionStyle(pulsing: boolean, focused: boolean) {
   return {
-    areaColor: MAP_COLORS.selectedArea,
+    areaColor: focused ? '#e9eff9' : MAP_COLORS.selectedArea,
     borderColor: pulsing ? '#c9a36a' : MAP_COLORS.selectedStroke,
     borderWidth: pulsing ? 2.4 : 1.35,
     shadowBlur: pulsing ? 16 : 0,
@@ -75,8 +99,20 @@ function regionStyle(pulsing: boolean) {
   };
 }
 
-function highlightOption(selectedName: string | null, pulsing: boolean, reduceMotion: boolean) {
-  const selected = selectedName ? CAPITAL_CAMPUS_BY_NAME[selectedName] : null;
+function highlightOption(
+  markers: ChinaMapMarker[],
+  selectedName: string | null,
+  pulsing: boolean,
+  reduceMotion: boolean,
+  highlightAllProvinces: boolean,
+) {
+  const markerByName = new Map(markers.map((marker) => [marker.name, marker]));
+  const selected = selectedName ? markerByName.get(selectedName) : null;
+  const highlightedProvinces = new Set(
+    highlightAllProvinces
+      ? markers.map((marker) => marker.province)
+      : selected ? [selected.province] : [],
+  );
   return {
     geo: {
       regions: [
@@ -86,30 +122,39 @@ function highlightOption(selectedName: string | null, pulsing: boolean, reduceMo
           itemStyle: { areaColor: MAP_COLORS.area, borderColor: MAP_COLORS.line, borderWidth: 1 },
           emphasis: { itemStyle: { areaColor: MAP_COLORS.area } },
         })),
-        ...(selected ? [{
-          name: selected.province,
-          itemStyle: regionStyle(pulsing && !reduceMotion),
-          emphasis: { itemStyle: { areaColor: MAP_COLORS.selectedArea } },
-        }] : []),
+        ...[...highlightedProvinces].map((province) => ({
+          name: province,
+          itemStyle: regionStyle(pulsing && !reduceMotion, selected?.province === province),
+          emphasis: { itemStyle: { areaColor: selected?.province === province ? '#e9eff9' : MAP_COLORS.selectedArea } },
+        })),
       ],
     },
     series: [{
-      data: CAPITAL_CAMPUS_CITIES.map((city, index) => ({
-        name: city.name,
-        value: [city.lng, city.lat, city.companies.length],
-        label: { position: city.labelPos },
-        itemStyle: city.name === selectedName
-          ? { color: MAP_COLORS.selectedDot, shadowBlur: 10, shadowColor: 'rgba(244,200,74,0.45)' }
-          : { color: MAP_COLORS.dots[index % MAP_COLORS.dots.length] },
+      data: markers.map((marker, index) => ({
+        name: marker.name,
+        value: [marker.lng, marker.lat, marker.count],
+        label: { position: marker.labelPos },
+        itemStyle: marker.name === selectedName
+          ? { color: marker.color ?? MAP_COLORS.selectedDot, borderColor: '#fffdf8', borderWidth: 2, shadowBlur: 11, shadowColor: 'rgba(103, 89, 66, .28)' }
+          : { color: marker.color ?? MAP_COLORS.dots[index % MAP_COLORS.dots.length] },
       })),
-      symbolSize: (_value: number[], params: { name: string }) => (
-        params.name === selectedName ? 16 : 11
+      symbolSize: (value: number[], params: { name: string }) => (
+        params.name === selectedName ? 18 : Math.min(20, 8 + Math.sqrt(value[2] || 1) * 3)
       ),
     }],
   };
 }
 
-function buildOption(selectedName: string | null, pulsing: boolean, reduceMotion: boolean, allowRoam: boolean) {
+function buildOption(
+  markers: ChinaMapMarker[],
+  selectedName: string | null,
+  pulsing: boolean,
+  reduceMotion: boolean,
+  allowRoam: boolean,
+  highlightAllProvinces: boolean,
+) {
+  const highlights = highlightOption(markers, selectedName, pulsing, reduceMotion, highlightAllProvinces);
+  const markerByName = new Map(markers.map((marker) => [marker.name, marker]));
   return {
     backgroundColor: 'transparent',
     animation: !reduceMotion,
@@ -122,9 +167,9 @@ function buildOption(selectedName: string | null, pulsing: boolean, reduceMotion
       borderColor: MAP_COLORS.line,
       textStyle: { color: MAP_COLORS.ink, fontSize: 13 },
       formatter: (params: { name?: string }) => {
-        const city = params?.name ? CAPITAL_CAMPUS_BY_NAME[params.name] : undefined;
+        const city = params?.name ? markerByName.get(params.name) : undefined;
         if (!city) return '';
-        return `<b>${escapeHtml(city.name)}</b><br/>${escapeHtml(city.province)} · ${city.companies.length} 家`;
+        return `<b>${escapeHtml(city.name)}</b><br/>${escapeHtml(city.province)} · ${city.count} 家`;
       },
     },
     geo: {
@@ -141,12 +186,12 @@ function buildOption(selectedName: string | null, pulsing: boolean, reduceMotion
       select: { disabled: true },
       label: { show: false },
       ...viewOption(allowRoam),
-      ...highlightOption(selectedName, pulsing, reduceMotion).geo,
+      ...highlights.geo,
     },
     series: [{
       type: 'scatter' as const,
       coordinateSystem: 'geo',
-      ...highlightOption(selectedName, pulsing, reduceMotion).series[0],
+      ...highlights.series[0],
       label: {
         show: true,
         formatter: '{b}',
@@ -171,18 +216,33 @@ function buildOption(selectedName: string | null, pulsing: boolean, reduceMotion
   };
 }
 
-export default function ChinaCapitalChart({ selectedName, onSelect, onMapFailed }: ChinaCapitalChartProps) {
+export default function ChinaCapitalChart({
+  selectedName,
+  onSelect,
+  onMapFailed,
+  markers = DEFAULT_MARKERS,
+  highlightAllProvinces = false,
+  allowProvinceSelect = true,
+  ariaLabel = '中国省会校招地图',
+}: ChinaCapitalChartProps) {
   const hostRef = useRef<HTMLDivElement>(null);
   const chartRef = useRef<ECharts | null>(null);
   const selectedRef = useRef(selectedName);
   const onSelectRef = useRef(onSelect);
+  const onMapFailedRef = useRef(onMapFailed);
+  const markersRef = useRef(markers);
+  const markerSignatureRef = useRef(markers.map((marker) => `${marker.name}-${marker.count}-${marker.color ?? ''}`).join('|'));
   const readyRef = useRef(false);
   const pulseTimerRef = useRef<number | null>(null);
   const roamingRef = useRef(false);
   const [allowRoam, setAllowRoam] = useState(isCompactViewport);
 
-  selectedRef.current = selectedName;
-  onSelectRef.current = onSelect;
+  useEffect(() => {
+    selectedRef.current = selectedName;
+    onSelectRef.current = onSelect;
+    onMapFailedRef.current = onMapFailed;
+    markersRef.current = markers;
+  }, [markers, onMapFailed, onSelect, selectedName]);
 
   useEffect(() => {
     const media = window.matchMedia(COMPACT_QUERY);
@@ -212,12 +272,16 @@ export default function ChinaCapitalChart({ selectedName, onSelect, onMapFailed 
 
     chart.on('click', (params: { seriesType?: string; componentType?: string; name?: string }) => {
       if (roamingRef.current) return;
-      if (params.seriesType === 'scatter' && params.name && CAPITAL_CAMPUS_BY_NAME[params.name]) {
+      if (params.seriesType === 'scatter' && params.name && markersRef.current.some((marker) => marker.name === params.name)) {
         toggleCity(params.name);
         return;
       }
       if (params.componentType === 'geo' && params.name) {
         if (UNSELECTABLE_GEO_NAMES.has(params.name)) return;
+        if (!allowProvinceSelect) {
+          onSelectRef.current(null);
+          return;
+        }
         const city = CAPITAL_CAMPUS_BY_PROVINCE[params.name];
         if (city) toggleCity(city.name);
       }
@@ -239,13 +303,13 @@ export default function ChinaCapitalChart({ selectedName, onSelect, onMapFailed 
         if (cancelled) return;
         echarts.registerMap('china', geo as Parameters<typeof echarts.registerMap>[1]);
         readyRef.current = true;
-        onMapFailed(false);
-        chart.setOption(buildOption(selectedRef.current, false, prefersReducedMotion(), isCompactViewport()), true);
+        onMapFailedRef.current(false);
+        chart.setOption(buildOption(markersRef.current, selectedRef.current, false, prefersReducedMotion(), isCompactViewport(), highlightAllProvinces), true);
       })
       .catch(() => {
         if (cancelled) return;
         readyRef.current = false;
-        onMapFailed(true);
+        onMapFailedRef.current(true);
       });
 
     return () => {
@@ -256,7 +320,7 @@ export default function ChinaCapitalChart({ selectedName, onSelect, onMapFailed 
       chart.dispose();
       chartRef.current = null;
     };
-  }, [onMapFailed]);
+  }, [allowProvinceSelect, highlightAllProvinces]);
 
   useEffect(() => {
     const chart = chartRef.current;
@@ -268,18 +332,21 @@ export default function ChinaCapitalChart({ selectedName, onSelect, onMapFailed 
     const chart = chartRef.current;
     if (!chart || !readyRef.current) return;
     const reduceMotion = prefersReducedMotion();
-    const shouldPulse = Boolean(selectedName) && !reduceMotion;
-    chart.setOption(highlightOption(selectedName, shouldPulse, reduceMotion));
+    const markerSignature = markers.map((marker) => `${marker.name}-${marker.count}-${marker.color ?? ''}`).join('|');
+    const markersChanged = markerSignatureRef.current !== markerSignature;
+    markerSignatureRef.current = markerSignature;
+    const shouldPulse = !reduceMotion && (Boolean(selectedName) || markersChanged);
+    chart.setOption(buildOption(markers, selectedName, shouldPulse, reduceMotion, allowRoam, highlightAllProvinces), true);
     if (pulseTimerRef.current) window.clearTimeout(pulseTimerRef.current);
     if (!shouldPulse) return undefined;
     pulseTimerRef.current = window.setTimeout(() => {
       if (!chartRef.current || !readyRef.current) return;
-      chartRef.current.setOption(highlightOption(selectedRef.current, false, prefersReducedMotion()));
+      chartRef.current.setOption(buildOption(markersRef.current, selectedRef.current, false, prefersReducedMotion(), isCompactViewport(), highlightAllProvinces), true);
     }, 780);
     return () => {
       if (pulseTimerRef.current) window.clearTimeout(pulseTimerRef.current);
     };
-  }, [selectedName]);
+  }, [allowRoam, highlightAllProvinces, markers, selectedName]);
 
-  return <div ref={hostRef} className="capital-map-chart" role="img" aria-label="中国省会校招地图" />;
+  return <div ref={hostRef} className="capital-map-chart" role="img" aria-label={ariaLabel} />;
 }
