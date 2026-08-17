@@ -55,6 +55,7 @@ interface ChinaCapitalChartProps {
   selectedName: string | null;
   onSelect: (name: string | null) => void;
   onMapFailed: (failed: boolean) => void;
+  onGeoKind?: (kind: 'prefecture' | 'province') => void;
   markers?: ChinaMapMarker[];
   viewRef?: MutableRefObject<ChinaMapViewApi | null>;
   ariaLabel?: string;
@@ -71,6 +72,11 @@ function escapeHtml(value: string): string {
     .replace(/</g, '&lt;')
     .replace(/>/g, '&gt;')
     .replace(/"/g, '&quot;');
+}
+
+function geoKindOf(geo: object): 'prefecture' | 'province' {
+  const features = (geo as { features?: unknown[] }).features;
+  return (features?.length ?? 0) > 100 ? 'prefecture' : 'province';
 }
 
 async function loadChinaGeo(): Promise<object> {
@@ -166,8 +172,8 @@ function buildOption(
       scaleLimit: { min: MIN_ZOOM, max: MAX_ZOOM },
       itemStyle: {
         areaColor: MAP_COLORS.area,
-        borderColor: MAP_COLORS.line,
-        borderWidth: 0.7,
+        borderColor: '#c9bfae',
+        borderWidth: 0.9,
       },
       emphasis: {
         itemStyle: { areaColor: MAP_COLORS.areaHover },
@@ -186,7 +192,7 @@ function buildOption(
             ? regionStyle(false, true)
             : highlight
               ? { areaColor: '#f6ead6', borderColor: '#d4b48a', borderWidth: 1 }
-              : { areaColor: MAP_COLORS.area, borderColor: MAP_COLORS.line, borderWidth: 0.7 },
+              : { areaColor: MAP_COLORS.area, borderColor: '#c9bfae', borderWidth: 0.9 },
           emphasis: {
             itemStyle: { areaColor: selected ? '#e9eff9' : canSelect ? MAP_COLORS.areaHover : MAP_COLORS.area },
           },
@@ -244,6 +250,7 @@ export default function ChinaCapitalChart({
   selectedName,
   onSelect,
   onMapFailed,
+  onGeoKind,
   markers,
   viewRef,
   ariaLabel = '中国地图校招',
@@ -265,6 +272,7 @@ export default function ChinaCapitalChart({
   const selectedRef = useRef(selectedName);
   const onSelectRef = useRef(onSelect);
   const onMapFailedRef = useRef(onMapFailed);
+  const onGeoKindRef = useRef(onGeoKind);
   const markersRef = useRef(resolvedMarkers);
   const readyRef = useRef(false);
   const roamingRef = useRef(false);
@@ -274,8 +282,9 @@ export default function ChinaCapitalChart({
     selectedRef.current = selectedName;
     onSelectRef.current = onSelect;
     onMapFailedRef.current = onMapFailed;
+    onGeoKindRef.current = onGeoKind;
     markersRef.current = resolvedMarkers;
-  }, [markers, onMapFailed, onSelect, resolvedMarkers, selectedName]);
+  }, [markers, onGeoKind, onMapFailed, onSelect, resolvedMarkers, selectedName]);
 
   useEffect(() => {
     const host = hostRef.current;
@@ -339,6 +348,7 @@ export default function ChinaCapitalChart({
         if (cancelled) return;
         echarts.registerMap('china', geo as Parameters<typeof echarts.registerMap>[1]);
         readyRef.current = true;
+        onGeoKindRef.current?.(geoKindOf(geo));
         onMapFailedRef.current(false);
         const view = viewRefInternal.current;
         chart.setOption(buildOption(markersRef.current, selectedRef.current, view.zoom, view.center, prefersReducedMotion()), true);
