@@ -23,6 +23,7 @@ import { IconExternalLink, IconSearch, IconTrash } from '../components/icons';
 import ResumeCompanyFinder from '../components/ResumeCompanyFinder';
 import { useCompanyRecommendations } from '../hooks/useCompanyRecommendations';
 import { supabase } from '../lib/supabase';
+import { useAuth } from '../contexts/AuthContext';
 
 const ALL = '全部';
 const AI_GROUP_NAME = '我添加的公司';
@@ -62,6 +63,7 @@ function errorText(error: unknown) {
 
 export default function HotCompanies() {
   const { setScreen, setQuery } = useAppShell();
+  const { user } = useAuth();
   const { requireActiveConfig } = useApiKeys();
   const { items: savedCompanies, create, remove: removeCompany } = useCollection<Company>('companies');
   const { items: applications } = useCollection<Application>('applications');
@@ -222,6 +224,7 @@ export default function HotCompanies() {
     setAiError('');
     setImportMessage('');
     try {
+      if (!user) throw new Error('登录状态已失效，请重新登录后再导入。');
       const hotCompany: HotCompany = {
         name: candidate.name,
         industry: candidate.industry,
@@ -229,6 +232,7 @@ export default function HotCompanies() {
         url: candidate.url,
       };
       const { error: recommendationError } = await supabase.from('company_recommendations').insert({
+        user_id: user.id,
         source: 'ai_search',
         recommendation_type: 'private',
         company_name: hotCompany.name,
