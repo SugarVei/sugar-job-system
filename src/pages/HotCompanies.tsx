@@ -3,7 +3,6 @@ import {
   ALL_HOT_COMPANIES,
   FEATURED_COMPANY_GROUPS,
   HOT_COMPANY_GROUPS,
-  HOT_COMPANY_TOTAL,
   type HotCompany,
   type HotCompanyGroup,
 } from '../data/hotCompanies';
@@ -120,16 +119,42 @@ export default function HotCompanies() {
     [recruitmentStatuses],
   );
 
+  const accountRecruitmentCompanies = useMemo(() => {
+    const companies = new Map<string, HotCompany>();
+    const addCompany = (name: string, industry?: string | null, city?: string | null, url?: string | null) => {
+      const key = normalizeCompanyName(name);
+      if (!key || companies.has(key)) return;
+      const standardCompany = ALL_HOT_COMPANIES.find((company) => applicationCompanyMatchesHotCompany(name, company.name));
+      companies.set(key, standardCompany ?? {
+        name,
+        industry: industry || '其他',
+        city: city || '',
+        url: url || '',
+      });
+    };
+
+    savedCompanies.forEach((company) => addCompany(company.company_name, company.industry, company.city, company.website));
+    applications.forEach((application) => addCompany(application.company_name, null, application.city, application.job_url));
+    return Array.from(companies.values());
+  }, [applications, savedCompanies]);
+
+  const accountRecruitmentCompanyKeys = useMemo(
+    () => new Set(accountRecruitmentCompanies.map((company) => normalizeCompanyName(company.name))),
+    [accountRecruitmentCompanies],
+  );
+
   const groups = useMemo(() => {
     const q = pageSearch.trim().toLowerCase();
+    const scopedToAccount = activeRecruitmentStatus !== ALL_RECRUITMENT_STATUSES;
     return allGroups
       .filter((group) => activeGroup === ALL
-        ? !FEATURED_GROUP_NAMES.has(group.name)
+        ? scopedToAccount || !FEATURED_GROUP_NAMES.has(group.name)
         : group.name === activeGroup)
       .map((group) => ({
         ...group,
         companies: group.companies.filter((company) => {
           const dbStatus = recruitmentStatusByCompany.get(normalizeCompanyName(company.name));
+          if (scopedToAccount && !accountRecruitmentCompanyKeys.has(normalizeCompanyName(company.name))) return false;
           if (activeRecruitmentStatus !== ALL_RECRUITMENT_STATUSES
             && recruitmentStatusKey(company, dbStatus) !== activeRecruitmentStatus) {
             return false;
@@ -141,15 +166,12 @@ export default function HotCompanies() {
         }),
       }))
       .filter((group) => group.companies.length > 0);
-  }, [activeGroup, activeRecruitmentStatus, allGroups, pageSearch, recruitmentStatusByCompany]);
+  }, [accountRecruitmentCompanyKeys, activeGroup, activeRecruitmentStatus, allGroups, pageSearch, recruitmentStatusByCompany]);
 
   const recruitmentStatusFilters = useMemo(() => {
-    const companies = activeGroup === ALL
-      ? [...HOT_COMPANY_GROUPS.flatMap((group) => group.companies), ...importedCompanies]
-      : allGroups.find((group) => group.name === activeGroup)?.companies ?? [];
-    const uniqueCompanies = new Map(companies.map((company) => [normalizeCompanyName(company.name), company]));
     const counts = new Map<RecruitmentStatusKey, number>();
-    uniqueCompanies.forEach((company, companyKey) => {
+    accountRecruitmentCompanies.forEach((company) => {
+      const companyKey = normalizeCompanyName(company.name);
       const key = recruitmentStatusKey(company, recruitmentStatusByCompany.get(companyKey));
       counts.set(key, (counts.get(key) ?? 0) + 1);
     });
@@ -157,21 +179,22 @@ export default function HotCompanies() {
       ...status,
       count: counts.get(status.key) ?? 0,
     }));
-  }, [activeGroup, allGroups, importedCompanies, recruitmentStatusByCompany]);
+  }, [accountRecruitmentCompanies, recruitmentStatusByCompany]);
 
   const latestCheckLabel = useMemo(() => {
-    const dates = [
-      ...recruitmentStatuses.map((status) => status.last_checked_at),
-      ...ALL_HOT_COMPANIES.map((company) => company.recruitment?.checkedAt),
-    ]
+    const dates = accountRecruitmentCompanies
+      .flatMap((company) => [
+        recruitmentStatusByCompany.get(normalizeCompanyName(company.name))?.last_checked_at,
+        company.recruitment?.checkedAt,
+      ])
       .filter((value): value is string => Boolean(value))
       .map((value) => Date.parse(value))
       .filter(Number.isFinite);
     if (dates.length === 0) return '等待首次核查';
     return `最新核查 ${new Date(Math.max(...dates)).toLocaleDateString('zh-CN')}`;
-  }, [recruitmentStatuses]);
+  }, [accountRecruitmentCompanies, recruitmentStatusByCompany]);
 
-  const activeModuleCompanyCount = recruitmentStatusFilters.reduce((total, status) => total + status.count, 0);
+  const accountRecruitmentCompanyCount = accountRecruitmentCompanies.length;
 
   const importedMatches = useMemo(() => {
     const q = pageSearch.trim().toLowerCase();
@@ -361,9 +384,9 @@ export default function HotCompanies() {
       <section style={{ ...CARD, padding: 18, borderRadius: 22 }}>
         <div className="flex items-start justify-between gap-4 flex-wrap">
           <div>
-            <div style={{ fontSize: 15, fontWeight: 750, color: '#1b1a17' }}>2027 届校招核查总览</div>
+            <div style={{ fontSize: 15, fontWeight: 750, color: '#1b1a17' }}>我的公司校招核查总览</div>
             <div style={{ fontSize: 12.5, color: '#8a8478', marginTop: 4 }}>
-              精选库 {HOT_COMPANY_TOTAL} 家 · 当前标签 {activeModuleCompanyCount} 家 · {latestCheckLabel} · 每日自动更新
+              我的公司 {accountRecruitmentCompanyCount} 家 · {latestCheckLabel} · 每日自动更新
             </div>
           </div>
           {activeRecruitmentStatus !== ALL_RECRUITMENT_STATUSES && (
