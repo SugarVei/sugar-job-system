@@ -25,6 +25,7 @@ import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
 
 const ALL = '全部';
+const APPLIED_GROUP_NAME = '已投递';
 const AI_GROUP_NAME = '我添加的公司';
 const ALL_RECRUITMENT_STATUSES = 'all';
 const AUDIT_OVERRIDE_AFTER = Date.parse('2026-08-12T07:00:00Z');
@@ -132,11 +133,33 @@ export default function HotCompanies() {
     [accountOnlyCompanies],
   );
 
+  const appliedCompanies = useMemo<HotCompany[]>(() => {
+    const companies = new Map<string, HotCompany>();
+    applications.forEach((application) => {
+      const knownCompany = recruitmentOverviewCompanies.find((company) =>
+        applicationCompanyMatchesHotCompany(application.company_name, company.name));
+      const savedCompany = savedCompanies.find((company) =>
+        company.id === application.company_id
+        || applicationCompanyMatchesHotCompany(application.company_name, company.company_name));
+      const company = knownCompany ?? {
+        name: savedCompany?.company_name || application.company_name,
+        industry: savedCompany?.industry || '其他',
+        city: savedCompany?.city || application.city || '',
+        url: savedCompany?.website || '',
+      };
+      const key = normalizeCompanyName(company.name);
+      if (key && !companies.has(key)) companies.set(key, company);
+    });
+    return Array.from(companies.values());
+  }, [applications, recruitmentOverviewCompanies, savedCompanies]);
+
   const groups = useMemo(() => {
     const q = pageSearch.trim().toLowerCase();
     const seenCompanies = new Set<string>();
     const sourceGroups = activeGroup === ALL
       ? allGroups
+      : activeGroup === APPLIED_GROUP_NAME
+        ? [{ name: APPLIED_GROUP_NAME, dot: '#6f8f72', companies: appliedCompanies }]
       : allGroups.filter((group) => group.name === activeGroup);
     return sourceGroups
       .map((group) => ({
@@ -160,7 +183,7 @@ export default function HotCompanies() {
         }),
       }))
       .filter((group) => group.companies.length > 0);
-  }, [activeGroup, activeRecruitmentStatus, allGroups, pageSearch, recruitmentStatusByCompany]);
+  }, [activeGroup, activeRecruitmentStatus, allGroups, appliedCompanies, pageSearch, recruitmentStatusByCompany]);
 
   const recruitmentStatusFilters = useMemo(() => {
     const counts = new Map<RecruitmentStatusKey, number>();
@@ -532,7 +555,7 @@ export default function HotCompanies() {
       </section>
 
       <div className="scrolly" style={{ display: 'flex', gap: 10, overflowX: 'auto', overflowY: 'hidden', paddingBottom: 4 }}>
-        {[ALL, ...allGroups.map((group) => group.name)].map((name) => {
+        {[ALL, APPLIED_GROUP_NAME, ...allGroups.map((group) => group.name)].map((name) => {
           const active = activeGroup === name;
           return (
             <button
@@ -561,7 +584,11 @@ export default function HotCompanies() {
 
       {groups.length === 0 ? (
         <div style={{ ...CARD, padding: 26, color: '#8a8478', fontSize: 14 }}>
-          {pageSearch ? `没有名称包含「${pageSearch}」的公司。` : '没有匹配的公司。'}
+          {pageSearch
+            ? `没有名称包含「${pageSearch}」的公司。`
+            : activeGroup === APPLIED_GROUP_NAME
+              ? '当前账号还没有投递公司。'
+              : '没有匹配的公司。'}
         </div>
       ) : (
         groups.map((group) => (
