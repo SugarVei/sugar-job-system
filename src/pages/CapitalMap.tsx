@@ -7,6 +7,7 @@ import { CAPITAL_CAMPUS_BY_NAME, CAPITAL_CAMPUS_CITIES, CAPITAL_CAMPUS_TOTAL } f
 import { resolveHotCompanyHq } from '../data/hotCompanyHq';
 import {
   ALL_GROUP_NAME,
+  APPLIED_GROUP_NAME,
   groupsForCatalogSelection,
   uniqueCompaniesInGroups,
   useHotCompanyCatalog,
@@ -17,6 +18,11 @@ import { MAP_COLORS } from '../components/capital-map/theme';
 import './CapitalMap.css';
 
 type MapMode = 'companies' | 'capitals';
+
+const LEGEND_DOTS: Record<string, string> = {
+  [ALL_GROUP_NAME]: '#1b1a17',
+  [APPLIED_GROUP_NAME]: '#6f8f72',
+};
 
 const CAPITAL_MARKERS: ChinaMapMarker[] = CAPITAL_CAMPUS_CITIES.map((city, index) => ({
   name: city.name,
@@ -174,6 +180,7 @@ export default function CapitalMap() {
             <div className="capital-map-legend" aria-label="公司分类图例">
               {catalog.legendGroupNames.map((name) => {
                 const active = activeGroup === name;
+                const dot = LEGEND_DOTS[name] ?? catalog.allGroups.find((group) => group.name === name)?.dot ?? '#1b1a17';
                 return (
                   <button
                     key={name}
@@ -184,6 +191,7 @@ export default function CapitalMap() {
                       setSelectedName(null);
                     }}
                   >
+                    <i className="capital-map-legend__dot" style={active ? { background: dot } : undefined} aria-hidden />
                     {name}
                   </button>
                 );
