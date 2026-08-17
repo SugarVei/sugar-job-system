@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { lazy, Suspense, useEffect, useMemo, useState } from 'react';
 import {
   ALL_HOT_COMPANIES,
   FEATURED_COMPANY_GROUPS,
@@ -23,6 +23,11 @@ import ResumeCompanyFinder from '../components/ResumeCompanyFinder';
 import { useCompanyRecommendations } from '../hooks/useCompanyRecommendations';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
+import { type ChinaMapMarker } from '../components/capital-map/ChinaCapitalChart';
+import { resolveHotCompanyHq, type HotCompanyHq } from '../data/hotCompanyHq';
+import './CapitalMap.css';
+
+const ChinaCapitalChart = lazy(() => import('../components/capital-map/ChinaCapitalChart'));
 
 const ALL = '全部';
 const APPLIED_GROUP_NAME = '已投递';
@@ -49,6 +54,20 @@ interface AICompanyCandidate extends HotCompany {
   sourceNote: string;
 }
 
+type HotCompanyViewMode = 'list' | 'map';
+
+interface MapCompanyEntry {
+  company: HotCompany;
+  group: HotCompanyGroup;
+  hq: HotCompanyHq | null;
+}
+
+interface MapCity {
+  hq: HotCompanyHq;
+  dot: string;
+  companies: MapCompanyEntry[];
+}
+
 function errorText(error: unknown) {
   if (error instanceof Error) return error.message;
   if (typeof error === 'string') return error;
@@ -70,6 +89,10 @@ export default function HotCompanies() {
   const toast = useToast();
   const [activeGroup, setActiveGroup] = useState(ALL);
   const [activeRecruitmentStatus, setActiveRecruitmentStatus] = useState<RecruitmentStatusKey | typeof ALL_RECRUITMENT_STATUSES>(ALL_RECRUITMENT_STATUSES);
+  const [viewMode, setViewMode] = useState<HotCompanyViewMode>('list');
+  const [selectedMapCity, setSelectedMapCity] = useState<string | null>(null);
+  const [mapFailed, setMapFailed] = useState(false);
+  const [mapReady, setMapReady] = useState(false);
   const [pageSearch, setPageSearch] = useState('');
   const [aiPrompt, setAiPrompt] = useState('');
   const [aiLoading, setAiLoading] = useState(false);
@@ -220,6 +243,58 @@ export default function HotCompanies() {
     if (!q) return importedCompanies;
     return importedCompanies.filter((c) => c.name.toLowerCase().includes(q));
   }, [importedCompanies, pageSearch]);
+
+  const mapEntries = useMemo<MapCompanyEntry[]>(
+    () => groups.flatMap((group) => group.companies.map((company) => ({
+      company,
+      group,
+      hq: resolveHotCompanyHq(company),
+    }))),
+    [groups],
+  );
+
+  const mapCities = useMemo<MapCity[]>(() => {
+    const cities = new Map<string, MapCity>();
+    mapEntries.forEach((entry) => {
+      if (!entry.hq) return;
+      const current = cities.get(entry.hq.city);
+      if (current) {
+        current.companies.push(entry);
+        return;
+      }
+      cities.set(entry.hq.city, { hq: entry.hq, dot: entry.group.dot, companies: [entry] });
+    });
+    return Array.from(cities.values()).sort((a, b) => a.hq.city.localeCompare(b.hq.city, 'zh-CN'));
+  }, [mapEntries]);
+
+  const mapMarkers = useMemo<ChinaMapMarker[]>(
+    () => mapCities.map((city) => ({
+      name: city.hq.city,
+      province: city.hq.province,
+      lng: city.hq.lng,
+      lat: city.hq.lat,
+      count: city.companies.length,
+      color: city.dot,
+      labelPos: city.hq.labelPos,
+    })),
+    [mapCities],
+  );
+
+  const selectedMapCityData = useMemo(
+    () => mapCities.find((city) => city.hq.city === selectedMapCity) ?? null,
+    [mapCities, selectedMapCity],
+  );
+
+  const unmappedMapEntries = useMemo(
+    () => mapEntries.filter((entry) => !entry.hq),
+    [mapEntries],
+  );
+
+  useEffect(() => {
+    if (selectedMapCity && !mapCities.some((city) => city.hq.city === selectedMapCity)) {
+      setSelectedMapCity(null);
+    }
+  }, [mapCities, selectedMapCity]);
 
   const viewApplications = (company: HotCompany) => {
     const matchingApplication = applications.find((application) =>
@@ -380,6 +455,7 @@ export default function HotCompanies() {
                 onClick={() => {
                   setActiveRecruitmentStatus(active ? ALL_RECRUITMENT_STATUSES : status.key);
                   if (!active) setActiveGroup(ALL);
+                  setSelectedMapCity(null);
                 }}
                 aria-pressed={active}
                 className="btn-press"
@@ -511,7 +587,10 @@ export default function HotCompanies() {
           return (
             <button
               key={name}
-              onClick={() => setActiveGroup(name)}
+              onClick={() => {
+                setActiveGroup(name);
+                setSelectedMapCity(null);
+              }}
               className="btn-press"
               style={{
                 height: 38,
@@ -533,6 +612,44 @@ export default function HotCompanies() {
         })}
       </div>
 
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' }}>
+        <div style={{ display: 'inline-flex', padding: 4, border: '1px solid #e0d8c9', borderRadius: 14, background: '#faf6f0' }}>
+          {([
+            ['list', '列表'],
+            ['map', '地图'],
+          ] as const).map(([mode, label]) => (
+            <button
+              key={mode}
+              type="button"
+              className="btn-press"
+              aria-pressed={viewMode === mode}
+              onClick={() => {
+                setViewMode(mode);
+                setSelectedMapCity(null);
+              }}
+              style={{
+                height: 32,
+                padding: '0 14px',
+                border: 'none',
+                borderRadius: 10,
+                background: viewMode === mode ? '#1b1a17' : 'transparent',
+                color: viewMode === mode ? '#fffdf8' : '#6b665c',
+                fontSize: 13,
+                fontWeight: 750,
+                cursor: 'pointer',
+              }}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+        <span style={{ color: '#8a8478', fontSize: 12.5 }}>
+          {viewMode === 'map' ? '按总部城市查看当前分类的公司' : '按卡片浏览当前分类的公司'}
+        </span>
+      </div>
+
+      {viewMode === 'list' ? (
+        <>
       {/* 页面内公司名搜索 */}
       <div style={{ ...CARD, padding: 16, borderRadius: 20 }}>
         <div className="flex items-center gap-3 flex-wrap">
@@ -623,8 +740,192 @@ export default function HotCompanies() {
           </section>
         ))
       )}
+        </>
+      ) : (
+        <HotCompaniesMap
+          activeGroup={activeGroup}
+          cities={mapCities}
+          markers={mapMarkers}
+          selectedCity={selectedMapCityData}
+          unmappedEntries={unmappedMapEntries}
+          mapFailed={mapFailed}
+          mapReady={mapReady}
+          onMapFailed={(failed) => {
+            setMapFailed(failed);
+            setMapReady(!failed);
+          }}
+          onSelectCity={setSelectedMapCity}
+          recruitmentStatusByCompany={recruitmentStatusByCompany}
+          statusesLoading={statusesLoading}
+        />
+      )}
     </div>
   );
+}
+
+
+function HotCompaniesMap({
+  activeGroup,
+  cities,
+  markers,
+  selectedCity,
+  unmappedEntries,
+  mapFailed,
+  mapReady,
+  onMapFailed,
+  onSelectCity,
+  recruitmentStatusByCompany,
+  statusesLoading,
+}: {
+  activeGroup: string;
+  cities: MapCity[];
+  markers: ChinaMapMarker[];
+  selectedCity: MapCity | null;
+  unmappedEntries: MapCompanyEntry[];
+  mapFailed: boolean;
+  mapReady: boolean;
+  onMapFailed: (failed: boolean) => void;
+  onSelectCity: (city: string | null) => void;
+  recruitmentStatusByCompany: Map<string, CampusRecruitmentStatus>;
+  statusesLoading: boolean;
+}) {
+  const selectedCompanies = selectedCity?.companies ?? [];
+  const title = selectedCity ? selectedCity.hq.city : '选择城市查看公司';
+  const description = selectedCity
+    ? `${selectedCity.hq.province} · ${selectedCompanies.length} 家总部企业`
+    : `当前「${activeGroup}」共有 ${cities.length} 个可落图总部城市。点击圆点查看公司。`;
+
+  return (
+    <section className="capital-map-page" aria-label="热门公司地图模式">
+      <div className="capital-map-stage">
+        {!mapReady && !mapFailed ? <div className="capital-map-loading">正在加载总部地图…</div> : null}
+        {mapFailed ? <div className="capital-map-loading">底图未加载，右侧城市列表仍可使用</div> : null}
+        <Suspense fallback={<div className="capital-map-loading">正在加载总部地图…</div>}>
+          <ChinaCapitalChart
+            selectedName={selectedCity?.hq.city ?? null}
+            onSelect={onSelectCity}
+            onMapFailed={onMapFailed}
+            markers={markers}
+            highlightAllProvinces
+            allowProvinceSelect={false}
+            ariaLabel="热门公司总部地图"
+          />
+        </Suspense>
+      </div>
+
+      <aside className="capital-map-panel" aria-label="热门公司总部列表">
+        <div className="capital-map-panel__head">
+          {selectedCity ? (
+            <button type="button" className="capital-map-back" onClick={() => onSelectCity(null)}>
+              ← 返回城市列表
+            </button>
+          ) : null}
+          <h2>
+            {title}
+            {selectedCity ? <span className="capital-map-badge">{selectedCompanies.length} 家</span> : null}
+          </h2>
+          <p>{description}</p>
+          {mapFailed ? <p className="capital-map-warn">地图底图加载失败，仍可从下方选择城市。</p> : null}
+        </div>
+
+        <div className="capital-map-panel__list">
+          {selectedCity ? selectedCompanies.map((entry) => (
+            <MapCompanyCard
+              key={`${entry.group.name}-${entry.company.name}`}
+              entry={entry}
+              recruitmentStatus={resolveRecruitmentStatus(
+                entry.company,
+                recruitmentStatusByCompany.get(normalizeCompanyName(entry.company.name)),
+              )}
+              statusesLoading={statusesLoading}
+            />
+          )) : (
+            <>
+              <div style={{ display: 'grid', gap: 7 }}>
+                {cities.map((city) => (
+                  <button
+                    key={city.hq.city}
+                    type="button"
+                    className="capital-map-chip"
+                    onClick={() => onSelectCity(city.hq.city)}
+                    style={{ marginBottom: 0 }}
+                  >
+                    <span style={{ display: 'flex', alignItems: 'center', gap: 8, minWidth: 0 }}>
+                      <i style={{ width: 8, height: 8, borderRadius: 999, background: city.dot, flex: 'none' }} />
+                      <b>{city.hq.city}</b>
+                    </span>
+                    <span>{city.companies.length} 家</span>
+                  </button>
+                ))}
+              </div>
+
+              {unmappedEntries.length > 0 && (
+                <div style={{ marginTop: 18, paddingTop: 14, borderTop: '1px solid #efe7d8' }}>
+                  <div style={{ color: '#6b665c', fontSize: 13, fontWeight: 750, marginBottom: 8 }}>总部城市待补</div>
+                  <div style={{ display: 'grid', gap: 7 }}>
+                    {unmappedEntries.map((entry) => (
+                      <a
+                        key={`${entry.group.name}-${entry.company.name}`}
+                        href={mapCompanyUrl(entry.company)}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="capital-map-company"
+                        style={{ marginBottom: 0, padding: '10px 12px' }}
+                      >
+                        <div className="capital-map-company__name">
+                          {entry.company.name}
+                          <IconExternalLink size={13} />
+                        </div>
+                        <div className="capital-map-company__url">{entry.company.industry} · 总部城市待补</div>
+                      </a>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </>
+          )}
+        </div>
+      </aside>
+    </section>
+  );
+}
+
+function MapCompanyCard({
+  entry,
+  recruitmentStatus,
+  statusesLoading,
+}: {
+  entry: MapCompanyEntry;
+  recruitmentStatus?: CampusRecruitmentStatus;
+  statusesLoading: boolean;
+}) {
+  const recruitment = recruitmentStatusPresentation(entry.company, recruitmentStatus, statusesLoading);
+  return (
+    <article style={{ marginBottom: 9, padding: 12, border: '1px solid #e0d8c9', borderRadius: 14, background: '#fffdf8' }}>
+      <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 8 }}>
+        <div style={{ minWidth: 0 }}>
+          <div style={{ color: '#1b1a17', fontSize: 14, fontWeight: 750 }}>{entry.company.name}</div>
+          <div style={{ marginTop: 3, color: '#8a8478', fontSize: 12 }}>{entry.company.industry}</div>
+        </div>
+        <span style={{ border: `1px solid ${recruitment.style.borderColor ?? '#e0d8c9'}`, borderRadius: 999, background: recruitment.style.background, color: recruitment.style.color, padding: '3px 7px', fontSize: 10.5, fontWeight: 750, whiteSpace: 'nowrap' }}>
+          {recruitment.label}
+        </span>
+      </div>
+      <a
+        href={mapCompanyUrl(entry.company)}
+        target="_blank"
+        rel="noopener noreferrer"
+        className="btn-press"
+        style={{ ...secondaryButton, marginTop: 10, width: '100%', textDecoration: 'none' }}
+      >
+        校招 / 招聘链接 <IconExternalLink size={13} />
+      </a>
+    </article>
+  );
+}
+
+function mapCompanyUrl(company: HotCompany) {
+  return isHttpUrl(company.recruitment?.entry) ? company.recruitment.entry : company.url;
 }
 
 
