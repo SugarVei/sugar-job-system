@@ -30,11 +30,14 @@ function recompute() {
 
 function checkPulse() {
   const remaining = pulseUntil - performance.now();
-  if (remaining > 8) {
+  if (remaining > 0) {
     pulseTimer = window.setTimeout(checkPulse, remaining);
     return;
   }
+  // 必须先清掉截止时间：否则 recompute 仍会认为处于活动中，
+  // 而此时已经没有定时器会再来唤醒它，忙碌状态就卡住了。
   pulseTimer = 0;
+  pulseUntil = 0;
   recompute();
 }
 

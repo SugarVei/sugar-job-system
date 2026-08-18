@@ -74,10 +74,7 @@ export default function LiquidBackground() {
       </svg>
 
       {/* 漂移光球 */}
-      <div
-        className={`liquid-blobs ${busy ? 'is-idle-paused' : ''}`.trim()}
-        style={{ position: 'absolute', inset: 0, filter: 'url(#liquidWave)' }}
-      >
+      <div className="liquid-blobs" style={{ position: 'absolute', inset: 0, filter: 'url(#liquidWave)' }}>
         {BLOB_GEO.map((g, i) => {
           const c = theme.blobs[i];
           return (
@@ -93,6 +90,9 @@ export default function LiquidBackground() {
                 background: `radial-gradient(circle, rgba(${c},0.9) 0%, rgba(${c},0) 65%)`,
                 filter: `blur(${g.blur}px)`,
                 animation: `${g.anim} ease-in-out infinite`,
+                // animation 简写会把 play-state 重置成 running，且行内样式优先级高于
+                // 样式表，所以暂停必须同样写在行内。
+                animationPlayState: busy ? 'paused' : 'running',
               }}
             />
           );
