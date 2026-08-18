@@ -1,6 +1,7 @@
 import { useMemo } from 'react';
-import { FEATURED_COMPANY_GROUPS, HOT_COMPANY_GROUPS, type HotCompany, type HotCompanyGroup } from '../data/hotCompanies';
-import { flattenCatalogGroups, mergeStandardCatalog } from '../lib/standardCompanyCatalog';
+import { type HotCompany, type HotCompanyGroup } from '../data/hotCompanies';
+import { EXCEL_CAMPUS_COMPANIES } from '../data/excelCampusRecruitment2027';
+import { flattenCatalogGroups, type StandardCompanyOverlay } from '../lib/standardCompanyCatalog';
 import { applicationCompanyMatchesHotCompany, normalizeCompanyName } from '../lib/companyName';
 import type { Application, Company } from '../types';
 import { useCollection } from './useCollection';
@@ -11,15 +12,57 @@ export const ALL_GROUP_NAME = '全部';
 export const APPLIED_GROUP_NAME = '已投递';
 export const AI_GROUP_NAME = '我添加的公司';
 
+function companyIndustryTags(company: HotCompany) {
+  return company.industryTags?.length ? company.industryTags : [company.industry || '其他'];
+}
+
+function groupsFromCompanies(companies: HotCompany[]): HotCompanyGroup[] {
+  const groups = new Map<string, HotCompany[]>();
+  companies.forEach((company) => {
+    companyIndustryTags(company).forEach((tag) => {
+      const name = tag.trim() || '其他';
+      const rows = groups.get(name) ?? [];
+      rows.push(company);
+      groups.set(name, rows);
+    });
+  });
+  return Array.from(groups, ([name, rows], index) => ({
+    name,
+    dot: ['#8ba3bd', '#93a98c', '#a08cb5', '#c39aa0', '#c49b68'][index % 5],
+    companies: rows,
+  }));
+}
+
+function overlayCompanies(items: StandardCompanyOverlay[], excelCompanies: HotCompany[]) {
+  const excelByName = new Map(excelCompanies.map((company) => [normalizeCompanyName(company.name), company]));
+  return items.map((row): HotCompany => {
+    const excel = excelByName.get(normalizeCompanyName(row.company_name));
+    return excel ?? {
+      name: row.company_name,
+      industry: row.industry || '其他',
+      industryTags: row.industry ? row.industry.split(/[、,，/|]+/u).map((tag) => tag.trim()).filter(Boolean) : ['其他'],
+      city: row.city || '',
+      url: row.url || '',
+      companyType: '未标明',
+      source: 'excel',
+    };
+  });
+}
+
 export function useHotCompanyCatalog() {
   const companies = useCollection<Company>('companies');
   const applications = useCollection<Application>('applications');
   const recommendations = useCompanyRecommendations();
   const overlay = useStandardCompanyOverlay();
-  const standardCatalog = useMemo(
-    () => mergeStandardCatalog([...FEATURED_COMPANY_GROUPS, ...HOT_COMPANY_GROUPS], overlay.items),
-    [overlay.items],
-  );
+  const excelCompanies = EXCEL_CAMPUS_COMPANIES;
+  const standardCompanies = useMemo(() => {
+    const overlayRows = overlayCompanies(overlay.items, excelCompanies);
+    const byName = new Map<string, HotCompany>();
+    [...excelCompanies, ...overlayRows].forEach((company) => {
+      byName.set(normalizeCompanyName(company.name), company);
+    });
+    return Array.from(byName.values());
+  }, [overlay.items, excelCompanies]);
 
   const importedCompanies = useMemo(() => Array.from(
     new Map(
@@ -30,6 +73,8 @@ export function useHotCompanyCatalog() {
           industry: item.industry || '其他',
           city: item.city || '',
           url: item.website || '',
+          industryTags: item.industry ? item.industry.split(/[、,，/|]+/u).map((tag) => tag.trim()).filter(Boolean) : ['其他'],
+          source: 'private',
         } satisfies HotCompany]),
     ).values(),
   ), [recommendations.items]);
@@ -38,17 +83,17 @@ export function useHotCompanyCatalog() {
     const importedGroup = importedCompanies.length > 0
       ? [{ name: AI_GROUP_NAME, dot: '#a08cb5', companies: importedCompanies }]
       : [];
-    return [...standardCatalog.groups, ...importedGroup];
-  }, [importedCompanies, standardCatalog.groups]);
+    return [...groupsFromCompanies(standardCompanies), ...importedGroup];
+  }, [importedCompanies, standardCompanies]);
 
   const standardCatalogRows = useMemo(
-    () => flattenCatalogGroups(standardCatalog.groups),
-    [standardCatalog.groups],
+    () => flattenCatalogGroups(groupsFromCompanies(standardCompanies)),
+    [standardCompanies],
   );
 
   const standardCompanyKeys = useMemo(
-    () => new Set(standardCatalog.companies.map((company) => normalizeCompanyName(company.name))),
-    [standardCatalog.companies],
+    () => new Set(standardCompanies.map((company) => normalizeCompanyName(company.name))),
+    [standardCompanies],
   );
 
   const accountOnlyCompanies = useMemo<HotCompany[]>(
@@ -57,8 +102,8 @@ export function useHotCompanyCatalog() {
   );
 
   const recruitmentOverviewCompanies = useMemo<HotCompany[]>(
-    () => [...standardCatalog.companies, ...accountOnlyCompanies],
-    [accountOnlyCompanies, standardCatalog.companies],
+    () => [...standardCompanies, ...accountOnlyCompanies],
+    [accountOnlyCompanies, standardCompanies],
   );
 
   const appliedCompanies = useMemo<HotCompany[]>(() => {
@@ -95,7 +140,7 @@ export function useHotCompanyCatalog() {
     refreshCompanyRecommendations: recommendations.refresh,
     removeRecommendation: recommendations.remove,
     importedCompanies,
-    standardCompanies: standardCatalog.companies,
+    standardCompanies,
     standardCatalogRows,
     refreshStandardCatalog: overlay.refresh,
     standardCatalogUpdatedAt: overlay.latestUpdatedAt,
