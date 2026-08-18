@@ -1,8 +1,8 @@
 import { FEATURED_COMPANY_GROUPS, HOT_COMPANY_GROUPS } from '../src/data/hotCompanies';
 import { normalizeCompanyName } from '../src/lib/companyName';
 import { flattenCatalogGroups, mergeStandardCatalog, type StandardCompanyOverlay } from '../src/lib/standardCompanyCatalog';
-import { diffCatalog } from '../src/lib/standardCompanyImport';
-import { workbookFromUpload } from './_lib/standard-company-file';
+import { STANDARD_CATALOG_OVERLAY_LIMIT, catalogUploadErrorMessage, diffCatalog } from '../src/lib/standardCompanyImport';
+import { catalogFromImportBody } from './_lib/standard-company-file';
 
 type NativeRequest = { method?: string; headers: Record<string, string | string[] | undefined>; body?: unknown };
 type NativeResponse = { status(code: number): NativeResponse; json(body: unknown): void; setHeader(name: string, value: string): void; end(): void };
@@ -88,7 +88,7 @@ function supabaseHeaders(serviceRoleKey: string, extras?: Record<string, string>
 
 async function loadOverlay(supabaseUrl: string, serviceRoleKey: string) {
   const response = await fetch(
-    `${supabaseUrl}/rest/v1/standard_companies?select=company_key,company_name,industry,city,url,group_name,updated_at&limit=3000`,
+    `${supabaseUrl}/rest/v1/standard_companies?select=company_key,company_name,industry,city,url,group_name,updated_at&limit=${STANDARD_CATALOG_OVERLAY_LIMIT}`,
     { headers: supabaseHeaders(serviceRoleKey, { accept: 'application/json' }) },
   );
   if (response.status === 404) throw new Error('TABLE_MISSING');
@@ -123,8 +123,7 @@ export default async function handler(request: NativeRequest, response: NativeRe
     const body = readBody(request);
     const action = body.action === 'apply' ? 'apply' : 'preview';
     const fileName = typeof body.file_name === 'string' ? body.file_name.slice(0, 180) : '';
-    const fileData = typeof body.file_data === 'string' ? body.file_data : '';
-    const parsed = workbookFromUpload(fileName, fileData);
+    const parsed = catalogFromImportBody(body);
 
     const supabaseUrl = required('SUPABASE_URL').replace(/\/$/, '');
     const serviceRoleKey = required('SUPABASE_SERVICE_ROLE_KEY');
@@ -211,11 +210,8 @@ export default async function handler(request: NativeRequest, response: NativeRe
   } catch (error) {
     const message = error instanceof Error ? error.message : '';
     if (message === 'Unauthorized') return response.status(401).json({ error: '登录已失效，请重新登录后再试。' });
-    if (message === 'INVALID_FILE') return response.status(400).json({ error: '请上传未加密的 .xlsx 文件。' });
-    if (message === 'FILE_TOO_LARGE') return response.status(413).json({ error: 'Excel 不能超过 2MB。' });
-    if (message === 'NO_COMPANY_COLUMN') {
-      return response.status(400).json({ error: '没有识别到公司名列。请确认表头包含「公司」或「公司名称」。' });
-    }
+    const uploadError = catalogUploadErrorMessage(message);
+    if (uploadError) return response.status(message === 'FILE_TOO_LARGE' ? 413 : 400).json({ error: uploadError });
     if (message === 'TABLE_MISSING') {
       return response.status(503).json({ error: '标准公司库数据表尚未创建。请先在 Supabase 执行 standard_company_catalog 迁移。' });
     }

@@ -1,5 +1,6 @@
 import { FEATURED_COMPANY_GROUPS, HOT_COMPANY_GROUPS } from '../src/data/hotCompanies';
 import { mergeStandardCatalog, type StandardCompanyOverlay } from '../src/lib/standardCompanyCatalog';
+import { STANDARD_CATALOG_OVERLAY_LIMIT } from '../src/lib/standardCompanyImport';
 
 export const config = { runtime: 'edge' };
 
@@ -9,7 +10,7 @@ async function loadOverlay(): Promise<StandardCompanyOverlay[]> {
   if (!supabaseUrl || !apiKey) return [];
 
   const response = await fetch(
-    `${supabaseUrl}/rest/v1/standard_companies?select=company_key,company_name,industry,city,url,group_name&limit=3000`,
+    `${supabaseUrl}/rest/v1/standard_companies?select=company_key,company_name,industry,city,url,group_name&limit=${STANDARD_CATALOG_OVERLAY_LIMIT}`,
     { headers: { apikey: apiKey, authorization: `Bearer ${apiKey}` } },
   );
   if (!response.ok) return [];

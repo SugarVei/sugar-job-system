@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
-import { collectIncomingCompanies, diffCatalog, findHeaderRow, parseSheetMatrix, sanitizeIncomingCompany } from './standardCompanyImport.ts';
+import { collectIncomingCompanies, diffCatalog, findHeaderRow, normalizeImportedCompanies, parseSheetMatrix, sanitizeIncomingCompany } from './standardCompanyImport.ts';
 
 describe('standardCompanyImport', () => {
   it('finds the Feishu-style header row under a title', () => {
@@ -63,5 +63,52 @@ describe('standardCompanyImport', () => {
   it('rejects javascript urls and accepts http urls', () => {
     assert.equal(sanitizeIncomingCompany({ name: '测试', url: 'javascript:alert(1)' }).ok, false);
     assert.equal(sanitizeIncomingCompany({ name: '测试', url: 'https://career.example.com/campus' }).ok, true);
+  });
+
+  it('recognizes 婉清学姐-style headers after a long title block', () => {
+    const headerRows = Array.from({ length: 11 }, () => ['【秋招_春招_实习】汇总表-婉清学姐']);
+    const header = findHeaderRow([
+      ...headerRows,
+      ['序号', '单位名称', '行业分类', '工作地址', '网申入口', '截止时间', '备注'],
+    ]);
+    assert.ok(header);
+    assert.equal(header?.index, 11);
+    assert.equal(header?.map.name, 1);
+    assert.equal(header?.map.industry, 2);
+    assert.equal(header?.map.city, 3);
+    assert.equal(header?.map.url, 4);
+  });
+
+  it('uses 秋招/春招/实习 sheet names as the group', () => {
+    const parsed = collectIncomingCompanies([
+      {
+        name: '秋招',
+        rows: [
+          ['单位名称', '网申入口', '行业分类', '工作地址'],
+          ['中芯国际', 'https://smics.zhiye.com/campus', '半导体', '上海'],
+        ],
+      },
+      {
+        name: '实习',
+        rows: [
+          ['公司全称', '投递链接'],
+          ['寒武纪', 'https://app.mokahr.com/campus-recruitment/cambricon'],
+        ],
+      },
+    ]);
+    assert.equal(parsed.companies.length, 2);
+    assert.equal(parsed.companies[0].group, '秋招');
+    assert.equal(parsed.companies[0].industry, '半导体');
+    assert.equal(parsed.companies[1].group, '实习');
+  });
+
+  it('re-sanitizes companies posted from the browser', () => {
+    const parsed = normalizeImportedCompanies([
+      { name: '中芯国际', url: 'https://smics.zhiye.com/campus', sheet: '秋招' },
+      { name: '坏链接公司', url: 'javascript:alert(1)', sheet: '秋招' },
+    ]);
+    assert.equal(parsed.companies.length, 1);
+    assert.equal(parsed.companies[0].group, '秋招');
+    assert.equal(parsed.skipped[0]?.reason, '网址无效');
   });
 });

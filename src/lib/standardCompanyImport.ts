@@ -1,7 +1,10 @@
-import { normalizeCompanyName } from './companyName.ts';
+import { normalizeCompanyName } from './companyName';
 
-export const STANDARD_CATALOG_MAX_ROWS = 2000;
-export const STANDARD_CATALOG_MAX_FILE_BYTES = 2 * 1024 * 1024;
+export const STANDARD_CATALOG_MAX_ROWS = 4000;
+export const STANDARD_CATALOG_MAX_FILE_BYTES = 20 * 1024 * 1024;
+export const STANDARD_CATALOG_MAX_SHEETS = 40;
+export const STANDARD_CATALOG_HEADER_SCAN_ROWS = 30;
+export const STANDARD_CATALOG_OVERLAY_LIMIT = 4000;
 export const DEFAULT_IMPORT_GROUP = '飞书导入';
 
 export type CatalogColumnKind = 'name' | 'industry' | 'city' | 'url' | 'group';
@@ -44,27 +47,31 @@ export type SheetMatrix = { name: string; rows: unknown[][] };
 
 const HEADER_ALIASES: Record<CatalogColumnKind, Array<{ match: RegExp; weight: number }>> = {
   name: [
-    { match: /^(?:公司名称|企业名称|公司名|companyname|company)$/u, weight: 5 },
+    { match: /^(?:公司名称|企业名称|单位名称|招录单位|公司全称|公司简称|公司名|companyname|company)$/u, weight: 6 },
+    { match: /(?:公司名称|企业名称|单位名称|招录单位|公司全称)/u, weight: 5 },
     { match: /^(?:公司|企业|名称|name)$/u, weight: 3 },
   ],
   industry: [
-    { match: /^(?:行业|赛道|industry)$/u, weight: 4 },
+    { match: /^(?:行业分类|所属行业|行业|赛道|industry)$/u, weight: 5 },
+    { match: /(?:行业分类|所属行业)/u, weight: 4 },
   ],
   city: [
-    { match: /^(?:城市|地点|总部|所在地|city|location)$/u, weight: 4 },
+    { match: /^(?:工作地址|工作地点|城市|地点|总部|所在地|city|location)$/u, weight: 5 },
+    { match: /(?:工作地址|工作地点)/u, weight: 4 },
   ],
   url: [
-    { match: /^(?:校招链接|校招网址|校招入口|网申链接)$/u, weight: 6 },
-    { match: /^(?:招聘官网|招聘链接|招聘网址)$/u, weight: 5 },
+    { match: /^(?:校招链接|校招网址|校招入口|网申链接|网申入口|网申地址|投递链接|投递入口)$/u, weight: 6 },
+    { match: /(?:网申入口|网申地址|网申链接|投递链接|投递入口|校招链接)/u, weight: 5 },
+    { match: /^(?:招聘官网|招聘链接|招聘网址|相关链接)$/u, weight: 4 },
     { match: /^(?:官网|网址|website|url|entry)$/u, weight: 4 },
     { match: /^(?:链接|link)$/u, weight: 2 },
   ],
   group: [
-    { match: /^(?:分组|板块|分类|行业分类|类别|group|category)$/u, weight: 4 },
+    { match: /^(?:招聘类型|分组|板块|批次|类别|group|category)$/u, weight: 4 },
   ],
 };
 
-const SKIPPED_HEADER = /备注|内推|推荐人|是否开招|开招状态|截止日期|状态说明|note|comment|referral|status/iu;
+const SKIPPED_HEADER = /备注|内推|推荐人|是否开招|开招状态|截止日期|截止时间|状态说明|note|comment|referral|status/iu;
 
 function stripControlChars(value: string) {
   let cleaned = '';
@@ -113,12 +120,33 @@ export function detectColumnMap(headers: unknown[]) {
 
 export function findHeaderRow(rows: unknown[][]) {
   let best = { index: -1, score: 0, map: {} as Partial<Record<CatalogColumnKind, number>> };
-  rows.slice(0, 8).forEach((row, index) => {
+  rows.slice(0, STANDARD_CATALOG_HEADER_SCAN_ROWS).forEach((row, index) => {
     const map = detectColumnMap(row);
     const score = (map.name == null ? 0 : 10) + Object.keys(map).length;
     if (map.name != null && score > best.score) best = { index, score, map };
   });
   return best.index >= 0 ? best : null;
+}
+
+export function groupFromSheetName(name: string) {
+  const text = sanitizePlainText(name, 40);
+  if (/实习/u.test(text)) return '实习';
+  if (/春招/u.test(text)) return '春招';
+  if (/秋招|校招/u.test(text)) return '秋招';
+  return '';
+}
+
+export function isMissingCompanyColumn(parsed: { companies: IncomingCompany[]; skipped: CatalogDiffRow[] }) {
+  return parsed.companies.length === 0 && parsed.skipped.every((row) => row.reason === '缺少公司名' || !row.reason);
+}
+
+export function catalogUploadErrorMessage(code: string) {
+  if (code === 'INVALID_FILE') return '无法读取这个 Excel。请另存为未加密的 .xlsx 后再试，文件名可以包含中文和【】。';
+  if (code === 'FILE_TOO_LARGE') return 'Excel 不能超过 20MB。请先去掉说明页、图片或多余列后再导出。';
+  if (code === 'NO_COMPANY_COLUMN') {
+    return '没有识别到公司名列。请确认表头包含「公司名称」「单位名称」或「企业名称」；秋招 / 春招 / 实习分表也可以。';
+  }
+  return '';
 }
 
 export function isHttpUrl(value: string) {
@@ -173,7 +201,7 @@ export function parseSheetMatrix(rows: unknown[][], sheet = 'Sheet1') {
       industry: header.map.industry == null ? '' : row[header.map.industry],
       city: header.map.city == null ? '' : row[header.map.city],
       url: header.map.url == null ? '' : row[header.map.url],
-      group: header.map.group == null ? '' : row[header.map.group],
+      group: (header.map.group == null ? '' : row[header.map.group]) || groupFromSheetName(sheet),
       sheet,
     });
     if (!parsed.ok) {
@@ -201,7 +229,7 @@ export function collectIncomingCompanies(sheets: SheetMatrix[]) {
   const skipped: CatalogDiffRow[] = [];
   const seen = new Set<string>();
 
-  sheets.forEach((sheet) => {
+  sheets.slice(0, STANDARD_CATALOG_MAX_SHEETS).forEach((sheet) => {
     if (companies.length >= STANDARD_CATALOG_MAX_ROWS) return;
     const parsed = parseSheetMatrix(sheet.rows, sheet.name);
     skipped.push(...parsed.skipped);
@@ -222,7 +250,45 @@ export function collectIncomingCompanies(sheets: SheetMatrix[]) {
 }
 
 export function resolveImportedGroup(incoming: IncomingCompany, currentGroup?: string) {
-  return incoming.group || currentGroup || incoming.industry || DEFAULT_IMPORT_GROUP;
+  return incoming.group || groupFromSheetName(incoming.sheet) || currentGroup || incoming.industry || DEFAULT_IMPORT_GROUP;
+}
+
+export function normalizeImportedCompanies(raw: unknown[]) {
+  const companies: IncomingCompany[] = [];
+  const skipped: CatalogDiffRow[] = [];
+  const seen = new Set<string>();
+  const sheets = new Set<string>();
+
+  raw.slice(0, STANDARD_CATALOG_MAX_ROWS * 2).forEach((item) => {
+    if (!item || typeof item !== 'object') return;
+    const row = item as Record<string, unknown>;
+    const parsed = sanitizeIncomingCompany({
+      name: row.name,
+      industry: row.industry,
+      city: row.city,
+      url: row.url,
+      group: row.group || groupFromSheetName(String(row.sheet ?? '')),
+      sheet: sanitizePlainText(row.sheet, 40) || 'Sheet1',
+    });
+    sheets.add(parsed.company.sheet);
+    if (!parsed.ok) {
+      skipped.push({ kind: 'skip', reason: parsed.reason, incoming: parsed.company });
+      return;
+    }
+    const key = normalizeCompanyName(parsed.company.name);
+    if (!key) {
+      skipped.push({ kind: 'skip', reason: '缺少公司名', incoming: parsed.company });
+      return;
+    }
+    if (seen.has(key) || companies.length >= STANDARD_CATALOG_MAX_ROWS) {
+      skipped.push({ kind: 'skip', reason: seen.has(key) ? '重复行' : '超过导入上限', incoming: parsed.company });
+      return;
+    }
+    seen.add(key);
+    companies.push(parsed.company);
+  });
+
+  return { companies, skipped, sheets: Array.from(sheets) };
 }
 
 export function mergeCompanyFields(incoming: IncomingCompany, current?: CatalogCompany): CatalogCompany {

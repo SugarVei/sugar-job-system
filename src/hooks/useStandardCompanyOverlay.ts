@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { isSupabaseConfigured, supabase } from '../lib/supabase';
 import type { StandardCompanyOverlay } from '../lib/standardCompanyCatalog';
+import { STANDARD_CATALOG_OVERLAY_LIMIT } from '../lib/standardCompanyImport';
 
 export function useStandardCompanyOverlay() {
   const [items, setItems] = useState<StandardCompanyOverlay[]>([]);
@@ -19,7 +20,7 @@ export function useStandardCompanyOverlay() {
     const { data, error: queryError } = await supabase
       .from('standard_companies')
       .select('company_key,company_name,industry,city,url,group_name,updated_at')
-      .limit(3000);
+      .limit(STANDARD_CATALOG_OVERLAY_LIMIT);
 
     if (queryError) {
       setItems([]);

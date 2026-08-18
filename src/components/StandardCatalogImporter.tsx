@@ -3,7 +3,14 @@ import Modal from './Modal';
 import { IconFile, IconTrash } from './icons';
 import { useAuth } from '../contexts/AuthContext';
 import { isSupabaseConfigured, supabase } from '../lib/supabase';
-import { STANDARD_CATALOG_MAX_FILE_BYTES, type CatalogDiffRow, type CatalogDiffSummary } from '../lib/standardCompanyImport';
+import {
+  STANDARD_CATALOG_MAX_FILE_BYTES,
+  catalogUploadErrorMessage,
+  type CatalogDiffRow,
+  type CatalogDiffSummary,
+  type IncomingCompany,
+} from '../lib/standardCompanyImport';
+import { parseCatalogWorkbookFile } from '../lib/standardCompanyWorkbook';
 
 type PreviewResponse = {
   summary: CatalogDiffSummary & { sheets?: string[] };
@@ -20,13 +27,17 @@ type ApplyResponse = {
   error?: string;
 };
 
-function fileToDataUrl(file: File) {
-  return new Promise<string>((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onerror = () => reject(new Error('无法读取文件。'));
-    reader.onload = () => resolve(String(reader.result));
-    reader.readAsDataURL(file);
-  });
+function formatFileSize(size: number) {
+  if (size >= 1024 * 1024) return `${(size / (1024 * 1024)).toFixed(1)} MB`;
+  return `${Math.max(1, Math.round(size / 1024))} KB`;
+}
+
+function uploadErrorText(error: unknown) {
+  if (error instanceof Error && catalogUploadErrorMessage(error.message)) {
+    return catalogUploadErrorMessage(error.message);
+  }
+  if (error instanceof Error) return error.message;
+  return '解析失败';
 }
 
 async function importHeaders() {
@@ -50,6 +61,7 @@ export default function StandardCatalogImporter({
   const { user } = useAuth();
   const inputRef = useRef<HTMLInputElement>(null);
   const [file, setFile] = useState<File | null>(null);
+  const [companies, setCompanies] = useState<IncomingCompany[] | null>(null);
   const [dragging, setDragging] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -58,16 +70,17 @@ export default function StandardCatalogImporter({
   const chooseFile = (next: File | null) => {
     setError('');
     setPreview(null);
+    setCompanies(null);
     if (!next) {
       setFile(null);
       return;
     }
     if (!/\.xlsx$/i.test(next.name)) {
-      setError('请上传飞书导出的 .xlsx 文件。');
+      setError('请上传未加密的 .xlsx 文件。文件名可以包含中文和【】。');
       return;
     }
     if (next.size > STANDARD_CATALOG_MAX_FILE_BYTES) {
-      setError('Excel 不能超过 2MB。');
+      setError(catalogUploadErrorMessage('FILE_TOO_LARGE'));
       return;
     }
     setFile(next);
@@ -84,6 +97,14 @@ export default function StandardCatalogImporter({
     chooseFile(event.dataTransfer.files?.[0] ?? null);
   };
 
+  const parsedCompanies = async () => {
+    if (!file) throw new Error('请先选择 Excel 文件。');
+    if (companies) return companies;
+    const local = await parseCatalogWorkbookFile(file);
+    setCompanies(local.companies);
+    return local.companies;
+  };
+
   const previewImport = async () => {
     if (!file || loading) return;
     if (!user || !isSupabaseConfigured) {
@@ -93,20 +114,21 @@ export default function StandardCatalogImporter({
     setLoading(true);
     setError('');
     try {
+      const nextCompanies = await parsedCompanies();
       const response = await fetch('/api/standard-companies-import', {
         method: 'POST',
         headers: await importHeaders(),
         body: JSON.stringify({
           action: 'preview',
           file_name: file.name,
-          file_data: await fileToDataUrl(file),
+          companies: nextCompanies,
         }),
       });
       const data = await response.json() as PreviewResponse;
       if (!response.ok || data.error) throw new Error(data.error || '预览失败');
       setPreview(data);
     } catch (caught) {
-      setError(caught instanceof Error ? caught.message : '预览失败');
+      setError(uploadErrorText(caught));
     } finally {
       setLoading(false);
     }
@@ -117,22 +139,24 @@ export default function StandardCatalogImporter({
     setLoading(true);
     setError('');
     try {
+      const nextCompanies = await parsedCompanies();
       const response = await fetch('/api/standard-companies-import', {
         method: 'POST',
         headers: await importHeaders(),
         body: JSON.stringify({
           action: 'apply',
           file_name: file.name,
-          file_data: await fileToDataUrl(file),
+          companies: nextCompanies,
         }),
       });
       const data = await response.json() as ApplyResponse;
       if (!response.ok || data.error) throw new Error(data.error || '写入失败');
       setPreview(null);
       setFile(null);
+      setCompanies(null);
       await onApplied();
     } catch (caught) {
-      setError(caught instanceof Error ? caught.message : '写入失败');
+      setError(uploadErrorText(caught));
     } finally {
       setLoading(false);
     }
@@ -148,7 +172,7 @@ export default function StandardCatalogImporter({
         <div>
           <h2 style={{ margin: 0, fontSize: 16, fontWeight: 750, color: '#1b1a17' }}>用 Excel 更新标准公司库</h2>
           <p style={{ margin: '5px 0 0', fontSize: 12.5, color: '#8a8478', lineHeight: 1.55 }}>
-            从飞书导出 xlsx，上传后先预览新增和更新，确认后再写入。只同步公司名、行业、城市、官网和分组，不会覆盖未出现在表里的公司。
+            支持飞书导出表和秋招 / 春招 / 实习汇总表。文件在浏览器里先解析，确认后再写入公司名、行业、城市、官网和分组。
           </p>
         </div>
         <span style={{ fontSize: 12, color: '#9a9488' }}>{latestLabel}</span>
@@ -184,7 +208,7 @@ export default function StandardCatalogImporter({
           <div className="flex items-center justify-center gap-2" style={{ color: '#4f7a56' }}>
             <IconFile size={20} />
             <span style={{ fontSize: 13.5, fontWeight: 700 }}>{file.name}</span>
-            <span style={{ fontSize: 12, fontWeight: 500 }}>（{(file.size / 1024).toFixed(0)} KB）</span>
+            <span style={{ fontSize: 12, fontWeight: 500 }}>（{formatFileSize(file.size)}）</span>
             <button
               type="button"
               onClick={(event) => { event.stopPropagation(); chooseFile(null); }}
@@ -197,8 +221,8 @@ export default function StandardCatalogImporter({
         ) : (
           <>
             <div style={{ color: '#9b633d', display: 'flex', justifyContent: 'center' }}><IconFile size={24} /></div>
-            <div style={{ marginTop: 7, fontSize: 13.5, fontWeight: 700, color: '#4a463e' }}>点击上传，或把飞书导出的 Excel 拖到这里</div>
-            <div style={{ marginTop: 4, fontSize: 12, color: '#9a9488' }}>仅支持 .xlsx，最大 2MB；表头需包含公司名</div>
+            <div style={{ marginTop: 7, fontSize: 13.5, fontWeight: 700, color: '#4a463e' }}>点击上传，或把汇总表 Excel 拖到这里</div>
+            <div style={{ marginTop: 4, fontSize: 12, color: '#9a9488' }}>仅支持 .xlsx，最大 20MB；表头需包含公司名或单位名称</div>
           </>
         )}
       </div>
@@ -276,9 +300,12 @@ export default function StandardCatalogImporter({
               <SummaryChip label="不变" value={preview.summary.unchanged} color="#6f6961" background="#f1efeb" />
               <SummaryChip label="跳过" value={preview.summary.skipped} color="#8b4d58" background="#f7e9ec" />
             </div>
-            <DiffList title="将新增" rows={preview.added} empty="没有新公司" />
-            <DiffList title="将更新" rows={preview.updated} empty="没有字段变化" showBefore />
-            <DiffList title="将跳过" rows={preview.skipped} empty="没有跳过的行" showReason />
+            {preview.summary.sheets && preview.summary.sheets.length > 0 && (
+              <div style={{ fontSize: 12, color: '#8a8478' }}>已读取分表：{preview.summary.sheets.join('、')}</div>
+            )}
+            <DiffList title="将新增" total={preview.summary.added} rows={preview.added} empty="没有新公司" />
+            <DiffList title="将更新" total={preview.summary.updated} rows={preview.updated} empty="没有字段变化" showBefore />
+            <DiffList title="将跳过" total={preview.summary.skipped} rows={preview.skipped} empty="没有跳过的行" showReason />
           </div>
         )}
       </Modal>
@@ -297,12 +324,14 @@ function SummaryChip({ label, value, color, background }: { label: string; value
 
 function DiffList({
   title,
+  total,
   rows,
   empty,
   showBefore,
   showReason,
 }: {
   title: string;
+  total: number;
   rows: CatalogDiffRow[];
   empty: string;
   showBefore?: boolean;
@@ -310,7 +339,9 @@ function DiffList({
 }) {
   return (
     <div>
-      <div style={{ fontSize: 13, fontWeight: 750, color: '#1b1a17' }}>{title} {rows.length} 家</div>
+      <div style={{ fontSize: 13, fontWeight: 750, color: '#1b1a17' }}>
+        {title} {total} 家{total > rows.length ? '（预览前 40 家）' : ''}
+      </div>
       {rows.length === 0 ? (
         <div style={{ marginTop: 6, fontSize: 12.5, color: '#8a8478' }}>{empty}</div>
       ) : (
