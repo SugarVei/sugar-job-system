@@ -1,22 +1,16 @@
+import { requireUserFromJwt } from './_lib/auth';
+import { handleOptions, json } from './_lib/cors';
+import { catalogFromImportBody } from './_lib/standard-company-file';
 import { normalizeCompanyName } from '../src/lib/companyName';
 import { canManageStandardCatalog } from '../src/lib/standardCatalogAdmin';
 import { catalogUploadErrorMessage } from '../src/lib/standardCompanyImport';
-import { catalogFromImportBody } from './_lib/standard-company-file';
 
-export const config = { maxDuration: 30 };
-
-type NativeRequest = { method?: string; headers: Record<string, string | string[] | undefined>; body?: unknown };
-type NativeResponse = { status(code: number): NativeResponse; json(body: unknown): void; setHeader(name: string, value: string): void; end(): void };
+export const config = { runtime: 'edge' };
 
 const requests = new Map<string, { count: number; reset: number }>();
 
-function header(request: NativeRequest, name: string) {
-  const value = request.headers[name];
-  return Array.isArray(value) ? value[0] ?? '' : value ?? '';
-}
-
-function clientIp(request: NativeRequest) {
-  return header(request, 'x-forwarded-for').split(',')[0]?.trim() || 'unknown';
+function clientIp(request: Request) {
+  return (request.headers.get('x-forwarded-for') ?? '').split(',')[0]?.trim() || 'unknown';
 }
 
 function required(name: string) {
@@ -36,55 +30,14 @@ function rateLimit(key: string) {
   return item.count <= 80;
 }
 
-function setCors(request: NativeRequest, response: NativeResponse) {
-  const origin = header(request, 'origin');
-  const allowed = new Set([
-    'http://localhost:5173',
-    'http://127.0.0.1:5173',
-    'http://localhost:8080',
-    'http://127.0.0.1:8080',
-    'https://sugarv.mom',
-    'https://www.sugarv.mom',
-    'https://sugar-job-system.vercel.app',
-  ]);
-  if (process.env.ALLOWED_ORIGIN) allowed.add(process.env.ALLOWED_ORIGIN);
-  if (process.env.VERCEL_URL) allowed.add(`https://${process.env.VERCEL_URL}`);
-  if (allowed.has(origin)) response.setHeader('Access-Control-Allow-Origin', origin);
-  response.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
-  response.setHeader('Access-Control-Allow-Headers', 'Authorization, Content-Type');
-  response.setHeader('Cache-Control', 'no-store');
-  response.setHeader('Vary', 'Origin');
-}
-
-function canManageCatalog(email: string | undefined) {
-  return canManageStandardCatalog(email, process.env.STANDARD_CATALOG_ADMIN_EMAIL);
-}
-
-function missingTable(error: { message?: string; code?: string } | null) {
-  return error?.code === '42P01' || /does not exist|schema cache/i.test(error?.message ?? '');
-}
-
-function readBody(request: NativeRequest) {
-  if (typeof request.body === 'string') return JSON.parse(request.body) as Record<string, unknown>;
-  return (request.body ?? {}) as Record<string, unknown>;
-}
-
 function countFrom(value: unknown) {
   const number = Number(value);
   if (!Number.isFinite(number) || number < 0) return 0;
   return Math.min(Math.round(number), 20_000);
 }
 
-async function requireUser(request: NativeRequest) {
-  const authorization = header(request, 'authorization');
-  if (!authorization.startsWith('Bearer ')) throw new Error('Unauthorized');
-  const result = await fetch(`${required('SUPABASE_URL')}/auth/v1/user`, {
-    headers: { apikey: required('SUPABASE_ANON_KEY'), authorization },
-  });
-  if (!result.ok) throw new Error('Unauthorized');
-  const user = await result.json() as { id?: string; email?: string };
-  if (!user.id) throw new Error('Unauthorized');
-  return { id: user.id, email: user.email };
+function missingTable(message: string) {
+  return /does not exist|schema cache/i.test(message);
 }
 
 function supabaseHeaders(serviceRoleKey: string, extras?: Record<string, string>) {
@@ -95,29 +48,28 @@ function supabaseHeaders(serviceRoleKey: string, extras?: Record<string, string>
   };
 }
 
-export default async function handler(request: NativeRequest, response: NativeResponse) {
-  setCors(request, response);
-  if (request.method === 'OPTIONS') return response.status(204).end();
-  if (request.method === 'GET') return response.status(200).json({ ok: true });
-  if (request.method !== 'POST') return response.status(405).json({ error: 'Method not allowed' });
+export default async function handler(request: Request) {
+  if (request.method === 'OPTIONS') return handleOptions(request);
+  if (request.method === 'GET') return json(request, { ok: true });
+  if (request.method !== 'POST') return json(request, { error: 'Method not allowed' }, 405);
 
   try {
-    const user = await requireUser(request);
-    if (!canManageCatalog(user.email)) {
-      return response.status(403).json({ error: '当前账号没有更新标准公司库的权限。' });
+    const user = await requireUserFromJwt(request);
+    if (!canManageStandardCatalog(user.email, process.env.STANDARD_CATALOG_ADMIN_EMAIL)) {
+      return json(request, { error: '当前账号没有更新标准公司库的权限。' }, 403);
     }
     if (!rateLimit(`standard-catalog:${user.id}:${clientIp(request)}`)) {
-      return response.status(429).json({ error: '导入请求过于频繁，请稍后再试。' });
+      return json(request, { error: '导入请求过于频繁，请稍后再试。' }, 429);
     }
 
-    const body = readBody(request);
+    const body = await request.json() as Record<string, unknown>;
     if (body.action !== 'apply') {
-      return response.status(400).json({ error: '预览已在浏览器完成，请直接确认写入。' });
+      return json(request, { error: '预览已在浏览器完成，请直接确认写入。' }, 400);
     }
     const fileName = typeof body.file_name === 'string' ? body.file_name.slice(0, 180) : '';
     const parsed = catalogFromImportBody(body);
     if (parsed.companies.length === 0) {
-      return response.status(200).json({ ok: true, written: 0 });
+      return json(request, { ok: true, written: 0 });
     }
 
     const supabaseUrl = required('SUPABASE_URL').replace(/\/$/, '');
@@ -149,7 +101,7 @@ export default async function handler(request: NativeRequest, response: NativeRe
       );
       if (!writeResponse.ok) {
         const text = await writeResponse.text();
-        if (writeResponse.status === 404 || /does not exist|schema cache/i.test(text)) throw new Error('TABLE_MISSING');
+        if (writeResponse.status === 404 || missingTable(text)) throw new Error('TABLE_MISSING');
         throw new Error(`WRITE_FAILED:${writeResponse.status}`);
       }
     }
@@ -173,20 +125,20 @@ export default async function handler(request: NativeRequest, response: NativeRe
       });
       if (!runResponse.ok && runResponse.status !== 404) {
         const text = await runResponse.text();
-        if (!missingTable({ message: text })) throw new Error(`RUN_FAILED:${runResponse.status}`);
+        if (!missingTable(text)) throw new Error(`RUN_FAILED:${runResponse.status}`);
       }
     }
 
-    return response.status(200).json({ ok: true, written: payloads.length });
+    return json(request, { ok: true, written: payloads.length });
   } catch (error) {
     const message = error instanceof Error ? error.message : '';
-    if (message === 'Unauthorized') return response.status(401).json({ error: '登录已失效，请重新登录后再试。' });
+    if (message === 'Unauthorized') return json(request, { error: '登录已失效，请重新登录后再试。' }, 401);
     const uploadError = catalogUploadErrorMessage(message);
-    if (uploadError) return response.status(message === 'FILE_TOO_LARGE' ? 413 : 400).json({ error: uploadError });
+    if (uploadError) return json(request, { error: uploadError }, message === 'FILE_TOO_LARGE' ? 413 : 400);
     if (message === 'TABLE_MISSING') {
-      return response.status(503).json({ error: '标准公司库数据表尚未创建。请先在 Supabase 执行 standard_company_catalog 迁移。' });
+      return json(request, { error: '标准公司库数据表尚未创建。请先在 Supabase 执行 standard_company_catalog 迁移。' }, 503);
     }
     console.error('[standard-companies-import] failed', error);
-    return response.status(503).json({ error: '标准公司库暂时无法更新，请稍后重试。' });
+    return json(request, { error: '标准公司库暂时无法更新，请稍后重试。' }, 503);
   }
 }
