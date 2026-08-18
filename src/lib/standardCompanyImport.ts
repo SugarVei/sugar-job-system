@@ -73,8 +73,9 @@ const HEADER_ALIASES: Record<CatalogColumnKind, Array<{ match: RegExp; weight: n
 };
 
 const SKIPPED_HEADER = /备注|内推|推荐人|是否开招|开招状态|截止日期|截止时间|状态说明|note|comment|referral|status/iu;
-const YEAR_HEADER = /届别|毕业届|招聘对象|面向届|毕业年份|目标届|毕业年|^届$/u;
+const YEAR_HEADER = /届次|届别|毕业届|招聘对象|面向届|毕业年份|目标届|毕业年|^届$/u;
 const CAMPUS_YEAR_SKIP_REASON = '非27届';
+const WATERMARK = /婉清学姐冲冲冲的店唯一正版/gu;
 
 function stripControlChars(value: string) {
   let cleaned = '';
@@ -140,32 +141,46 @@ export function groupFromSheetName(name: string) {
 }
 
 function addCampusYear(years: Set<number>, value: number) {
-  if (value >= 2023 && value <= 2027) years.add(value);
+  if (value >= 2023 && value <= 2030) years.add(value);
+}
+
+export function hasUnlimitedCampusYear(value: unknown) {
+  return /不限届/u.test(sanitizePlainText(value, 200));
 }
 
 export function extractCampusYears(value: unknown, looseNumeric = false) {
-  const text = sanitizePlainText(value, 200);
+  const text = sanitizePlainText(value, 800);
   const years = new Set<number>();
   if (!text) return years;
 
-  for (const match of text.matchAll(/20(2[3-7])\s*届/gu)) addCampusYear(years, 2000 + Number(match[1]));
-  for (const match of text.matchAll(/(?<!\d)(2[3-7])\s*届/gu)) addCampusYear(years, 2000 + Number(match[1]));
-  for (const match of text.matchAll(/面向\s*20?(2[3-7])/gu)) addCampusYear(years, 2000 + Number(match[1]));
-  for (const match of text.matchAll(/20(2[3-7])\s*年(?:毕业|校招|秋招|春招|实习)/gu)) addCampusYear(years, 2000 + Number(match[1]));
-  for (const match of text.matchAll(/20(2[3-7])\s*(?:秋招|春招|校招|实习)/gu)) addCampusYear(years, 2000 + Number(match[1]));
-  for (const match of text.matchAll(/(?<!\d)(2[3-7])\s*(?:秋招|春招|校招|实习)/gu)) addCampusYear(years, 2000 + Number(match[1]));
-  for (const match of text.matchAll(/(?:20)?(2[3-7])\s*[/、,，~～\-到至]\s*(?:20)?(2[3-7])\s*(?:届|秋招|春招|校招|实习)/gu)) {
+  for (const match of text.matchAll(/20(2[3-9])(?=\s*(?:届|[,，、]|$))/gu)) addCampusYear(years, 2000 + Number(match[1]));
+  for (const match of text.matchAll(/(?<!\d)(2[3-9])(?=\s*(?:届|[,，、]|$))/gu)) addCampusYear(years, 2000 + Number(match[1]));
+  for (const match of text.matchAll(/面向\s*20?(2[3-9])/gu)) addCampusYear(years, 2000 + Number(match[1]));
+  for (const match of text.matchAll(/20(2[3-9])\s*年(?:毕业|校招|秋招|春招|实习)/gu)) addCampusYear(years, 2000 + Number(match[1]));
+  for (const match of text.matchAll(/20(2[3-9])\s*(?:秋招|春招|校招|实习)/gu)) addCampusYear(years, 2000 + Number(match[1]));
+  for (const match of text.matchAll(/(?<!\d)(2[3-9])\s*(?:秋招|春招|校招|实习)/gu)) addCampusYear(years, 2000 + Number(match[1]));
+  for (const match of text.matchAll(/(?:20)?(2[3-9])\s*(?:[/、,，~～\-到至和与]|及)\s*(?:20)?(2[3-9])\s*(?:届|秋招|春招|校招|实习)/gu)) {
     addCampusYear(years, 2000 + Number(match[1]));
     addCampusYear(years, 2000 + Number(match[2]));
   }
 
   if (looseNumeric) {
     const compact = text.replace(/\s+/gu, '');
-    if (/^20(2[3-7])$/.test(compact)) addCampusYear(years, Number(compact));
-    if (/^2[3-7]$/.test(compact)) addCampusYear(years, 2000 + Number(compact));
+    if (/^20(2[3-9])$/.test(compact)) addCampusYear(years, Number(compact));
+    if (/^2[3-9]$/.test(compact)) addCampusYear(years, 2000 + Number(compact));
   }
 
   return years;
+}
+
+function collectYearInfo(texts: unknown[], looseNumeric = false) {
+  const years = new Set<number>();
+  let unlimited = false;
+  texts.forEach((text) => {
+    if (hasUnlimitedCampusYear(text)) unlimited = true;
+    extractCampusYears(text, looseNumeric).forEach((year) => years.add(year));
+  });
+  return { years, unlimited };
 }
 
 export function yearColumnIndexes(headers: unknown[]) {
@@ -175,21 +190,61 @@ export function yearColumnIndexes(headers: unknown[]) {
     .map((item) => item.index);
 }
 
-export function campusYearDecision(texts: unknown[], looseNumericTexts: unknown[] = []) {
-  const years = new Set<number>();
-  texts.forEach((text) => extractCampusYears(text).forEach((year) => years.add(year)));
-  looseNumericTexts.forEach((text) => extractCampusYears(text, true).forEach((year) => years.add(year)));
-  if (years.size === 0 || years.has(TARGET_CAMPUS_YEAR)) return { keep: true as const, years };
-  return {
-    keep: false as const,
-    years,
-    reason: `${CAMPUS_YEAR_SKIP_REASON}（${[...years].sort().join('、')}）`,
-  };
+export function detectAltUrlColumn(headers: unknown[], primaryIndex?: number) {
+  let best = -1;
+  headers.forEach((header, index) => {
+    if (index === primaryIndex) return;
+    if (/公告链接|原文链接|微信推文|公告地址|招聘公告/u.test(normalizeHeader(header))) best = index;
+  });
+  return best >= 0 ? best : null;
 }
 
-function campusYearSkipReason(texts: unknown[], looseNumericTexts: unknown[] = []) {
-  const decision = campusYearDecision(texts, looseNumericTexts);
+export function campusYearDecision(rowTexts: unknown[], looseNumericTexts: unknown[] = [], sheetName = '') {
+  const row = collectYearInfo(rowTexts);
+  const loose = collectYearInfo(looseNumericTexts, true);
+  const years = new Set<number>([...row.years, ...loose.years]);
+  const unlimited = row.unlimited || loose.unlimited;
+  if (unlimited || years.has(TARGET_CAMPUS_YEAR)) return { keep: true as const, years };
+  if (years.size > 0) {
+    return { keep: false as const, years, reason: `${CAMPUS_YEAR_SKIP_REASON}（${[...years].sort().join('、')}）` };
+  }
+
+  const sheet = collectYearInfo([sheetName]);
+  if (sheet.unlimited || sheet.years.size === 0) return { keep: true as const, years: sheet.years };
+  if (sheet.years.has(TARGET_CAMPUS_YEAR) && sheet.years.size === 1) return { keep: true as const, years: sheet.years };
+  if (!sheet.years.has(TARGET_CAMPUS_YEAR)) {
+    return { keep: false as const, years: sheet.years, reason: `${CAMPUS_YEAR_SKIP_REASON}（${[...sheet.years].sort().join('、')}）` };
+  }
+  return { keep: false as const, years: sheet.years, reason: `${CAMPUS_YEAR_SKIP_REASON}（分表混合届次，行内无27届）` };
+}
+
+function campusYearSkipReason(rowTexts: unknown[], looseNumericTexts: unknown[] = [], sheetName = '') {
+  const decision = campusYearDecision(rowTexts, looseNumericTexts, sheetName);
   return decision.keep ? '' : decision.reason;
+}
+
+export function isCatalogInstructionName(name: string) {
+  return /使用说明|筛选前必看|必看使用说明|^父记录$/u.test(name);
+}
+
+export function isDirectorySheet(name: string, yearIndexes: number[]) {
+  return /名录/u.test(name) && yearIndexes.length === 0;
+}
+
+export function sanitizeIndustry(value: unknown) {
+  return sanitizePlainText(String(value ?? '').replace(WATERMARK, '').replace(/[,，]\s*$/u, ''));
+}
+
+function resolveImportedUrl(url: unknown, altUrl?: unknown) {
+  const primary = sanitizePlainText(url, 500);
+  const fallback = sanitizePlainText(altUrl, 500);
+  if (isHttpUrl(primary)) return { url: primary, ok: true as const };
+  if (isHttpUrl(fallback)) return { url: fallback, ok: true as const };
+  const dangerous = /^(?:javascript|data):/iu;
+  if (dangerous.test(primary) || dangerous.test(fallback)) {
+    return { url: primary || fallback, ok: false as const };
+  }
+  return { url: '', ok: true as const };
 }
 
 export function isMissingCompanyColumn(parsed: { companies: IncomingCompany[]; skipped: CatalogDiffRow[] }) {
@@ -219,26 +274,28 @@ export function sanitizeIncomingCompany(input: {
   industry?: unknown;
   city?: unknown;
   url?: unknown;
+  altUrl?: unknown;
   group?: unknown;
   sheet?: string;
 }): { ok: true; company: IncomingCompany } | { ok: false; reason: string; company: IncomingCompany } {
   const name = sanitizePlainText(input.name);
-  const industry = sanitizePlainText(input.industry);
+  const industry = sanitizeIndustry(input.industry);
   const city = sanitizePlainText(input.city);
   const group = sanitizePlainText(input.group);
-  const rawUrl = sanitizePlainText(input.url, 500);
+  const resolved = resolveImportedUrl(input.url, input.altUrl);
   const company: IncomingCompany = {
     name,
     industry,
     city,
-    url: rawUrl,
+    url: resolved.url,
     group,
     sheet: input.sheet || 'Sheet1',
   };
 
   if (!name) return { ok: false, reason: '缺少公司名', company };
   if (/^https?:\/\//iu.test(name)) return { ok: false, reason: '公司名不能是网址', company };
-  if (rawUrl && !isHttpUrl(rawUrl)) return { ok: false, reason: '网址无效', company };
+  if (isCatalogInstructionName(name)) return { ok: false, reason: '说明行', company };
+  if (!resolved.ok) return { ok: false, reason: '网址无效', company };
   return { ok: true, company };
 }
 
@@ -249,7 +306,19 @@ export function parseSheetMatrix(rows: unknown[][], sheet = 'Sheet1') {
   const companies: IncomingCompany[] = [];
   const skipped: CatalogDiffRow[] = [];
   const seen = new Set<string>();
-  const yearIndexes = yearColumnIndexes(rows[header.index] ?? []);
+  const headerRow = rows[header.index] ?? [];
+  const yearIndexes = yearColumnIndexes(headerRow);
+  const altUrlIndex = detectAltUrlColumn(headerRow, header.map.url);
+  if (isDirectorySheet(sheet, yearIndexes)) {
+    return {
+      companies,
+      skipped: [{
+        kind: 'skip' as const,
+        reason: '名录分表',
+        incoming: { name: sanitizePlainText(sheet), industry: '', city: '', url: '', group: '', sheet },
+      }],
+    };
+  }
 
   rows.slice(header.index + 1).forEach((row) => {
     if (!Array.isArray(row) || row.every((cell) => sanitizePlainText(cell) === '')) return;
@@ -258,12 +327,18 @@ export function parseSheetMatrix(rows: unknown[][], sheet = 'Sheet1') {
       industry: header.map.industry == null ? '' : row[header.map.industry],
       city: header.map.city == null ? '' : row[header.map.city],
       url: header.map.url == null ? '' : row[header.map.url],
+      altUrl: altUrlIndex == null ? '' : row[altUrlIndex],
       group: (header.map.group == null ? '' : row[header.map.group]) || groupFromSheetName(sheet),
       sheet,
     });
+    if (!parsed.ok && parsed.reason === '说明行') {
+      skipped.push({ kind: 'skip', reason: parsed.reason, incoming: parsed.company });
+      return;
+    }
     const yearReason = campusYearSkipReason(
-      [sheet, parsed.company.name, parsed.company.industry, parsed.company.city, parsed.company.group, ...row],
+      [parsed.company.name, parsed.company.industry, parsed.company.city, parsed.company.group, ...row],
       yearIndexes.map((index) => row[index]),
+      sheet,
     );
     if (yearReason) {
       skipped.push({ kind: 'skip', reason: yearReason, incoming: parsed.company });

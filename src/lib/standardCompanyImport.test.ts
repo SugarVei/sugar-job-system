@@ -115,10 +115,18 @@ describe('standardCompanyImport', () => {
   it('reads 27届 from mixed labels and ignores bare 2026 dates', () => {
     assert.deepEqual([...extractCampusYears('2026届秋招')].sort(), [2026]);
     assert.deepEqual([...extractCampusYears('26/27届')].sort(), [2026, 2027]);
+    assert.deepEqual([...extractCampusYears('26届和27届')].sort(), [2026, 2027]);
+    assert.deepEqual([...extractCampusYears('26和27届')].sort(), [2026, 2027]);
+    assert.deepEqual([...extractCampusYears('2026, 2027, 2028届')].sort(), [2026, 2027, 2028]);
     assert.deepEqual([...extractCampusYears('2026-09-01')].sort(), []);
+    assert.deepEqual([...extractCampusYears('2026/08/17')].sort(), []);
     assert.equal(campusYearDecision(['2026、2027届']).keep, true);
+    assert.equal(campusYearDecision(['26届和27届']).keep, true);
     assert.equal(campusYearDecision(['26届秋招']).keep, false);
     assert.equal(campusYearDecision(['上海']).keep, true);
+    assert.equal(campusYearDecision(['不限届']).keep, true);
+    assert.equal(campusYearDecision(['2026届'], [], '26、27校招汇总表').keep, false);
+    assert.equal(campusYearDecision([''], [], '26、27校招汇总表').keep, false);
     assert.equal(extractCampusYears('27', true).has(2027), true);
   });
 
@@ -149,6 +157,24 @@ describe('standardCompanyImport', () => {
     assert.equal(parsed.skipped.some((row) => row.incoming.name === '旧公司' && row.reason?.startsWith('非27届')), true);
     assert.equal(parsed.skipped.some((row) => row.incoming.name === '二十六届' && row.reason?.includes('2026')), true);
     assert.equal(parsed.skipped.some((row) => row.incoming.name === '备注里的26届' && row.reason?.includes('2025')), true);
+  });
+
+  it('keeps 27届 from 届次 on a mixed 26/27 sheet and drops email-only urls to notice links', () => {
+    const parsed = parseSheetMatrix([
+      ['更新时间', '公司名称', '行业分类', '工作地点', '届次', '批次', '公告链接', '投递链接'],
+      ['2026/08/17', '（必看）表格使用说明', '', '', '', '', '', ''],
+      ['2026/08/17', '宁波银行', '金融业, 婉清学姐冲冲冲的店唯一正版', '宁波', '2027届', '秋招专场', 'https://mp.weixin.qq.com/s/keep', 'https://zhaopin.nbcb.com.cn/#/campus'],
+      ['2026/08/17', '旧公司', '能源/化工', '上海', '2026届', '秋招专场', 'https://mp.weixin.qq.com/s/old', 'https://old.example.com'],
+      ['2026/08/17', '跨届公司', '互联网', '北京', '26届和27届', '秋招专场', 'https://mp.weixin.qq.com/s/both', 'https://both.example.com'],
+      ['2026/08/17', '邮箱公司', '咨询', '北京', '2027届', '秋招专场', 'https://mp.weixin.qq.com/s/mail', '邮箱：hr@example.com'],
+      ['2026/08/17', '不限届公司', '其他', '深圳', '不限届', '秋招专场', 'https://mp.weixin.qq.com/s/any', 'https://any.example.com'],
+    ], '📁26、27校招汇总表');
+
+    assert.deepEqual(new Set(parsed.companies.map((company) => company.name)), new Set(['宁波银行', '跨届公司', '邮箱公司', '不限届公司']));
+    assert.equal(parsed.companies.find((company) => company.name === '宁波银行')?.industry, '金融业');
+    assert.equal(parsed.companies.find((company) => company.name === '邮箱公司')?.url, 'https://mp.weixin.qq.com/s/mail');
+    assert.equal(parsed.skipped.some((row) => row.incoming.name === '旧公司' && row.reason?.startsWith('非27届')), true);
+    assert.equal(parsed.skipped.some((row) => row.incoming.name === '（必看）表格使用说明' && row.reason === '说明行'), true);
   });
 
   it('does not treat an all-26届 workbook as a missing company column', () => {
