@@ -300,18 +300,21 @@ export default function AppLayout({ children }: { children: ReactNode }) {
                 {greet.title}
               </h1>
               <p style={{ fontSize: 14, color: '#8a8478', margin: '5px 0 0' }}>{greet.sub}</p>
-              <p style={{ fontSize: 11.5, color: '#9a9488', margin: '4px 0 0', lineHeight: 1.45 }}>
-                如有兴趣改进，可以访问{' '}
-                <a
-                  href="https://github.com/SugarVei/sugar-job-system"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  style={{ color: '#6f6659', fontWeight: 700, textDecoration: 'underline', textUnderlineOffset: 2 }}
-                >
-                  GitHub 项目地址
-                </a>
-                ，记得给个 Star 哦 ⭐
-              </p>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 16, flexWrap: 'wrap', marginTop: 4 }}>
+                <p style={{ fontSize: 11.5, color: '#9a9488', margin: 0, lineHeight: 1.45 }}>
+                  如有兴趣改进，可以访问{' '}
+                  <a
+                    href="https://github.com/SugarVei/sugar-job-system"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    style={{ color: '#6f6659', fontWeight: 700, textDecoration: 'underline', textUnderlineOffset: 2 }}
+                  >
+                    GitHub 项目地址
+                  </a>
+                  ，记得给个 Star 哦 ⭐
+                </p>
+                {headerChrome?.inlineContent}
+              </div>
             </div>
             <div className="flex items-center gap-3 flex-none w-full sm:w-auto">
               {/* 主题切换仅桌面顶栏显示（移动端在顶部条） */}
@@ -353,7 +356,7 @@ export default function AppLayout({ children }: { children: ReactNode }) {
           {/* 内容区（可滚动） */}
           <div
             className="scrolly px-4 lg:px-[34px] pb-24 lg:pb-[34px]"
-            style={{ flex: 1, minHeight: 0, overflowY: 'auto', overscrollBehaviorY: 'contain', paddingTop: 8 }}
+            style={{ flex: 1, minHeight: 0, overflowY: headerChrome?.contentScroll === false ? 'hidden' : 'auto', overscrollBehaviorY: 'contain', paddingTop: 8 }}
           >
             {children}
           </div>
