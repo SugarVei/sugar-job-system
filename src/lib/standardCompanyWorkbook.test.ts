@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
-import * as XLSX from 'xlsx-js-style';
+import XLSX from 'xlsx-js-style';
 import { parseCatalogWorkbookBuffer } from './standardCompanyWorkbook.ts';
 
 describe('standardCompanyWorkbook', () => {

@@ -1,11 +1,11 @@
-import * as XLSX from 'xlsx-js-style';
+import XLSX from 'xlsx-js-style';
 import {
   STANDARD_CATALOG_MAX_FILE_BYTES,
   STANDARD_CATALOG_MAX_SHEETS,
   collectIncomingCompanies,
   isMissingCompanyColumn,
   type SheetMatrix,
-} from './standardCompanyImport';
+} from './standardCompanyImport.ts';
 
 export function workbookMatricesFromBytes(data: Uint8Array): SheetMatrix[] {
   const workbook = XLSX.read(data, { type: 'array', raw: false, cellStyles: false });
