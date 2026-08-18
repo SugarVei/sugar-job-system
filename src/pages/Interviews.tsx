@@ -257,7 +257,7 @@ function ExperienceShare() {
         </div>
       </aside>
 
-      <article style={{ ...CARD, borderRadius: 20, padding: '34px clamp(22px, 4vw, 42px)', minHeight: 0, height: '100%', overflowY: 'hidden' }}>
+      <article style={{ ...CARD, borderRadius: 20, padding: '34px clamp(22px, 4vw, 42px)', minHeight: 0, height: '100%', overflowY: 'auto', overscrollBehavior: 'contain' }}>
         <div className="flex items-start justify-between gap-4 flex-wrap">
           <div>
             <span style={{ display: 'inline-flex', padding: '7px 11px', borderRadius: 9, background: '#edf5eb', color: '#52705a', fontSize: 12, fontWeight: 700 }}>
