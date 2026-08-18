@@ -3,7 +3,7 @@ import { canManageStandardCatalog } from '../src/lib/standardCatalogAdmin';
 import { catalogUploadErrorMessage } from '../src/lib/standardCompanyImport';
 import { catalogFromImportBody } from './_lib/standard-company-file';
 
-export const config = { runtime: 'nodejs', maxDuration: 30 };
+export const config = { maxDuration: 30 };
 
 type NativeRequest = { method?: string; headers: Record<string, string | string[] | undefined>; body?: unknown };
 type NativeResponse = { status(code: number): NativeResponse; json(body: unknown): void; setHeader(name: string, value: string): void; end(): void };
@@ -98,6 +98,7 @@ function supabaseHeaders(serviceRoleKey: string, extras?: Record<string, string>
 export default async function handler(request: NativeRequest, response: NativeResponse) {
   setCors(request, response);
   if (request.method === 'OPTIONS') return response.status(204).end();
+  if (request.method === 'GET') return response.status(200).json({ ok: true });
   if (request.method !== 'POST') return response.status(405).json({ error: 'Method not allowed' });
 
   try {

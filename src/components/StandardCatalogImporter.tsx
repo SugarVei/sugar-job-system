@@ -45,18 +45,18 @@ function uploadErrorText(error: unknown) {
   return '解析失败';
 }
 
-async function readImportJson<T>(response: Response) {
+async function readImportJson<T>(response: Response, action = '写入') {
   const text = await response.text();
   try {
     return JSON.parse(text) as T;
   } catch {
     if (/FUNCTION_PAYLOAD_TOO_LARGE/i.test(text)) {
-      throw new Error('预览失败：上传内容太大。请只导入 27 届后再试。');
+      throw new Error(`${action}失败：上传内容太大，请稍后重试。`);
     }
     if (/FUNCTION_INVOCATION_FAILED|A server error has occurred/i.test(text)) {
-      throw new Error('预览失败：服务器没有处理完这张表。请稍后重试。');
+      throw new Error(`${action}失败：写入接口没有正常启动，请稍后重试。`);
     }
-    throw new Error('预览失败：服务器没有返回有效结果。请稍后重试。');
+    throw new Error(`${action}失败：服务器没有返回有效结果。请稍后重试。`);
   }
 }
 
@@ -202,7 +202,7 @@ export default function StandardCatalogImporter({
             } : undefined,
           }),
         });
-        const data = await readImportJson<ApplyResponse>(response);
+        const data = await readImportJson<ApplyResponse>(response, '写入');
         if (!response.ok || data.error) throw new Error(data.error || '写入失败');
       }
       if (upserts.length === 0) {
