@@ -1,8 +1,6 @@
 import { useMemo, useState, type CSSProperties, type KeyboardEvent } from 'react';
-import {
-  ALL_HOT_COMPANIES,
-  type HotCompany,
-} from '../data/hotCompanies';
+import { type HotCompany } from '../data/hotCompanies';
+import StandardCatalogImporter from '../components/StandardCatalogImporter';
 import {
   type RecruitmentStatusKey,
 } from '../data/campusRecruitmentAudit20260811';
@@ -72,6 +70,10 @@ export default function HotCompanies() {
     refreshCompanyRecommendations,
     removeRecommendation,
     importedCompanies,
+    standardCompanies,
+    refreshStandardCatalog,
+    standardCatalogUpdatedAt,
+    standardCatalogError,
     allGroups,
     appliedCompanies,
     accountOnlyCompanies,
@@ -92,11 +94,11 @@ export default function HotCompanies() {
 
   const existingNames = useMemo(
     () => new Set([
-      ...ALL_HOT_COMPANIES.map((company) => company.name),
+      ...standardCompanies.map((company) => company.name),
       ...importedCompanies.map((company) => company.name),
       ...savedCompanies.map((company) => company.company_name),
     ]),
-    [importedCompanies, savedCompanies],
+    [importedCompanies, savedCompanies, standardCompanies],
   );
 
   const appliedApplicationCompanyNames = useMemo(
@@ -163,7 +165,7 @@ export default function HotCompanies() {
     return `最新核查 ${new Date(Math.max(...dates)).toLocaleDateString('zh-CN')}`;
   }, [recruitmentOverviewCompanies, recruitmentStatusByCompany]);
 
-  const standardCompanyCount = ALL_HOT_COMPANIES.length;
+  const standardCompanyCount = standardCompanies.length;
   const accountOnlyCompanyCount = accountOnlyCompanies.length;
   const recruitmentOverviewCompanyCount = recruitmentOverviewCompanies.length;
 
@@ -358,7 +360,16 @@ export default function HotCompanies() {
         </div>
       </section>
 
-      <ResumeCompanyFinder standardCompanies={ALL_HOT_COMPANIES} onSaved={refreshCompanyRecommendations} />
+      <StandardCatalogImporter
+        updatedAt={standardCatalogUpdatedAt}
+        catalogError={standardCatalogError}
+        onApplied={async () => {
+          await refreshStandardCatalog();
+          toast.success('标准公司库已更新');
+        }}
+      />
+
+      <ResumeCompanyFinder standardCompanies={standardCompanies} onSaved={refreshCompanyRecommendations} />
 
       <section style={{ ...CARD, padding: 18, borderRadius: 22 }}>
         <div className="flex items-start justify-between gap-4 flex-wrap">

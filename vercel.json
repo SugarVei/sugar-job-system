@@ -24,6 +24,10 @@
     "api/resume-company-upload.ts": {
       "maxDuration": 30,
       "memory": 1024
+    },
+    "api/standard-companies-import.ts": {
+      "maxDuration": 30,
+      "memory": 1024
     }
   },
   "crons": [
