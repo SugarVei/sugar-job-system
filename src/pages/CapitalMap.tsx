@@ -168,7 +168,7 @@ export default function CapitalMap() {
               ))}
             </div>
             <span className="capital-map-count">
-              {mappedCount} {mode === 'companies' ? '家可落图' : '家当地龙头'}
+              {mappedCount} {mode === 'companies' ? '家可落图 · 与标准公司库同步' : '家当地龙头'}
             </span>
           </div>
 

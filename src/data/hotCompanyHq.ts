@@ -37,15 +37,18 @@ const COMPANY_HQ_CITY: Record<string, string> = {
 
 export function resolvePrefectureName(value: string): string | null {
   const trimmed = value.trim();
-  if (!trimmed) return null;
-  if (COUNTY_TO_PREFECTURE[trimmed]) return COUNTY_TO_PREFECTURE[trimmed];
-  if (PREFECTURE_BY_NAME[trimmed]) return trimmed;
+  if (!trimmed || /^(?:全国|中国|各地|不限)$/u.test(trimmed)) return null;
+  const tokens = [trimmed, trimmed.replace(/(?:特别行政区|自治区|市|省)$/u, '')].filter(Boolean);
+  for (const token of tokens) {
+    if (COUNTY_TO_PREFECTURE[token]) return COUNTY_TO_PREFECTURE[token];
+    if (PREFECTURE_BY_NAME[token]) return token;
+  }
   return null;
 }
 
 function cityFromValue(value: string): string | null {
   return value
-    .split(/[·、/]/u)
+    .split(/[·、/,，;；|\s]+/u)
     .map((part) => resolvePrefectureName(part.trim()))
     .find((part): part is string => Boolean(part)) ?? null;
 }

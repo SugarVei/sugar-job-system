@@ -16,6 +16,7 @@ import { IconExternalLink, IconSearch, IconTrash } from '../components/icons';
 import ResumeCompanyFinder from '../components/ResumeCompanyFinder';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
+import { canManageStandardCatalog } from '../lib/standardCatalogAdmin';
 import {
   AI_GROUP_NAME,
   ALL_GROUP_NAME,
@@ -360,14 +361,16 @@ export default function HotCompanies() {
         </div>
       </section>
 
-      <StandardCatalogImporter
-        updatedAt={standardCatalogUpdatedAt}
-        catalogError={standardCatalogError}
-        onApplied={async () => {
-          await refreshStandardCatalog();
-          toast.success('标准公司库已更新');
-        }}
-      />
+      {canManageStandardCatalog(user?.email) && (
+        <StandardCatalogImporter
+          updatedAt={standardCatalogUpdatedAt}
+          catalogError={standardCatalogError}
+          onApplied={async () => {
+            await refreshStandardCatalog();
+            toast.success('标准公司库已更新，热门公司和地图校招会一起刷新');
+          }}
+        />
+      )}
 
       <ResumeCompanyFinder standardCompanies={standardCompanies} onSaved={refreshCompanyRecommendations} />
 
