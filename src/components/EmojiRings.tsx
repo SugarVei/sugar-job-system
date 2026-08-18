@@ -58,6 +58,7 @@ export default function EmojiRings() {
       />
       {/* 外圈 */}
       <div
+        className="emoji-ring"
         style={{
           position: 'absolute',
           width: 600,
@@ -70,6 +71,7 @@ export default function EmojiRings() {
         {outer.map((e, i) => (
           <div key={i} style={cssToObj(e.pos)}>
             <div
+              className="emoji-ring__item"
               style={{ animation: 'spinrev 82s linear infinite', width: 56, height: 56, filter: 'drop-shadow(0 7px 11px rgba(60,50,35,.14))' }}
               dangerouslySetInnerHTML={{ __html: e.html }}
             />
@@ -78,6 +80,7 @@ export default function EmojiRings() {
       </div>
       {/* 内圈 */}
       <div
+        className="emoji-ring"
         style={{
           position: 'absolute',
           width: 300,
@@ -90,6 +93,7 @@ export default function EmojiRings() {
         {inner.map((e, i) => (
           <div key={i} style={cssToObj(e.pos)}>
             <div
+              className="emoji-ring__item"
               style={{ animation: 'spin 56s linear infinite', width: 60, height: 60, filter: 'drop-shadow(0 7px 11px rgba(60,50,35,.14))' }}
               dangerouslySetInnerHTML={{ __html: e.html }}
             />

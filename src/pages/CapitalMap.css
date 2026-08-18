@@ -89,6 +89,26 @@
   font-size: 13px;
   font-weight: 750;
   cursor: pointer;
+  transition: transform var(--motion-press) var(--ease-out),
+    background-color var(--motion-ui) var(--ease-out), color var(--motion-ui) var(--ease-out);
+}
+
+.capital-map-switch button:active,
+.capital-map-zoom button:active,
+.capital-map-legend button:active,
+.capital-map-chip:active,
+.capital-map-back:active {
+  transform: translateY(1px) scale(0.985);
+}
+
+.capital-map-switch button:focus-visible,
+.capital-map-zoom button:focus-visible,
+.capital-map-legend button:focus-visible,
+.capital-map-chip:focus-visible,
+.capital-map-back:focus-visible,
+.capital-map-link:focus-visible {
+  outline: 2px solid #1b1a17;
+  outline-offset: 2px;
 }
 
 .capital-map-switch button {
@@ -166,6 +186,7 @@
   white-space: nowrap;
   cursor: pointer;
   text-shadow: 0 0 5px #fffdf8, 0 0 8px #fffdf8, 0 1px 0 #fffdf8;
+  transition: transform var(--motion-press) var(--ease-out), color var(--motion-ui) var(--ease-out);
 }
 
 .capital-map-legend button.is-active {
@@ -278,6 +299,19 @@
   display: grid;
   gap: 8px;
   align-content: start;
+  /* 选中城市时只有这块信息区做一次 160ms 的入场，地图容器不动 */
+  animation: capitalPanelSwap var(--motion-ui) var(--ease-out) both;
+}
+
+@keyframes capitalPanelSwap {
+  from {
+    opacity: 0;
+    transform: translateX(6px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
 }
 
 .capital-map-chip {
@@ -293,6 +327,9 @@
   color: #1b1a17;
   cursor: pointer;
   text-align: left;
+  transition: transform var(--motion-press) var(--ease-out),
+    background-color var(--motion-ui) var(--ease-out),
+    border-color var(--motion-ui) var(--ease-out);
 }
 
 .capital-map-chip__meta {
@@ -402,12 +439,19 @@
   font-size: 12.5px;
   font-weight: 700;
   text-decoration: none;
+  transition: transform var(--motion-press) var(--ease-out),
+    background-color var(--motion-ui) var(--ease-out),
+    border-color var(--motion-ui) var(--ease-out), color var(--motion-ui) var(--ease-out);
 }
 
 .capital-map-link:hover {
   border-color: #c9b8a0;
   background: #faf6f0;
   color: #1b1a17;
+}
+
+.capital-map-link:active {
+  transform: translateY(1px) scale(0.985);
 }
 
 .capital-map-unmapped {
@@ -458,5 +502,20 @@
 
   .capital-map-legend button {
     font-size: 11px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .capital-map-panel__list {
+    animation: none;
+  }
+
+  .capital-map-switch button:active,
+  .capital-map-zoom button:active,
+  .capital-map-legend button:active,
+  .capital-map-chip:active,
+  .capital-map-back:active,
+  .capital-map-link:active {
+    transform: none;
   }
 }
