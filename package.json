@@ -8,7 +8,8 @@
     "dev": "vite",
     "build": "tsc -p tsconfig.json --noEmit && vite build",
     "preview": "vite preview",
-    "lint": "eslint ."
+    "lint": "eslint .",
+    "test": "node --experimental-strip-types --test src/lib/standardCompanyImport.test.ts src/lib/standardCompanyCatalog.test.ts"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.45.4",

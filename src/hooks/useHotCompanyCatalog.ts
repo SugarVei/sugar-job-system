@@ -1,9 +1,11 @@
 import { useMemo } from 'react';
-import { ALL_HOT_COMPANIES, FEATURED_COMPANY_GROUPS, HOT_COMPANY_GROUPS, type HotCompany, type HotCompanyGroup } from '../data/hotCompanies';
+import { FEATURED_COMPANY_GROUPS, HOT_COMPANY_GROUPS, type HotCompany, type HotCompanyGroup } from '../data/hotCompanies';
+import { mergeStandardCatalog } from '../lib/standardCompanyCatalog';
 import { applicationCompanyMatchesHotCompany, normalizeCompanyName } from '../lib/companyName';
 import type { Application, Company } from '../types';
 import { useCollection } from './useCollection';
 import { useCompanyRecommendations } from './useCompanyRecommendations';
+import { useStandardCompanyOverlay } from './useStandardCompanyOverlay';
 
 export const ALL_GROUP_NAME = '全部';
 export const APPLIED_GROUP_NAME = '已投递';
@@ -13,6 +15,11 @@ export function useHotCompanyCatalog() {
   const companies = useCollection<Company>('companies');
   const applications = useCollection<Application>('applications');
   const recommendations = useCompanyRecommendations();
+  const overlay = useStandardCompanyOverlay();
+  const standardCatalog = useMemo(
+    () => mergeStandardCatalog([...FEATURED_COMPANY_GROUPS, ...HOT_COMPANY_GROUPS], overlay.items),
+    [overlay.items],
+  );
 
   const importedCompanies = useMemo(() => Array.from(
     new Map(
@@ -31,12 +38,12 @@ export function useHotCompanyCatalog() {
     const importedGroup = importedCompanies.length > 0
       ? [{ name: AI_GROUP_NAME, dot: '#a08cb5', companies: importedCompanies }]
       : [];
-    return [...FEATURED_COMPANY_GROUPS, ...HOT_COMPANY_GROUPS, ...importedGroup];
-  }, [importedCompanies]);
+    return [...standardCatalog.groups, ...importedGroup];
+  }, [importedCompanies, standardCatalog.groups]);
 
   const standardCompanyKeys = useMemo(
-    () => new Set(ALL_HOT_COMPANIES.map((company) => normalizeCompanyName(company.name))),
-    [],
+    () => new Set(standardCatalog.companies.map((company) => normalizeCompanyName(company.name))),
+    [standardCatalog.companies],
   );
 
   const accountOnlyCompanies = useMemo<HotCompany[]>(
@@ -45,8 +52,8 @@ export function useHotCompanyCatalog() {
   );
 
   const recruitmentOverviewCompanies = useMemo<HotCompany[]>(
-    () => [...ALL_HOT_COMPANIES, ...accountOnlyCompanies],
-    [accountOnlyCompanies],
+    () => [...standardCatalog.companies, ...accountOnlyCompanies],
+    [accountOnlyCompanies, standardCatalog.companies],
   );
 
   const appliedCompanies = useMemo<HotCompany[]>(() => {
@@ -83,6 +90,10 @@ export function useHotCompanyCatalog() {
     refreshCompanyRecommendations: recommendations.refresh,
     removeRecommendation: recommendations.remove,
     importedCompanies,
+    standardCompanies: standardCatalog.companies,
+    refreshStandardCatalog: overlay.refresh,
+    standardCatalogUpdatedAt: overlay.latestUpdatedAt,
+    standardCatalogError: overlay.error,
     allGroups,
     appliedCompanies,
     accountOnlyCompanies,
