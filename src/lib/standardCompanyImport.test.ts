@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
-import { collectIncomingCompanies, diffCatalog, findHeaderRow, normalizeImportedCompanies, parseSheetMatrix, sanitizeIncomingCompany } from './standardCompanyImport.ts';
+import { attachClientSkipped, campusYearDecision, collectIncomingCompanies, diffCatalog, extractCampusYears, findHeaderRow, isMissingCompanyColumn, normalizeImportedCompanies, parseSheetMatrix, sanitizeIncomingCompany } from './standardCompanyImport.ts';
 
 describe('standardCompanyImport', () => {
   it('finds the Feishu-style header row under a title', () => {
@@ -110,5 +110,60 @@ describe('standardCompanyImport', () => {
     assert.equal(parsed.companies.length, 1);
     assert.equal(parsed.companies[0].group, '秋招');
     assert.equal(parsed.skipped[0]?.reason, '网址无效');
+  });
+
+  it('reads 27届 from mixed labels and ignores bare 2026 dates', () => {
+    assert.deepEqual([...extractCampusYears('2026届秋招')].sort(), [2026]);
+    assert.deepEqual([...extractCampusYears('26/27届')].sort(), [2026, 2027]);
+    assert.deepEqual([...extractCampusYears('2026-09-01')].sort(), []);
+    assert.equal(campusYearDecision(['2026、2027届']).keep, true);
+    assert.equal(campusYearDecision(['26届秋招']).keep, false);
+    assert.equal(campusYearDecision(['上海']).keep, true);
+    assert.equal(extractCampusYears('27', true).has(2027), true);
+  });
+
+  it('keeps only 27届 rows and 27届 sheets', () => {
+    const parsed = collectIncomingCompanies([
+      {
+        name: '26届秋招',
+        rows: [
+          ['单位名称', '网申入口'],
+          ['旧公司', 'https://old.example.com'],
+        ],
+      },
+      {
+        name: '秋招',
+        rows: [
+          ['单位名称', '届别', '网申入口', '备注'],
+          ['只要27届', '27', 'https://keep.example.com', ''],
+          ['只要2027届', '2027届', 'https://keep2.example.com', ''],
+          ['跨届公司', '26/27届', 'https://both.example.com', ''],
+          ['二十六届', '26届', 'https://drop.example.com', ''],
+          ['备注里的26届', '', 'https://note.example.com', '2025届春招'],
+          ['没有届别', '', 'https://current.example.com', '上海'],
+        ],
+      },
+    ]);
+
+    assert.deepEqual(parsed.companies.map((company) => company.name).sort(), ['只要2027届', '只要27届', '没有届别', '跨届公司']);
+    assert.equal(parsed.skipped.some((row) => row.incoming.name === '旧公司' && row.reason?.startsWith('非27届')), true);
+    assert.equal(parsed.skipped.some((row) => row.incoming.name === '二十六届' && row.reason?.includes('2026')), true);
+    assert.equal(parsed.skipped.some((row) => row.incoming.name === '备注里的26届' && row.reason?.includes('2025')), true);
+  });
+
+  it('does not treat an all-26届 workbook as a missing company column', () => {
+    const parsed = parseSheetMatrix([
+      ['单位名称', '届别'],
+      ['旧公司', '2026届'],
+    ], '26届');
+    assert.equal(parsed.companies.length, 0);
+    assert.equal(isMissingCompanyColumn(parsed), false);
+
+    const attached = attachClientSkipped(
+      { companies: [], skipped: [], sheets: ['26届'] },
+      parsed.skipped,
+    );
+    assert.equal(isMissingCompanyColumn(attached), false);
+    assert.equal(attached.skipped[0]?.reason?.startsWith('非27届'), true);
   });
 });
