@@ -41,6 +41,21 @@ function uploadErrorText(error: unknown) {
   return '解析失败';
 }
 
+async function readImportJson<T>(response: Response) {
+  const text = await response.text();
+  try {
+    return JSON.parse(text) as T;
+  } catch {
+    if (/FUNCTION_PAYLOAD_TOO_LARGE/i.test(text)) {
+      throw new Error('预览失败：上传内容太大。请只导入 27 届后再试。');
+    }
+    if (/FUNCTION_INVOCATION_FAILED|A server error has occurred/i.test(text)) {
+      throw new Error('预览失败：服务器没有处理完这张表。请稍后重试。');
+    }
+    throw new Error('预览失败：服务器没有返回有效结果。请稍后重试。');
+  }
+}
+
 async function importHeaders() {
   const headers = new Headers({ 'Content-Type': 'application/json' });
   if (isSupabaseConfigured) {
@@ -130,13 +145,20 @@ export default function StandardCatalogImporter({
         body: JSON.stringify({
           action: 'preview',
           file_name: file.name,
+          client_parsed: true,
           companies: nextCompanies.companies,
-          skipped: nextCompanies.skipped,
         }),
       });
-      const data = await response.json() as PreviewResponse;
+      const data = await readImportJson<PreviewResponse>(response);
       if (!response.ok || data.error) throw new Error(data.error || '预览失败');
-      setPreview(data);
+      setPreview({
+        ...data,
+        summary: {
+          ...data.summary,
+          skipped: (data.summary?.skipped ?? 0) + nextCompanies.skipped.length,
+        },
+        skipped: [...nextCompanies.skipped, ...(data.skipped ?? [])].slice(0, 40),
+      });
     } catch (caught) {
       setError(uploadErrorText(caught));
     } finally {
@@ -156,11 +178,11 @@ export default function StandardCatalogImporter({
         body: JSON.stringify({
           action: 'apply',
           file_name: file.name,
+          client_parsed: true,
           companies: nextCompanies.companies,
-          skipped: nextCompanies.skipped,
         }),
       });
-      const data = await response.json() as ApplyResponse;
+      const data = await readImportJson<ApplyResponse>(response);
       if (!response.ok || data.error) throw new Error(data.error || '写入失败');
       setPreview(null);
       setFile(null);
@@ -184,7 +206,7 @@ export default function StandardCatalogImporter({
         <div>
           <h2 style={{ margin: 0, fontSize: 16, fontWeight: 750, color: '#1b1a17' }}>用 Excel 更新标准公司库</h2>
           <p style={{ margin: '5px 0 0', fontSize: 12.5, color: '#8a8478', lineHeight: 1.55 }}>
-            上传后会自动丢掉 23–26 届，只导入 27 届招聘信息。不会删除底库或表里没出现的公司。写入后热门公司和地图校招「全部企业」会一起更新。只有管理员看得到这个入口。
+            行里只要写了 27 届就会保留，包括「26届和27届」。只写 23–26 届的会丢掉。不会删除底库或表里没出现的公司。写入后热门公司和地图校招「全部企业」会一起更新。
           </p>
         </div>
         <span style={{ fontSize: 12, color: '#9a9488' }}>{latestLabel}</span>
@@ -253,7 +275,7 @@ export default function StandardCatalogImporter({
       )}
 
       <div className="flex items-center justify-between gap-3 flex-wrap" style={{ marginTop: 15 }}>
-        <span style={{ fontSize: 11.5, color: '#9a9488' }}>23–26 届会在预览里显示为跳过；只新增或补全 27 届公司的官网和分组。</span>
+        <span style={{ fontSize: 11.5, color: '#9a9488' }}>说明里出现 27 届就保留；只有 23–26 届的会在预览里显示为跳过。</span>
         <button
           type="button"
           onClick={() => void previewImport()}
