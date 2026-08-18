@@ -391,7 +391,7 @@ export default function Mailbox() {
   };
 
   return (
-    <div className="flex flex-col gap-[12px] animate-rise">
+    <div className="flex flex-col gap-[12px]">
       {db.error && <FormError message={db.error} />}
 
       <section style={{ ...CARD, padding: '14px 18px', borderRadius: 18 }}>

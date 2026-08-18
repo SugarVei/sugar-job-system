@@ -3,6 +3,21 @@
 @tailwind utilities;
 
 /* ============================================================
+   动效令牌 —— 全站统一的时长与曲线
+   只描述“怎么动”，不含任何颜色、尺寸、间距信息。
+   ============================================================ */
+:root {
+  --motion-press: 120ms;
+  --motion-ui: 160ms;
+  --motion-card: 170ms;
+  --motion-page: 180ms;
+  --motion-panel: 220ms;
+  --motion-exit: 130ms;
+  --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
+  --ease-in-out: cubic-bezier(0.77, 0, 0.175, 1);
+}
+
+/* ============================================================
    全局基础样式（移植自原设计稿）
    ============================================================ */
 * {
@@ -40,14 +55,16 @@ select {
 /* ============================================================
    关键帧动画
    ============================================================ */
-@keyframes rise {
+/* 页面级切换：只在页面内容容器上跑一次，不做逐卡瀑布 */
+@keyframes pageEnter {
   from {
     opacity: 0;
-    transform: translateY(14px);
+    transform: translateY(6px);
   }
   to {
     opacity: 1;
-    transform: translateY(0);
+    /* 收尾必须回到 none，避免残留 transform 成为 fixed 定位的包含块 */
+    transform: none;
   }
 }
 @keyframes spin {
@@ -115,19 +132,66 @@ select {
     opacity: 1;
   }
 }
+@keyframes fadeOut {
+  from {
+    opacity: 1;
+  }
+  to {
+    opacity: 0;
+  }
+}
 @keyframes popIn {
   from {
     opacity: 0;
-    transform: translateY(16px) scale(0.98);
+    transform: translateY(8px) scale(0.985);
   }
   to {
     opacity: 1;
-    transform: translateY(0) scale(1);
+    transform: none;
+  }
+}
+@keyframes popOut {
+  from {
+    opacity: 1;
+    transform: none;
+  }
+  to {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+}
+@keyframes toastIn {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+@keyframes toastOut {
+  from {
+    opacity: 1;
+    transform: none;
+  }
+  to {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+}
+/* 单卡一次性反馈：只做透明度回落，不改颜色也不改布局 */
+@keyframes cardSettle {
+  from {
+    opacity: 0.66;
+  }
+  to {
+    opacity: 1;
   }
 }
 
-.animate-rise {
-  animation: rise 0.5s ease both;
+.page-transition {
+  animation: pageEnter var(--motion-page) var(--ease-out) both;
 }
 
 /* ============================================================
@@ -187,15 +251,18 @@ select {
 /* ============================================================
    交互细节：按钮 / 卡片 / 输入框 hover & focus
    ============================================================ */
+/* 按压：只动 transform / opacity，阴影与尺寸不参与过渡 */
 .btn-press {
-  transition: transform 0.12s ease, box-shadow 0.18s ease, background 0.18s ease,
-    opacity 0.18s ease;
+  transition: transform var(--motion-press) var(--ease-out),
+    background-color var(--motion-ui) var(--ease-out),
+    border-color var(--motion-ui) var(--ease-out), color var(--motion-ui) var(--ease-out),
+    opacity var(--motion-ui) var(--ease-out);
 }
 .btn-press:hover {
   transform: translateY(-1px);
 }
 .btn-press:active {
-  transform: translateY(0);
+  transform: translateY(1px) scale(0.985);
 }
 .btn-press:disabled {
   transform: none;
@@ -203,8 +270,10 @@ select {
   cursor: not-allowed !important;
 }
 
+/* 卡片悬停：阴影直接切到终值，不做插值 */
 .card-hover {
-  transition: transform 0.2s ease, box-shadow 0.2s ease;
+  transition: transform var(--motion-card) var(--ease-out),
+    border-color var(--motion-card) var(--ease-out);
 }
 .card-hover:hover {
   transform: translateY(-3px);
@@ -212,7 +281,8 @@ select {
 }
 
 .field-input {
-  transition: border-color 0.18s ease, box-shadow 0.18s ease, background 0.18s ease;
+  transition: border-color var(--motion-ui) var(--ease-out),
+    background-color var(--motion-ui) var(--ease-out);
 }
 .field-input:focus {
   border-color: #f4c84a !important;
@@ -220,13 +290,77 @@ select {
 }
 
 .nav-item {
-  transition: all 0.18s ease;
+  transition: transform var(--motion-press) var(--ease-out),
+    background-color var(--motion-ui) var(--ease-out), color var(--motion-ui) var(--ease-out),
+    border-color var(--motion-ui) var(--ease-out);
 }
 .nav-item:hover {
   background: rgba(27, 26, 23, 0.06);
 }
 .nav-item--active:hover {
   background: #1b1a17;
+}
+/* 侧边栏只给 1px 的按压位移，transform 不会让侧边栏重排 */
+.nav-item:active {
+  transform: translateY(1px);
+}
+
+/* ============================================================
+   焦点可见状态：动效不替代焦点反馈
+   仅使用既有的墨色，不引入新配色
+   ============================================================ */
+.btn-press:focus-visible,
+.nav-item:focus-visible,
+.swatch:focus-visible,
+.segmented-control > button:focus-visible,
+.kanban-column__card:focus-visible {
+  outline: 2px solid #1b1a17;
+  outline-offset: 2px;
+}
+.swatch:focus:not(:focus-visible) {
+  outline: none;
+}
+
+/* ============================================================
+   模态框 / 抽屉：进入 220ms，退出 130ms
+   backdrop-filter 只保持静态，不参与动画
+   ============================================================ */
+.modal-overlay {
+  animation: fadeIn var(--motion-panel) var(--ease-out) both;
+}
+.modal-overlay.is-closing {
+  animation: fadeOut var(--motion-exit) var(--ease-out) both;
+}
+.modal-panel {
+  animation: popIn var(--motion-panel) var(--ease-out) both;
+}
+.modal-panel.is-closing {
+  animation: popOut var(--motion-exit) var(--ease-out) both;
+}
+
+/* ============================================================
+   Toast：进入 170ms / 退出 120ms，位置与停留时间保持不变
+   ============================================================ */
+.toast-item {
+  animation: toastIn 170ms var(--ease-out) both;
+}
+.toast-item.is-leaving {
+  animation: toastOut 120ms var(--ease-out) both;
+}
+
+/* ============================================================
+   看板：列只切换既有语义状态，卡片拖拽只用 transform/opacity
+   ============================================================ */
+.kanban-column {
+  transition: background-color var(--motion-ui) var(--ease-out),
+    outline-color var(--motion-ui) var(--ease-out);
+}
+.kanban-column__card.is-dragging {
+  opacity: 0.7;
+  transform: rotate(1deg) scale(0.99);
+}
+.card-settle {
+  animation: cardSettle var(--motion-ui) var(--ease-out) both;
 }
 
 /* ============================================================
@@ -247,6 +381,14 @@ select {
   background: #f5f0e7;
   flex: none;
   white-space: nowrap;
+}
+/* 分段控件与筛选保持一致的按压响应 */
+.segmented-control > button {
+  transition: transform var(--motion-press) var(--ease-out),
+    background-color var(--motion-ui) var(--ease-out), color var(--motion-ui) var(--ease-out);
+}
+.segmented-control > button:active {
+  transform: translateY(1px) scale(0.985);
 }
 .toolbar-select {
   flex: 1 1 150px;
@@ -317,7 +459,8 @@ select {
   font-size: 13.5px;
   font-weight: 600;
   white-space: nowrap;
-  transition: background 160ms ease, color 160ms ease, border-color 160ms ease;
+  transition: background-color var(--motion-ui) var(--ease-out),
+    color var(--motion-ui) var(--ease-out), border-color var(--motion-ui) var(--ease-out);
 }
 .save-toast {
   position: fixed;
@@ -334,7 +477,7 @@ select {
   font-size: 13.5px;
   font-weight: 700;
   box-shadow: 0 12px 30px rgba(47, 93, 54, 0.18);
-  animation: popIn 0.24s ease both;
+  animation: popIn var(--motion-panel) var(--ease-out) both;
 }
 .jd-actionbar {
   display: flex;
@@ -415,7 +558,9 @@ select {
   gap: 10px;
   color: #4a463e;
   cursor: pointer;
-  transition: transform .16s ease, background .16s ease, border-color .16s ease;
+  transition: transform var(--motion-ui) var(--ease-out),
+    background-color var(--motion-ui) var(--ease-out),
+    border-color var(--motion-ui) var(--ease-out);
 }
 .ai-record-importer__dropzone:hover,
 .ai-record-importer__dropzone.is-dragging {
@@ -535,6 +680,10 @@ select {
 .swatch:hover {
   transform: scale(1.12);
 }
+/* 与其他控件一致的按压回落 */
+.swatch:active {
+  transform: scale(0.96);
+}
 
 /* 登录卡片：桌面固定高度，移动端自适应 */
 .login-card {
@@ -550,5 +699,43 @@ select {
 @media (max-width: 767px) {
   .scrolly::-webkit-scrollbar {
     width: 0;
+  }
+}
+
+/* ============================================================
+   减弱动效：页面直接切换，去掉悬停位移、背景漂移与循环动画
+   ============================================================ */
+@media (prefers-reduced-motion: reduce) {
+  .page-transition,
+  .modal-overlay,
+  .modal-overlay.is-closing,
+  .modal-panel,
+  .modal-panel.is-closing,
+  .toast-item,
+  .toast-item.is-leaving,
+  .card-settle,
+  .save-toast {
+    animation: none !important;
+  }
+
+  .btn-press:hover,
+  .btn-press:active,
+  .card-hover:hover,
+  .nav-item:active,
+  .swatch:hover,
+  .swatch:active,
+  .segmented-control > button:active,
+  .ai-record-importer__dropzone:hover,
+  .ai-record-importer__dropzone.is-dragging,
+  .kanban-column__card.is-dragging {
+    transform: none;
+  }
+
+  /* 装饰性无限动画整体停掉：流光球、表情环、加载点 */
+  .liquid-blobs > *,
+  .emoji-ring,
+  .emoji-ring__item,
+  .jd-loading-dot {
+    animation: none !important;
   }
 }

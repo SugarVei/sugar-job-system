@@ -1,4 +1,4 @@
-import { createContext, useCallback, useContext, useMemo, useState, type ReactNode } from 'react';
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 
 type ToastKind = 'info' | 'success' | 'error';
 
@@ -6,6 +6,8 @@ interface ToastItem {
   id: number;
   message: string;
   kind: ToastKind;
+  /** 正在播放退出动效，播完才真正移除 */
+  leaving?: boolean;
 }
 
 interface ToastValue {
@@ -17,20 +19,40 @@ interface ToastValue {
 
 const ToastContext = createContext<ToastValue | null>(null);
 
+/** 停留时长与最多可见条数保持原样，只补进入/退出动效 */
+const VISIBLE_MS = 3200;
+const EXIT_MS = 120;
+
 let seq = 0;
 
 export function ToastProvider({ children }: { children: ReactNode }) {
   const [items, setItems] = useState<ToastItem[]>([]);
+  const timers = useRef(new Set<number>());
 
-  const remove = useCallback((id: number) => {
-    setItems((prev) => prev.filter((t) => t.id !== id));
+  useEffect(() => {
+    const pending = timers.current;
+    return () => {
+      pending.forEach((id) => window.clearTimeout(id));
+      pending.clear();
+    };
+  }, []);
+
+  const later = useCallback((fn: () => void, ms: number) => {
+    const timer = window.setTimeout(() => {
+      timers.current.delete(timer);
+      fn();
+    }, ms);
+    timers.current.add(timer);
   }, []);
 
   const push = useCallback((message: string, kind: ToastKind = 'info') => {
     const id = ++seq;
     setItems((prev) => [...prev.slice(-3), { id, message, kind }]);
-    window.setTimeout(() => remove(id), 3200);
-  }, [remove]);
+    later(() => {
+      setItems((prev) => prev.map((t) => (t.id === id ? { ...t, leaving: true } : t)));
+      later(() => setItems((prev) => prev.filter((t) => t.id !== id)), EXIT_MS);
+    }, VISIBLE_MS);
+  }, [later]);
 
   const value = useMemo<ToastValue>(() => ({
     push,
@@ -59,8 +81,9 @@ export function ToastProvider({ children }: { children: ReactNode }) {
         {items.map((item) => (
           <div
             key={item.id}
+            className={`toast-item ${item.leaving ? 'is-leaving' : ''}`.trim()}
             style={{
-              pointerEvents: 'auto',
+              pointerEvents: item.leaving ? 'none' : 'auto',
               padding: '12px 14px',
               borderRadius: 14,
               fontSize: 13.5,

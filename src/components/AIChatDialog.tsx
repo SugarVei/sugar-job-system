@@ -156,7 +156,7 @@ export default function AIChatDialog({
         alignItems: 'center',
         justifyContent: 'center',
         padding: '24px 16px',
-        animation: 'fadeIn .2s ease',
+        animation: 'fadeIn var(--motion-panel) var(--ease-out)',
       }}
     >
       <div
@@ -174,7 +174,7 @@ export default function AIChatDialog({
           display: 'flex',
           flexDirection: 'column',
           overflow: 'hidden',
-          animation: 'popIn .26s ease both',
+          animation: 'popIn var(--motion-panel) var(--ease-out) both',
         }}
       >
         {/* Header */}

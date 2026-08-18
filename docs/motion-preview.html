@@ -1,0 +1,1187 @@
+<!doctype html>
+<html lang="zh-CN" data-mode="after" data-reduce="off">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Sugar 动效预览 · feat/motion-interactions-only</title>
+<!--
+  ============================================================
+  这是一个「只读」的动效预览页，不参与任何构建，不被应用引用。
+  目的：让评审无需跑 dev server 就能亲手点一遍这次的动效改动。
+
+  页面里所有动效 CSS（令牌、关键帧、.btn-press / .card-hover /
+  .nav-item / .page-transition / .modal-* / .toast-* / .kanban-* /
+  .card-settle / 减弱动效兜底）都是从 src/index.css 原样搬过来的，
+  改一处就得同步一处。
+
+  界面骨架（侧边栏、卡片、看板、地图舞台）是为了演示而仿写的静态
+  结构，不是产品源码；配色沿用仓库既有色值，只为看起来是那个产品。
+  ============================================================
+-->
+<style>
+/* ============================================================
+   ↓↓↓ 以下整块与 src/index.css 一致 ↓↓↓
+   动效令牌 —— 全站统一的时长与曲线
+   ============================================================ */
+:root {
+  --motion-press: 120ms;
+  --motion-ui: 160ms;
+  --motion-card: 170ms;
+  --motion-page: 180ms;
+  --motion-panel: 220ms;
+  --motion-exit: 130ms;
+  --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
+  --ease-in-out: cubic-bezier(0.77, 0, 0.175, 1);
+}
+
+/* 页面级切换：只在页面内容容器上跑一次，不做逐卡瀑布 */
+@keyframes pageEnter {
+  from { opacity: 0; transform: translateY(6px); }
+  /* 收尾必须回到 none，避免残留 transform 成为 fixed 定位的包含块 */
+  to { opacity: 1; transform: none; }
+}
+@keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+@keyframes fadeOut { from { opacity: 1; } to { opacity: 0; } }
+@keyframes popIn {
+  from { opacity: 0; transform: translateY(8px) scale(0.985); }
+  to { opacity: 1; transform: none; }
+}
+@keyframes popOut {
+  from { opacity: 1; transform: none; }
+  to { opacity: 0; transform: translateY(4px); }
+}
+@keyframes toastIn {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: none; }
+}
+@keyframes toastOut {
+  from { opacity: 1; transform: none; }
+  to { opacity: 0; transform: translateY(8px); }
+}
+/* 单卡一次性反馈：只做透明度回落，不改颜色也不改布局 */
+@keyframes cardSettle { from { opacity: 0.66; } to { opacity: 1; } }
+
+@keyframes drift1 {
+  0% { transform: translate(0, 0) scale(1); }
+  50% { transform: translate(8vw, 6vh) scale(1.25); }
+  100% { transform: translate(0, 0) scale(1); }
+}
+@keyframes drift2 {
+  0% { transform: translate(0, 0) scale(1.1); }
+  50% { transform: translate(-10vw, -5vh) scale(1.3); }
+  100% { transform: translate(0, 0) scale(1.1); }
+}
+@keyframes drift3 {
+  0% { transform: translate(0, 0) scale(1); }
+  50% { transform: translate(6vw, -8vh) scale(1.2); }
+  100% { transform: translate(0, 0) scale(1); }
+}
+@keyframes drift4 {
+  0% { transform: translate(0, 0) scale(1.15); }
+  50% { transform: translate(-7vw, 7vh) scale(0.95); }
+  100% { transform: translate(0, 0) scale(1.15); }
+}
+
+.page-transition {
+  animation: pageEnter var(--motion-page) var(--ease-out) both;
+}
+
+/* 按压：只动 transform / opacity，阴影与尺寸不参与过渡 */
+.btn-press {
+  transition: transform var(--motion-press) var(--ease-out),
+    background-color var(--motion-ui) var(--ease-out),
+    border-color var(--motion-ui) var(--ease-out), color var(--motion-ui) var(--ease-out),
+    opacity var(--motion-ui) var(--ease-out);
+}
+.btn-press:hover { transform: translateY(-1px); }
+.btn-press:active { transform: translateY(1px) scale(0.985); }
+.btn-press:disabled { transform: none; box-shadow: none; cursor: not-allowed !important; }
+
+/* 卡片悬停：阴影直接切到终值，不做插值 */
+.card-hover {
+  transition: transform var(--motion-card) var(--ease-out),
+    border-color var(--motion-card) var(--ease-out);
+}
+.card-hover:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 14px 32px rgba(60, 50, 35, 0.12);
+}
+
+.nav-item {
+  transition: transform var(--motion-press) var(--ease-out),
+    background-color var(--motion-ui) var(--ease-out), color var(--motion-ui) var(--ease-out),
+    border-color var(--motion-ui) var(--ease-out);
+}
+.nav-item:hover { background: rgba(27, 26, 23, 0.06); }
+.nav-item--active:hover { background: #1b1a17; }
+/* 侧边栏只给 1px 的按压位移，transform 不会让侧边栏重排 */
+.nav-item:active { transform: translateY(1px); }
+
+/* 焦点可见状态：动效不替代焦点反馈，仅使用既有的墨色 */
+.btn-press:focus-visible,
+.nav-item:focus-visible,
+.swatch:focus-visible,
+.segmented-control > button:focus-visible,
+.kanban-column__card:focus-visible {
+  outline: 2px solid #1b1a17;
+  outline-offset: 2px;
+}
+.swatch:focus:not(:focus-visible) { outline: none; }
+
+/* 主题色切换按钮 hover 放大 + 一致的按压回落 */
+.swatch:hover { transform: scale(1.12); }
+.swatch:active { transform: scale(0.96); }
+
+/* 分段控件与筛选保持一致的按压响应 */
+.segmented-control > button {
+  transition: transform var(--motion-press) var(--ease-out),
+    background-color var(--motion-ui) var(--ease-out), color var(--motion-ui) var(--ease-out);
+}
+.segmented-control > button:active { transform: translateY(1px) scale(0.985); }
+
+/* 模态框 / 抽屉：进入 220ms，退出 130ms；backdrop-filter 只静态存在 */
+.modal-overlay { animation: fadeIn var(--motion-panel) var(--ease-out) both; }
+.modal-overlay.is-closing { animation: fadeOut var(--motion-exit) var(--ease-out) both; }
+.modal-panel { animation: popIn var(--motion-panel) var(--ease-out) both; }
+.modal-panel.is-closing { animation: popOut var(--motion-exit) var(--ease-out) both; }
+
+/* Toast：进入 170ms / 退出 120ms，位置与停留时间保持不变 */
+.toast-item { animation: toastIn 170ms var(--ease-out) both; }
+.toast-item.is-leaving { animation: toastOut 120ms var(--ease-out) both; }
+
+/* 看板：列只切换既有语义状态，卡片拖拽只用 transform/opacity */
+.kanban-column {
+  transition: background-color var(--motion-ui) var(--ease-out),
+    outline-color var(--motion-ui) var(--ease-out);
+}
+.kanban-column__card.is-dragging {
+  opacity: 0.7;
+  transform: rotate(1deg) scale(0.99);
+}
+.card-settle { animation: cardSettle var(--motion-ui) var(--ease-out) both; }
+
+/* 地图右侧信息区：选中城市时做一次 160ms 入场，地图容器不动 */
+.capital-map-panel__list {
+  animation: capitalPanelSwap var(--motion-ui) var(--ease-out) both;
+}
+@keyframes capitalPanelSwap {
+  from { opacity: 0; transform: translateX(6px); }
+  to { opacity: 1; transform: none; }
+}
+
+/* ============================================================
+   减弱动效兜底（与 src/index.css 一致）
+   预览页额外提供 html[data-reduce="on"] 手动开关，规则内容相同，
+   方便在不改系统设置的情况下直接对比。
+   ============================================================ */
+@media (prefers-reduced-motion: reduce) {
+  .page-transition, .modal-overlay, .modal-overlay.is-closing,
+  .modal-panel, .modal-panel.is-closing, .toast-item,
+  .toast-item.is-leaving, .card-settle, .capital-map-panel__list,
+  .map-ripple { animation: none !important; }
+  .btn-press:hover, .btn-press:active, .card-hover:hover, .nav-item:active,
+  .swatch:hover, .swatch:active, .segmented-control > button:active,
+  .kanban-column__card.is-dragging { transform: none; }
+  .liquid-blobs > * { animation: none !important; }
+}
+html[data-reduce="on"] .page-transition,
+html[data-reduce="on"] .modal-overlay,
+html[data-reduce="on"] .modal-overlay.is-closing,
+html[data-reduce="on"] .modal-panel,
+html[data-reduce="on"] .modal-panel.is-closing,
+html[data-reduce="on"] .toast-item,
+html[data-reduce="on"] .toast-item.is-leaving,
+html[data-reduce="on"] .card-settle,
+html[data-reduce="on"] .capital-map-panel__list,
+html[data-reduce="on"] .map-ripple { animation: none !important; }
+html[data-reduce="on"] .btn-press:hover,
+html[data-reduce="on"] .btn-press:active,
+html[data-reduce="on"] .card-hover:hover,
+html[data-reduce="on"] .nav-item:active,
+html[data-reduce="on"] .swatch:hover,
+html[data-reduce="on"] .swatch:active,
+html[data-reduce="on"] .segmented-control > button:active,
+html[data-reduce="on"] .kanban-column__card.is-dragging { transform: none; }
+html[data-reduce="on"] .liquid-blobs > * { animation: none !important; }
+
+/* ============================================================
+   ↓↓↓ 「改动前」还原：以下每条都对应 main 上的原始写法 ↓↓↓
+   仅在 data-mode="before" 时生效，用于并排对比。
+   ============================================================ */
+@keyframes rise {
+  from { opacity: 0; transform: translateY(14px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+@keyframes popInOld {
+  from { opacity: 0; transform: translateY(16px) scale(0.98); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+html[data-mode="before"] .page-transition { animation: rise 0.5s ease both; }
+html[data-mode="before"] .btn-press {
+  transition: transform 0.12s ease, box-shadow 0.18s ease, background 0.18s ease, opacity 0.18s ease;
+}
+html[data-mode="before"] .btn-press:active { transform: translateY(0); }
+html[data-mode="before"] .card-hover { transition: transform 0.2s ease, box-shadow 0.2s ease; }
+html[data-mode="before"] .nav-item { transition: all 0.18s ease; }
+html[data-mode="before"] .nav-item:active { transform: none; }
+html[data-mode="before"] .swatch { transition: transform 0.15s, border-color 0.2s; }
+html[data-mode="before"] .swatch:active { transform: scale(1.12); }
+html[data-mode="before"] .segmented-control > button { transition: none; }
+html[data-mode="before"] .segmented-control > button:active { transform: none; }
+html[data-mode="before"] .modal-overlay { animation: fadeIn 0.2s ease; }
+html[data-mode="before"] .modal-panel { animation: popInOld 0.26s ease both; }
+/* 改动前没有退出阶段，关闭即刻卸载 */
+html[data-mode="before"] .modal-overlay.is-closing,
+html[data-mode="before"] .modal-panel.is-closing { animation: none; }
+/* 改动前 Toast 完全没有动效 */
+html[data-mode="before"] .toast-item,
+html[data-mode="before"] .toast-item.is-leaving { animation: none; }
+html[data-mode="before"] .kanban-column { transition: none; }
+html[data-mode="before"] .kanban-column__card.is-dragging { opacity: 0.55; transform: none; }
+html[data-mode="before"] .card-settle { animation: none; }
+html[data-mode="before"] .capital-map-panel__list { animation: none; }
+/* 改动前弹窗面板会再叠一层 backdrop-filter */
+html[data-mode="before"] .modal-panel { backdrop-filter: blur(24px); -webkit-backdrop-filter: blur(24px); }
+
+/* ============================================================
+   ↓↓↓ 以下是预览页自己的骨架样式，不是产品源码 ↓↓↓
+   ============================================================ */
+* { box-sizing: border-box; }
+html, body { margin: 0; padding: 0; height: 100%; }
+body {
+  font-family: system-ui, 'PingFang SC', 'Microsoft YaHei', sans-serif;
+  -webkit-font-smoothing: antialiased;
+  color: #1b1a17;
+  overflow: hidden;
+}
+button, input { font-family: inherit; }
+
+/* 动态背景（复刻 LiquidBackground） */
+.bg { position: fixed; inset: 0; z-index: -1; overflow: hidden; }
+.liquid-blobs { position: absolute; inset: 0; filter: url(#liquidWave); }
+.liquid-blobs > * { position: absolute; border-radius: 50%; }
+.bg__sheen {
+  position: absolute; inset: 0; pointer-events: none;
+  background: radial-gradient(120% 90% at 50% 0%, rgba(255,255,255,0.32), rgba(255,255,255,0) 45%);
+}
+.bg__vig { position: absolute; inset: 0; pointer-events: none; }
+
+/* 顶部控制条 */
+.ctl {
+  position: relative; z-index: 20;
+  display: flex; align-items: center; gap: 14px; flex-wrap: wrap;
+  padding: 10px 16px;
+  background: rgba(27,26,23,0.9);
+  color: #f4f1ea;
+  font-size: 12.5px;
+}
+.ctl b { font-size: 13px; font-weight: 700; letter-spacing: .01em; }
+.ctl__group { display: flex; align-items: center; gap: 7px; }
+.ctl__sep { width: 1px; height: 20px; background: rgba(244,241,234,.22); }
+.seg2 {
+  display: inline-flex; padding: 3px; border-radius: 10px;
+  background: rgba(244,241,234,.12);
+}
+.seg2 button {
+  border: 0; background: transparent; color: rgba(244,241,234,.68);
+  padding: 5px 12px; border-radius: 8px; font-size: 12.5px; font-weight: 700; cursor: pointer;
+  transition: background-color var(--motion-ui) var(--ease-out), color var(--motion-ui) var(--ease-out);
+}
+.seg2 button.on { background: #f4c84a; color: #1b1a17; }
+.lamp { display: inline-flex; align-items: center; gap: 6px; font-variant-numeric: tabular-nums; }
+.lamp i {
+  width: 8px; height: 8px; border-radius: 50%; background: #7cc4a0; flex: none;
+  transition: background-color var(--motion-ui) var(--ease-out);
+}
+.lamp.is-paused i { background: #f0a8bd; }
+.ctl__hint { margin-left: auto; color: rgba(244,241,234,.6); }
+
+/* 应用外壳 */
+.stage { position: absolute; inset: 44px 0 0; padding: 18px; display: flex; }
+.shell {
+  flex: 1; min-width: 0; display: flex; overflow: hidden;
+  border-radius: 28px;
+  background: rgba(250,246,240,0.66);
+  backdrop-filter: blur(34px) saturate(1.15);
+  -webkit-backdrop-filter: blur(34px) saturate(1.15);
+  box-shadow: 0 30px 80px rgba(120,40,70,.18);
+}
+.side {
+  width: 214px; flex: none; display: flex; flex-direction: column;
+  padding: 14px 12px; border-right: 1px solid rgba(120,105,80,.1);
+}
+.brand { display: flex; align-items: center; gap: 9px; padding: 2px 6px 12px; }
+.brand__mark {
+  width: 34px; height: 34px; border-radius: 11px; flex: none;
+  display: flex; align-items: center; justify-content: center;
+  background: #1b1a17; color: #f4c84a; font-weight: 800; font-size: 15px;
+}
+.brand__name { font-weight: 700; font-size: 16px; line-height: 1.1; }
+.brand__sub { font-size: 10.5px; color: #9a9488; margin-top: 2px; }
+.side nav { display: flex; flex-direction: column; gap: 4px; }
+.nav-item {
+  display: flex; align-items: center; gap: 9px;
+  min-height: 34px; padding: 0 11px; width: 100%;
+  border: none; border-radius: 11px; background: transparent;
+  color: #6b665c; font-size: 13.5px; font-weight: 600;
+  text-align: left; cursor: pointer;
+}
+.nav-item--active { background: #1b1a17; color: #f4f1ea; }
+.nav-item span { width: 16px; text-align: center; flex: none; }
+.side__foot { margin-top: auto; padding-top: 12px; border-top: 1px solid rgba(120,105,80,.12); }
+.logout {
+  display: flex; align-items: center; gap: 9px; width: 100%; height: 42px; padding: 0 13px;
+  border: 1px solid #e0d8c9; border-radius: 14px; background: #fffdf8;
+  color: #4a463e; font-size: 13.5px; font-weight: 600; cursor: pointer;
+}
+
+.main { flex: 1; min-width: 0; display: flex; flex-direction: column; overflow: hidden; }
+.topbar {
+  display: flex; align-items: center; justify-content: space-between; gap: 16px;
+  padding: 22px 28px 14px; flex: none; flex-wrap: wrap;
+}
+.topbar h1 { margin: 0; font-size: 27px; font-weight: 600; letter-spacing: -.01em; }
+.topbar p { margin: 5px 0 0; font-size: 13.5px; color: #8a8478; }
+.topbar__right { display: flex; align-items: center; gap: 11px; }
+.swatches {
+  display: flex; align-items: center; gap: 9px; height: 44px; padding: 0 13px;
+  border-radius: 14px; background: rgba(255,253,250,0.62);
+  box-shadow: 0 4px 14px rgba(60,50,35,.05);
+}
+.swatch { width: 22px; height: 22px; border-radius: 50%; padding: 0; cursor: pointer; outline: none; }
+.search {
+  display: flex; align-items: center; gap: 9px; height: 44px; padding: 0 15px;
+  background: #fffdf8; border-radius: 14px; box-shadow: 0 4px 14px rgba(60,50,35,.05);
+  color: #a39d90; font-size: 13.5px;
+}
+.search input { border: 0; background: none; outline: none; width: 148px; font-size: 13.5px; color: #1b1a17; }
+.addbtn {
+  display: flex; align-items: center; gap: 7px; height: 44px; padding: 0 17px;
+  border: none; border-radius: 14px; background: #1b1a17; color: #f4f1ea;
+  font-size: 14px; font-weight: 600; cursor: pointer; flex: none;
+}
+.content { flex: 1; min-height: 0; overflow-y: auto; padding: 6px 28px 28px; }
+
+/* 内容骨架 */
+.card {
+  background: #fffdf8; border: 1px solid #f0ebe0; border-radius: 18px;
+  box-shadow: 0 4px 14px rgba(60,50,35,.05); padding: 18px 20px;
+}
+.stack { display: flex; flex-direction: column; gap: 14px; }
+.toolbar {
+  display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
+  background: #fffdf8; border: 1px solid #f0ebe0; border-radius: 20px; padding: 14px;
+  box-shadow: 0 4px 14px rgba(60,50,35,.05);
+}
+.segmented-control {
+  display: flex; align-items: center; padding: 3px; border-radius: 12px;
+  background: #f5f0e7; border: 1px solid #e4ddcf; flex: none;
+}
+.segmented-control > button {
+  border: none; border-radius: 9px; padding: 7px 13px; background: transparent;
+  color: #8a8478; font-size: 13px; font-weight: 700; cursor: pointer;
+}
+.segmented-control > button.on { background: #fffdf8; color: #1b1a17; box-shadow: 0 2px 7px rgba(60,50,35,.08); }
+.ghostbtn {
+  height: 38px; padding: 0 14px; border: 1px solid #e4ddcf; border-radius: 11px;
+  background: #faf7f0; color: #4a463e; font-size: 13px; font-weight: 600; cursor: pointer;
+}
+.rowtitle { font-size: 17px; font-weight: 700; margin: 0; }
+.muted { color: #8a8478; font-size: 12.5px; }
+.pill { display: inline-block; padding: 4px 10px; border-radius: 999px; font-size: 12px; font-weight: 600; }
+.applycard { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; flex-wrap: wrap; }
+.metaline { display: flex; flex-wrap: wrap; gap: 6px 16px; margin-top: 8px; font-size: 12.5px; color: #8a8478; }
+
+/* 看板 */
+.board { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(210px, 1fr); gap: 12px; overflow-x: auto; padding-bottom: 8px; }
+.kanban-column {
+  background: #f5f0e7; border-radius: 18px; padding: 11px;
+  height: 330px; display: flex; flex-direction: column;
+  outline: 2px dashed transparent; outline-offset: -2px;
+}
+.kanban-column.is-over { background: #ebe4d6; outline-color: #1b1a17; }
+.kanban-column__head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 9px; flex: none; }
+.kanban-column__body { display: flex; flex-direction: column; gap: 8px; overflow-y: auto; flex: 1; min-height: 0; padding-right: 3px; }
+.kanban-column__card {
+  display: block; width: 100%; text-align: left; cursor: grab;
+  background: #fffdf8; border: 1px solid #f0ebe0; border-radius: 14px; padding: 12px;
+  box-shadow: 0 4px 14px rgba(60,50,35,.05);
+}
+.kanban-column__card b { font-size: 13.5px; }
+.kanban-column__card em { display: block; font-style: normal; font-size: 12px; color: #5d584d; margin-top: 3px; }
+.kanban-empty { border: 1px dashed #d8cfbd; border-radius: 13px; padding: 13px; color: #a39d90; font-size: 12.5px; text-align: center; }
+
+/* 地图舞台 */
+.mapwrap { display: flex; gap: 14px; height: 420px; }
+.capital-map-stage {
+  position: relative; flex: 1; min-width: 0; overflow: hidden;
+  border: 1px solid #e0d8c9; border-radius: 22px;
+  background: rgba(255,253,248,0.86); box-shadow: 0 10px 28px rgba(60,50,35,.06);
+}
+.mapgrid { position: absolute; inset: 0; background-image: radial-gradient(#e6ded0 1px, transparent 1px); background-size: 26px 26px; }
+.citydot {
+  position: absolute; transform: translate(-50%, -50%);
+  display: flex; flex-direction: column; align-items: center; gap: 3px;
+  border: 0; background: none; cursor: pointer; padding: 0;
+}
+.citydot i { width: 13px; height: 13px; border-radius: 50%; border: 1px solid #fffdf8; background: #8ca6c7; display: block; }
+.citydot span { font-size: 11px; font-weight: 700; color: #1b1a17; text-shadow: 0 0 4px #fffdf8, 0 0 7px #fffdf8; }
+.citydot.on i { width: 18px; height: 18px; background: #f4c84a; border-width: 3px; box-shadow: 0 0 22px rgba(244,200,74,.6); }
+.map-ripple {
+  position: absolute; left: 50%; top: 50%; width: 18px; height: 18px; margin: -9px 0 0 -9px;
+  border: 2px solid #f4c84a; border-radius: 50%; pointer-events: none;
+  animation: mapRipple 1.1s var(--ease-out) both;
+}
+html[data-mode="before"] .map-ripple { animation: mapRipple 3.2s linear infinite; }
+@keyframes mapRipple {
+  from { transform: scale(1); opacity: .75; }
+  to { transform: scale(3.4); opacity: 0; }
+}
+.capital-map-panel {
+  flex: 0 0 260px; display: flex; flex-direction: column; overflow: hidden;
+  border: 1px solid #e0d8c9; border-radius: 22px; background: #fffdf8;
+  box-shadow: 0 10px 28px rgba(60,50,35,.06);
+}
+.capital-map-panel__head { padding: 15px 15px 11px; border-bottom: 1px solid #efe7d8; }
+.capital-map-panel__head h2 { margin: 0; font-size: 18px; font-weight: 700; }
+.capital-map-panel__head p { margin: 7px 0 0; font-size: 12.5px; color: #8a8478; line-height: 1.5; }
+.capital-map-panel__list { flex: 1; overflow: auto; padding: 11px; display: grid; gap: 8px; align-content: start; }
+.capital-map-chip {
+  display: flex; align-items: center; justify-content: space-between; gap: 10px; width: 100%;
+  padding: 11px; border: 1px solid #e0d8c9; border-radius: 14px; background: #faf6f0;
+  color: #1b1a17; cursor: pointer; text-align: left; font-size: 13px; font-weight: 700;
+  transition: transform var(--motion-press) var(--ease-out),
+    background-color var(--motion-ui) var(--ease-out), border-color var(--motion-ui) var(--ease-out);
+}
+.capital-map-chip:hover { border-color: #d4b48a; background: #f8ead4; }
+.capital-map-chip:active { transform: translateY(1px) scale(0.985); }
+html[data-mode="before"] .capital-map-chip { transition: none; }
+html[data-mode="before"] .capital-map-chip:active { transform: none; }
+.ripplestate { position: absolute; left: 14px; bottom: 14px; font-size: 11.5px; font-weight: 700; color: #6b665c; text-shadow: 0 0 5px #fffdf8, 0 0 8px #fffdf8; }
+.stagenote { position: absolute; left: 14px; top: 12px; font-size: 11px; color: #a39d90; }
+
+/* 弹窗 */
+.modal-overlay {
+  position: fixed; inset: 0; z-index: 100; display: grid; place-items: center; padding: 24px 16px;
+  background: rgba(27,26,23,0.32); backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px);
+}
+.modal-panel {
+  width: 100%; max-width: 520px; max-height: 78vh; display: flex; flex-direction: column; overflow: hidden;
+  background: rgba(255,253,250,0.98); border: 1px solid rgba(255,255,255,0.6);
+  border-radius: 24px; box-shadow: 0 30px 80px rgba(120,40,70,.24);
+}
+.modal-panel__head { display: flex; align-items: center; justify-content: space-between; padding: 20px 24px 12px; }
+.modal-panel__head h2 { margin: 0; font-size: 20px; font-weight: 600; }
+.iconbtn {
+  width: 36px; height: 36px; border-radius: 11px; border: 1px solid #e4ddcf;
+  background: #faf7f0; color: #8a8478; cursor: pointer; font-size: 16px; line-height: 1;
+}
+.modal-panel__body { padding: 8px 24px 20px; overflow-y: auto; flex: 1; min-height: 0; }
+.modal-panel__foot {
+  padding: 14px 24px 20px; border-top: 1px solid #f0ebe0; display: flex; gap: 10px; justify-content: flex-end;
+}
+.field { margin-bottom: 13px; }
+.field label { display: block; font-size: 13px; font-weight: 600; color: #4a463e; margin-bottom: 6px; }
+.field input {
+  width: 100%; min-height: 42px; border: 1px solid #ece4d6; background: #faf7f0;
+  border-radius: 12px; padding: 0 13px; font-size: 14px; outline: none;
+}
+.primarybtn {
+  height: 42px; padding: 0 21px; border: none; border-radius: 12px;
+  background: #1b1a17; color: #f4f1ea; font-size: 14px; font-weight: 600; cursor: pointer;
+}
+
+/* Toast */
+.toasts {
+  position: fixed; right: 16px; bottom: 20px; z-index: 200;
+  display: flex; flex-direction: column; gap: 8px;
+  max-width: min(360px, calc(100vw - 32px)); pointer-events: none;
+}
+.toast-item {
+  pointer-events: auto; padding: 12px 14px; border-radius: 14px;
+  font-size: 13.5px; font-weight: 600; line-height: 1.45; cursor: pointer;
+  box-shadow: 0 12px 28px rgba(60,50,35,.18);
+  background: #dcebd5; color: #2f5d36; border: 1px solid #b4d9ab;
+}
+.toast-item.is-info { background: #fffdf8; color: #1b1a17; border-color: #e4ddcf; }
+
+/* 说明条 */
+.note {
+  border-left: 3px solid #f4c84a; background: rgba(255,253,248,.72);
+  padding: 10px 14px; border-radius: 0 12px 12px 0; font-size: 12.5px; line-height: 1.7; color: #5d584d;
+}
+.note code { background: #f5f0e7; border-radius: 5px; padding: 1px 5px; font-size: 12px; }
+.kbd {
+  display: inline-block; min-width: 20px; padding: 1px 6px; border: 1px solid #d8cfbd;
+  border-bottom-width: 2px; border-radius: 6px; background: #fffdf8; font-size: 11.5px; font-weight: 700;
+}
+</style>
+</head>
+<body>
+
+<div class="bg" id="bg">
+  <svg id="liquidSvg" style="position:absolute;width:0;height:0;pointer-events:none" aria-hidden="true">
+    <filter id="liquidWave" x="-20%" y="-20%" width="140%" height="140%">
+      <feTurbulence type="fractalNoise" baseFrequency="0.006 0.011" numOctaves="2" seed="7" result="noise">
+        <animate attributeName="baseFrequency" dur="18s"
+                 values="0.006 0.011;0.012 0.006;0.008 0.014;0.006 0.011" repeatCount="indefinite" />
+      </feTurbulence>
+      <feDisplacementMap in="SourceGraphic" in2="noise" scale="80" xChannelSelector="R" yChannelSelector="G" />
+    </filter>
+  </svg>
+  <div class="liquid-blobs" id="blobs"></div>
+  <div class="bg__sheen"></div>
+  <div class="bg__vig" id="vig"></div>
+</div>
+
+<header class="ctl">
+  <b>Sugar 动效预览</b>
+
+  <div class="ctl__sep"></div>
+  <div class="ctl__group">
+    <span>对比</span>
+    <div class="seg2" id="modeSeg">
+      <button data-mode="before">改动前</button>
+      <button data-mode="after" class="on">改动后</button>
+    </div>
+  </div>
+
+  <div class="ctl__group">
+    <span>减弱动效</span>
+    <div class="seg2" id="reduceSeg">
+      <button data-reduce="off" class="on">关</button>
+      <button data-reduce="on">开</button>
+    </div>
+  </div>
+
+  <div class="ctl__sep"></div>
+  <div class="lamp" id="bgLamp"><i></i><span>背景：运行中</span></div>
+  <div class="ctl__sep"></div>
+  <div class="lamp"><span>页面入场播放次数：<b id="enterCount">1</b></span></div>
+
+  <span class="ctl__hint">切到「改动前」再做同一个操作，差别最明显</span>
+</header>
+
+<div class="stage">
+  <div class="shell">
+    <aside class="side">
+      <div class="brand">
+        <div class="brand__mark">S</div>
+        <div>
+          <div class="brand__name">Sugar</div>
+          <div class="brand__sub">行动优先 · 求职系统</div>
+        </div>
+      </div>
+      <nav id="nav"></nav>
+      <div class="side__foot">
+        <button class="logout btn-press">↩ 退出登录</button>
+      </div>
+    </aside>
+
+    <main class="main">
+      <div class="topbar">
+        <div>
+          <h1 id="pageTitle">投递记录</h1>
+          <p id="pageSub">记录每次投递，按公司、状态、渠道筛选</p>
+        </div>
+        <div class="topbar__right">
+          <div class="swatches" id="swatches"></div>
+          <div class="search">🔍<input placeholder="搜索公司、岗位…" /></div>
+          <button class="addbtn btn-press" id="openModal">＋ 新增</button>
+        </div>
+      </div>
+      <div class="content" id="content">
+        <div class="page-transition" id="pageHost"></div>
+      </div>
+    </main>
+  </div>
+</div>
+
+<div class="toasts" id="toasts" aria-live="polite"></div>
+
+<script>
+/* ============================================================
+   主题（取自 src/styles/theme.ts，色值一字未改）
+   ============================================================ */
+const THEMES = {
+  pink:  { name:'粉色', base:'radial-gradient(130% 130% at 70% 20%, #f6cdd8 0%, #efbecb 38%, #e7adbe 100%)', vig:'rgba(120,30,60,0.16)', dot:'#f0a8bd', blobs:['184,56,94','217,96,128','142,45,77','240,169,143','239,192,205','196,74,108'] },
+  blue:  { name:'蓝色', base:'radial-gradient(130% 130% at 70% 20%, #d2e4f7 0%, #c0d6ef 38%, #aecbe7 100%)', vig:'rgba(30,70,120,0.16)', dot:'#a9cdee', blobs:['58,124,196','110,160,224','40,86,140','150,190,235','196,216,240','74,124,196'] },
+  green: { name:'绿色', base:'radial-gradient(130% 130% at 70% 20%, #d8edcf 0%, #c8e3bd 38%, #b8d9ad 100%)', vig:'rgba(40,100,55,0.16)', dot:'#b6d8a8', blobs:['90,168,108','123,191,134','45,122,69','169,216,154','196,228,182','108,180,122'] },
+  gray:  { name:'灰色', base:'radial-gradient(130% 130% at 70% 20%, #e6e6ea 0%, #dadade 38%, #cdcdd4 100%)', vig:'rgba(60,60,72,0.16)', dot:'#c6c6cf', blobs:['138,138,148','160,160,170','106,106,116','184,184,194','206,206,214','144,144,154'] },
+  cream: { name:'米白', base:'radial-gradient(130% 130% at 70% 20%, #f5efe5 0%, #ece2d3 38%, #e3d6c4 100%)', vig:'rgba(120,90,55,0.14)', dot:'#ece0cd', blobs:['217,181,143','224,196,160','199,159,120','239,217,191','232,214,192','214,184,150'] },
+};
+const THEME_ORDER = ['pink','blue','green','gray','cream'];
+/* BLOB_GEO 同样取自 src/styles/theme.ts */
+const BLOB_GEO = [
+  { w:60, l:-8, t:30, blur:90, anim:'drift1 18s' },
+  { w:55, l:48, t:-12, blur:90, anim:'drift2 23s' },
+  { w:42, l:60, t:48, blur:95, anim:'drift3 20s' },
+  { w:46, l:18, t:8, blur:85, anim:'drift4 25s' },
+  { w:38, l:-6, t:-10, blur:80, anim:'drift3 27s' },
+  { w:34, l:38, t:55, blur:88, anim:'drift1 21s' },
+];
+
+const $ = (s) => document.querySelector(s);
+const html = document.documentElement;
+const isAfter = () => html.dataset.mode === 'after';
+const isReduced = () => html.dataset.reduce === 'on'
+  || window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+/* ============================================================
+   动效预算：与 src/lib/motionBudget.ts 逻辑一致（含那次修复）
+   ============================================================ */
+const budget = (() => {
+  const listeners = new Set();
+  let holds = 0, pulseUntil = 0, pulseTimer = 0, busy = false;
+  function recompute() {
+    const next = holds > 0 || pulseUntil > performance.now();
+    if (next === busy) return;
+    busy = next;
+    listeners.forEach((fn) => fn(busy));
+  }
+  function checkPulse() {
+    const remaining = pulseUntil - performance.now();
+    if (remaining > 0) { pulseTimer = setTimeout(checkPulse, remaining); return; }
+    pulseTimer = 0; pulseUntil = 0; recompute();
+  }
+  return {
+    pulse(ms = 220) {
+      pulseUntil = performance.now() + ms;
+      if (!pulseTimer) pulseTimer = setTimeout(checkPulse, ms);
+      recompute();
+    },
+    hold() {
+      holds += 1; recompute();
+      let released = false;
+      return () => { if (released) return; released = true; holds = Math.max(0, holds - 1); recompute(); };
+    },
+    subscribe(fn) { listeners.add(fn); return () => listeners.delete(fn); },
+    get busy() { return busy; },
+  };
+})();
+
+/* ---------- 背景 ---------- */
+const blobsHost = $('#blobs');
+BLOB_GEO.forEach((g) => {
+  const el = document.createElement('div');
+  el.style.width = g.w + 'vw';
+  el.style.height = g.w + 'vw';
+  el.style.left = g.l + 'vw';
+  el.style.top = g.t + 'vh';
+  el.style.filter = 'blur(' + g.blur + 'px)';
+  el.style.animation = g.anim + ' ease-in-out infinite';
+  blobsHost.appendChild(el);
+});
+
+function applyTheme(key) {
+  const t = THEMES[key];
+  $('#bg').style.background = t.base;
+  $('#vig').style.boxShadow = 'inset 0 0 240px ' + t.vig;
+  [...blobsHost.children].forEach((el, i) => {
+    el.style.background = 'radial-gradient(circle, rgba(' + t.blobs[i] + ',0.9) 0%, rgba(' + t.blobs[i] + ',0) 65%)';
+  });
+  [...$('#swatches').children].forEach((b) => {
+    const on = b.dataset.key === key;
+    b.style.border = '2px solid ' + (on ? '#1b1a17' : 'rgba(0,0,0,0.08)');
+    b.style.boxShadow = on ? '0 0 0 2px #fffdf8 inset' : 'none';
+  });
+}
+
+THEME_ORDER.forEach((key) => {
+  const b = document.createElement('button');
+  b.className = 'swatch';
+  b.dataset.key = key;
+  b.title = THEMES[key].name;
+  b.setAttribute('aria-label', '切换' + THEMES[key].name + '主题');
+  b.style.background = THEMES[key].dot;
+  /* 与 ThemeSwitcher.tsx 行内过渡一致 */
+  b.style.transition = 'transform var(--motion-press) var(--ease-out), border-color var(--motion-ui) var(--ease-out)';
+  b.onclick = () => applyTheme(key);
+  $('#swatches').appendChild(b);
+});
+
+/* 背景降载：忙碌时暂停液态滤镜与光球漂移，只是停帧，不改外观 */
+const liquidSvg = $('#liquidSvg');
+const lamp = $('#bgLamp');
+function syncBackground(reason) {
+  /* 「改动前」既没有降载也没有减弱动效兜底，背景永远在跑，正是这次优化的对照 */
+  const why = isReduced() ? '减弱动效' : reason;
+  const paused = isAfter() && (budget.busy || isReduced());
+  if (paused) liquidSvg.pauseAnimations(); else liquidSvg.unpauseAnimations();
+  [...blobsHost.children].forEach((el) => { el.style.animationPlayState = paused ? 'paused' : 'running'; });
+  lamp.classList.toggle('is-paused', paused);
+  lamp.querySelector('span').textContent = paused
+    ? ('背景：已暂停' + (why ? '（' + why + '）' : ''))
+    : ('背景：运行中' + (isAfter() ? '' : '（改动前不降载）'));
+}
+budget.subscribe(() => syncBackground(currentReason));
+let currentReason = '';
+const setReason = (r) => { currentReason = r; };
+
+/* 内容区滚动时降载（等价 AppLayout 的 onScroll） */
+$('#content').addEventListener('scroll', () => { setReason('滚动中'); budget.pulse(); });
+
+/* ============================================================
+   页面切换
+   ============================================================ */
+const PAGES = [
+  { key:'applications', icon:'▤', label:'投递记录', title:'投递记录', sub:'记录每次投递，按公司、状态、渠道筛选' },
+  { key:'map',          icon:'◈', label:'地图校招', title:'地图校招', sub:'按总部看全部企业，或切换当地龙头' },
+  { key:'companies',    icon:'▥', label:'公司库',   title:'公司库',   sub:'自动汇总已投递公司，关联岗位与进度' },
+  { key:'resumes',      icon:'▦', label:'简历库',   title:'简历库',   sub:'多版本简历与面试稿件，按账号保存' },
+];
+let screen = 'applications';
+let enterCount = 1;
+
+PAGES.forEach((p) => {
+  const b = document.createElement('button');
+  b.className = 'nav-item' + (p.key === screen ? ' nav-item--active' : '');
+  b.dataset.key = p.key;
+  b.innerHTML = '<span>' + p.icon + '</span>' + p.label;
+  b.onclick = () => goto(p.key);
+  $('#nav').appendChild(b);
+});
+
+function goto(key) {
+  /* 关键：screen 没变就什么都不做，等价于 PageTransition 的 key 不变 */
+  if (key === screen) {
+    flashToast('点的是当前模块，screen 未变 → 入场不重播', 'info');
+    return;
+  }
+  screen = key;
+  [...$('#nav').children].forEach((b) => b.classList.toggle('nav-item--active', b.dataset.key === key));
+  const meta = PAGES.find((p) => p.key === key);
+  $('#pageTitle').textContent = meta.title;
+  $('#pageSub').textContent = meta.sub;
+  renderPage();
+}
+
+function renderPage() {
+  const host = $('#content');
+  host.innerHTML = '';
+  const div = document.createElement('div');
+  div.className = 'page-transition';
+  div.innerHTML = PAGE_HTML[screen]();
+  host.appendChild(div);
+  enterCount += 1;
+  $('#enterCount').textContent = enterCount;
+  wirePage();
+}
+
+/* ---------- 各页内容 ---------- */
+const APPS = [
+  { id:'a1', name:'字节跳动', role:'产品经理', city:'北京', pay:'30-50k', status:'一面' },
+  { id:'a2', name:'宁德时代', role:'工业工程师', city:'宁德', pay:'22-30k', status:'已投递' },
+  { id:'a3', name:'比亚迪', role:'供应链管培', city:'深圳', pay:'20-28k', status:'在线测评' },
+  { id:'a4', name:'美的集团', role:'流程优化', city:'佛山', pay:'18-26k', status:'待投递' },
+  { id:'a5', name:'中芯国际', role:'工艺工程师', city:'上海', pay:'24-34k', status:'HR面' },
+  { id:'a6', name:'小米汽车', role:'制造工程师', city:'北京', pay:'26-38k', status:'待投递' },
+];
+const STATUS_COLOR = {
+  '待投递':['#ece4d6','#5d584d'], '已投递':['#fbeec2','#7a5a12'], '在线测评':['#f5f0e7','#7a5a12'],
+  'HR面':['#dde8fb','#345b9a'], '一面':['#dde8fb','#345b9a'], 'Offer':['#dcebd5','#2f5d36'],
+};
+const STATUSES = ['待投递','已投递','在线测评','HR面','一面','Offer'];
+let viewMode = 'list';
+
+const pill = (s) => '<span class="pill" style="background:' + STATUS_COLOR[s][0] + ';color:' + STATUS_COLOR[s][1] + '">' + s + '</span>';
+
+const PAGE_HTML = {
+  applications: () => `
+    <div class="stack">
+      <div class="note">
+        <b>看什么：</b>把鼠标放到卡片上看悬停抬升，按住按钮看 1px 按压；切到看板视图拖一张卡，注意<b>其余列不重排、不闪烁</b>；
+        用状态下拉改一张卡的状态，只有那张卡有一次 <code>160ms</code> 的短反馈。
+      </div>
+      <div class="toolbar">
+        <div class="segmented-control" id="viewSeg">
+          <button data-view="list" class="${viewMode==='list'?'on':''}">列表视图</button>
+          <button data-view="kanban" class="${viewMode==='kanban'?'on':''}">看板视图</button>
+        </div>
+        <span class="muted">共 ${APPS.length} 条</span>
+        <button class="ghostbtn btn-press" id="toastBtn" style="margin-left:auto">弹一条 Toast</button>
+        <button class="ghostbtn btn-press" id="openModal2">打开表单弹窗</button>
+      </div>
+      ${viewMode === 'list' ? listHTML() : boardHTML()}
+    </div>`,
+
+  map: () => `
+    <div class="stack">
+      <div class="note">
+        <b>看什么：</b>点地图上的城市。<b>改动后</b>金色涟漪只播约 <code>1.1s</code> 就停成静态高亮；
+        切到<b>改动前</b>再点，涟漪会一直转下去（原来是 ECharts <code>rippleEffect period: 3.2</code> 无限循环）。
+        选中时只有右侧信息区做一次 <code>160ms</code> 入场，地图容器不动。
+      </div>
+      <div class="mapwrap">
+        <section class="capital-map-stage" id="mapStage">
+          <div class="mapgrid"></div>
+          <div class="stagenote">示意舞台 · 真实页面是 ECharts Canvas 中国地图，此处只复刻选中反馈的时序</div>
+          <div class="ripplestate" id="rippleState">涟漪：未选中</div>
+        </section>
+        <aside class="capital-map-panel">
+          <div class="capital-map-panel__head">
+            <h2 id="mapTitle">选择一座城市</h2>
+            <p id="mapDesc">点地图上的城市，或从下面的列表进入。</p>
+          </div>
+          <div class="capital-map-panel__list" id="mapList"></div>
+        </aside>
+      </div>
+    </div>`,
+
+  companies: () => `
+    <div class="stack">
+      <div class="note"><b>看什么：</b>这一页主要用来反复切换模块，观察<b>只有内容区</b>有入场动效，侧边栏、顶栏、搜索框、主题色板、背景都不参与。</div>
+      ${[1,2,3,4,5,6].map((i) => `
+        <div class="card card-hover">
+          <h3 class="rowtitle">示例公司 ${i}</h3>
+          <div class="metaline"><span>制造业</span><span>已投递 ${i} 个岗位</span><span>最近更新 08-1${i}</span></div>
+        </div>`).join('')}
+    </div>`,
+
+  resumes: () => `
+    <div class="stack">
+      <div class="note"><b>看什么：</b>内容较长，可以在这里用力滚动，观察顶部「背景」状态灯：滚动时暂停、停下约 <code>220ms</code> 后恢复。背景始终不消失、不变色。</div>
+      ${Array.from({length:10}, (_,i) => `
+        <div class="card card-hover">
+          <h3 class="rowtitle">简历版本 v${i+1}</h3>
+          <div class="metaline"><span>目标岗位：工业工程</span><span>更新于 2026-08-${String(i+1).padStart(2,'0')}</span></div>
+        </div>`).join('')}
+    </div>`,
+};
+
+function listHTML() {
+  return APPS.map((a) => `
+    <div class="card card-hover" data-app="${a.id}">
+      <div class="applycard">
+        <div>
+          <h3 class="rowtitle">${a.name} · ${a.role} ${pill(a.status)}</h3>
+          <div class="metaline"><span>${a.city}</span><span>${a.pay}</span><span>内推</span><span>投递：2026-08-0${a.id.slice(-1)}</span></div>
+        </div>
+        <div style="display:flex;gap:8px">
+          <button class="ghostbtn btn-press">编辑</button>
+          <button class="ghostbtn btn-press">删除</button>
+        </div>
+      </div>
+    </div>`).join('');
+}
+
+function boardHTML() {
+  return '<div class="board">' + STATUSES.map((s) => {
+    const items = APPS.filter((a) => a.status === s);
+    return `
+      <div class="kanban-column" data-status="${s}">
+        <div class="kanban-column__head">${pill(s)}<span class="muted" style="font-weight:700">${items.length}</span></div>
+        <div class="kanban-column__body">
+          ${items.length === 0 ? '<div class="kanban-empty">拖到此处更改状态</div>' : items.map((a) => `
+            <div class="kanban-column__card btn-press" draggable="true" data-app="${a.id}" tabindex="0">
+              <b>${a.name}</b><em>${a.role}</em>
+              <div class="metaline" style="margin-top:8px"><span>${a.city}</span><span>${a.pay}</span></div>
+              <div style="margin-top:9px">${pill(a.status)}</div>
+              <select class="statusSel" data-app="${a.id}" style="margin-top:9px;width:100%;height:32px;border:1px solid #ece4d6;background:#faf7f0;border-radius:10px;font-size:12.5px;padding:0 8px">
+                ${STATUSES.map((x) => '<option ' + (x === a.status ? 'selected' : '') + '>' + x + '</option>').join('')}
+              </select>
+            </div>`).join('')}
+        </div>
+      </div>`;
+  }).join('') + '</div>';
+}
+
+/* ---------- 每次渲染后重新接线 ---------- */
+function wirePage() {
+  const seg = $('#viewSeg');
+  if (seg) {
+    [...seg.children].forEach((b) => {
+      b.onclick = () => {
+        if (viewMode === b.dataset.view) return;
+        viewMode = b.dataset.view;
+        /* 只重绘内容，不重播页面入场（等价于 screen 没变） */
+        $('#content .page-transition').innerHTML = PAGE_HTML[screen]();
+        wirePage();
+      };
+    });
+  }
+  const tb = $('#toastBtn');
+  if (tb) tb.onclick = () => flashToast('已保存「字节跳动 · 产品经理」');
+  const om = $('#openModal2');
+  if (om) om.onclick = openModal;
+
+  wireKanban();
+  if (screen === 'map') wireMap();
+}
+
+/* ---------- 看板拖拽 ---------- */
+function wireKanban() {
+  let draggingId = null;
+  let overStatus = null;
+  let release = null;
+
+  document.querySelectorAll('.kanban-column__card').forEach((card) => {
+    card.addEventListener('dragstart', (e) => {
+      draggingId = card.dataset.app;
+      e.dataTransfer.setData('text/application-id', draggingId);
+      e.dataTransfer.effectAllowed = 'move';
+      card.classList.add('is-dragging');
+      /* 拖拽期间让背景降载 */
+      if (release) release();
+      setReason('拖拽中');
+      release = budget.hold();
+    });
+    card.addEventListener('dragend', endDrag);
+  });
+
+  function endDrag() {
+    document.querySelectorAll('.is-dragging').forEach((el) => el.classList.remove('is-dragging'));
+    document.querySelectorAll('.kanban-column.is-over').forEach((el) => el.classList.remove('is-over'));
+    draggingId = null; overStatus = null;
+    if (release) { release(); release = null; }
+  }
+
+  document.querySelectorAll('.kanban-column').forEach((col) => {
+    col.addEventListener('dragover', (e) => {
+      e.preventDefault();
+      /* dragover 每帧都在触发，只有目标列真的变了才改状态 */
+      if (overStatus === col.dataset.status) return;
+      overStatus = col.dataset.status;
+      document.querySelectorAll('.kanban-column.is-over').forEach((el) => el.classList.remove('is-over'));
+      col.classList.add('is-over');
+    });
+    col.addEventListener('dragleave', () => {
+      if (overStatus === col.dataset.status) { overStatus = null; col.classList.remove('is-over'); }
+    });
+    col.addEventListener('drop', (e) => {
+      e.preventDefault();
+      const id = e.dataTransfer.getData('text/application-id');
+      endDrag();
+      if (!id) return;
+      moveApp(id, col.dataset.status);
+    });
+  });
+
+  document.querySelectorAll('.statusSel').forEach((sel) => {
+    sel.onchange = () => moveApp(sel.dataset.app, sel.value);
+    sel.onclick = (e) => e.stopPropagation();
+  });
+}
+
+function moveApp(id, status) {
+  const app = APPS.find((a) => a.id === id);
+  if (!app || app.status === status) return;
+  app.status = status;
+  $('#content .page-transition').innerHTML = PAGE_HTML[screen]();
+  wirePage();
+  /* 只给那一张卡一次短反馈，不重播整块看板 */
+  const moved = document.querySelector('.kanban-column__card[data-app="' + id + '"]');
+  if (moved) {
+    moved.classList.add('card-settle');
+    setTimeout(() => moved.classList.remove('card-settle'), 260);
+  }
+}
+
+/* ---------- 地图 ---------- */
+const CITIES = [
+  { name:'北京', x:70, y:30, n:71 }, { name:'上海', x:80, y:52, n:64 },
+  { name:'深圳', x:66, y:80, n:48 }, { name:'成都', x:38, y:58, n:31 },
+  { name:'西安', x:52, y:44, n:26 }, { name:'武汉', x:66, y:56, n:24 },
+  { name:'广州', x:64, y:76, n:39 }, { name:'杭州', x:78, y:58, n:35 },
+];
+let selectedCity = null;
+let rippleTimer = 0;
+
+function wireMap() {
+  const stage = $('#mapStage');
+  CITIES.forEach((c) => {
+    const b = document.createElement('button');
+    b.className = 'citydot';
+    b.style.left = c.x + '%';
+    b.style.top = c.y + '%';
+    b.innerHTML = '<i></i><span>' + c.name + '</span>';
+    b.onclick = () => selectCity(c.name);
+    stage.appendChild(b);
+  });
+  renderMapList();
+  /* 在地图上拖动等价于漫游，同样降载 */
+  stage.addEventListener('pointermove', (e) => {
+    if (e.buttons !== 1) return;
+    setReason('地图漫游中');
+    budget.pulse();
+  });
+}
+
+function selectCity(name) {
+  selectedCity = selectedCity === name ? null : name;
+  const stage = $('#mapStage');
+  clearTimeout(rippleTimer);
+  stage.querySelectorAll('.map-ripple').forEach((el) => el.remove());
+
+  [...stage.querySelectorAll('.citydot')].forEach((b) => {
+    const on = b.querySelector('span').textContent === selectedCity;
+    b.classList.toggle('on', on);
+    if (on && !isReduced()) {
+      const r = document.createElement('div');
+      r.className = 'map-ripple';
+      /* 涟漪叠在选中点上 */
+      r.style.left = b.style.left; r.style.top = b.style.top; r.style.marginLeft = '-9px';
+      stage.appendChild(r);
+      if (isAfter()) {
+        /* 改动后：约 1.1s 后回到静态高亮，不做常驻动画 */
+        $('#rippleState').textContent = '涟漪：进行中…';
+        rippleTimer = setTimeout(() => {
+          stage.querySelectorAll('.map-ripple').forEach((el) => el.remove());
+          $('#rippleState').textContent = '涟漪：已停止（静态高亮）';
+        }, 1100);
+      } else {
+        $('#rippleState').textContent = '涟漪：无限循环（改动前）';
+      }
+    }
+  });
+  if (!selectedCity) $('#rippleState').textContent = '涟漪：未选中';
+  if (selectedCity && isReduced()) $('#rippleState').textContent = '涟漪：减弱动效下不播放';
+
+  const c = CITIES.find((x) => x.name === selectedCity);
+  $('#mapTitle').textContent = c ? c.name : '选择一座城市';
+  $('#mapDesc').textContent = c ? (c.n + ' 家企业总部在此。点击公司打开校招页。') : '点地图上的城市，或从下面的列表进入。';
+  renderMapList();
+}
+
+function renderMapList() {
+  const old = $('#mapList');
+  if (!old) return;
+  /* 用替换节点来重播那一次 160ms 入场，等价于 React 里给列表加 key */
+  const next = document.createElement('div');
+  next.className = 'capital-map-panel__list';
+  next.id = 'mapList';
+  const c = CITIES.find((x) => x.name === selectedCity);
+  next.innerHTML = c
+    ? Array.from({ length: 5 }, (_, i) => `
+        <div class="card" style="padding:11px;border-radius:14px">
+          <div style="font-weight:800;font-size:13.5px">${c.name}示例企业 ${i + 1}</div>
+          <div class="muted" style="margin-top:3px">制造业 · 央国企</div>
+        </div>`).join('')
+    : CITIES.map((x) => `
+        <button class="capital-map-chip" data-city="${x.name}">
+          <span>${x.name}</span><span style="color:#2f7040">${x.n} 家</span>
+        </button>`).join('');
+  old.replaceWith(next);
+  next.querySelectorAll('.capital-map-chip').forEach((b) => { b.onclick = () => selectCity(b.dataset.city); });
+}
+
+/* ============================================================
+   弹窗：进入 220ms，关闭先播 130ms 退出再卸载
+   ============================================================ */
+let modalEl = null, modalClosing = false, modalRelease = null;
+
+function openModal() {
+  if (modalEl) return;
+  modalClosing = false;
+  modalEl = document.createElement('div');
+  modalEl.className = 'modal-overlay';
+  modalEl.innerHTML = `
+    <div class="modal-panel">
+      <div class="modal-panel__head">
+        <h2>新增投递</h2>
+        <button class="iconbtn btn-press" data-close aria-label="关闭">✕</button>
+      </div>
+      <div class="modal-panel__body">
+        <div class="note" style="margin-bottom:14px">
+          四种关闭方式都试一遍：<span class="kbd">✕</span> <span class="kbd">取消</span>
+          <span class="kbd">Esc</span> <span class="kbd">点遮罩</span>。
+          改动后都会先播 <code>130ms</code> 退出再卸载，且退出期间不再接收点击；改动前是立刻消失。
+        </div>
+        <div class="field"><label>公司名称 *</label><input placeholder="如：字节跳动" /></div>
+        <div class="field"><label>岗位名称 *</label><input placeholder="如：产品经理" /></div>
+        <div class="field"><label>城市</label><input placeholder="如：北京" /></div>
+        <div class="field"><label>投递渠道</label><input placeholder="如：内推 / BOSS直聘" /></div>
+        <div class="field"><label>薪资范围</label><input placeholder="如：25-40k" /></div>
+      </div>
+      <div class="modal-panel__foot">
+        <button class="ghostbtn btn-press" style="height:42px" data-close>取消</button>
+        <button class="primarybtn btn-press" data-save>保存</button>
+      </div>
+    </div>`;
+  document.body.appendChild(modalEl);
+
+  modalEl.addEventListener('click', (e) => { if (e.target === modalEl) closeModal(); });
+  modalEl.querySelectorAll('[data-close]').forEach((b) => { b.onclick = closeModal; });
+  modalEl.querySelector('[data-save]').onclick = () => { closeModal(); flashToast('已保存「新增投递」'); };
+  document.addEventListener('keydown', onModalKey);
+  document.body.style.overflow = 'hidden';
+  setReason('弹窗打开');
+  modalRelease = budget.hold();
+}
+
+function onModalKey(e) { if (e.key === 'Escape') closeModal(); }
+
+function closeModal() {
+  if (!modalEl || modalClosing) return;
+  /* 减弱动效下直接卸载，不等退出动效；改动前同样是立刻卸载 */
+  if (isReduced() || !isAfter()) { unmountModal(); return; }
+  modalClosing = true;
+  modalEl.classList.add('is-closing');
+  modalEl.querySelector('.modal-panel').classList.add('is-closing');
+  modalEl.style.pointerEvents = 'none';
+  setTimeout(unmountModal, 130);
+}
+
+function unmountModal() {
+  if (!modalEl) return;
+  document.removeEventListener('keydown', onModalKey);
+  modalEl.remove();
+  modalEl = null; modalClosing = false;
+  document.body.style.overflow = '';
+  if (modalRelease) { modalRelease(); modalRelease = null; }
+}
+
+$('#openModal').onclick = openModal;
+
+/* ============================================================
+   Toast：进入 170ms / 退出 120ms，停留 3200ms
+   ============================================================ */
+function flashToast(message, kind) {
+  const el = document.createElement('div');
+  el.className = 'toast-item' + (kind === 'info' ? ' is-info' : '');
+  el.textContent = message;
+  el.title = '点一下可立刻看退出动效（真实停留时间是 3200ms）';
+  const box = $('#toasts');
+  /* 与 Toast.tsx 一致：最多同时保留 4 条 */
+  while (box.children.length >= 4) box.firstElementChild.remove();
+  box.appendChild(el);
+  let done = false;
+  const dismiss = () => {
+    if (done) return;
+    done = true;
+    el.classList.add('is-leaving');
+    el.style.pointerEvents = 'none';
+    setTimeout(() => el.remove(), 120);
+  };
+  el.onclick = dismiss;
+  setTimeout(dismiss, 3200);
+}
+
+/* ============================================================
+   控制条
+   ============================================================ */
+[...$('#modeSeg').children].forEach((b) => {
+  b.onclick = () => {
+    html.dataset.mode = b.dataset.mode;
+    [...$('#modeSeg').children].forEach((x) => x.classList.toggle('on', x === b));
+    syncBackground(currentReason);
+    flashToast(b.dataset.mode === 'after' ? '已切到「改动后」' : '已切到「改动前」', 'info');
+  };
+});
+[...$('#reduceSeg').children].forEach((b) => {
+  b.onclick = () => {
+    html.dataset.reduce = b.dataset.reduce;
+    [...$('#reduceSeg').children].forEach((x) => x.classList.toggle('on', x === b));
+    syncBackground(currentReason);
+  };
+});
+
+/* ---------- 启动 ---------- */
+applyTheme('pink');
+$('#content').innerHTML = '<div class="page-transition"></div>';
+$('#content .page-transition').innerHTML = PAGE_HTML[screen]();
+wirePage();
+syncBackground('');
+</script>
+</body>
+</html>

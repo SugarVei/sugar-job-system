@@ -9,6 +9,7 @@ import { IconEdit, IconTrash, IconPlus, IconExternalLink, IconArrowRight } from 
 import { STATUS_OPTIONS, statusTag, buildSteps, matchApp, CARD } from '../lib/appHelpers';
 import { getNextApplicationStatus } from '../lib/applicationStatus';
 import EmptyState from '../components/EmptyState';
+import { holdMotionBudget } from '../lib/motionBudget';
 import { exportApplicationsToExcel } from '../lib/exportExcel';
 import AIRecordImporter, { type ApplicationExtraction } from '../components/AIRecordImporter';
 
@@ -137,12 +138,23 @@ export default function Applications() {
   const [formError, setFormError] = useState('');
   const [scrollSig, setScrollSig] = useState(0);
   const [actionError, setActionError] = useState('');
+  /** 刚被更新的那张卡，用于给它一次短反馈，而不是重播整页/整列表 */
+  const [settledId, setSettledId] = useState<string | null>(null);
   const companyRef = useRef<HTMLInputElement>(null);
+  const settleTimer = useRef(0);
 
   useEffect(() => {
     registerAdd(() => openCreate());
     return () => registerAdd(null);
   }, [registerAdd]);
+
+  useEffect(() => () => window.clearTimeout(settleTimer.current), []);
+
+  const markSettled = (id: string) => {
+    window.clearTimeout(settleTimer.current);
+    setSettledId(id);
+    settleTimer.current = window.setTimeout(() => setSettledId(null), 260);
+  };
 
   useEffect(() => {
     try {
@@ -228,8 +240,12 @@ export default function Applications() {
         resume_id: form.resume_id || null,
       };
 
-      if (editing) await update(editing.id, payload);
-      else await create(payload);
+      if (editing) {
+        await update(editing.id, payload);
+        markSettled(editing.id);
+      } else {
+        await create(payload);
+      }
       setModalOpen(false);
     } catch (error) {
       setFormError('保存失败：' + errorText(error));
@@ -242,6 +258,7 @@ export default function Applications() {
     try {
       setActionError('');
       await update(application.id, { status });
+      markSettled(application.id);
     } catch (error) {
       setActionError('状态更新失败：' + errorText(error));
     }
@@ -274,7 +291,7 @@ export default function Applications() {
   const overdueCount = useMemo(() => filtered.filter((a) => isOverdue(a)).length, [filtered]);
 
   return (
-    <div className="flex flex-col gap-[18px] animate-rise">
+    <div className="flex flex-col gap-[18px]">
       {(applicationsError || resumesError || actionError) && (
         <FormError message={applicationsError || resumesError || actionError || ''} />
       )}
@@ -314,6 +331,7 @@ export default function Applications() {
               key={mode}
               type="button"
               onClick={() => setViewMode(mode)}
+              className="btn-press"
               style={{
                 border: 'none',
                 borderRadius: 9,
@@ -344,6 +362,7 @@ export default function Applications() {
               }
             }}
             disabled={items.length === 0 || exporting}
+            className="btn-press"
             style={{
               height: 44,
               padding: '0 16px',
@@ -413,7 +432,7 @@ export default function Applications() {
           onAction={items.length === 0 ? openCreate : applicationsFilter !== 'all' ? () => setApplicationsFilter('all') : undefined}
         />
       ) : viewMode === 'kanban' ? (
-        <KanbanBoard applications={filtered} onEdit={openEdit} onStatusChange={quickUpdateStatus} />
+        <KanbanBoard applications={filtered} onEdit={openEdit} onStatusChange={quickUpdateStatus} settledId={settledId} />
       ) : (
         filtered.map((application) => {
           const tag = statusTag(application.status);
@@ -424,7 +443,7 @@ export default function Applications() {
           return (
             <div
               key={application.id}
-              className="card-hover"
+              className={`card-hover ${settledId === application.id ? 'card-settle' : ''}`.trim()}
               style={{
                 ...CARD,
                 padding: '22px 24px',
@@ -745,17 +764,33 @@ function KanbanBoard({
   applications,
   onEdit,
   onStatusChange,
+  settledId,
 }: {
   applications: Application[];
   onEdit: (application: Application) => void;
   onStatusChange: (application: Application, status: ApplicationStatus) => void;
+  settledId: string | null;
 }) {
-  const grouped = STATUS_OPTIONS.map((status) => ({
-    status,
-    items: applications.filter((application) => application.status === status),
-  }));
+  // 分组结果保持稳定，拖拽悬停等状态变化不会重算整块看板
+  const grouped = useMemo(
+    () => STATUS_OPTIONS.map((status) => ({
+      status,
+      items: applications.filter((application) => application.status === status),
+    })),
+    [applications],
+  );
   const [dragOverStatus, setDragOverStatus] = useState<ApplicationStatus | null>(null);
   const [draggingId, setDraggingId] = useState<string | null>(null);
+  const releaseBudget = useRef<(() => void) | null>(null);
+
+  const endDrag = () => {
+    releaseBudget.current?.();
+    releaseBudget.current = null;
+    setDraggingId(null);
+    setDragOverStatus(null);
+  };
+
+  useEffect(() => () => releaseBudget.current?.(), []);
 
   return (
     <div className="kanban-board-scroll" style={{ overflowX: 'auto', paddingBottom: 8 }}>
@@ -788,9 +823,11 @@ function KanbanBoard({
           return (
             <div
               key={column.status}
+              className="kanban-column"
               onDragOver={(event) => {
                 event.preventDefault();
-                setDragOverStatus(column.status);
+                // dragover 每帧都在触发，只有目标列真的变了才更新状态
+                setDragOverStatus((cur) => (cur === column.status ? cur : column.status));
               }}
               onDragLeave={() => {
                 setDragOverStatus((cur) => (cur === column.status ? null : cur));
@@ -798,8 +835,7 @@ function KanbanBoard({
               onDrop={(event) => {
                 event.preventDefault();
                 const id = event.dataTransfer.getData('text/application-id');
-                setDragOverStatus(null);
-                setDraggingId(null);
+                endDrag();
                 if (!id) return;
                 const app = applications.find((item) => item.id === id);
                 if (app && app.status !== column.status) onStatusChange(app, column.status);
@@ -847,13 +883,18 @@ function KanbanBoard({
                           event.dataTransfer.setData('text/application-id', application.id);
                           event.dataTransfer.effectAllowed = 'move';
                           setDraggingId(application.id);
+                          // 拖拽期间让弥散背景降载
+                          releaseBudget.current?.();
+                          releaseBudget.current = holdMotionBudget();
                         }}
-                        onDragEnd={() => {
-                          setDraggingId(null);
-                          setDragOverStatus(null);
-                        }}
+                        onDragEnd={endDrag}
                         onClick={() => onEdit(application)}
-                        className="btn-press"
+                        className={[
+                          'btn-press',
+                          'kanban-column__card',
+                          draggingId === application.id ? 'is-dragging' : '',
+                          settledId === application.id ? 'card-settle' : '',
+                        ].filter(Boolean).join(' ')}
                         style={{
                           ...CARD,
                           border: overdue ? '1px solid #f3b3a1' : '1px solid #f0ebe0',
@@ -862,7 +903,6 @@ function KanbanBoard({
                           textAlign: 'left',
                           cursor: 'grab',
                           background: overdue ? '#fff8f5' : CARD.background,
-                          opacity: draggingId === application.id ? 0.55 : 1,
                         }}
                       >
                         <div style={{ fontSize: 14, fontWeight: 700, color: '#1b1a17', lineHeight: 1.35 }}>

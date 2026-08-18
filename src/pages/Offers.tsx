@@ -128,7 +128,7 @@ export default function Offers() {
     ['最高年包', money(Math.max(...db.items.map(x => x.annual_package ?? 0)) || null), '总包估算'], ['最近截止', nearest ? dt(nearest.reply_deadline) : '—', nearest?.company_name ?? '暂无'],
   ];
 
-  return <div className="flex flex-col gap-[18px] animate-rise">
+  return <div className="flex flex-col gap-[18px]">
     {db.error && <FormError message={db.error} />}
     <div className="grid grid-cols-2 xl:grid-cols-6 gap-3">{stats.map(([a,b,c],i) =>
       <div key={String(a)} style={{ ...CARD, padding: 16, background: ['#f9dfe7','#fbeec2','#dcebd5','#e6e2da','#dde8fb',theme.accentSoft][i] }}>
