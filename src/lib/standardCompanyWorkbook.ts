@@ -5,7 +5,7 @@ import {
   collectIncomingCompanies,
   isMissingCompanyColumn,
   type SheetMatrix,
-} from './standardCompanyImport.ts';
+} from './standardCompanyImport';
 
 export function workbookMatricesFromBytes(data: Uint8Array): SheetMatrix[] {
   const workbook = XLSX.read(data, { type: 'array', raw: false, cellStyles: false });

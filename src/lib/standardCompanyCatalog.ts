@@ -1,6 +1,6 @@
-import type { HotCompany, HotCompanyGroup } from '../data/hotCompanies.ts';
-import { normalizeCompanyName } from './companyName.ts';
-import { DEFAULT_IMPORT_GROUP, type CatalogCompany } from './standardCompanyImport.ts';
+import type { HotCompany, HotCompanyGroup } from '../data/hotCompanies';
+import { normalizeCompanyName } from './companyName';
+import { DEFAULT_IMPORT_GROUP, type CatalogCompany } from './standardCompanyImport';
 
 export type StandardCompanyOverlay = {
   company_key: string;

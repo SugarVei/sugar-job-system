@@ -1,4 +1,4 @@
-import { normalizeCompanyName } from './companyName.ts';
+import { normalizeCompanyName } from './companyName';
 
 export const STANDARD_CATALOG_MAX_ROWS = 4000;
 export const STANDARD_CATALOG_MAX_FILE_BYTES = 20 * 1024 * 1024;
