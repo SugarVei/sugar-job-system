@@ -8,6 +8,7 @@ import { Field, TextInput, TextArea, Select, PrimaryButton, GhostButton, FormErr
 import { IconEdit, IconTrash, IconPlus, IconMapPin } from '../components/icons';
 import { CARD } from '../lib/appHelpers';
 import EmptyState from '../components/EmptyState';
+import { IMPORTED_EXPERIENCE_ARTICLES } from '../data/interviewExperienceData';
 
 const TYPES: InterviewType[] = ['电话', '视频', '现场'];
 const START_HOUR = 9;
@@ -30,6 +31,82 @@ const empty: NewRecord<Interview> = {
   interview_type: '视频',
   notes: '',
 };
+
+type ExperienceCategory = 'common' | 'company';
+
+export interface ExperienceArticle {
+  id: string;
+  category: ExperienceCategory;
+  group: string;
+  title: string;
+  company?: string;
+  role?: string;
+  intent: string;
+  keyPoints: string[];
+  answer: string;
+  source: string;
+}
+
+const CURATED_EXPERIENCE_ARTICLES: ExperienceArticle[] = [
+  {
+    id: 'common-06', category: 'common', group: '基础信息类', title: '你有哪些兴趣爱好？',
+    intent: '了解你的性格特点、生活状态，以及兴趣是否能体现持续投入和自我管理能力。',
+    keyPoints: ['选择真实且稳定的兴趣', '说明兴趣带来的具体能力或收获', '自然连接到工作中的状态和习惯'],
+    answer: '我主要的兴趣爱好是读书和跑步。读书让我保持对新知识的好奇心，拓展视野，也提高了我的思维能力和表达能力。我特别喜欢读管理学和心理学方面的书，这对我理解人际关系和团队合作很有帮助。跑步则让我保持良好的身体状态和意志品质，准备马拉松的过程中，我学会了制定计划、坚持目标、克服困难。这些兴趣不仅丰富了我的生活，也培养了我的自律性和持续学习能力。',
+    source: '《校招面试通用常见问题及参考答案》· 个人能力类',
+  },
+  {
+    id: 'common-01', category: 'common', group: '基础信息类', title: '请简单介绍一下自己',
+    intent: '判断表达是否清晰，并快速确认你的经历、能力与目标岗位的匹配度。',
+    keyPoints: ['控制在 1-2 分钟', '按经历、能力、岗位匹配组织', '用具体经历代替空泛形容词'],
+    answer: '可以按照“我是谁—做过什么—为什么适合这个岗位”的顺序展开。先用一句话交代学校和专业，再挑选与岗位最相关的实习或项目，说明自己承担的工作和结果，最后补充希望在目标岗位继续发挥和提升的能力。',
+    source: '《校招面试通用常见问题及参考答案》· 基础信息类',
+  },
+  {
+    id: 'common-08', category: 'common', group: '个人能力类', title: '请描述一个你解决过的困难或挑战',
+    intent: '考查面对困难时的分析、行动和复盘能力，而不是只听一个“我很努力”的故事。',
+    keyPoints: ['交代困难发生的背景', '突出你采取的关键行动', '说明结果和之后的改进'],
+    answer: '建议用 STAR 结构回答：先说清楚当时的任务和限制，再说明你如何拆解问题、协调资源并推进执行，最后给出结果。不要只描述团队做了什么，要明确自己的判断、动作和贡献。',
+    source: '《校招面试通用常见问题及参考答案》· 个人能力类',
+  },
+  {
+    id: 'common-13', category: 'common', group: '岗位认知类', title: '你为什么选择我们公司？',
+    intent: '了解你是否真的研究过公司，以及求职动机是否稳定、具体。',
+    keyPoints: ['先谈公司业务或产品的具体观察', '再谈岗位和个人经历的匹配', '最后说明希望获得的成长'],
+    answer: '不要只说“公司平台大、发展好”。可以结合公司近期业务、产品体验或行业位置，说明你观察到的具体特点，再联系自己的项目、实习和能力，解释为什么这个岗位是自然的下一步。',
+    source: '《校招面试通用常见问题及参考答案》· 岗位认知类',
+  },
+  {
+    id: 'company-meituan', category: 'company', group: '产品与运营', title: '美团产品运营一面', company: '美团', role: '产品运营',
+    intent: '围绕简历深挖经历，判断候选人的业务理解、团队协作和自我认知。',
+    keyPoints: ['简历中的每一个数字都要能解释', '准备团队合作和问题解决的真实例子', '提前梳理 Python、SQL 等简历关键词'],
+    answer: '这场面试重点不是背标准答案，而是把简历上的项目讲完整：背景是什么、你负责什么、怎么做、结果如何、如果重来会怎么改。涉及岗位要求的技能，即使使用不深，也要诚实说明学习路径和当前能完成的任务。',
+    source: '《面经分享》· 美团产品运营一面',
+  },
+  {
+    id: 'company-didi', category: 'company', group: '产品与运营', title: '滴滴产品与用户运营岗', company: '滴滴', role: '产品与用户运营',
+    intent: '考查场景分析、用户调研和数据分析之间的关系，以及临场表达能力。',
+    keyPoints: ['先定义问题和目标指标', '区分问卷调研与后台数据的作用', '回答卡顿时先复述问题，再分步骤作答'],
+    answer: '例如单品销量下降，可以先拆成流量、转化、复购和供给几个环节，再结合后台数据定位问题，必要时用问卷或访谈补充用户动机。回答时要说明为什么选择这个方法，以及如何验证结论。',
+    source: '《面经分享》· 滴滴产品与用户运营岗',
+  },
+  {
+    id: 'company-mihoyo', category: 'company', group: '游戏与用户增长', title: '米哈游用户增长运营一面', company: '米哈游', role: '用户增长运营',
+    intent: '考查用户增长、活动指标、内容策划和游戏行业理解。',
+    keyPoints: ['准备一个熟悉地区或用户群的内容方案', '明确活动目标和衡量指标', '把实习经历中的产出讲出因果关系'],
+    answer: '回答增长类问题时，可以从目标用户、触达渠道、转化路径和留存机制展开，再补充如何通过数据判断活动是否有效。重点是让面试官看到你会提出假设、设计动作并验证结果。',
+    source: '《面经分享》· 米哈游用户增长运营一面',
+  },
+  {
+    id: 'company-netease', category: 'company', group: '游戏与用户增长', title: '网易游戏用户运营', company: '网易游戏', role: '用户运营',
+    intent: '了解你对游戏用户、运营指标和用户长期留存的理解。',
+    keyPoints: ['从用户需求而非单纯活动数量出发', '能说清关注的核心指标', '结合实际游戏体验表达判断'],
+    answer: '可以围绕新增、活跃、留存、付费和内容参与度建立指标框架，并说明不同阶段的重点不同。面对“如何持续吸引用户”，要同时考虑内容更新、社群反馈和用户分层运营。',
+    source: '《面经分享》· 网易游戏用户运营',
+  },
+];
+
+const EXPERIENCE_ARTICLES: ExperienceArticle[] = [...CURATED_EXPERIENCE_ARTICLES, ...IMPORTED_EXPERIENCE_ARTICLES];
 
 function startOfWeek(d: Date): Date {
   const x = new Date(d);
@@ -66,12 +143,168 @@ function toLocalInput(iso: string) {
   return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}T${p(d.getHours())}:${p(d.getMinutes())}`;
 }
 
+function ModuleToggle({ active, onChange }: { active: 'calendar' | 'experience'; onChange: (next: 'calendar' | 'experience') => void }) {
+  return (
+    <div style={{ display: 'inline-flex', padding: 3, gap: 3, borderRadius: 11, background: '#fffdf8', border: '1px solid #e6dfd3', boxShadow: '0 3px 12px rgba(80,60,35,.04)' }}>
+      {([
+        ['calendar', '面试日历'],
+        ['experience', '面试经验分享'],
+      ] as const).map(([key, label]) => (
+        <button
+          key={key}
+          type="button"
+          onClick={() => onChange(key)}
+          style={{
+            height: 30,
+            padding: '0 13px',
+            border: 'none',
+            borderRadius: 8,
+            background: active === key ? '#1b1a17' : 'transparent',
+            color: active === key ? '#fffdf8' : '#6b665c',
+            fontSize: 12,
+            fontWeight: 700,
+            cursor: 'pointer',
+            whiteSpace: 'nowrap',
+          }}
+        >
+          {label}
+        </button>
+      ))}
+    </div>
+  );
+}
+
+function ExperienceShare() {
+  const [category, setCategory] = useState<ExperienceCategory>('common');
+  const [selectedId, setSelectedId] = useState('common-06');
+  const articles = EXPERIENCE_ARTICLES.filter((article) => article.category === category);
+  const selected = EXPERIENCE_ARTICLES.find((article) => article.id === selectedId && article.category === category) ?? articles[0];
+
+  if (!selected) return null;
+
+  const switchCategory = (next: ExperienceCategory) => {
+    setCategory(next);
+    setSelectedId(EXPERIENCE_ARTICLES.find((article) => article.category === next)?.id ?? '');
+  };
+
+  return (
+    <div className="grid grid-cols-1 lg:grid-cols-[308px_minmax(0,1fr)] gap-[18px] min-h-0 flex-1" style={{ height: '100%' }}>
+      <aside style={{ ...CARD, borderRadius: 20, overflow: 'hidden', minHeight: 0, height: '100%', display: 'flex', flexDirection: 'column' }}>
+        <div style={{ padding: '22px 20px 16px', borderBottom: '1px solid #eee6da' }}>
+          <div style={{ fontSize: 12, color: '#a65a3c', fontWeight: 700, letterSpacing: '.03em' }}>资料目录</div>
+          <div style={{ fontSize: 18, fontWeight: 750, marginTop: 7 }}>{category === 'common' ? '通用问题导航' : '公司岗位导航'}</div>
+          <div style={{ color: '#8a8478', fontSize: 12.5, marginTop: 5 }}>{category === 'common' ? '整理面试中高频出现的问题' : '按公司和岗位整理真实面经'}</div>
+        </div>
+        <div className="grid grid-cols-2 gap-2" style={{ padding: 12, borderBottom: '1px solid #eee6da' }}>
+          {([
+            ['common', '通用常见问题分享'],
+            ['company', '特定公司岗位问题'],
+          ] as const).map(([key, label]) => (
+            <button
+              key={key}
+              type="button"
+              onClick={() => switchCategory(key)}
+              style={{
+                minHeight: 42,
+                padding: '0 10px',
+                borderRadius: 10,
+                border: `1px solid ${category === key ? '#cbdcc7' : '#e6dfd3'}`,
+                background: category === key ? '#edf6ea' : '#fffdf8',
+                color: category === key ? '#355d3d' : '#6b665c',
+                fontSize: 11.5,
+                fontWeight: 700,
+                cursor: 'pointer',
+              }}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+        <div style={{ padding: '14px 10px 18px', flex: 1, minHeight: 0, overflowY: 'auto', overscrollBehavior: 'contain' }}>
+          {Array.from(new Set(articles.map((article) => article.group))).map((group) => (
+            <div key={group} style={{ marginBottom: 14 }}>
+              <div style={{ padding: '0 10px 6px', color: '#8a8478', fontSize: 12, fontWeight: 700 }}>{group}</div>
+              {articles.filter((article) => article.group === group).map((article, index) => (
+                <button
+                  key={article.id}
+                  type="button"
+                  onClick={() => setSelectedId(article.id)}
+                  style={{
+                    width: '100%',
+                    display: 'flex',
+                    gap: 9,
+                    alignItems: 'flex-start',
+                    padding: '10px 10px',
+                    border: 'none',
+                    borderLeft: `2px solid ${selected.id === article.id ? '#e96545' : 'transparent'}`,
+                    borderRadius: '0 10px 10px 0',
+                    background: selected.id === article.id ? '#fff6f1' : 'transparent',
+                    color: selected.id === article.id ? '#3d302b' : '#756f65',
+                    textAlign: 'left',
+                    cursor: 'pointer',
+                    fontSize: 12.5,
+                    lineHeight: 1.45,
+                  }}
+                >
+                  <span style={{ color: selected.id === article.id ? '#e96545' : '#aaa397', fontWeight: 800, flex: 'none' }}>
+                    {String(index + 1).padStart(2, '0')}
+                  </span>
+                  <span>{article.title}</span>
+                </button>
+              ))}
+            </div>
+          ))}
+        </div>
+      </aside>
+
+      <article style={{ ...CARD, borderRadius: 20, padding: '34px clamp(22px, 4vw, 42px)', minHeight: 0, height: '100%', overflowY: 'hidden' }}>
+        <div className="flex items-start justify-between gap-4 flex-wrap">
+          <div>
+            <span style={{ display: 'inline-flex', padding: '7px 11px', borderRadius: 9, background: '#edf5eb', color: '#52705a', fontSize: 12, fontWeight: 700 }}>
+              {selected.group}
+            </span>
+            <h2 style={{ fontSize: 'clamp(25px, 3vw, 34px)', lineHeight: 1.2, margin: '20px 0 0', letterSpacing: '-.03em' }}>{selected.title}</h2>
+            {selected.company && <div style={{ color: '#8a8478', fontSize: 13, marginTop: 9 }}>{selected.company} · {selected.role}</div>}
+          </div>
+          <div style={{ color: '#a39d90', fontSize: 12, fontWeight: 700, paddingTop: 5 }}>{category === 'common' ? '通用问题' : '公司岗位面经'}</div>
+        </div>
+
+        {selected.intent && <section style={{ marginTop: 32 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, color: '#2c312e', fontWeight: 750, fontSize: 16 }}>
+            <span style={{ color: '#ed6548', fontSize: 12, fontWeight: 800 }}>01</span> 面试官考查意图
+          </div>
+          <p style={{ color: '#5e5a52', fontSize: 14, lineHeight: 1.85, margin: '12px 0 0' }}>{selected.intent}</p>
+        </section>}
+
+        {selected.keyPoints.length > 0 && <section style={{ marginTop: 28 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, color: '#456b4c', fontWeight: 750, fontSize: 16 }}>
+            <span style={{ color: '#ed6548', fontSize: 12, fontWeight: 800 }}>02</span> 回答思路要点
+          </div>
+          <div style={{ display: 'grid', gap: 8, marginTop: 13 }}>
+            {selected.keyPoints.map((point) => <div key={point} style={{ display: 'flex', gap: 9, color: '#5e5a52', fontSize: 13.5, lineHeight: 1.7 }}><span style={{ color: '#ed6548', fontWeight: 800 }}>•</span>{point}</div>)}
+          </div>
+        </section>}
+
+        <section style={{ marginTop: 28 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, color: '#456b4c', fontWeight: 750, fontSize: 16 }}>
+            <span style={{ color: '#ed6548', fontSize: 12, fontWeight: 800 }}>{selected.intent ? '03' : '01'}</span> {selected.intent ? '参考回答' : '面经记录'}
+          </div>
+          <div style={{ whiteSpace: 'pre-wrap', marginTop: 13, padding: '18px 20px', border: '1px solid #f1d4c9', borderLeft: '4px solid #ed6548', borderRadius: 14, background: '#fffaf7', color: '#5e514b', fontSize: 14, lineHeight: 1.9 }}>
+            {selected.answer}
+          </div>
+        </section>
+
+      </article>
+    </div>
+  );
+}
+
 export default function Interviews() {
   const { items, loading, create, update, remove } = useCollection<Interview>('interviews', {
     column: 'interview_time',
     ascending: true,
   });
-  const { registerAdd, query, interviewDateFilter, setInterviewDateFilter } = useAppShell();
+  const { registerAdd, query, interviewDateFilter, setInterviewDateFilter, setHeaderChrome } = useAppShell();
   const { theme } = useTheme();
   const [weekStart, setWeekStart] = useState(() => startOfWeek(new Date()));
   const [modalOpen, setModalOpen] = useState(false);
@@ -80,12 +313,23 @@ export default function Interviews() {
   const [saving, setSaving] = useState(false);
   const [formError, setFormError] = useState('');
   const [scrollSig, setScrollSig] = useState(0);
+  const [activeModule, setActiveModule] = useState<'calendar' | 'experience'>('calendar');
   const companyRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     registerAdd(() => openCreate());
     return () => registerAdd(null);
   }, [registerAdd]);
+
+  useEffect(() => {
+    setHeaderChrome({
+      searchPlaceholder: activeModule === 'calendar' ? '搜索公司、岗位…' : null,
+      showAdd: activeModule === 'calendar',
+      contentScroll: activeModule === 'calendar',
+      inlineContent: <ModuleToggle active={activeModule} onChange={setActiveModule} />,
+    });
+    return () => setHeaderChrome(null);
+  }, [activeModule, setHeaderChrome]);
 
   useEffect(() => {
     if (!interviewDateFilter) return;
@@ -191,7 +435,8 @@ export default function Interviews() {
   const today = new Date();
 
   return (
-    <div className="flex flex-col gap-[18px] animate-rise">
+    <div className="flex flex-col gap-[18px] animate-rise" style={activeModule === 'experience' ? { height: '100%', minHeight: 0, overflow: 'hidden' } : undefined}>
+      {activeModule === 'experience' ? <ExperienceShare /> : <>
       <div className="flex items-center justify-between flex-wrap gap-3" style={{ ...CARD, borderRadius: 18, padding: '14px 18px' }}>
         <div style={{ fontFamily: 'Poppins', fontSize: 15, fontWeight: 600 }}>
           {weekStart.getFullYear()}/{fmtMD(weekStart)} - {fmtMD(weekEnd)}
@@ -489,6 +734,7 @@ export default function Interviews() {
           <TextArea value={form.notes ?? ''} onChange={(e) => setForm({ ...form, notes: e.target.value })} placeholder="面试官、会议室、准备事项…" />
         </Field>
       </Modal>
+      </>}
     </div>
   );
 }

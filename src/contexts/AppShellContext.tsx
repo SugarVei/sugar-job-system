@@ -3,7 +3,7 @@ import type { ApplicationStatus, ScreenKey } from '../types';
 import type { ResumeAssistantTab } from '../types/resumeAssistant';
 
 export type ApplicationsListFilter = 'all' | 'active' | ApplicationStatus;
-export type HeaderChrome = { searchPlaceholder: string | null; showAdd: boolean; primaryAction?: { label: string; onClick: () => void; loading?: boolean } | null };
+export type HeaderChrome = { searchPlaceholder: string | null; showAdd: boolean; inlineContent?: ReactNode; contentScroll?: boolean; primaryAction?: { label: string; onClick: () => void; loading?: boolean } | null };
 
 const SCREEN_STORAGE_KEY = 'sugar.screen';
 const VALID_SCREENS: ScreenKey[] = ['dashboard', 'overview', 'applications', 'capitalMap', 'companies', 'referralCodes', 'hotCompanies', 'resumes', 'interviews', 'offers', 'resumeAssistant', 'mailbox'];
