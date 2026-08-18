@@ -251,7 +251,8 @@ export default function ApiKeySettings() {
                       color: active ? '#f4f1ea' : hasKey ? '#1b1a17' : '#c0b9ac',
                       fontSize: 13, fontWeight: 600, cursor: hasKey ? 'pointer' : 'not-allowed',
                       display: 'flex', alignItems: 'center', gap: 6,
-                      transition: 'all .15s',
+                      transition:
+                        'background-color var(--motion-ui) var(--ease-out), border-color var(--motion-ui) var(--ease-out), color var(--motion-ui) var(--ease-out)',
                     }}
                   >
                     <span>{p.emoji}</span>

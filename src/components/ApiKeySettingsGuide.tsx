@@ -313,7 +313,9 @@ const providerToggle = (active: boolean, hasKey: boolean): React.CSSProperties =
   background: active ? '#1b1a17' : '#faf7f0',
   color: active ? '#f4f1ea' : hasKey ? '#1b1a17' : '#c0b9ac',
   fontSize: 13, fontWeight: 600, cursor: hasKey ? 'pointer' : 'not-allowed',
-  display: 'flex', alignItems: 'center', gap: 6, transition: 'all .15s',
+  display: 'flex', alignItems: 'center', gap: 6,
+  transition:
+    'background-color var(--motion-ui) var(--ease-out), border-color var(--motion-ui) var(--ease-out), color var(--motion-ui) var(--ease-out)',
 });
 
 const saveBtn = (saving: boolean): React.CSSProperties => ({
