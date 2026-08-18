@@ -9,6 +9,13 @@ export interface HotCompany {
   industry: string;
   city: string;
   url: string;
+  companyType?: string;
+  industryTags?: string[];
+  noticeUrl?: string;
+  applyUrl?: string;
+  deadlineText?: string;
+  records?: number;
+  source?: 'excel' | 'private' | 'legacy';
   recruitment?: CampusRecruitmentAudit;
 }
 

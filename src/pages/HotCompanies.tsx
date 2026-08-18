@@ -20,8 +20,6 @@ import { canManageStandardCatalog } from '../lib/standardCatalogAdmin';
 import {
   AI_GROUP_NAME,
   ALL_GROUP_NAME,
-  APPLIED_GROUP_NAME,
-  groupsForCatalogSelection,
   useHotCompanyCatalog,
 } from '../hooks/useHotCompanyCatalog';
 
@@ -77,13 +75,13 @@ export default function HotCompanies() {
     standardCatalogUpdatedAt,
     standardCatalogError,
     allGroups,
-    appliedCompanies,
     accountOnlyCompanies,
     recruitmentOverviewCompanies,
   } = useHotCompanyCatalog();
   const { items: recruitmentStatuses, loading: statusesLoading } = useCampusRecruitmentStatuses();
   const toast = useToast();
-  const [activeGroup, setActiveGroup] = useState(ALL);
+  const [activeCompanyType, setActiveCompanyType] = useState(ALL);
+  const [activeIndustry, setActiveIndustry] = useState(ALL);
   const [activeRecruitmentStatus, setActiveRecruitmentStatus] = useState<RecruitmentStatusKey | typeof ALL_RECRUITMENT_STATUSES>(ALL_RECRUITMENT_STATUSES);
   const [pageSearch, setPageSearch] = useState('');
   const [aiPrompt, setAiPrompt] = useState('');
@@ -113,15 +111,26 @@ export default function HotCompanies() {
     [recruitmentStatuses],
   );
 
+  const companyTypeOptions = useMemo(() => Array.from(new Set(
+    recruitmentOverviewCompanies.map((company) => company.companyType || '未标明').filter(Boolean),
+  )), [recruitmentOverviewCompanies]);
+
+  const industryOptions = useMemo(() => Array.from(new Set(
+    recruitmentOverviewCompanies.flatMap((company) => company.industryTags?.length
+      ? company.industryTags
+      : [company.industry || '其他']),
+  )), [recruitmentOverviewCompanies]);
+
   const groups = useMemo(() => {
     const q = pageSearch.trim().toLowerCase();
     const seenCompanies = new Set<string>();
-    const sourceGroups = groupsForCatalogSelection(allGroups, appliedCompanies, activeGroup);
+    const sourceGroups = allGroups.filter((group) => activeIndustry === ALL || group.name === activeIndustry);
     return sourceGroups
       .map((group) => ({
         ...group,
         companies: group.companies.filter((company) => {
           const companyKey = normalizeCompanyName(company.name);
+          if (activeCompanyType !== ALL && (company.companyType || '未标明') !== activeCompanyType) return false;
           const dbStatus = recruitmentStatusByCompany.get(companyKey);
           if (activeRecruitmentStatus !== ALL_RECRUITMENT_STATUSES
             && recruitmentStatusKey(company, dbStatus) !== activeRecruitmentStatus) {
@@ -131,7 +140,7 @@ export default function HotCompanies() {
             .filter(Boolean)
             .some((value) => value!.toLowerCase().includes(q));
           if (!matchesSearch) return false;
-          if (activeGroup === ALL) {
+          if (activeIndustry === ALL) {
             if (seenCompanies.has(companyKey)) return false;
             seenCompanies.add(companyKey);
           }
@@ -139,7 +148,7 @@ export default function HotCompanies() {
         }),
       }))
       .filter((group) => group.companies.length > 0);
-  }, [activeGroup, activeRecruitmentStatus, allGroups, appliedCompanies, pageSearch, recruitmentStatusByCompany]);
+  }, [activeCompanyType, activeIndustry, activeRecruitmentStatus, allGroups, pageSearch, recruitmentStatusByCompany]);
 
   const recruitmentStatusFilters = useMemo(() => {
     const counts = new Map<RecruitmentStatusKey, number>();
@@ -335,7 +344,10 @@ export default function HotCompanies() {
                 type="button"
                 onClick={() => {
                   setActiveRecruitmentStatus(active ? ALL_RECRUITMENT_STATUSES : status.key);
-                  if (!active) setActiveGroup(ALL);
+                  if (!active) {
+                    setActiveCompanyType(ALL);
+                    setActiveIndustry(ALL);
+                  }
                 }}
                 aria-pressed={active}
                 className="btn-press"
@@ -473,33 +485,10 @@ export default function HotCompanies() {
         )}
       </section>
 
-      <div className="scrolly" style={{ display: 'flex', gap: 10, overflowX: 'auto', overflowY: 'hidden', paddingBottom: 4 }}>
-        {[ALL, APPLIED_GROUP_NAME, ...allGroups.map((group) => group.name)].map((name) => {
-          const active = activeGroup === name;
-          return (
-            <button
-              key={name}
-              onClick={() => setActiveGroup(name)}
-              className="btn-press"
-              style={{
-                height: 38,
-                padding: '0 16px',
-                borderRadius: 999,
-                border: active ? '1px solid #1b1a17' : '1px solid #e0d8c9',
-                background: active ? '#1b1a17' : '#fffdf8',
-                color: active ? '#f4f1ea' : '#6b665c',
-                fontSize: 13,
-                fontWeight: 700,
-                whiteSpace: 'nowrap',
-                cursor: 'pointer',
-                flex: 'none',
-              }}
-            >
-              {name}
-            </button>
-          );
-        })}
-      </div>
+      <section style={{ ...CARD, padding: 16, borderRadius: 20 }}>
+        <FilterRow label="企业性质" options={companyTypeOptions} value={activeCompanyType} onChange={setActiveCompanyType} />
+        <FilterRow label="行业分类" options={industryOptions} value={activeIndustry} onChange={setActiveIndustry} />
+      </section>
 
       {/* 页面内公司名搜索 */}
       <div style={{ ...CARD, padding: 16, borderRadius: 20 }}>
@@ -554,9 +543,7 @@ export default function HotCompanies() {
         <div style={{ ...CARD, padding: 26, color: '#8a8478', fontSize: 14 }}>
           {pageSearch
             ? `没有名称包含「${pageSearch}」的公司。`
-            : activeGroup === APPLIED_GROUP_NAME
-              ? '当前账号还没有投递公司。'
-              : '没有匹配的公司。'}
+            : '没有匹配的公司。'}
         </div>
       ) : (
         groups.map((group) => (
@@ -602,6 +589,52 @@ function resolveRecruitmentStatus(company: HotCompany, dbStatus?: CampusRecruitm
   if (dbStatus?.status === 'not_started' && dbStatus.last_checked_at) return dbStatus;
   // 其余（无记录 / pending / error）回落静态底库，保证卡片立刻有「已开始/未开始」
   return seedStatusForCompany(company.name, company.url);
+}
+
+function FilterRow({
+  label,
+  options,
+  value,
+  onChange,
+}: {
+  label: string;
+  options: string[];
+  value: string;
+  onChange: (value: string) => void;
+}) {
+  return (
+    <div style={{ display: 'flex', alignItems: 'flex-start', gap: 10, flexWrap: 'wrap', marginBottom: 10 }}>
+      <span style={{ width: 68, flex: 'none', paddingTop: 9, color: '#756f65', fontSize: 12.5, fontWeight: 800 }}>{label}</span>
+      <div style={{ display: 'flex', flex: 1, gap: 8, flexWrap: 'wrap' }}>
+        {[ALL, ...options].map((option) => {
+          const active = value === option;
+          return (
+            <button
+              key={option}
+              type="button"
+              onClick={() => onChange(option)}
+              aria-pressed={active}
+              className="btn-press"
+              style={{
+                minHeight: 34,
+                padding: '5px 13px',
+                borderRadius: 999,
+                border: active ? '1px solid #1b1a17' : '1px solid #e0d8c9',
+                background: active ? '#1b1a17' : '#fffdf8',
+                color: active ? '#f4f1ea' : '#6b665c',
+                fontSize: 12.5,
+                fontWeight: 700,
+                whiteSpace: 'normal',
+                cursor: 'pointer',
+              }}
+            >
+              {option}
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  );
 }
 
 function CompanyCard({
@@ -718,10 +751,15 @@ function CompanyCard({
             {company.name}
           </div>
           <div style={{ fontSize: 12, color: '#9a9488', marginTop: 3, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-            {[company.industry, company.city].filter(Boolean).join(' · ')}
+            {[company.companyType, ...(company.industryTags?.length ? company.industryTags : [company.industry]), company.city].filter(Boolean).join(' · ')}
           </div>
         </div>
       </div>
+      {company.deadlineText && (
+        <div style={{ fontSize: 11.5, color: '#8a5b39', lineHeight: 1.45 }}>
+          截止：{company.deadlineText}
+        </div>
+      )}
       <div
         style={{
           minHeight: 58,
