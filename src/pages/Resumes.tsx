@@ -220,7 +220,7 @@ export default function Resumes() {
   );
 
   return (
-    <div>
+    <div className="animate-rise">
       <div className="flex flex-col sm:flex-row sm:items-center gap-3 mb-[18px]">
         {JOB_ASSIST_EXPLAINER}
         <div className="flex justify-end flex-none">
@@ -581,11 +581,11 @@ function ResumeCard({
       {aiOpen && createPortal(
         <div
           onClick={() => { if (aiStep !== 'working') closeAiModal(); }}
-          style={{ position: 'fixed', inset: 0, background: 'rgba(40,30,25,0.38)', backdropFilter: 'blur(6px)', WebkitBackdropFilter: 'blur(6px)', zIndex: 400, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16, animation: 'fadeIn var(--motion-panel) var(--ease-out)' }}
+          style={{ position: 'fixed', inset: 0, background: 'rgba(40,30,25,0.38)', backdropFilter: 'blur(6px)', WebkitBackdropFilter: 'blur(6px)', zIndex: 400, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16, animation: 'fadeIn .2s ease' }}
         >
           <div
             onClick={e => e.stopPropagation()}
-            style={{ background: 'rgba(255,253,250,0.98)', borderRadius: 24, width: '100%', maxWidth: 620, maxHeight: 'calc(100vh - 60px)', display: 'flex', flexDirection: 'column', boxShadow: '0 30px 80px rgba(120,40,70,.22)', overflow: 'hidden', animation: 'popIn var(--motion-panel) var(--ease-out) both' }}
+            style={{ background: 'rgba(255,253,250,0.98)', borderRadius: 24, width: '100%', maxWidth: 620, maxHeight: 'calc(100vh - 60px)', display: 'flex', flexDirection: 'column', boxShadow: '0 30px 80px rgba(120,40,70,.22)', overflow: 'hidden', animation: 'popIn .26s ease both' }}
           >
             {/* Header */}
             <div style={{ padding: '20px 24px 16px', borderBottom: '1px solid #f0ebe0', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexShrink: 0 }}>

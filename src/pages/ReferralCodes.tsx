@@ -185,7 +185,7 @@ export default function ReferralCodes() {
   };
 
   return (
-    <div className="flex flex-col gap-[18px]">
+    <div className="flex flex-col gap-[18px] animate-rise">
       <div className="flex flex-wrap gap-2" aria-label="公司库与内推码管理页面切换">
         <button onClick={() => setScreen('companies')} className="btn-press" style={pageTab(false)}>公司库</button>
         <button className="btn-press" style={pageTab(true)} aria-current="page">内推码管理</button>

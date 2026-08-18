@@ -68,7 +68,7 @@ export default function ApiKeySettings() {
         background: 'rgba(40,30,25,0.42)',
         backdropFilter: 'blur(7px)', WebkitBackdropFilter: 'blur(7px)',
         display: 'flex', alignItems: 'center', justifyContent: 'center',
-        padding: '24px 16px', animation: 'fadeIn var(--motion-panel) var(--ease-out)',
+        padding: '24px 16px', animation: 'fadeIn .2s ease',
       }}
     >
       <div
@@ -81,7 +81,7 @@ export default function ApiKeySettings() {
           borderRadius: 24,
           boxShadow: '0 28px 72px rgba(80,45,35,.24)',
           display: 'flex', flexDirection: 'column', overflow: 'hidden',
-          animation: 'popIn var(--motion-panel) var(--ease-out) both',
+          animation: 'popIn .24s ease both',
         }}
       >
         <div style={{ padding: '18px 22px 14px', borderBottom: '1px solid #f0ebe0', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexShrink: 0 }}>
@@ -203,7 +203,7 @@ export default function ApiKeySettings() {
         background: 'rgba(40,30,25,0.38)',
         backdropFilter: 'blur(6px)', WebkitBackdropFilter: 'blur(6px)',
         display: 'flex', alignItems: 'center', justifyContent: 'center',
-        padding: '24px 16px', animation: 'fadeIn var(--motion-panel) var(--ease-out)',
+        padding: '24px 16px', animation: 'fadeIn .2s ease',
       }}
     >
       <div
@@ -211,13 +211,12 @@ export default function ApiKeySettings() {
         style={{
           width: '100%', maxWidth: 560,
           maxHeight: 'calc(100vh - 80px)',
-          // 遮罩层已经做过一次背景模糊，面板本身 99% 不透明，
-          // 这里不再叠第二层 backdrop-filter。
           background: 'rgba(255,253,250,0.99)',
+          backdropFilter: 'blur(24px)', WebkitBackdropFilter: 'blur(24px)',
           border: '1px solid rgba(255,255,255,0.6)',
           borderRadius: 26, boxShadow: '0 30px 80px rgba(120,40,70,.22)',
           display: 'flex', flexDirection: 'column', overflow: 'hidden',
-          animation: 'popIn var(--motion-panel) var(--ease-out) both',
+          animation: 'popIn .26s ease both',
         }}
       >
         <div style={{ padding: '18px 22px 14px', borderBottom: '1px solid #f0ebe0', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexShrink: 0 }}>
@@ -251,8 +250,7 @@ export default function ApiKeySettings() {
                       color: active ? '#f4f1ea' : hasKey ? '#1b1a17' : '#c0b9ac',
                       fontSize: 13, fontWeight: 600, cursor: hasKey ? 'pointer' : 'not-allowed',
                       display: 'flex', alignItems: 'center', gap: 6,
-                      transition:
-                        'background-color var(--motion-ui) var(--ease-out), border-color var(--motion-ui) var(--ease-out), color var(--motion-ui) var(--ease-out)',
+                      transition: 'all .15s',
                     }}
                   >
                     <span>{p.emoji}</span>

@@ -273,11 +273,11 @@ const overlay = (zIndex: number): React.CSSProperties => ({
   background: 'rgba(40,30,25,0.40)',
   backdropFilter: 'blur(6px)', WebkitBackdropFilter: 'blur(6px)',
   display: 'flex', alignItems: 'center', justifyContent: 'center',
-  padding: '24px 16px', animation: 'fadeIn var(--motion-panel) var(--ease-out)',
+  padding: '24px 16px', animation: 'fadeIn .2s ease',
 });
 
-const mainShell: React.CSSProperties = { width: '100%', maxWidth: 560, maxHeight: 'calc(100vh - 80px)', background: 'rgba(255,253,250,0.99)', border: '1px solid rgba(255,255,255,0.6)', borderRadius: 26, boxShadow: '0 30px 80px rgba(120,40,70,.22)', display: 'flex', flexDirection: 'column', overflow: 'hidden', animation: 'popIn var(--motion-panel) var(--ease-out) both' };
-const guideShell: React.CSSProperties = { width: '100%', maxHeight: 'calc(100vh - 70px)', background: '#fffdf8', border: '1px solid rgba(255,255,255,0.72)', borderRadius: 22, boxShadow: '0 30px 60px -25px rgba(20,15,10,.42)', display: 'flex', flexDirection: 'column', overflow: 'hidden', animation: 'popIn var(--motion-panel) var(--ease-out) both' };
+const mainShell: React.CSSProperties = { width: '100%', maxWidth: 560, maxHeight: 'calc(100vh - 80px)', background: 'rgba(255,253,250,0.99)', border: '1px solid rgba(255,255,255,0.6)', borderRadius: 26, boxShadow: '0 30px 80px rgba(120,40,70,.22)', display: 'flex', flexDirection: 'column', overflow: 'hidden', animation: 'popIn .26s ease both' };
+const guideShell: React.CSSProperties = { width: '100%', maxHeight: 'calc(100vh - 70px)', background: '#fffdf8', border: '1px solid rgba(255,255,255,0.72)', borderRadius: 22, boxShadow: '0 30px 60px -25px rgba(20,15,10,.42)', display: 'flex', flexDirection: 'column', overflow: 'hidden', animation: 'popIn .24s ease both' };
 const mainHeader: React.CSSProperties = { padding: '18px 22px 14px', borderBottom: '1px solid #f0ebe0', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexShrink: 0 };
 const guideHeader: React.CSSProperties = { padding: '26px 26px 8px', display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 14, flexShrink: 0 };
 const guideSub: React.CSSProperties = { fontSize: 12.5, color: '#8a8478', margin: '8px 0 0' };
@@ -313,9 +313,7 @@ const providerToggle = (active: boolean, hasKey: boolean): React.CSSProperties =
   background: active ? '#1b1a17' : '#faf7f0',
   color: active ? '#f4f1ea' : hasKey ? '#1b1a17' : '#c0b9ac',
   fontSize: 13, fontWeight: 600, cursor: hasKey ? 'pointer' : 'not-allowed',
-  display: 'flex', alignItems: 'center', gap: 6,
-  transition:
-    'background-color var(--motion-ui) var(--ease-out), border-color var(--motion-ui) var(--ease-out), color var(--motion-ui) var(--ease-out)',
+  display: 'flex', alignItems: 'center', gap: 6, transition: 'all .15s',
 });
 
 const saveBtn = (saving: boolean): React.CSSProperties => ({

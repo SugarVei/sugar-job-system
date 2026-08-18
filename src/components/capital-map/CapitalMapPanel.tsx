@@ -32,8 +32,7 @@ export default function CapitalMapPanel({ selected, mapFailed, onSelect }: Capit
         </p>
         {mapFailed ? <p className="capital-map-warn">地图底图加载失败，仍可从下方选择省会。</p> : null}
       </div>
-      {/* key 随选中省会变化，让这块信息区重播一次入场；地图与面板外框不动 */}
-      <div className="capital-map-panel__list" key={selected ? selected.name : '__list__'}>
+      <div className="capital-map-panel__list">
         {selected ? selected.companies.map((company) => (
           <article key={`${selected.name}-${company.name}-${company.url}`} className="capital-map-company">
             <div className="capital-map-company__name">{company.name}</div>

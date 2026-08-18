@@ -42,8 +42,8 @@ export default function ThemeSwitcher() {
               background: THEMES[k].dot,
               border: `2px solid ${active ? '#1b1a17' : 'rgba(0,0,0,0.08)'}`,
               boxShadow: active ? '0 0 0 2px #fffdf8 inset' : 'none',
-              transition:
-                'transform var(--motion-press) var(--ease-out), border-color var(--motion-ui) var(--ease-out)',
+              transition: 'transform .15s, border-color .2s',
+              outline: 'none',
             }}
           />
         );

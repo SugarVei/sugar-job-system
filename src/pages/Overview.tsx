@@ -108,7 +108,7 @@ Offer 转化率：${items.length > 0 ? Math.round((byStatus['Offer']/items.lengt
     );
 
   return (
-    <div className="flex flex-col gap-[22px]">
+    <div className="flex flex-col gap-[22px] animate-rise">
       {/* 顶部工具栏：标题 + AI 按钮 */}
       <div className="flex items-center justify-between flex-wrap gap-3">
         <div>

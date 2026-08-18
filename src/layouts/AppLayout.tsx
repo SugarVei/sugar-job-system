@@ -1,5 +1,4 @@
-import { useCallback, useRef, useState, type ReactNode } from 'react';
-import { pulseMotionBudget } from '../lib/motionBudget';
+import { useRef, useState, type ReactNode } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { useTheme } from '../contexts/ThemeContext';
 import { useAppShell } from '../contexts/AppShellContext';
@@ -37,9 +36,6 @@ export default function AppLayout({ children }: { children: ReactNode }) {
     setScreen(key);
     setMobileMoreOpen(false);
   };
-
-  // 滚动期间让弥散背景降载；只更新一个时间戳，不触发 React 状态更新
-  const onContentScroll = useCallback(() => pulseMotionBudget(), []);
 
   const onAvatarChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -185,8 +181,7 @@ export default function AppLayout({ children }: { children: ReactNode }) {
                   borderRadius: 10,
                   padding: '5px 7px',
                   cursor: 'text',
-                  transition:
-                    'background-color var(--motion-ui) var(--ease-out), border-color var(--motion-ui) var(--ease-out)',
+                  transition: 'background .15s, border-color .15s, box-shadow .15s',
                 }}
               />
             </div>
@@ -358,7 +353,6 @@ export default function AppLayout({ children }: { children: ReactNode }) {
           {/* 内容区（可滚动） */}
           <div
             className="scrolly px-4 lg:px-[34px] pb-24 lg:pb-[34px]"
-            onScroll={onContentScroll}
             style={{ flex: 1, minHeight: 0, overflowY: 'auto', overscrollBehaviorY: 'contain', paddingTop: 8 }}
           >
             {children}
@@ -369,7 +363,7 @@ export default function AppLayout({ children }: { children: ReactNode }) {
       {/* ===== 移动端「更多」抽屉 ===== */}
       {mobileMoreOpen && (
         <div
-          className="flex lg:hidden modal-overlay"
+          className="flex lg:hidden"
           style={{
             position: 'fixed',
             inset: 0,
@@ -380,7 +374,6 @@ export default function AppLayout({ children }: { children: ReactNode }) {
           onClick={() => setMobileMoreOpen(false)}
         >
           <div
-            className="modal-panel"
             onClick={(e) => e.stopPropagation()}
             style={{
               position: 'absolute',
@@ -401,7 +394,6 @@ export default function AppLayout({ children }: { children: ReactNode }) {
                 type="button"
                 aria-label="关闭"
                 onClick={() => setMobileMoreOpen(false)}
-                className="btn-press"
                 style={{ width: 34, height: 34, borderRadius: 10, border: '1px solid #e4ddcf', background: '#fffdf8', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
               >
                 <IconClose size={16} />
@@ -465,7 +457,6 @@ export default function AppLayout({ children }: { children: ReactNode }) {
             <button
               key={key}
               onClick={() => go(key)}
-              className="btn-press"
               style={{
                 display: 'flex',
                 flexDirection: 'column',
@@ -490,7 +481,6 @@ export default function AppLayout({ children }: { children: ReactNode }) {
           onClick={() => setMobileMoreOpen((v) => !v)}
           aria-expanded={mobileMoreOpen}
           aria-label="更多功能"
-          className="btn-press"
           style={{
             display: 'flex',
             flexDirection: 'column',

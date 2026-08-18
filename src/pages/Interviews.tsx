@@ -191,7 +191,7 @@ export default function Interviews() {
   const today = new Date();
 
   return (
-    <div className="flex flex-col gap-[18px]">
+    <div className="flex flex-col gap-[18px] animate-rise">
       <div className="flex items-center justify-between flex-wrap gap-3" style={{ ...CARD, borderRadius: 18, padding: '14px 18px' }}>
         <div style={{ fontFamily: 'Poppins', fontSize: 15, fontWeight: 600 }}>
           {weekStart.getFullYear()}/{fmtMD(weekStart)} - {fmtMD(weekEnd)}

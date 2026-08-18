@@ -11,8 +11,7 @@ import {
   PREFECTURE_CITIES,
   UNSELECTABLE_GEO_NAMES,
 } from '../../data/prefectureCities';
-import { MAP_COLORS } from './theme';
-import { prefersReducedMotion, pulseMotionBudget } from '../../lib/motionBudget';
+import { MAP_COLORS, prefersReducedMotion } from './theme';
 
 const LOCAL_PREFECTURE_GEO = '/geo/china-prefecture.json';
 const LOCAL_PROVINCE_GEO = '/geo/china-100000-full.json';
@@ -32,11 +31,6 @@ const COMPANY_DETAIL_ZOOM = 1.55;
 const ALL_CITY_ZOOM = 2.15;
 const MAX_ZOOM = 10;
 const MIN_ZOOM = 0.85;
-
-/** 普通更新动画时长 */
-const UPDATE_MS = 180;
-/** 选中城市的涟漪只做一次短反馈，随后回到静态高亮 */
-const RIPPLE_MS = 1100;
 
 const CAPITAL_LABEL_POS = new Map(
   CAPITAL_CAMPUS_CITIES.map((city) => [city.name, city.labelPos]),
@@ -126,62 +120,22 @@ function isVisibleCity(name: string, selectedName: string | null, zoom: number, 
   return showAllCities(zoom);
 }
 
-/** 选中标记的样式：涟漪 series 与静态 series 共用，保证颜色与标签完全一致。 */
-function selectedSeries(marker: ChinaMapMarker | undefined) {
-  return {
-    coordinateSystem: 'geo' as const,
-    z: 3,
-    symbolSize: 18,
-    itemStyle: {
-      color: MAP_COLORS.selectedDot,
-      borderColor: '#fffdf8',
-      borderWidth: 3,
-      shadowBlur: 22,
-      shadowColor: MAP_COLORS.selectedHalo,
-    },
-    label: {
-      show: true,
-      position: 'right' as const,
-      distance: 12,
-      formatter: marker ? `${marker.name} · ${marker.count} 家` : '',
-      backgroundColor: '#fffdf8',
-      borderColor: MAP_COLORS.line,
-      borderWidth: 1,
-      borderRadius: 12,
-      padding: [7, 10, 7, 10],
-      color: MAP_COLORS.ink,
-      fontSize: 12.5,
-      fontWeight: 800,
-      shadowBlur: 12,
-      shadowColor: 'rgba(60, 50, 35, 0.12)',
-    },
-  };
-}
-
 function buildOption(
   markers: ChinaMapMarker[],
   selectedName: string | null,
   zoom: number,
   center: [number, number] | undefined,
   reduceMotion: boolean,
-  ripple: boolean,
 ) {
   const markerByName = new Map(markers.map((marker) => [marker.name, marker]));
   const selectable = new Set(markers.map((marker) => marker.name));
   const selectedMarker = selectedName ? markerByName.get(selectedName) : undefined;
-  const selectedData = selectedMarker
-    ? [{
-      name: selectedMarker.name,
-      value: [selectedMarker.lng, selectedMarker.lat, selectedMarker.count],
-    }]
-    : [];
-  const rippleVisible = Boolean(selectedMarker) && ripple && !reduceMotion;
 
   return {
     backgroundColor: 'transparent',
     animation: !reduceMotion,
-    animationDuration: reduceMotion ? 0 : UPDATE_MS,
-    animationDurationUpdate: reduceMotion ? 0 : UPDATE_MS,
+    animationDuration: reduceMotion ? 0 : 280,
+    animationDurationUpdate: reduceMotion ? 0 : 280,
     tooltip: {
       trigger: 'item' as const,
       backgroundColor: MAP_COLORS.panel,
@@ -274,19 +228,40 @@ function buildOption(
           label: { show: true },
         },
       },
-      // 选中标记固定占两个 series（涟漪 + 静态），只切换数据不切换 type，
-      // 这样 setOption 合并时不会重建 series，标记颜色与标签内容始终一致。
-      {
-        ...selectedSeries(selectedMarker),
-        type: 'effectScatter' as const,
-        rippleEffect: { brushType: 'stroke' as const, scale: 3.4, period: 3.2 },
-        data: rippleVisible ? selectedData : [],
-      },
-      {
-        ...selectedSeries(selectedMarker),
-        type: 'scatter' as const,
-        data: rippleVisible ? [] : selectedData,
-      },
+      ...(selectedMarker ? [{
+        type: (reduceMotion ? 'scatter' : 'effectScatter') as 'scatter' | 'effectScatter',
+        coordinateSystem: 'geo' as const,
+        z: 3,
+        symbolSize: 18,
+        rippleEffect: reduceMotion ? undefined : { brushType: 'stroke' as const, scale: 3.4, period: 3.2 },
+        data: [{
+          name: selectedMarker.name,
+          value: [selectedMarker.lng, selectedMarker.lat, selectedMarker.count],
+        }],
+        itemStyle: {
+          color: MAP_COLORS.selectedDot,
+          borderColor: '#fffdf8',
+          borderWidth: 3,
+          shadowBlur: 22,
+          shadowColor: MAP_COLORS.selectedHalo,
+        },
+        label: {
+          show: true,
+          position: 'right' as const,
+          distance: 12,
+          formatter: `${selectedMarker.name} · ${selectedMarker.count} 家`,
+          backgroundColor: '#fffdf8',
+          borderColor: MAP_COLORS.line,
+          borderWidth: 1,
+          borderRadius: 12,
+          padding: [7, 10, 7, 10],
+          color: MAP_COLORS.ink,
+          fontSize: 12.5,
+          fontWeight: 800,
+          shadowBlur: 12,
+          shadowColor: 'rgba(60, 50, 35, 0.12)',
+        },
+      }] : []),
     ],
   };
 }
@@ -322,8 +297,6 @@ export default function ChinaCapitalChart({
   const readyRef = useRef(false);
   const roamingRef = useRef(false);
   const viewRefInternal = useRef<ViewState>({ zoom: 1 });
-  const rippleRef = useRef(false);
-  const rippleTimer = useRef(0);
 
   useEffect(() => {
     selectedRef.current = selectedName;
@@ -353,28 +326,19 @@ export default function ChinaCapitalChart({
       return capital?.name ?? null;
     };
 
-    // 漫游期间同一帧内的多次事件合并成一次读取；只有缩放真的跨过
-    // 城市可见阈值时才重建 setOption。
-    let roamFrame = 0;
-    let roamIdle = 0;
     chart.on('georoam', () => {
       roamingRef.current = true;
-      window.clearTimeout(roamIdle);
-      roamIdle = window.setTimeout(() => {
+      window.setTimeout(() => {
         roamingRef.current = false;
       }, 120);
-      pulseMotionBudget();
-      if (!readyRef.current || roamFrame) return;
-      roamFrame = window.requestAnimationFrame(() => {
-        roamFrame = 0;
-        const view = readView(chart);
-        const prev = viewRefInternal.current;
-        const crossed = showCompanyCities(prev.zoom) !== showCompanyCities(view.zoom)
-          || showAllCities(prev.zoom) !== showAllCities(view.zoom);
-        viewRefInternal.current = view;
-        if (!crossed) return;
-        chart.setOption(buildOption(markersRef.current, selectedRef.current, view.zoom, view.center, prefersReducedMotion(), rippleRef.current));
-      });
+      if (!readyRef.current) return;
+      const view = readView(chart);
+      const prev = viewRefInternal.current;
+      const crossed = showCompanyCities(prev.zoom) !== showCompanyCities(view.zoom)
+        || showAllCities(prev.zoom) !== showAllCities(view.zoom);
+      viewRefInternal.current = view;
+      if (!crossed) return;
+      chart.setOption(buildOption(markersRef.current, selectedRef.current, view.zoom, view.center, prefersReducedMotion()));
     });
 
     chart.on('click', (params: { seriesType?: string; componentType?: string; name?: string }) => {
@@ -407,7 +371,7 @@ export default function ChinaCapitalChart({
         onGeoKindRef.current?.(geoKindOf(geo));
         onMapFailedRef.current(false);
         const view = viewRefInternal.current;
-        chart.setOption(buildOption(markersRef.current, selectedRef.current, view.zoom, view.center, prefersReducedMotion(), rippleRef.current), true);
+        chart.setOption(buildOption(markersRef.current, selectedRef.current, view.zoom, view.center, prefersReducedMotion()), true);
       })
       .catch(() => {
         if (cancelled) return;
@@ -419,8 +383,6 @@ export default function ChinaCapitalChart({
       cancelled = true;
       observer.disconnect();
       window.removeEventListener('resize', resize);
-      window.clearTimeout(roamIdle);
-      if (roamFrame) window.cancelAnimationFrame(roamFrame);
       chart.dispose();
       chartRef.current = null;
     };
@@ -435,13 +397,13 @@ export default function ChinaCapitalChart({
         const view = readView(chart);
         const zoom = Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, view.zoom * factor));
         viewRefInternal.current = { zoom, center: view.center };
-        chart.setOption(buildOption(markersRef.current, selectedRef.current, zoom, view.center, prefersReducedMotion(), rippleRef.current));
+        chart.setOption(buildOption(markersRef.current, selectedRef.current, zoom, view.center, prefersReducedMotion()));
       },
       resetView: () => {
         const chart = chartRef.current;
         if (!chart || !readyRef.current) return;
         viewRefInternal.current = { zoom: 1 };
-        chart.setOption(buildOption(markersRef.current, selectedRef.current, 1, undefined, prefersReducedMotion(), rippleRef.current), true);
+        chart.setOption(buildOption(markersRef.current, selectedRef.current, 1, undefined, prefersReducedMotion()), true);
       },
     };
     return () => {
@@ -451,8 +413,7 @@ export default function ChinaCapitalChart({
 
   useEffect(() => {
     const chart = chartRef.current;
-    if (!chart || !readyRef.current) return undefined;
-    const reduceMotion = prefersReducedMotion();
+    if (!chart || !readyRef.current) return;
     const view = readView(chart);
     const selectedCity = selectedName ? PREFECTURE_BY_NAME[selectedName] : null;
     let nextZoom = view.zoom;
@@ -462,22 +423,7 @@ export default function ChinaCapitalChart({
       nextCenter = [selectedCity.lng, selectedCity.lat];
     }
     viewRefInternal.current = { zoom: nextZoom, center: nextCenter };
-
-    // 选中后先给一次约 1.1s 的涟漪，然后回到静态高亮，不做常驻动画
-    window.clearTimeout(rippleTimer.current);
-    rippleRef.current = Boolean(selectedName) && !reduceMotion;
-    chart.setOption(buildOption(resolvedMarkers, selectedName, nextZoom, nextCenter, reduceMotion, rippleRef.current));
-    if (!rippleRef.current) return undefined;
-
-    rippleTimer.current = window.setTimeout(() => {
-      rippleRef.current = false;
-      const current = chartRef.current;
-      if (!current || !readyRef.current) return;
-      const now = viewRefInternal.current;
-      current.setOption(buildOption(markersRef.current, selectedRef.current, now.zoom, now.center, prefersReducedMotion(), false));
-    }, RIPPLE_MS);
-
-    return () => window.clearTimeout(rippleTimer.current);
+    chart.setOption(buildOption(resolvedMarkers, selectedName, nextZoom, nextCenter, prefersReducedMotion()));
   }, [resolvedMarkers, selectedName]);
 
   return <div ref={hostRef} className="capital-map-chart" role="img" aria-label={ariaLabel} />;

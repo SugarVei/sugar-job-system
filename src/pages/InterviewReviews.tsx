@@ -48,7 +48,7 @@ export default function InterviewReviews() {
   const bank=questions.items.filter(x=>x.add_to_question_bank);
   const stats=[['已复盘',reviews.items.filter(x=>x.reviewed).length,'完成记录'],['待复盘',reviews.items.filter(x=>!x.reviewed).length,'需要处理'],['通过',reviews.items.filter(x=>x.result==='通过').length,'面试通过'],['未通过',reviews.items.filter(x=>x.result==='未通过').length,'继续改进'],['平均表现',reviews.items.length?Math.round(reviews.items.reduce((a,b)=>a+(b.performance_score??0),0)/reviews.items.length):0,'综合评分'],['题库题数',bank.length,'持续积累']];
   const detailQs=detail?questions.items.filter(x=>x.review_id===detail.id):[];
-  return <div className="flex flex-col gap-[18px]">
+  return <div className="flex flex-col gap-[18px] animate-rise">
     {(reviews.error||questions.error)&&<FormError message={reviews.error||questions.error||''}/>}
     <div className="grid grid-cols-2 xl:grid-cols-6 gap-3">{stats.map(([a,b,c],i)=><div key={String(a)} style={{...CARD,padding:16,background:['#dcebd5','#fbeec2','#dde8fb','#fbe0d8',theme.accentSoft,'#e6e2da'][i]}}><div className="text-xs font-semibold opacity-70">{a}</div><div className="text-2xl font-bold mt-1">{b}</div><div className="text-[11px] opacity-60">{c}</div></div>)}</div>
     <div className="module-toolbar review-toolbar" style={{...CARD,borderRadius:18}}>

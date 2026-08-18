@@ -134,7 +134,7 @@ export default function Companies() {
   };
 
   return (
-    <div className="flex flex-col gap-[18px]">
+    <div className="flex flex-col gap-[18px] animate-rise">
       {(companiesError || applicationsError) && <FormError message={companiesError || applicationsError || ''} />}
 
       <div className="flex flex-col lg:flex-row lg:items-center gap-3 p-4" style={{ ...CARD, borderRadius: 20 }}>

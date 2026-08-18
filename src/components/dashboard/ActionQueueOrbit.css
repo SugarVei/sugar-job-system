@@ -206,7 +206,7 @@ button.action-queue-card:hover { transform: translateY(-4px); border-color: var(
   background: rgba(30, 20, 35, .3);
   backdrop-filter: blur(3px);
   -webkit-backdrop-filter: blur(3px);
-  animation: aqFadeIn var(--motion-panel) var(--ease-out);
+  animation: aqFadeIn .2s ease;
 }
 .action-queue-drawer {
   display: flex;
@@ -222,7 +222,7 @@ button.action-queue-card:hover { transform: translateY(-4px); border-color: var(
   box-shadow: -12px 0 44px rgba(40, 25, 45, .18);
   backdrop-filter: blur(20px);
   -webkit-backdrop-filter: blur(20px);
-  animation: aqDrawerIn var(--motion-panel) var(--ease-out);
+  animation: aqDrawerIn .28s cubic-bezier(.2, .8, .2, 1);
 }
 .action-queue-drawer__topline { display: flex; align-items: center; justify-content: space-between; }
 .action-queue-drawer__status { padding: 4px 12px; }
