@@ -132,7 +132,7 @@ export default function Dashboard() {
   };
 
   return (
-    <div className="flex flex-col gap-[22px] animate-rise">
+    <div className="flex flex-col gap-[22px]">
       <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,1.55fr)_minmax(0,1fr)] items-stretch gap-[22px]">
         <ActionQueueOrbit
           apps={activeApps}

@@ -302,7 +302,7 @@ export default function HotCompanies() {
   };
 
   return (
-    <div className="flex flex-col gap-[22px] animate-rise">
+    <div className="flex flex-col gap-[22px]">
       <section style={{ ...CARD, padding: 18, borderRadius: 22 }}>
         <div className="flex items-start justify-between gap-4 flex-wrap">
           <div>
