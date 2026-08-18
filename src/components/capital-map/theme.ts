@@ -16,7 +16,3 @@ export const MAP_COLORS = {
   chipActive: '#f8ead4',
   dots: ['#8ca6c7', '#7eb8a0', '#e4a08c', '#d4b48a'] as const,
 };
-
-export function prefersReducedMotion(): boolean {
-  return typeof window !== 'undefined' && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-}

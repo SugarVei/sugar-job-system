@@ -87,7 +87,8 @@ export default function CompanyMapPanel({
         {mapFailed ? <p className="capital-map-warn">地图底图加载失败，仍可从下方选择城市。</p> : null}
       </div>
 
-      <div className="capital-map-panel__list">
+      {/* key 随选中城市变化，让这块信息区重播一次入场；地图与面板外框不动 */}
+      <div className="capital-map-panel__list" key={selectedCity ? selectedCity.hq.city : '__list__'}>
         {selectedCity ? selectedCompanies.map((entry) => (
           <CompanyCard
             key={`${entry.group.name}-${entry.company.name}`}
