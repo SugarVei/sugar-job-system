@@ -1,6 +1,7 @@
 import { FEATURED_COMPANY_GROUPS, HOT_COMPANY_GROUPS } from '../src/data/hotCompanies';
 import { normalizeCompanyName } from '../src/lib/companyName';
 import { flattenCatalogGroups, mergeStandardCatalog, type StandardCompanyOverlay } from '../src/lib/standardCompanyCatalog';
+import { canManageStandardCatalog } from '../src/lib/standardCatalogAdmin';
 import { STANDARD_CATALOG_OVERLAY_LIMIT, catalogUploadErrorMessage, diffCatalog } from '../src/lib/standardCompanyImport';
 import { catalogFromImportBody } from './_lib/standard-company-file';
 
@@ -49,12 +50,7 @@ function setCors(request: NativeRequest, response: NativeResponse) {
 }
 
 function canManageCatalog(email: string | undefined) {
-  const allowlist = (process.env.STANDARD_CATALOG_ADMIN_EMAIL ?? '')
-    .split(',')
-    .map((item) => item.trim().toLowerCase())
-    .filter(Boolean);
-  if (allowlist.length === 0) return true;
-  return Boolean(email && allowlist.includes(email.toLowerCase()));
+  return canManageStandardCatalog(email, process.env.STANDARD_CATALOG_ADMIN_EMAIL);
 }
 
 function missingTable(error: { message?: string; code?: string } | null) {

@@ -365,7 +365,7 @@ export default function HotCompanies() {
         catalogError={standardCatalogError}
         onApplied={async () => {
           await refreshStandardCatalog();
-          toast.success('标准公司库已更新');
+          toast.success('标准公司库已更新，热门公司和地图校招会一起刷新');
         }}
       />
 

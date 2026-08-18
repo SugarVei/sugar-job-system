@@ -3,6 +3,7 @@ import Modal from './Modal';
 import { IconFile, IconTrash } from './icons';
 import { useAuth } from '../contexts/AuthContext';
 import { isSupabaseConfigured, supabase } from '../lib/supabase';
+import { canManageStandardCatalog } from '../lib/standardCatalogAdmin';
 import {
   STANDARD_CATALOG_MAX_FILE_BYTES,
   catalogUploadErrorMessage,
@@ -59,6 +60,7 @@ export default function StandardCatalogImporter({
   onApplied: () => Promise<void> | void;
 }) {
   const { user } = useAuth();
+  const canManage = canManageStandardCatalog(user?.email);
   const inputRef = useRef<HTMLInputElement>(null);
   const [file, setFile] = useState<File | null>(null);
   const [companies, setCompanies] = useState<IncomingCompany[] | null>(null);
@@ -109,6 +111,10 @@ export default function StandardCatalogImporter({
     if (!file || loading) return;
     if (!user || !isSupabaseConfigured) {
       setError('需要登录并配置数据库后才能更新标准公司库。');
+      return;
+    }
+    if (!canManage) {
+      setError('当前账号没有更新标准公司库的权限。');
       return;
     }
     setLoading(true);
@@ -172,7 +178,7 @@ export default function StandardCatalogImporter({
         <div>
           <h2 style={{ margin: 0, fontSize: 16, fontWeight: 750, color: '#1b1a17' }}>用 Excel 更新标准公司库</h2>
           <p style={{ margin: '5px 0 0', fontSize: 12.5, color: '#8a8478', lineHeight: 1.55 }}>
-            支持飞书导出表和秋招 / 春招 / 实习汇总表。文件在浏览器里先解析，确认后再写入公司名、行业、城市、官网和分组。
+            只把表里的公司新增或补全进共享标准库，不会删除底库或未出现在表里的公司，也不会按 27 届清理招聘信息。写入后热门公司和地图校招「全部企业」会一起更新。
           </p>
         </div>
         <span style={{ fontSize: 12, color: '#9a9488' }}>{latestLabel}</span>
@@ -181,8 +187,8 @@ export default function StandardCatalogImporter({
       <div
         role="button"
         tabIndex={0}
-        onClick={() => inputRef.current?.click()}
-        onKeyDown={(event) => { if (event.key === 'Enter' || event.key === ' ') inputRef.current?.click(); }}
+        onClick={() => { if (canManage) inputRef.current?.click(); }}
+        onKeyDown={(event) => { if (canManage && (event.key === 'Enter' || event.key === ' ')) inputRef.current?.click(); }}
         onDragOver={(event) => { event.preventDefault(); setDragging(true); }}
         onDragLeave={() => setDragging(false)}
         onDrop={onDrop}
@@ -193,9 +199,10 @@ export default function StandardCatalogImporter({
           borderRadius: 16,
           padding: '20px 16px',
           textAlign: 'center',
-          cursor: 'pointer',
+          cursor: canManage ? 'pointer' : 'default',
         }}
         aria-label="点击或拖拽上传 Excel"
+        aria-disabled={!canManage}
       >
         <input
           ref={inputRef}
@@ -233,21 +240,27 @@ export default function StandardCatalogImporter({
         </div>
       )}
 
+      {!canManage && (
+        <div style={{ marginTop: 12, color: '#8a8478', fontSize: 12.5, lineHeight: 1.55 }}>
+          只有管理员账号可以上传并写入共享标准公司库。
+        </div>
+      )}
+
       <div className="flex items-center justify-between gap-3 flex-wrap" style={{ marginTop: 15 }}>
-        <span style={{ fontSize: 11.5, color: '#9a9488' }}>默认只新增缺失公司，并补全/更新已有公司的官网和分组。</span>
+        <span style={{ fontSize: 11.5, color: '#9a9488' }}>默认只新增缺失公司，并补全/更新已有公司的官网和分组；地图校招「全部企业」读同一份库。</span>
         <button
           type="button"
           onClick={() => void previewImport()}
-          disabled={!file || loading}
+          disabled={!file || loading || !canManage}
           className="btn-press"
           style={{
             border: 0,
             borderRadius: 12,
             height: 40,
             padding: '0 18px',
-            background: !file || loading ? '#d8d0c2' : '#1b1a17',
+            background: !file || loading || !canManage ? '#d8d0c2' : '#1b1a17',
             color: '#fffdf8',
-            cursor: !file || loading ? 'not-allowed' : 'pointer',
+            cursor: !file || loading || !canManage ? 'not-allowed' : 'pointer',
             fontSize: 13,
             fontWeight: 750,
           }}
