@@ -1,6 +1,6 @@
 import { useMemo } from 'react';
 import { FEATURED_COMPANY_GROUPS, HOT_COMPANY_GROUPS, type HotCompany, type HotCompanyGroup } from '../data/hotCompanies';
-import { mergeStandardCatalog } from '../lib/standardCompanyCatalog';
+import { flattenCatalogGroups, mergeStandardCatalog } from '../lib/standardCompanyCatalog';
 import { applicationCompanyMatchesHotCompany, normalizeCompanyName } from '../lib/companyName';
 import type { Application, Company } from '../types';
 import { useCollection } from './useCollection';
@@ -40,6 +40,11 @@ export function useHotCompanyCatalog() {
       : [];
     return [...standardCatalog.groups, ...importedGroup];
   }, [importedCompanies, standardCatalog.groups]);
+
+  const standardCatalogRows = useMemo(
+    () => flattenCatalogGroups(standardCatalog.groups),
+    [standardCatalog.groups],
+  );
 
   const standardCompanyKeys = useMemo(
     () => new Set(standardCatalog.companies.map((company) => normalizeCompanyName(company.name))),
@@ -91,6 +96,7 @@ export function useHotCompanyCatalog() {
     removeRecommendation: recommendations.remove,
     importedCompanies,
     standardCompanies: standardCatalog.companies,
+    standardCatalogRows,
     refreshStandardCatalog: overlay.refresh,
     standardCatalogUpdatedAt: overlay.latestUpdatedAt,
     standardCatalogError: overlay.error,
