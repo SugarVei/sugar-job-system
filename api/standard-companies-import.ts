@@ -1,14 +1,13 @@
-import { FEATURED_COMPANY_GROUPS, HOT_COMPANY_GROUPS } from '../src/data/hotCompanies';
 import { normalizeCompanyName } from '../src/lib/companyName';
-import { flattenCatalogGroups, mergeStandardCatalog, type StandardCompanyOverlay } from '../src/lib/standardCompanyCatalog';
 import { canManageStandardCatalog } from '../src/lib/standardCatalogAdmin';
-import { STANDARD_CATALOG_OVERLAY_LIMIT, catalogUploadErrorMessage, diffCatalog } from '../src/lib/standardCompanyImport';
+import { catalogUploadErrorMessage } from '../src/lib/standardCompanyImport';
 import { catalogFromImportBody } from './_lib/standard-company-file';
+
+export const config = { runtime: 'nodejs', maxDuration: 30 };
 
 type NativeRequest = { method?: string; headers: Record<string, string | string[] | undefined>; body?: unknown };
 type NativeResponse = { status(code: number): NativeResponse; json(body: unknown): void; setHeader(name: string, value: string): void; end(): void };
 
-const PREVIEW_LIMIT = 40;
 const requests = new Map<string, { count: number; reset: number }>();
 
 function header(request: NativeRequest, name: string) {
@@ -34,12 +33,20 @@ function rateLimit(key: string) {
     return true;
   }
   item.count += 1;
-  return item.count <= 8;
+  return item.count <= 80;
 }
 
 function setCors(request: NativeRequest, response: NativeResponse) {
   const origin = header(request, 'origin');
-  const allowed = new Set(['http://localhost:5173', 'http://127.0.0.1:5173', 'http://localhost:8080', 'http://127.0.0.1:8080']);
+  const allowed = new Set([
+    'http://localhost:5173',
+    'http://127.0.0.1:5173',
+    'http://localhost:8080',
+    'http://127.0.0.1:8080',
+    'https://sugarv.mom',
+    'https://www.sugarv.mom',
+    'https://sugar-job-system.vercel.app',
+  ]);
   if (process.env.ALLOWED_ORIGIN) allowed.add(process.env.ALLOWED_ORIGIN);
   if (process.env.VERCEL_URL) allowed.add(`https://${process.env.VERCEL_URL}`);
   if (allowed.has(origin)) response.setHeader('Access-Control-Allow-Origin', origin);
@@ -62,6 +69,12 @@ function readBody(request: NativeRequest) {
   return (request.body ?? {}) as Record<string, unknown>;
 }
 
+function countFrom(value: unknown) {
+  const number = Number(value);
+  if (!Number.isFinite(number) || number < 0) return 0;
+  return Math.min(Math.round(number), 20_000);
+}
+
 async function requireUser(request: NativeRequest) {
   const authorization = header(request, 'authorization');
   if (!authorization.startsWith('Bearer ')) throw new Error('Unauthorized');
@@ -82,26 +95,6 @@ function supabaseHeaders(serviceRoleKey: string, extras?: Record<string, string>
   };
 }
 
-async function loadOverlay(supabaseUrl: string, serviceRoleKey: string) {
-  const response = await fetch(
-    `${supabaseUrl}/rest/v1/standard_companies?select=company_key,company_name,industry,city,url,group_name,updated_at&limit=${STANDARD_CATALOG_OVERLAY_LIMIT}`,
-    { headers: supabaseHeaders(serviceRoleKey, { accept: 'application/json' }) },
-  );
-  if (response.status === 404) throw new Error('TABLE_MISSING');
-  if (!response.ok) {
-    const text = await response.text();
-    if (/does not exist|schema cache/i.test(text)) throw new Error('TABLE_MISSING');
-    throw new Error(`READ_FAILED:${response.status}`);
-  }
-  return await response.json() as StandardCompanyOverlay[];
-}
-
-function currentCatalog(overlay: StandardCompanyOverlay[]) {
-  return flattenCatalogGroups(
-    mergeStandardCatalog([...FEATURED_COMPANY_GROUPS, ...HOT_COMPANY_GROUPS], overlay).groups,
-  );
-}
-
 export default async function handler(request: NativeRequest, response: NativeResponse) {
   setCors(request, response);
   if (request.method === 'OPTIONS') return response.status(204).end();
@@ -117,41 +110,19 @@ export default async function handler(request: NativeRequest, response: NativeRe
     }
 
     const body = readBody(request);
-    const action = body.action === 'apply' ? 'apply' : 'preview';
+    if (body.action !== 'apply') {
+      return response.status(400).json({ error: '预览已在浏览器完成，请直接确认写入。' });
+    }
     const fileName = typeof body.file_name === 'string' ? body.file_name.slice(0, 180) : '';
     const parsed = catalogFromImportBody(body);
+    if (parsed.companies.length === 0) {
+      return response.status(200).json({ ok: true, written: 0 });
+    }
 
     const supabaseUrl = required('SUPABASE_URL').replace(/\/$/, '');
     const serviceRoleKey = required('SUPABASE_SERVICE_ROLE_KEY');
-    const overlay = await loadOverlay(supabaseUrl, serviceRoleKey);
-    const diff = diffCatalog(currentCatalog(overlay), parsed.companies);
-    const skipped = [...parsed.skipped, ...diff.rows.filter((row) => row.kind === 'skip')];
-    const added = diff.rows.filter((row) => row.kind === 'add');
-    const updated = diff.rows.filter((row) => row.kind === 'update');
-    const unchanged = diff.rows.filter((row) => row.kind === 'unchanged');
-    const summary = {
-      added: added.length,
-      updated: updated.length,
-      unchanged: unchanged.length,
-      skipped: skipped.length,
-      sheets: parsed.sheets,
-    };
-
-    if (action === 'preview') {
-      return response.status(200).json({
-        summary,
-        added: added.slice(0, PREVIEW_LIMIT),
-        updated: updated.slice(0, PREVIEW_LIMIT),
-        skipped: skipped.slice(0, PREVIEW_LIMIT),
-      });
-    }
-
-    if (diff.upserts.length === 0) {
-      return response.status(200).json({ ok: true, summary, written: 0 });
-    }
-
     const checkedAt = new Date().toISOString();
-    const payloads = diff.upserts.map((company) => ({
+    const payloads = parsed.companies.map((company) => ({
       company_key: normalizeCompanyName(company.name),
       company_name: company.name,
       industry: company.industry,
@@ -182,27 +153,30 @@ export default async function handler(request: NativeRequest, response: NativeRe
       }
     }
 
-    const runResponse = await fetch(`${supabaseUrl}/rest/v1/standard_company_import_runs`, {
-      method: 'POST',
-      headers: supabaseHeaders(serviceRoleKey, {
-        'content-type': 'application/json',
-        prefer: 'return=minimal',
-      }),
-      body: JSON.stringify({
-        user_id: user.id,
-        file_name: fileName.slice(0, 180) || 'catalog.xlsx',
-        added_count: summary.added,
-        updated_count: summary.updated,
-        unchanged_count: summary.unchanged,
-        skipped_count: summary.skipped,
-      }),
-    });
-    if (!runResponse.ok && runResponse.status !== 404) {
-      const text = await runResponse.text();
-      if (!missingTable({ message: text })) throw new Error(`RUN_FAILED:${runResponse.status}`);
+    const run = body.run && typeof body.run === 'object' ? body.run as Record<string, unknown> : null;
+    if (run) {
+      const runResponse = await fetch(`${supabaseUrl}/rest/v1/standard_company_import_runs`, {
+        method: 'POST',
+        headers: supabaseHeaders(serviceRoleKey, {
+          'content-type': 'application/json',
+          prefer: 'return=minimal',
+        }),
+        body: JSON.stringify({
+          user_id: user.id,
+          file_name: fileName.slice(0, 180) || 'catalog.xlsx',
+          added_count: countFrom(run.added_count ?? run.added),
+          updated_count: countFrom(run.updated_count ?? run.updated),
+          unchanged_count: countFrom(run.unchanged_count ?? run.unchanged),
+          skipped_count: countFrom(run.skipped_count ?? run.skipped),
+        }),
+      });
+      if (!runResponse.ok && runResponse.status !== 404) {
+        const text = await runResponse.text();
+        if (!missingTable({ message: text })) throw new Error(`RUN_FAILED:${runResponse.status}`);
+      }
     }
 
-    return response.status(200).json({ ok: true, summary, written: payloads.length });
+    return response.status(200).json({ ok: true, written: payloads.length });
   } catch (error) {
     const message = error instanceof Error ? error.message : '';
     if (message === 'Unauthorized') return response.status(401).json({ error: '登录已失效，请重新登录后再试。' });

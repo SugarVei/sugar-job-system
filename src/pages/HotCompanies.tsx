@@ -72,6 +72,7 @@ export default function HotCompanies() {
     removeRecommendation,
     importedCompanies,
     standardCompanies,
+    standardCatalogRows,
     refreshStandardCatalog,
     standardCatalogUpdatedAt,
     standardCatalogError,
@@ -363,6 +364,7 @@ export default function HotCompanies() {
 
       {canManageStandardCatalog(user?.email) && (
         <StandardCatalogImporter
+          currentCompanies={standardCatalogRows}
           updatedAt={standardCatalogUpdatedAt}
           catalogError={standardCatalogError}
           onApplied={async () => {

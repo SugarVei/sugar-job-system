@@ -5,8 +5,12 @@ import { useAuth } from '../contexts/AuthContext';
 import { isSupabaseConfigured, supabase } from '../lib/supabase';
 import { canManageStandardCatalog } from '../lib/standardCatalogAdmin';
 import {
+  STANDARD_CATALOG_APPLY_CHUNK,
   STANDARD_CATALOG_MAX_FILE_BYTES,
+  STANDARD_CATALOG_PREVIEW_LIMIT,
   catalogUploadErrorMessage,
+  diffCatalog,
+  type CatalogCompany,
   type CatalogDiffRow,
   type CatalogDiffSummary,
   type IncomingCompany,
@@ -66,10 +70,12 @@ async function importHeaders() {
 }
 
 export default function StandardCatalogImporter({
+  currentCompanies,
   updatedAt,
   catalogError,
   onApplied,
 }: {
+  currentCompanies: CatalogCompany[];
   updatedAt?: string | null;
   catalogError?: string | null;
   onApplied: () => Promise<void> | void;
@@ -80,8 +86,10 @@ export default function StandardCatalogImporter({
   const [file, setFile] = useState<File | null>(null);
   const [companies, setCompanies] = useState<IncomingCompany[] | null>(null);
   const [parseSkipped, setParseSkipped] = useState<CatalogDiffRow[]>([]);
+  const [parseSheets, setParseSheets] = useState<string[]>([]);
   const [dragging, setDragging] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [progress, setProgress] = useState('');
   const [error, setError] = useState('');
   const [preview, setPreview] = useState<PreviewResponse | null>(null);
 
@@ -90,6 +98,7 @@ export default function StandardCatalogImporter({
     setPreview(null);
     setCompanies(null);
     setParseSkipped([]);
+    setParseSheets([]);
     if (!next) {
       setFile(null);
       return;
@@ -118,10 +127,11 @@ export default function StandardCatalogImporter({
 
   const parsedCompanies = async () => {
     if (!file) throw new Error('请先选择 Excel 文件。');
-    if (companies) return { companies, skipped: parseSkipped };
+    if (companies) return { companies, skipped: parseSkipped, sheets: parseSheets };
     const local = await parseCatalogWorkbookFile(file);
     setCompanies(local.companies);
     setParseSkipped(local.skipped);
+    setParseSheets(local.sheets);
     return local;
   };
 
@@ -136,28 +146,23 @@ export default function StandardCatalogImporter({
       return;
     }
     setLoading(true);
+    setProgress('');
     setError('');
     try {
-      const nextCompanies = await parsedCompanies();
-      const response = await fetch('/api/standard-companies-import', {
-        method: 'POST',
-        headers: await importHeaders(),
-        body: JSON.stringify({
-          action: 'preview',
-          file_name: file.name,
-          client_parsed: true,
-          companies: nextCompanies.companies,
-        }),
-      });
-      const data = await readImportJson<PreviewResponse>(response);
-      if (!response.ok || data.error) throw new Error(data.error || '预览失败');
+      const local = await parsedCompanies();
+      const diff = diffCatalog(currentCompanies, local.companies);
+      const skipped = [...local.skipped, ...diff.rows.filter((row) => row.kind === 'skip')];
       setPreview({
-        ...data,
         summary: {
-          ...data.summary,
-          skipped: (data.summary?.skipped ?? 0) + nextCompanies.skipped.length,
+          added: diff.summary.added,
+          updated: diff.summary.updated,
+          unchanged: diff.summary.unchanged,
+          skipped: skipped.length,
+          sheets: local.sheets,
         },
-        skipped: [...nextCompanies.skipped, ...(data.skipped ?? [])].slice(0, 40),
+        added: diff.rows.filter((row) => row.kind === 'add').slice(0, STANDARD_CATALOG_PREVIEW_LIMIT),
+        updated: diff.rows.filter((row) => row.kind === 'update').slice(0, STANDARD_CATALOG_PREVIEW_LIMIT),
+        skipped: skipped.slice(0, STANDARD_CATALOG_PREVIEW_LIMIT),
       });
     } catch (caught) {
       setError(uploadErrorText(caught));
@@ -171,28 +176,49 @@ export default function StandardCatalogImporter({
     setLoading(true);
     setError('');
     try {
-      const nextCompanies = await parsedCompanies();
-      const response = await fetch('/api/standard-companies-import', {
-        method: 'POST',
-        headers: await importHeaders(),
-        body: JSON.stringify({
-          action: 'apply',
-          file_name: file.name,
-          client_parsed: true,
-          companies: nextCompanies.companies,
-        }),
-      });
-      const data = await readImportJson<ApplyResponse>(response);
-      if (!response.ok || data.error) throw new Error(data.error || '写入失败');
+      const local = await parsedCompanies();
+      const diff = diffCatalog(currentCompanies, local.companies);
+      const upserts = diff.upserts.map((company) => ({ ...company, sheet: 'Sheet1' }));
+      const headers = await importHeaders();
+      const totalChunks = Math.max(1, Math.ceil(upserts.length / STANDARD_CATALOG_APPLY_CHUNK));
+      for (let index = 0; index < upserts.length; index += STANDARD_CATALOG_APPLY_CHUNK) {
+        const chunk = upserts.slice(index, index + STANDARD_CATALOG_APPLY_CHUNK);
+        const chunkIndex = Math.floor(index / STANDARD_CATALOG_APPLY_CHUNK) + 1;
+        setProgress(`正在写入 ${chunkIndex}/${totalChunks}`);
+        const isLast = index + STANDARD_CATALOG_APPLY_CHUNK >= upserts.length;
+        const response = await fetch('/api/standard-companies-import', {
+          method: 'POST',
+          headers,
+          body: JSON.stringify({
+            action: 'apply',
+            file_name: file.name,
+            client_parsed: true,
+            companies: chunk,
+            run: isLast ? {
+              added_count: diff.summary.added,
+              updated_count: diff.summary.updated,
+              unchanged_count: diff.summary.unchanged,
+              skipped_count: diff.summary.skipped + local.skipped.length,
+            } : undefined,
+          }),
+        });
+        const data = await readImportJson<ApplyResponse>(response);
+        if (!response.ok || data.error) throw new Error(data.error || '写入失败');
+      }
+      if (upserts.length === 0) {
+        setProgress('');
+      }
       setPreview(null);
       setFile(null);
       setCompanies(null);
       setParseSkipped([]);
+      setParseSheets([]);
       await onApplied();
     } catch (caught) {
       setError(uploadErrorText(caught));
     } finally {
       setLoading(false);
+      setProgress('');
     }
   };
 
@@ -293,7 +319,7 @@ export default function StandardCatalogImporter({
             fontWeight: 750,
           }}
         >
-          {loading ? '正在解析…' : '预览变更'}
+          {loading ? (progress || '正在解析…') : '预览变更'}
         </button>
       </div>
 
@@ -328,7 +354,7 @@ export default function StandardCatalogImporter({
                 fontWeight: 750,
               }}
             >
-              {loading ? '正在写入…' : '确认写入'}
+              {loading ? (progress || '正在写入…') : '确认写入'}
             </button>
           </div>
         )}
