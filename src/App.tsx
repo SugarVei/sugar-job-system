@@ -27,7 +27,7 @@ function CurrentPage() {
     case 'dashboard': return <Dashboard />;
     case 'overview': return <Overview />;
     case 'applications': return <Applications />;
-    case 'capitalMap': return <Suspense fallback={<div style={{ minHeight: 420, display: 'grid', placeItems: 'center', color: '#8a8478' }}>正在加载省会地图…</div>}><CapitalMap /></Suspense>;
+    case 'capitalMap': return <Suspense fallback={<div style={{ color: '#8a8478', fontSize: 14, padding: 12 }}>正在打开地图校招…</div>}><CapitalMap /></Suspense>;
     case 'companies': return <Companies />;
     case 'referralCodes': return <ReferralCodes />;
     case 'hotCompanies': return <HotCompanies />;

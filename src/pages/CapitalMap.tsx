@@ -1,190 +1,235 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import * as echarts from 'echarts';
 import { useAppShell } from '../contexts/AppShellContext';
-import { useTheme } from '../contexts/ThemeContext';
-import { CAPITAL_CAMPUS_CITIES, CAPITAL_CAMPUS_TOTAL, type CapitalCampusCity } from '../data/capitalCampusCompanies';
-import { IconExternalLink, IconMapPin } from '../components/icons';
+import CapitalMapPanel from '../components/capital-map/CapitalMapPanel';
+import ChinaCapitalChart, { type ChinaMapMarker, type ChinaMapViewApi } from '../components/capital-map/ChinaCapitalChart';
+import CompanyMapPanel, { type MapCity, type MapCompanyEntry } from '../components/capital-map/CompanyMapPanel';
+import { CAPITAL_CAMPUS_BY_NAME, CAPITAL_CAMPUS_CITIES, CAPITAL_CAMPUS_TOTAL } from '../data/capitalCampusCompanies';
+import { resolveHotCompanyHq } from '../data/hotCompanyHq';
+import {
+  ALL_GROUP_NAME,
+  APPLIED_GROUP_NAME,
+  groupsForCatalogSelection,
+  uniqueCompaniesInGroups,
+  useHotCompanyCatalog,
+} from '../hooks/useHotCompanyCatalog';
+import { useCampusRecruitmentStatuses } from '../hooks/useCampusRecruitmentStatuses';
+import { normalizeCompanyName } from '../lib/companyName';
+import { MAP_COLORS } from '../components/capital-map/theme';
 import './CapitalMap.css';
 
-const MAP_URL = 'https://geo.datav.aliyun.com/areas_v3/bound/100000_full.json';
-const POINT_COLORS = ['#b8d5eb', '#bfe2d1', '#f1c8b8', '#dfcfab'];
+type MapMode = 'companies' | 'capitals';
 
-function prefersReducedMotion() {
-  return typeof window !== 'undefined' && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-}
+const LEGEND_DOTS: Record<string, string> = {
+  [ALL_GROUP_NAME]: '#1b1a17',
+  [APPLIED_GROUP_NAME]: '#6f8f72',
+};
+
+const CAPITAL_MARKERS: ChinaMapMarker[] = CAPITAL_CAMPUS_CITIES.map((city, index) => ({
+  name: city.name,
+  province: city.province,
+  lng: city.lng,
+  lat: city.lat,
+  count: city.companies.length,
+  color: MAP_COLORS.dots[index % MAP_COLORS.dots.length],
+  labelPos: city.labelPos,
+}));
 
 export default function CapitalMap() {
   const { setHeaderChrome } = useAppShell();
-  const { theme } = useTheme();
-  const chartElement = useRef<HTMLDivElement>(null);
-  const chartRef = useRef<echarts.ECharts | null>(null);
+  const catalog = useHotCompanyCatalog();
+  const { items: recruitmentStatuses } = useCampusRecruitmentStatuses();
+  const [mode, setMode] = useState<MapMode>('companies');
+  const [activeGroup, setActiveGroup] = useState(ALL_GROUP_NAME);
   const [selectedName, setSelectedName] = useState<string | null>(null);
+  const [mapFailed, setMapFailed] = useState(false);
   const [mapReady, setMapReady] = useState(false);
-  const [mapError, setMapError] = useState(false);
-  const [pulse, setPulse] = useState(false);
-  const pulseTimer = useRef<number | null>(null);
-  const selected = useMemo(() => CAPITAL_CAMPUS_CITIES.find((city) => city.name === selectedName) ?? null, [selectedName]);
+  const [geoKind, setGeoKind] = useState<'prefecture' | 'province' | null>(null);
+  const viewRef = useRef<ChinaMapViewApi | null>(null);
 
   useEffect(() => {
     setHeaderChrome({ searchPlaceholder: null, showAdd: false });
     return () => setHeaderChrome(null);
   }, [setHeaderChrome]);
 
-  const chooseCity = useCallback((city: CapitalCampusCity | null) => {
-    setSelectedName((current) => current === city?.name ? null : city?.name ?? null);
+  const sourceGroups = useMemo(
+    () => groupsForCatalogSelection(catalog.allGroups, catalog.appliedCompanies, activeGroup),
+    [activeGroup, catalog.allGroups, catalog.appliedCompanies],
+  );
+
+  const mapEntries = useMemo<MapCompanyEntry[]>(
+    () => uniqueCompaniesInGroups(sourceGroups).map(({ company, group }) => ({
+      company,
+      group,
+      hq: resolveHotCompanyHq(company),
+    })),
+    [sourceGroups],
+  );
+
+  const mapCities = useMemo<MapCity[]>(() => {
+    const cities = new Map<string, MapCity>();
+    mapEntries.forEach((entry) => {
+      if (!entry.hq) return;
+      const current = cities.get(entry.hq.city);
+      if (current) {
+        current.companies.push(entry);
+        return;
+      }
+      cities.set(entry.hq.city, { hq: entry.hq, dot: entry.group.dot, companies: [entry] });
+    });
+    return Array.from(cities.values()).sort((a, b) => (
+      b.companies.length - a.companies.length
+      || a.hq.city.localeCompare(b.hq.city, 'zh-CN')
+    ));
+  }, [mapEntries]);
+
+  const companyMarkers = useMemo<ChinaMapMarker[]>(
+    () => mapCities.map((city) => ({
+      name: city.hq.city,
+      province: city.hq.province,
+      lng: city.hq.lng,
+      lat: city.hq.lat,
+      count: city.companies.length,
+      color: city.dot,
+      labelPos: city.hq.labelPos,
+    })),
+    [mapCities],
+  );
+
+  const unmappedEntries = useMemo(
+    () => mapEntries.filter((entry) => !entry.hq),
+    [mapEntries],
+  );
+
+  const selectedCity = useMemo(
+    () => mapCities.find((city) => city.hq.city === selectedName) ?? null,
+    [mapCities, selectedName],
+  );
+
+  const selectedCapital = selectedName ? CAPITAL_CAMPUS_BY_NAME[selectedName] ?? null : null;
+  const markers = mode === 'companies' ? companyMarkers : CAPITAL_MARKERS;
+  const mappedCount = mode === 'companies'
+    ? mapEntries.filter((entry) => entry.hq).length
+    : CAPITAL_CAMPUS_TOTAL;
+
+  const statusByName = useMemo(() => {
+    const next = new Map<string, (typeof recruitmentStatuses)[number]>();
+    recruitmentStatuses.forEach((status) => {
+      next.set(normalizeCompanyName(status.company_name), status);
+    });
+    return next;
+  }, [recruitmentStatuses]);
+
+  useEffect(() => {
+    if (mode === 'companies' && selectedName && !mapCities.some((city) => city.hq.city === selectedName)) {
+      setSelectedName(null);
+    }
+    if (mode === 'capitals' && selectedName && !CAPITAL_CAMPUS_BY_NAME[selectedName]) {
+      setSelectedName(null);
+    }
+  }, [mapCities, mode, selectedName]);
+
+  const onSelect = useCallback((name: string | null) => {
+    setSelectedName(name);
   }, []);
 
-  useEffect(() => {
-    if (!chartElement.current) return;
-    const chart = echarts.init(chartElement.current);
-    chartRef.current = chart;
-    const onChartClick = (params: { name?: string; componentType?: string }) => {
-      const city = CAPITAL_CAMPUS_CITIES.find((entry) => entry.name === params.name || entry.province === params.name);
-      chooseCity(city ?? null);
-    };
-    chart.on('click', onChartClick);
-    const onBlankClick = (event: { target?: unknown }) => {
-      if (!event.target) chooseCity(null);
-    };
-    chart.getZr().on('click', onBlankClick);
-    const resizeObserver = new ResizeObserver(() => chart.resize());
-    resizeObserver.observe(chartElement.current);
+  const onMapFailed = useCallback((failed: boolean) => {
+    setMapFailed(failed);
+    setMapReady(!failed);
+  }, []);
 
-    fetch(MAP_URL)
-      .then((response) => {
-        if (!response.ok) throw new Error(`HTTP ${response.status}`);
-        return response.json();
-      })
-      .then((geoJson) => {
-        echarts.registerMap('china-capital-campus', geoJson);
-        setMapReady(true);
-      })
-      .catch(() => setMapError(true));
-
-    return () => {
-      chart.off('click', onChartClick);
-      chart.getZr().off('click', onBlankClick);
-      resizeObserver.disconnect();
-      chart.dispose();
-      chartRef.current = null;
-    };
-  }, [chooseCity]);
-
-  useEffect(() => {
-    if (!selected || prefersReducedMotion()) return;
-    setPulse(true);
-    if (pulseTimer.current) window.clearTimeout(pulseTimer.current);
-    pulseTimer.current = window.setTimeout(() => setPulse(false), 760);
-    return () => { if (pulseTimer.current) window.clearTimeout(pulseTimer.current); };
-  }, [selectedName, selected]);
-
-  useEffect(() => {
-    const chart = chartRef.current;
-    if (!chart || !mapReady) return;
-    const reducedMotion = prefersReducedMotion();
-    const selectedProvince = selected?.province;
-    chart.setOption({
-      animation: !reducedMotion,
-      animationDurationUpdate: reducedMotion ? 0 : 420,
-      animationEasingUpdate: 'cubicOut',
-      tooltip: {
-        trigger: 'item',
-        backgroundColor: '#fffdf8',
-        borderColor: '#e0d8c9',
-        borderWidth: 1,
-        textStyle: { color: '#4a463e', fontSize: 12 },
-        formatter: (params: { name?: string }) => {
-          const city = CAPITAL_CAMPUS_CITIES.find((entry) => entry.name === params.name);
-          return city ? `<b>${city.name}</b><br/>代表性企业 ${city.companies.length} 家` : '';
-        },
-      },
-      geo: {
-        map: 'china-capital-campus',
-        roam: true,
-        zoom: selected ? 1.45 : 1.1,
-        center: selected ? [selected.lng, selected.lat] : undefined,
-        top: 10,
-        bottom: 8,
-        itemStyle: { areaColor: '#f3eee4', borderColor: '#e0d8c9', borderWidth: 1 },
-        emphasis: { itemStyle: { areaColor: '#ebe3d5' }, label: { show: false } },
-        select: { disabled: true },
-        label: { show: false },
-        regions: selectedProvince ? [{
-          name: selectedProvince,
-          itemStyle: {
-            areaColor: theme.accentSoft || '#f3d7b0',
-            borderColor: '#b99354',
-            borderWidth: pulse ? 2.5 : 1.5,
-            shadowBlur: pulse ? 18 : 0,
-            shadowColor: 'rgba(185,147,84,.36)',
-          },
-        }] : [],
-      },
-      series: [{
-        type: 'scatter',
-        coordinateSystem: 'geo',
-        symbol: 'circle',
-        symbolSize: (value: number[]) => 10 + Math.sqrt(value[2]) + (value[3] ? 4 : 0),
-        data: CAPITAL_CAMPUS_CITIES.map((city, index) => ({
-          name: city.name,
-          value: [city.lng, city.lat, city.companies.length, city.name === selected?.name ? 1 : 0],
-          itemStyle: {
-            color: city.name === selected?.name ? '#f4c84a' : POINT_COLORS[index % POINT_COLORS.length],
-            borderColor: '#fffdf8',
-            borderWidth: 2,
-            shadowBlur: city.name === selected?.name ? 10 : 3,
-            shadowColor: 'rgba(91,78,55,.22)',
-          },
-          label: { position: city.name === '北京' ? 'left' : city.name === '天津' ? 'right' : 'top' },
-        })),
-        label: {
-          show: true,
-          formatter: '{b}',
-          fontWeight: 700,
-          fontSize: 12,
-          color: '#4a463e',
-          textBorderColor: '#fffdf8',
-          textBorderWidth: 3,
-        },
-        emphasis: { scale: true, label: { show: true, fontWeight: 700, fontSize: 13 } },
-        zlevel: 2,
-      }],
-    }, true);
-  }, [mapReady, pulse, selected, theme.accentSoft]);
+  const switchMode = (next: MapMode) => {
+    setMode(next);
+    setSelectedName(null);
+  };
 
   return (
-    <div className="capital-campus-page">
-      <section className="capital-map-card" aria-label="中国省会校招地图">
-        <div className="capital-map-toolbar">
-          <span><IconMapPin size={15} /> 31 个省会 · {CAPITAL_CAMPUS_TOTAL} 家企业</span>
-          {selected && <button type="button" onClick={() => chooseCity(null)}>返回全部省会</button>}
-        </div>
-        <div ref={chartElement} className="capital-map-canvas" role="img" aria-label="可点击的中国省会校招地图" />
-        {mapError && <p className="capital-map-failure">地图底图暂未加载，可直接从右侧选择省会。</p>}
-      </section>
+    <div className="capital-map-shell">
+      <div className="capital-map-page">
+        <section className="capital-map-stage">
+          {!mapReady && !mapFailed ? <div className="capital-map-loading">正在加载中国地图…</div> : null}
+          {mapFailed ? <div className="capital-map-loading">底图未加载，右侧列表仍可使用</div> : null}
 
-      <aside className="capital-campus-panel">
-        <div className="capital-panel-head">
-          <div>
-            <h2>{selected ? `${selected.name} · 校招入口` : '选择省会'}</h2>
-            <p>{selected ? `${selected.province} · ${selected.companies.length} 家附件收录企业` : '点地图圆点、行政区或下方省会，查看当地代表性企业。'}</p>
+          <div className="capital-map-hud">
+            <div className="capital-map-switch" role="tablist" aria-label="地图类型">
+              {([
+                ['companies', '全部企业'],
+                ['capitals', '当地龙头'],
+              ] as const).map(([key, label]) => (
+                <button
+                  key={key}
+                  type="button"
+                  role="tab"
+                  aria-selected={mode === key}
+                  className={mode === key ? 'is-active' : undefined}
+                  onClick={() => switchMode(key)}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+            <span className="capital-map-count">
+              {mappedCount} {mode === 'companies' ? '家可落图 · 与标准公司库同步' : '家当地龙头'}
+            </span>
           </div>
-          {selected && <span className="capital-count">{selected.companies.length} 家</span>}
-        </div>
-        <div className="capital-panel-list scrolly">
-          {selected ? selected.companies.map((company) => (
-            <a className="capital-company" key={`${selected.name}-${company.name}`} href={company.url} target="_blank" rel="noopener noreferrer">
-              <strong>{company.name}</strong>
-              <span>{company.url}</span>
-              <IconExternalLink size={13} />
-            </a>
-          )) : CAPITAL_CAMPUS_CITIES.map((city) => (
-            <button className="capital-city-chip btn-press" key={city.name} type="button" onClick={() => chooseCity(city)}>
-              <strong>{city.name}</strong><span>{city.companies.length} 家</span>
-            </button>
-          ))}
-        </div>
-      </aside>
+
+          {geoKind === 'province' ? (
+            <p className="capital-map-fallback">地级市底图未加载成功，当前仍是省级轮廓。刷新后再试。</p>
+          ) : null}
+
+          {mode === 'companies' ? (
+            <div className="capital-map-legend" aria-label="公司分类图例">
+              {catalog.legendGroupNames.map((name) => {
+                const active = activeGroup === name;
+                const dot = LEGEND_DOTS[name] ?? catalog.allGroups.find((group) => group.name === name)?.dot ?? '#1b1a17';
+                return (
+                  <button
+                    key={name}
+                    type="button"
+                    className={active ? 'is-active' : undefined}
+                    onClick={() => {
+                      setActiveGroup(name);
+                      setSelectedName(null);
+                    }}
+                  >
+                    <i className="capital-map-legend__dot" style={active ? { background: dot } : undefined} aria-hidden />
+                    {name}
+                  </button>
+                );
+              })}
+            </div>
+          ) : null}
+
+          <div className="capital-map-zoom" aria-label="地图缩放">
+            <button type="button" onClick={() => viewRef.current?.zoomBy(1.25)} aria-label="放大">+</button>
+            <button type="button" onClick={() => viewRef.current?.zoomBy(0.8)} aria-label="缩小">−</button>
+            <button type="button" onClick={() => viewRef.current?.resetView()} aria-label="回到全国">全</button>
+          </div>
+
+          <ChinaCapitalChart
+            selectedName={selectedName}
+            onSelect={onSelect}
+            onMapFailed={onMapFailed}
+            onGeoKind={setGeoKind}
+            markers={markers}
+            viewRef={viewRef}
+            ariaLabel={mode === 'companies' ? '全部企业总部地图' : '当地龙头省会地图'}
+          />
+        </section>
+
+        {mode === 'companies' ? (
+          <CompanyMapPanel
+            activeGroup={activeGroup}
+            cities={mapCities}
+            selectedCity={selectedCity}
+            unmappedEntries={unmappedEntries}
+            mapFailed={mapFailed}
+            statusByName={statusByName}
+            onSelect={onSelect}
+          />
+        ) : (
+          <CapitalMapPanel selected={selectedCapital} mapFailed={mapFailed} onSelect={onSelect} />
+        )}
+      </div>
     </div>
   );
 }

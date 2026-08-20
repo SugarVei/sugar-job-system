@@ -1,23 +1,30 @@
-export interface CampusCompany {
+export interface CapitalCampusCompany {
   name: string;
   url: string;
 }
+
+export type CapitalLabelPos = 'left' | 'right' | 'top' | 'bottom';
 
 export interface CapitalCampusCity {
   name: string;
   province: string;
   lng: number;
   lat: number;
-  companies: CampusCompany[];
+  labelPos: CapitalLabelPos;
+  companies: CapitalCampusCompany[];
 }
 
-/** 仅由「各省会代表性企业-校招网址.md」解析，整理日 2026-08-16。 */
+/** 来源：各省会代表性企业校招网址.md（整理日 2026-08-16），未补录、未编造。 */
+export const CAPITAL_CAMPUS_SOURCE_DATE = '2026-08-16';
+export const CAPITAL_CAMPUS_TOTAL = 588;
+
 export const CAPITAL_CAMPUS_CITIES: CapitalCampusCity[] = [
   {
     "name": "北京",
     "province": "北京市",
     "lng": 116.41,
     "lat": 39.9,
+    "labelPos": "left",
     "companies": [
       {
         "name": "字节跳动",
@@ -106,6 +113,7 @@ export const CAPITAL_CAMPUS_CITIES: CapitalCampusCity[] = [
     "province": "天津市",
     "lng": 117.2,
     "lat": 39.13,
+    "labelPos": "right",
     "companies": [
       {
         "name": "天津银行",
@@ -194,6 +202,7 @@ export const CAPITAL_CAMPUS_CITIES: CapitalCampusCity[] = [
     "province": "河北省",
     "lng": 114.48,
     "lat": 38.04,
+    "labelPos": "bottom",
     "companies": [
       {
         "name": "河北银行",
@@ -282,6 +291,7 @@ export const CAPITAL_CAMPUS_CITIES: CapitalCampusCity[] = [
     "province": "山西省",
     "lng": 112.55,
     "lat": 37.87,
+    "labelPos": "left",
     "companies": [
       {
         "name": "晋商银行",
@@ -370,6 +380,7 @@ export const CAPITAL_CAMPUS_CITIES: CapitalCampusCity[] = [
     "province": "内蒙古自治区",
     "lng": 111.75,
     "lat": 40.84,
+    "labelPos": "top",
     "companies": [
       {
         "name": "伊利集团",
@@ -458,6 +469,7 @@ export const CAPITAL_CAMPUS_CITIES: CapitalCampusCity[] = [
     "province": "辽宁省",
     "lng": 123.43,
     "lat": 41.8,
+    "labelPos": "right",
     "companies": [
       {
         "name": "华晨宝马汽车有限公司",
@@ -546,6 +558,7 @@ export const CAPITAL_CAMPUS_CITIES: CapitalCampusCity[] = [
     "province": "吉林省",
     "lng": 125.32,
     "lat": 43.82,
+    "labelPos": "right",
     "companies": [
       {
         "name": "中国第一汽车集团有限公司",
@@ -634,6 +647,7 @@ export const CAPITAL_CAMPUS_CITIES: CapitalCampusCity[] = [
     "province": "黑龙江省",
     "lng": 126.53,
     "lat": 45.8,
+    "labelPos": "top",
     "companies": [
       {
         "name": "哈尔滨电气集团有限公司",
@@ -706,6 +720,7 @@ export const CAPITAL_CAMPUS_CITIES: CapitalCampusCity[] = [
     "province": "上海市",
     "lng": 121.47,
     "lat": 31.23,
+    "labelPos": "right",
     "companies": [
       {
         "name": "上汽集团",
@@ -794,6 +809,7 @@ export const CAPITAL_CAMPUS_CITIES: CapitalCampusCity[] = [
     "province": "江苏省",
     "lng": 118.8,
     "lat": 32.06,
+    "labelPos": "left",
     "companies": [
       {
         "name": "华为（南京）",
@@ -882,6 +898,7 @@ export const CAPITAL_CAMPUS_CITIES: CapitalCampusCity[] = [
     "province": "浙江省",
     "lng": 120.15,
     "lat": 30.28,
+    "labelPos": "bottom",
     "companies": [
       {
         "name": "阿里巴巴",
@@ -970,6 +987,7 @@ export const CAPITAL_CAMPUS_CITIES: CapitalCampusCity[] = [
     "province": "安徽省",
     "lng": 117.23,
     "lat": 31.82,
+    "labelPos": "bottom",
     "companies": [
       {
         "name": "科大讯飞",
@@ -1058,6 +1076,7 @@ export const CAPITAL_CAMPUS_CITIES: CapitalCampusCity[] = [
     "province": "福建省",
     "lng": 119.3,
     "lat": 26.08,
+    "labelPos": "right",
     "companies": [
       {
         "name": "兴业银行",
@@ -1130,6 +1149,7 @@ export const CAPITAL_CAMPUS_CITIES: CapitalCampusCity[] = [
     "province": "江西省",
     "lng": 115.86,
     "lat": 28.68,
+    "labelPos": "left",
     "companies": [
       {
         "name": "江铃汽车",
@@ -1194,6 +1214,7 @@ export const CAPITAL_CAMPUS_CITIES: CapitalCampusCity[] = [
     "province": "山东省",
     "lng": 117,
     "lat": 36.65,
+    "labelPos": "right",
     "companies": [
       {
         "name": "浪潮集团",
@@ -1258,6 +1279,7 @@ export const CAPITAL_CAMPUS_CITIES: CapitalCampusCity[] = [
     "province": "河南省",
     "lng": 113.65,
     "lat": 34.76,
+    "labelPos": "left",
     "companies": [
       {
         "name": "宇通集团",
@@ -1346,6 +1368,7 @@ export const CAPITAL_CAMPUS_CITIES: CapitalCampusCity[] = [
     "province": "湖北省",
     "lng": 114.31,
     "lat": 30.59,
+    "labelPos": "right",
     "companies": [
       {
         "name": "东风汽车",
@@ -1434,6 +1457,7 @@ export const CAPITAL_CAMPUS_CITIES: CapitalCampusCity[] = [
     "province": "湖南省",
     "lng": 112.94,
     "lat": 28.23,
+    "labelPos": "left",
     "companies": [
       {
         "name": "三一集团",
@@ -1522,6 +1546,7 @@ export const CAPITAL_CAMPUS_CITIES: CapitalCampusCity[] = [
     "province": "广东省",
     "lng": 113.26,
     "lat": 23.13,
+    "labelPos": "right",
     "companies": [
       {
         "name": "广汽集团",
@@ -1610,6 +1635,7 @@ export const CAPITAL_CAMPUS_CITIES: CapitalCampusCity[] = [
     "province": "广西壮族自治区",
     "lng": 108.37,
     "lat": 22.82,
+    "labelPos": "left",
     "companies": [
       {
         "name": "北部湾投资集团",
@@ -1698,6 +1724,7 @@ export const CAPITAL_CAMPUS_CITIES: CapitalCampusCity[] = [
     "province": "海南省",
     "lng": 110.35,
     "lat": 20.02,
+    "labelPos": "right",
     "companies": [
       {
         "name": "海航集团",
@@ -1786,6 +1813,7 @@ export const CAPITAL_CAMPUS_CITIES: CapitalCampusCity[] = [
     "province": "重庆市",
     "lng": 106.55,
     "lat": 29.56,
+    "labelPos": "bottom",
     "companies": [
       {
         "name": "长安汽车",
@@ -1874,6 +1902,7 @@ export const CAPITAL_CAMPUS_CITIES: CapitalCampusCity[] = [
     "province": "四川省",
     "lng": 104.07,
     "lat": 30.67,
+    "labelPos": "left",
     "companies": [
       {
         "name": "通威股份",
@@ -1962,6 +1991,7 @@ export const CAPITAL_CAMPUS_CITIES: CapitalCampusCity[] = [
     "province": "贵州省",
     "lng": 106.63,
     "lat": 26.65,
+    "labelPos": "right",
     "companies": [
       {
         "name": "贵阳银行",
@@ -2050,6 +2080,7 @@ export const CAPITAL_CAMPUS_CITIES: CapitalCampusCity[] = [
     "province": "云南省",
     "lng": 102.71,
     "lat": 25.04,
+    "labelPos": "left",
     "companies": [
       {
         "name": "中国铁路昆明局集团",
@@ -2138,6 +2169,7 @@ export const CAPITAL_CAMPUS_CITIES: CapitalCampusCity[] = [
     "province": "西藏自治区",
     "lng": 91.11,
     "lat": 29.65,
+    "labelPos": "right",
     "companies": [
       {
         "name": "国网西藏电力",
@@ -2210,6 +2242,7 @@ export const CAPITAL_CAMPUS_CITIES: CapitalCampusCity[] = [
     "province": "陕西省",
     "lng": 108.94,
     "lat": 34.34,
+    "labelPos": "top",
     "companies": [
       {
         "name": "隆基绿能",
@@ -2298,6 +2331,7 @@ export const CAPITAL_CAMPUS_CITIES: CapitalCampusCity[] = [
     "province": "甘肃省",
     "lng": 103.83,
     "lat": 36.06,
+    "labelPos": "bottom",
     "companies": [
       {
         "name": "国网甘肃省电力公司",
@@ -2386,6 +2420,7 @@ export const CAPITAL_CAMPUS_CITIES: CapitalCampusCity[] = [
     "province": "青海省",
     "lng": 101.78,
     "lat": 36.62,
+    "labelPos": "left",
     "companies": [
       {
         "name": "国网青海省电力公司",
@@ -2454,6 +2489,7 @@ export const CAPITAL_CAMPUS_CITIES: CapitalCampusCity[] = [
     "province": "宁夏回族自治区",
     "lng": 106.27,
     "lat": 38.47,
+    "labelPos": "right",
     "companies": [
       {
         "name": "国网宁夏电力",
@@ -2530,6 +2566,7 @@ export const CAPITAL_CAMPUS_CITIES: CapitalCampusCity[] = [
     "province": "新疆维吾尔自治区",
     "lng": 87.62,
     "lat": 43.83,
+    "labelPos": "right",
     "companies": [
       {
         "name": "国网新疆电力",
@@ -2615,4 +2652,16 @@ export const CAPITAL_CAMPUS_CITIES: CapitalCampusCity[] = [
   }
 ];
 
-export const CAPITAL_CAMPUS_TOTAL = CAPITAL_CAMPUS_CITIES.reduce((total, city) => total + city.companies.length, 0);
+export const CAPITAL_CAMPUS_BY_NAME = Object.fromEntries(
+  CAPITAL_CAMPUS_CITIES.map((city) => [city.name, city]),
+) as Record<string, CapitalCampusCity>;
+
+export const CAPITAL_CAMPUS_BY_PROVINCE = Object.fromEntries(
+  CAPITAL_CAMPUS_CITIES.map((city) => [city.province, city]),
+) as Record<string, CapitalCampusCity>;
+
+export const UNSELECTABLE_GEO_NAMES = new Set([
+  '台湾省',
+  '香港特别行政区',
+  '澳门特别行政区',
+]);

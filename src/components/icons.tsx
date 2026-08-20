@@ -51,11 +51,10 @@ export const IconCompanies = ({ size = 20, ...p }: IconProps) => (
   </svg>
 );
 
-export const IconCapitalMap = ({ size = 20, ...p }: IconProps) => (
+export const IconMap = ({ size = 20, ...p }: IconProps) => (
   <svg {...base(size, p)}>
-    <path d="m3 6 6-3 6 3 6-3v15l-6 3-6-3-6 3V6Z" />
-    <path d="M9 3v15M15 6v15" />
-    <circle cx="12" cy="11" r="1.8" />
+    <path d="M9 3 3 5.5v15L9 18l6 2.5L21 18V3l-6 2.5L9 3z" />
+    <path d="M9 3v15M15 5.5v15" />
   </svg>
 );
 

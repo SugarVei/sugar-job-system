@@ -1,34 +1,30 @@
-import { useMemo, useState } from 'react';
-import {
-  type HotCompany,
-} from '../data/hotCompanies';
-import {
-  EXCEL_CAMPUS_COMPANIES,
-  EXCEL_CAMPUS_COMPANY_SOURCE_TOTAL,
-  isExcelCampusCompanyActive,
-} from '../data/excelCampusRecruitment2027';
-import {
-  EXCEL_CAMPUS_IMPORT_DATE,
-  EXCEL_CAMPUS_UPDATE_DATES,
-} from '../data/excelCampusRecruitmentUpdateDates';
+import { useMemo, useState, type CSSProperties, type KeyboardEvent } from 'react';
+import { type HotCompany } from '../data/hotCompanies';
+import StandardCatalogImporter from '../components/StandardCatalogImporter';
 import {
   type RecruitmentStatusKey,
 } from '../data/campusRecruitmentAudit20260811';
 import { useAppShell } from '../contexts/AppShellContext';
 import { useApiKeys } from '../contexts/ApiKeysContext';
-import { useCollection } from '../hooks/useCollection';
 import { useCampusRecruitmentStatuses, type CampusRecruitmentStatus } from '../hooks/useCampusRecruitmentStatuses';
 import { useToast } from '../components/Toast';
-import type { Application, Company, NewRecord } from '../types';
+import type { Company, NewRecord } from '../types';
 import { CARD, avatarColor, initialOf } from '../lib/appHelpers';
 import { applicationCompanyMatchesHotCompany, normalizeCompanyName } from '../lib/companyName';
 import { seedStatusForCompany } from '../data/campusRecruitmentSeed';
 import { IconExternalLink, IconSearch, IconTrash } from '../components/icons';
 import ResumeCompanyFinder from '../components/ResumeCompanyFinder';
-import { useCompanyRecommendations } from '../hooks/useCompanyRecommendations';
 import { supabase } from '../lib/supabase';
+import { useAuth } from '../contexts/AuthContext';
+import { canManageStandardCatalog } from '../lib/standardCatalogAdmin';
+import {
+  AI_GROUP_NAME,
+  ALL_GROUP_NAME,
+  useHotCompanyCatalog,
+} from '../hooks/useHotCompanyCatalog';
+import { EXCEL_CAMPUS_UPDATE_DATES } from '../data/excelCampusRecruitmentUpdateDates';
 
-const ALL = '全部';
+const ALL = ALL_GROUP_NAME;
 const ALL_RECRUITMENT_STATUSES = 'all';
 const AUDIT_OVERRIDE_AFTER = Date.parse('2026-08-12T07:00:00Z');
 
@@ -61,14 +57,6 @@ function errorText(error: unknown) {
   }
 }
 
-function splitIndustryTags(value = '') {
-  const tags = value
-    .split(/[,，/、]/u)
-    .map((item) => item.trim())
-    .filter(Boolean);
-  return tags.length > 0 ? Array.from(new Set(tags)) : ['未标明'];
-}
-
 function formatCalendarDate(date: string) {
   const [, month, day] = date.split('-').map(Number);
   return `${month}月${day}日`;
@@ -84,10 +72,26 @@ function updateDateForCompany(company: HotCompany) {
 
 export default function HotCompanies() {
   const { setScreen, setQuery } = useAppShell();
+  const { user } = useAuth();
   const { requireActiveConfig } = useApiKeys();
-  const { items: savedCompanies, create, remove: removeCompany } = useCollection<Company>('companies');
-  const { items: applications } = useCollection<Application>('applications');
-  const { items: companyRecommendations, refresh: refreshCompanyRecommendations, remove: removeRecommendation } = useCompanyRecommendations();
+  const {
+    savedCompanies,
+    createCompany: create,
+    removeCompany,
+    applications,
+    companyRecommendations,
+    refreshCompanyRecommendations,
+    removeRecommendation,
+    importedCompanies,
+    standardCompanies,
+    standardCatalogRows,
+    refreshStandardCatalog,
+    standardCatalogUpdatedAt,
+    standardCatalogError,
+    allGroups,
+    accountOnlyCompanies,
+    recruitmentOverviewCompanies,
+  } = useHotCompanyCatalog();
   const { items: recruitmentStatuses, loading: statusesLoading } = useCampusRecruitmentStatuses();
   const toast = useToast();
   const [activeCompanyType, setActiveCompanyType] = useState(ALL);
@@ -103,51 +107,13 @@ export default function HotCompanies() {
   const [importMessage, setImportMessage] = useState('');
   const [deletingName, setDeletingName] = useState('');
 
-  const importedCompanies = useMemo<HotCompany[]>(() => Array.from(
-    new Map(
-      companyRecommendations
-        .filter((item) => item.recommendation_type === 'private')
-        .map((item) => [normalizeCompanyName(item.company_name), {
-          name: item.company_name,
-          industryTags: splitIndustryTags(item.industry || '其他'),
-          industry: splitIndustryTags(item.industry || '其他').join(' / '),
-          companyType: item.company_type || '未标明',
-          city: item.city || '',
-          url: item.website || '',
-          source: 'private',
-        } satisfies HotCompany]),
-    ).values(),
-  ), [companyRecommendations]);
-
-  const catalogCompanies = useMemo(() => Array.from(
-    new Map(
-      [...importedCompanies, ...EXCEL_CAMPUS_COMPANIES]
-        .filter((company) => isExcelCampusCompanyActive(company))
-        .map((company) => [normalizeCompanyName(company.name), company]),
-    ).values(),
-  ), [importedCompanies]);
-
-  const companyTypeOptions = useMemo(() => Array.from(
-    new Set(catalogCompanies.map((company) => company.companyType || '未标明')),
-  ).sort((a, b) => a.localeCompare(b, 'zh-CN')), [catalogCompanies]);
-
-  const industryOptions = useMemo(() => Array.from(
-    new Set(catalogCompanies.flatMap((company) => company.industryTags ?? splitIndustryTags(company.industry))),
-  ).sort((a, b) => a.localeCompare(b, 'zh-CN')), [catalogCompanies]);
-
-  const updateDateOptions = useMemo(() => Array.from(
-    new Set(catalogCompanies.map(updateDateForCompany).filter((date): date is string => Boolean(date))),
-  )
-    .sort((a, b) => b.localeCompare(a))
-    .map(formatUpdateDateLabel), [catalogCompanies]);
-
   const existingNames = useMemo(
     () => new Set([
-      ...catalogCompanies.map((company) => company.name),
+      ...standardCompanies.map((company) => company.name),
       ...importedCompanies.map((company) => company.name),
       ...savedCompanies.map((company) => company.company_name),
     ]),
-    [catalogCompanies, importedCompanies, savedCompanies],
+    [importedCompanies, savedCompanies, standardCompanies],
   );
 
   const appliedApplicationCompanyNames = useMemo(
@@ -160,43 +126,57 @@ export default function HotCompanies() {
     [recruitmentStatuses],
   );
 
-  const classificationCompanies = useMemo(() => catalogCompanies.filter((company) => {
-    const updateDate = updateDateForCompany(company);
-    if (activeUpdateDate !== ALL && (!updateDate || formatUpdateDateLabel(updateDate) !== activeUpdateDate)) return false;
-    if (activeCompanyType !== ALL && (company.companyType || '未标明') !== activeCompanyType) return false;
-    if (activeIndustry !== ALL && !(company.industryTags ?? splitIndustryTags(company.industry)).includes(activeIndustry)) return false;
-    return true;
-  }), [activeCompanyType, activeIndustry, activeUpdateDate, catalogCompanies]);
+  const companyTypeOptions = useMemo(() => Array.from(new Set(
+    recruitmentOverviewCompanies.map((company) => company.companyType || '未标明').filter(Boolean),
+  )), [recruitmentOverviewCompanies]);
+
+  const industryOptions = useMemo(() => Array.from(new Set(
+    recruitmentOverviewCompanies.flatMap((company) => company.industryTags?.length
+      ? company.industryTags
+      : [company.industry || '其他']),
+  )), [recruitmentOverviewCompanies]);
+
+  const updateDateOptions = useMemo(() => Array.from(new Set(
+    recruitmentOverviewCompanies
+      .map(updateDateForCompany)
+      .filter((date): date is string => Boolean(date)),
+  )).sort((a, b) => b.localeCompare(a)).map(formatUpdateDateLabel), [recruitmentOverviewCompanies]);
 
   const groups = useMemo(() => {
     const q = pageSearch.trim().toLowerCase();
-    const visibleCompanies = classificationCompanies.filter((company) => {
-      const dbStatus = recruitmentStatusByCompany.get(normalizeCompanyName(company.name));
-      if (activeRecruitmentStatus !== ALL_RECRUITMENT_STATUSES
-        && recruitmentStatusKey(company, dbStatus) !== activeRecruitmentStatus) return false;
-      if (!q) return true;
-      return [company.name, company.companyType, company.industry, company.city, company.deadlineText, company.recruitment?.evidence, company.recruitment?.entry]
-        .filter(Boolean)
-        .some((value) => value!.toLowerCase().includes(q));
-    });
-    const grouped = new Map<string, HotCompany[]>();
-    visibleCompanies.forEach((company) => {
-      const groupName = activeIndustry !== ALL
-        ? activeIndustry
-        : (company.industryTags?.[0] ?? splitIndustryTags(company.industry)[0] ?? '未标明');
-      grouped.set(groupName, [...(grouped.get(groupName) ?? []), company]);
-    });
-    return Array.from(grouped, ([name, companies]) => ({
-      name,
-      dot: '#8fa995',
-      companies,
-    }));
-  }, [activeIndustry, activeRecruitmentStatus, classificationCompanies, pageSearch, recruitmentStatusByCompany]);
+    const seenCompanies = new Set<string>();
+    const sourceGroups = allGroups.filter((group) => activeIndustry === ALL || group.name === activeIndustry);
+    return sourceGroups
+      .map((group) => ({
+        ...group,
+        companies: group.companies.filter((company) => {
+          const companyKey = normalizeCompanyName(company.name);
+          if (activeCompanyType !== ALL && (company.companyType || '未标明') !== activeCompanyType) return false;
+          const updateDate = updateDateForCompany(company);
+          if (activeUpdateDate !== ALL && (!updateDate || formatUpdateDateLabel(updateDate) !== activeUpdateDate)) return false;
+          const dbStatus = recruitmentStatusByCompany.get(companyKey);
+          if (activeRecruitmentStatus !== ALL_RECRUITMENT_STATUSES
+            && recruitmentStatusKey(company, dbStatus) !== activeRecruitmentStatus) {
+            return false;
+          }
+          const matchesSearch = !q || [company.name, company.industry, company.city, company.recruitment?.evidence, company.recruitment?.entry]
+            .filter(Boolean)
+            .some((value) => value!.toLowerCase().includes(q));
+          if (!matchesSearch) return false;
+          if (activeIndustry === ALL) {
+            if (seenCompanies.has(companyKey)) return false;
+            seenCompanies.add(companyKey);
+          }
+          return true;
+        }),
+      }))
+      .filter((group) => group.companies.length > 0);
+  }, [activeCompanyType, activeIndustry, activeRecruitmentStatus, activeUpdateDate, allGroups, pageSearch, recruitmentStatusByCompany]);
 
   const recruitmentStatusFilters = useMemo(() => {
-    const uniqueCompanies = new Map(classificationCompanies.map((company) => [normalizeCompanyName(company.name), company]));
     const counts = new Map<RecruitmentStatusKey, number>();
-    uniqueCompanies.forEach((company, companyKey) => {
+    recruitmentOverviewCompanies.forEach((company) => {
+      const companyKey = normalizeCompanyName(company.name);
       const key = recruitmentStatusKey(company, recruitmentStatusByCompany.get(companyKey));
       counts.set(key, (counts.get(key) ?? 0) + 1);
     });
@@ -204,21 +184,24 @@ export default function HotCompanies() {
       ...status,
       count: counts.get(status.key) ?? 0,
     }));
-  }, [classificationCompanies, recruitmentStatusByCompany]);
+  }, [recruitmentOverviewCompanies, recruitmentStatusByCompany]);
 
   const latestCheckLabel = useMemo(() => {
-    const dates = [
-      ...recruitmentStatuses.map((status) => status.last_checked_at),
-      ...catalogCompanies.map((company) => company.recruitment?.checkedAt),
-    ]
+    const dates = recruitmentOverviewCompanies
+      .flatMap((company) => [
+        recruitmentStatusByCompany.get(normalizeCompanyName(company.name))?.last_checked_at,
+        company.recruitment?.checkedAt,
+      ])
       .filter((value): value is string => Boolean(value))
       .map((value) => Date.parse(value))
       .filter(Number.isFinite);
     if (dates.length === 0) return '等待首次核查';
     return `最新核查 ${new Date(Math.max(...dates)).toLocaleDateString('zh-CN')}`;
-  }, [catalogCompanies, recruitmentStatuses]);
+  }, [recruitmentOverviewCompanies, recruitmentStatusByCompany]);
 
-  const activeModuleCompanyCount = recruitmentStatusFilters.reduce((total, status) => total + status.count, 0);
+  const standardCompanyCount = standardCompanies.length;
+  const accountOnlyCompanyCount = accountOnlyCompanies.length;
+  const recruitmentOverviewCompanyCount = recruitmentOverviewCompanies.length;
 
   const importedMatches = useMemo(() => {
     const q = pageSearch.trim().toLowerCase();
@@ -271,16 +254,15 @@ export default function HotCompanies() {
     setAiError('');
     setImportMessage('');
     try {
+      if (!user) throw new Error('登录状态已失效，请重新登录后再导入。');
       const hotCompany: HotCompany = {
         name: candidate.name,
-        industryTags: splitIndustryTags(candidate.industry),
-        industry: splitIndustryTags(candidate.industry).join(' / '),
-        companyType: candidate.regionType || '未标明',
+        industry: candidate.industry,
         city: candidate.city,
         url: candidate.url,
-        source: 'private',
       };
       const { error: recommendationError } = await supabase.from('company_recommendations').insert({
+        user_id: user.id,
         source: 'ai_search',
         recommendation_type: 'private',
         company_name: hotCompany.name,
@@ -348,7 +330,7 @@ export default function HotCompanies() {
     }
   };
 
-  const handleAIKeyDown = (event: React.KeyboardEvent<HTMLTextAreaElement>) => {
+  const handleAIKeyDown = (event: KeyboardEvent<HTMLTextAreaElement>) => {
     if (event.key === 'Enter' && !event.shiftKey) {
       event.preventDefault();
       void searchWithAI();
@@ -357,61 +339,12 @@ export default function HotCompanies() {
 
   return (
     <div className="flex flex-col gap-[22px] animate-rise">
-      {/* 页面内公司名搜索 */}
-      <div style={{ ...CARD, padding: 16, borderRadius: 20 }}>
-        <div className="flex items-center gap-3 flex-wrap">
-          <div
-            style={{
-              flex: 1,
-              minWidth: 200,
-              display: 'flex',
-              alignItems: 'center',
-              gap: 10,
-              height: 46,
-              background: '#faf7f0',
-              border: '1.5px solid #e0d8c9',
-              borderRadius: 14,
-              padding: '0 14px',
-            }}
-          >
-            <IconSearch size={17} color="#a39d90" />
-            <input
-              value={pageSearch}
-              onChange={(e) => setPageSearch(e.target.value)}
-              placeholder="搜索公司名称（支持已添加与精选列表）…"
-              aria-label="搜索公司名称"
-              style={{ border: 'none', background: 'none', outline: 'none', fontSize: 14, width: '100%', color: '#1b1a17' }}
-            />
-            {pageSearch && (
-              <button
-                type="button"
-                onClick={() => setPageSearch('')}
-                className="btn-press"
-                style={{ border: 'none', background: 'none', color: '#9a9488', fontSize: 12, fontWeight: 700, cursor: 'pointer' }}
-              >
-                清除
-              </button>
-            )}
-          </div>
-          <div style={{ fontSize: 12.5, color: '#9a9488' }}>
-            {pageSearch
-              ? `匹配 ${groups.reduce((n, g) => n + g.companies.length, 0)} 家`
-              : `已添加 ${importedCompanies.length} 家 · 可删除`}
-          </div>
-        </div>
-        {pageSearch.trim() && importedCompanies.length > 0 && (
-          <div style={{ marginTop: 12, fontSize: 12.5, color: '#6b665c' }}>
-            在「我添加的公司」中命中 {importedMatches.length} 家
-          </div>
-        )}
-      </div>
-
       <section style={{ ...CARD, padding: 18, borderRadius: 22 }}>
         <div className="flex items-start justify-between gap-4 flex-wrap">
           <div>
             <div style={{ fontSize: 15, fontWeight: 750, color: '#1b1a17' }}>2027 届校招核查总览</div>
             <div style={{ fontSize: 12.5, color: '#8a8478', marginTop: 4 }}>
-              Excel 数据源 {EXCEL_CAMPUS_COMPANY_SOURCE_TOTAL} 家 · 当前有效 {activeModuleCompanyCount} 家 · 本次导入至 {formatCalendarDate(EXCEL_CAMPUS_IMPORT_DATE)} · {latestCheckLabel}
+              标准公司 {standardCompanyCount} 家 + 我添加 {accountOnlyCompanyCount} 家 = 共 {recruitmentOverviewCompanyCount} 家 · {latestCheckLabel} · 每日自动更新
             </div>
           </div>
           {activeRecruitmentStatus !== ALL_RECRUITMENT_STATUSES && (
@@ -432,7 +365,13 @@ export default function HotCompanies() {
               <button
                 key={status.key}
                 type="button"
-                onClick={() => setActiveRecruitmentStatus(active ? ALL_RECRUITMENT_STATUSES : status.key)}
+                onClick={() => {
+                  setActiveRecruitmentStatus(active ? ALL_RECRUITMENT_STATUSES : status.key);
+                  if (!active) {
+                    setActiveCompanyType(ALL);
+                    setActiveIndustry(ALL);
+                  }
+                }}
                 aria-pressed={active}
                 className="btn-press"
                 style={{
@@ -458,7 +397,19 @@ export default function HotCompanies() {
         </div>
       </section>
 
-      <ResumeCompanyFinder standardCompanies={EXCEL_CAMPUS_COMPANIES} onSaved={refreshCompanyRecommendations} />
+      {canManageStandardCatalog(user?.email) && (
+        <StandardCatalogImporter
+          currentCompanies={standardCatalogRows}
+          updatedAt={standardCatalogUpdatedAt}
+          catalogError={standardCatalogError}
+          onApplied={async () => {
+            await refreshStandardCatalog();
+            toast.success('标准公司库已更新，热门公司和地图校招会一起刷新');
+          }}
+        />
+      )}
+
+      <ResumeCompanyFinder standardCompanies={standardCompanies} onSaved={refreshCompanyRecommendations} />
 
       <section style={{ ...CARD, padding: 18, borderRadius: 22 }}>
         <div className="flex items-start justify-between gap-4 flex-wrap">
@@ -557,30 +508,66 @@ export default function HotCompanies() {
         )}
       </section>
 
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-        <FilterRow
-          label="添加时间顺序"
-          options={updateDateOptions}
-          value={activeUpdateDate}
-          onChange={setActiveUpdateDate}
-        />
-        <FilterRow
-          label="企业性质"
-          options={companyTypeOptions}
-          value={activeCompanyType}
-          onChange={setActiveCompanyType}
-        />
-        <FilterRow
-          label="行业分类"
-          options={industryOptions}
-          value={activeIndustry}
-          onChange={setActiveIndustry}
-        />
+      <section style={{ ...CARD, padding: 16, borderRadius: 20 }}>
+        <FilterRow label="添加时间顺序" options={updateDateOptions} value={activeUpdateDate} onChange={setActiveUpdateDate} />
+        <FilterRow label="企业性质" options={companyTypeOptions} value={activeCompanyType} onChange={setActiveCompanyType} />
+        <FilterRow label="行业分类" options={industryOptions} value={activeIndustry} onChange={setActiveIndustry} />
+      </section>
+
+      {/* 页面内公司名搜索 */}
+      <div style={{ ...CARD, padding: 16, borderRadius: 20 }}>
+        <div className="flex items-center gap-3 flex-wrap">
+          <div
+            style={{
+              flex: 1,
+              minWidth: 200,
+              display: 'flex',
+              alignItems: 'center',
+              gap: 10,
+              height: 46,
+              background: '#faf7f0',
+              border: '1.5px solid #e0d8c9',
+              borderRadius: 14,
+              padding: '0 14px',
+            }}
+          >
+            <IconSearch size={17} color="#a39d90" />
+            <input
+              value={pageSearch}
+              onChange={(e) => setPageSearch(e.target.value)}
+              placeholder="搜索公司名称（支持已添加与精选列表）…"
+              aria-label="搜索公司名称"
+              style={{ border: 'none', background: 'none', outline: 'none', fontSize: 14, width: '100%', color: '#1b1a17' }}
+            />
+            {pageSearch && (
+              <button
+                type="button"
+                onClick={() => setPageSearch('')}
+                className="btn-press"
+                style={{ border: 'none', background: 'none', color: '#9a9488', fontSize: 12, fontWeight: 700, cursor: 'pointer' }}
+              >
+                清除
+              </button>
+            )}
+          </div>
+          <div style={{ fontSize: 12.5, color: '#9a9488' }}>
+            {pageSearch
+              ? `匹配 ${groups.reduce((n, g) => n + g.companies.length, 0)} 家`
+              : `已添加 ${importedCompanies.length} 家 · 可删除`}
+          </div>
+        </div>
+        {pageSearch.trim() && importedCompanies.length > 0 && (
+          <div style={{ marginTop: 12, fontSize: 12.5, color: '#6b665c' }}>
+            在「我添加的公司」中命中 {importedMatches.length} 家
+          </div>
+        )}
       </div>
 
       {groups.length === 0 ? (
         <div style={{ ...CARD, padding: 26, color: '#8a8478', fontSize: 14 }}>
-          {pageSearch ? `没有名称包含「${pageSearch}」的公司。` : '没有匹配的公司。'}
+          {pageSearch
+            ? `没有名称包含「${pageSearch}」的公司。`
+            : '没有匹配的公司。'}
         </div>
       ) : (
         groups.map((group) => (
@@ -589,7 +576,7 @@ export default function HotCompanies() {
               <span style={{ width: 8, height: 8, borderRadius: 999, background: group.dot, flex: 'none' }} />
               <span style={{ fontSize: 13.5, fontWeight: 700, color: '#4a463e' }}>{group.name}</span>
               <span style={{ fontSize: 12, color: '#9a9488' }}>{group.companies.length} 家</span>
-              {group.companies.some((company) => company.source === 'private') && (
+              {group.name === AI_GROUP_NAME && (
                 <span style={{ fontSize: 11.5, color: '#a08cb5', fontWeight: 600 }}>可删除</span>
               )}
             </div>
@@ -598,7 +585,7 @@ export default function HotCompanies() {
                 <CompanyCard
                   key={`${group.name}-${company.name}`}
                   company={company}
-                  removable={company.source === 'private'}
+                  removable={group.name === AI_GROUP_NAME}
                   deleting={deletingName === company.name}
                   applied={appliedApplicationCompanyNames.some((applicationCompanyName) =>
                     applicationCompanyMatchesHotCompany(applicationCompanyName, company.name))}
@@ -608,7 +595,7 @@ export default function HotCompanies() {
                   )}
                   statusesLoading={statusesLoading}
                   onViewApplications={viewApplications}
-                  onDelete={company.source === 'private' ? () => void deleteImported(company) : undefined}
+                  onDelete={group.name === AI_GROUP_NAME ? () => void deleteImported(company) : undefined}
                 />
               ))}
             </div>
@@ -618,7 +605,6 @@ export default function HotCompanies() {
     </div>
   );
 }
-
 
 function resolveRecruitmentStatus(company: HotCompany, dbStatus?: CampusRecruitmentStatus) {
   // DB 明确已开始：以库为准
@@ -641,30 +627,28 @@ function FilterRow({
   onChange: (value: string) => void;
 }) {
   return (
-    <div style={{ display: 'flex', alignItems: 'flex-start', gap: 10, flexWrap: 'wrap', padding: '4px 0' }}>
-      <span style={{ width: 64, flex: 'none', paddingTop: 10, color: '#8a8478', fontSize: 12.5, fontWeight: 800 }}>{label}</span>
-      <div style={{ display: 'flex', flex: 1, minWidth: 0, gap: 8, flexWrap: 'wrap' }}>
+    <div style={{ display: 'flex', alignItems: 'flex-start', gap: 10, flexWrap: 'wrap', marginBottom: 10 }}>
+      <span style={{ width: 68, flex: 'none', paddingTop: 9, color: '#756f65', fontSize: 12.5, fontWeight: 800 }}>{label}</span>
+      <div style={{ display: 'flex', flex: 1, gap: 8, flexWrap: 'wrap' }}>
         {[ALL, ...options].map((option) => {
           const active = value === option;
           return (
             <button
               key={option}
               type="button"
-              onClick={() => onChange(active && option !== ALL ? ALL : option)}
+              onClick={() => onChange(option)}
               aria-pressed={active}
               className="btn-press"
               style={{
                 minHeight: 34,
-                padding: '6px 13px',
+                padding: '5px 13px',
                 borderRadius: 999,
                 border: active ? '1px solid #1b1a17' : '1px solid #e0d8c9',
                 background: active ? '#1b1a17' : '#fffdf8',
                 color: active ? '#f4f1ea' : '#6b665c',
                 fontSize: 12.5,
                 fontWeight: 700,
-                lineHeight: 1.25,
                 whiteSpace: 'normal',
-                textAlign: 'center',
                 cursor: 'pointer',
               }}
             >
@@ -791,15 +775,15 @@ function CompanyCard({
             {company.name}
           </div>
           <div style={{ fontSize: 12, color: '#9a9488', marginTop: 3, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-            {[company.companyType, company.industry, company.city].filter(Boolean).join(' · ')}
+            {[company.companyType, ...(company.industryTags?.length ? company.industryTags : [company.industry]), company.city].filter(Boolean).join(' · ')}
           </div>
-          {company.deadlineText && (
-            <div style={{ fontSize: 11.5, color: '#a18b69', marginTop: 3, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }} title={company.deadlineText}>
-              截止：{company.deadlineText}
-            </div>
-          )}
         </div>
       </div>
+      {company.deadlineText && (
+        <div style={{ fontSize: 11.5, color: '#8a5b39', lineHeight: 1.45 }}>
+          截止：{company.deadlineText}
+        </div>
+      )}
       <div
         style={{
           minHeight: 58,
@@ -867,7 +851,7 @@ function CompanyCard({
   );
 }
 
-const primaryLink: React.CSSProperties = {
+const primaryLink: CSSProperties = {
   flex: 1,
   height: 38,
   display: 'flex',
@@ -883,7 +867,7 @@ const primaryLink: React.CSSProperties = {
   whiteSpace: 'nowrap',
 };
 
-const secondaryButton: React.CSSProperties = {
+const secondaryButton: CSSProperties = {
   height: 38,
   display: 'flex',
   alignItems: 'center',
@@ -900,7 +884,7 @@ const secondaryButton: React.CSSProperties = {
   whiteSpace: 'nowrap',
 };
 
-const recruitmentButton: React.CSSProperties = {
+const recruitmentButton: CSSProperties = {
   ...secondaryButton,
   minWidth: 84,
   padding: '0 10px',
