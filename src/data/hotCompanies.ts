@@ -7,8 +7,15 @@ import { STATE_OWNED_STANDARD_COMPANIES } from './stateOwnedStandardCompanies202
 export interface HotCompany {
   name: string;
   industry: string;
+  industryTags?: string[];
+  companyType?: string;
   city: string;
   url: string;
+  noticeUrl?: string;
+  applyUrl?: string;
+  deadlineText?: string;
+  records?: number;
+  source?: 'excel' | 'curated' | 'private';
   recruitment?: CampusRecruitmentAudit;
 }
 
