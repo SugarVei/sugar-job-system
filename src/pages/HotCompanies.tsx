@@ -1,4 +1,4 @@
-import { useMemo, useState, type CSSProperties, type KeyboardEvent } from 'react';
+import { useEffect, useMemo, useState, type CSSProperties, type KeyboardEvent } from 'react';
 import { type HotCompany } from '../data/hotCompanies';
 import StandardCatalogImporter from '../components/StandardCatalogImporter';
 import {
@@ -96,7 +96,7 @@ export default function HotCompanies() {
   const toast = useToast();
   const [activeCompanyType, setActiveCompanyType] = useState(ALL);
   const [activeIndustry, setActiveIndustry] = useState(ALL);
-  const [activeUpdateDate, setActiveUpdateDate] = useState(ALL);
+  const [activeUpdateDate, setActiveUpdateDate] = useState<string | null>(null);
   const [activeRecruitmentStatus, setActiveRecruitmentStatus] = useState<RecruitmentStatusKey | typeof ALL_RECRUITMENT_STATUSES>(ALL_RECRUITMENT_STATUSES);
   const [pageSearch, setPageSearch] = useState('');
   const [aiPrompt, setAiPrompt] = useState('');
@@ -142,6 +142,12 @@ export default function HotCompanies() {
       .filter((date): date is string => Boolean(date)),
   )).sort((a, b) => b.localeCompare(a)).map(formatUpdateDateLabel), [recruitmentOverviewCompanies]);
 
+  useEffect(() => {
+    setActiveUpdateDate(updateDateOptions[0] ?? ALL);
+  }, [updateDateOptions]);
+
+  const selectedUpdateDate = activeUpdateDate ?? updateDateOptions[0] ?? ALL;
+
   const groups = useMemo(() => {
     const q = pageSearch.trim().toLowerCase();
     const seenCompanies = new Set<string>();
@@ -153,7 +159,7 @@ export default function HotCompanies() {
           const companyKey = normalizeCompanyName(company.name);
           if (activeCompanyType !== ALL && (company.companyType || '未标明') !== activeCompanyType) return false;
           const updateDate = updateDateForCompany(company);
-          if (activeUpdateDate !== ALL && (!updateDate || formatUpdateDateLabel(updateDate) !== activeUpdateDate)) return false;
+          if (selectedUpdateDate !== ALL && (!updateDate || formatUpdateDateLabel(updateDate) !== selectedUpdateDate)) return false;
           const dbStatus = recruitmentStatusByCompany.get(companyKey);
           if (activeRecruitmentStatus !== ALL_RECRUITMENT_STATUSES
             && recruitmentStatusKey(company, dbStatus) !== activeRecruitmentStatus) {
@@ -171,7 +177,7 @@ export default function HotCompanies() {
         }),
       }))
       .filter((group) => group.companies.length > 0);
-  }, [activeCompanyType, activeIndustry, activeRecruitmentStatus, activeUpdateDate, allGroups, pageSearch, recruitmentStatusByCompany]);
+  }, [activeCompanyType, activeIndustry, activeRecruitmentStatus, selectedUpdateDate, allGroups, pageSearch, recruitmentStatusByCompany]);
 
   const recruitmentStatusFilters = useMemo(() => {
     const counts = new Map<RecruitmentStatusKey, number>();
@@ -509,7 +515,7 @@ export default function HotCompanies() {
       </section>
 
       <section style={{ ...CARD, padding: 16, borderRadius: 20 }}>
-        <FilterRow label="添加时间顺序" options={updateDateOptions} value={activeUpdateDate} onChange={setActiveUpdateDate} />
+        <FilterRow label="添加时间顺序" options={updateDateOptions} value={selectedUpdateDate} onChange={setActiveUpdateDate} singleLine />
         <FilterRow label="企业性质" options={companyTypeOptions} value={activeCompanyType} onChange={setActiveCompanyType} />
         <FilterRow label="行业分类" options={industryOptions} value={activeIndustry} onChange={setActiveIndustry} />
       </section>
@@ -620,16 +626,18 @@ function FilterRow({
   options,
   value,
   onChange,
+  singleLine = false,
 }: {
   label: string;
   options: string[];
   value: string;
   onChange: (value: string) => void;
+  singleLine?: boolean;
 }) {
   return (
-    <div style={{ display: 'flex', alignItems: 'flex-start', gap: 10, flexWrap: 'wrap', marginBottom: 10 }}>
-      <span style={{ width: 68, flex: 'none', paddingTop: 9, color: '#756f65', fontSize: 12.5, fontWeight: 800 }}>{label}</span>
-      <div style={{ display: 'flex', flex: 1, gap: 8, flexWrap: 'wrap' }}>
+    <div style={{ display: 'flex', alignItems: singleLine ? 'center' : 'flex-start', gap: 10, flexWrap: singleLine ? 'nowrap' : 'wrap', marginBottom: 10, overflowX: singleLine ? 'auto' : 'visible' }}>
+      <span style={{ width: singleLine ? 'auto' : 68, flex: 'none', paddingTop: singleLine ? 0 : 9, color: '#756f65', fontSize: 12.5, fontWeight: 800, whiteSpace: 'nowrap' }}>{label}</span>
+      <div style={{ display: 'flex', flex: singleLine ? 'none' : 1, gap: 8, flexWrap: singleLine ? 'nowrap' : 'wrap', width: singleLine ? 'max-content' : undefined }}>
         {[ALL, ...options].map((option) => {
           const active = value === option;
           return (
