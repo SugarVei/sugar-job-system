@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type CSSProperties, type KeyboardEvent } from 'react';
+import { useMemo, useState, type CSSProperties, type KeyboardEvent } from 'react';
 import { type HotCompany } from '../data/hotCompanies';
 import StandardCatalogImporter from '../components/StandardCatalogImporter';
 import {
@@ -141,10 +141,6 @@ export default function HotCompanies() {
       .map(updateDateForCompany)
       .filter((date): date is string => Boolean(date)),
   )).sort((a, b) => b.localeCompare(a)).map(formatUpdateDateLabel), [recruitmentOverviewCompanies]);
-
-  useEffect(() => {
-    setActiveUpdateDate(updateDateOptions[0] ?? ALL);
-  }, [updateDateOptions]);
 
   const selectedUpdateDate = activeUpdateDate ?? updateDateOptions[0] ?? ALL;
 
