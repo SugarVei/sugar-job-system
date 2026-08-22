@@ -3,6 +3,8 @@ import { isSupabaseConfigured, supabase } from '../lib/supabase';
 import type { StandardCompanyOverlay } from '../lib/standardCompanyCatalog';
 import { STANDARD_CATALOG_OVERLAY_LIMIT } from '../lib/standardCompanyImport';
 
+const OVERLAY_PAGE_SIZE = 1000;
+
 export function useStandardCompanyOverlay() {
   const [items, setItems] = useState<StandardCompanyOverlay[]>([]);
   const [loading, setLoading] = useState(true);
@@ -17,10 +19,22 @@ export function useStandardCompanyOverlay() {
     }
 
     setLoading(true);
-    const { data, error: queryError } = await supabase
-      .from('standard_companies')
-      .select('company_key,company_name,source_update_date,company_type,industry,city,deadline_text,notice_url,apply_url,url,group_name,updated_at')
-      .limit(STANDARD_CATALOG_OVERLAY_LIMIT);
+    const rows: StandardCompanyOverlay[] = [];
+    let queryError: { message: string } | null = null;
+    for (let from = 0; from < STANDARD_CATALOG_OVERLAY_LIMIT; from += OVERLAY_PAGE_SIZE) {
+      const { data, error } = await supabase
+        .from('standard_companies')
+        .select('company_key,company_name,source_update_date,company_type,industry,city,deadline_text,notice_url,apply_url,url,group_name,updated_at')
+        .order('company_key')
+        .range(from, Math.min(from + OVERLAY_PAGE_SIZE - 1, STANDARD_CATALOG_OVERLAY_LIMIT - 1));
+      if (error) {
+        queryError = error;
+        break;
+      }
+      const page = (data ?? []) as StandardCompanyOverlay[];
+      rows.push(...page);
+      if (page.length < OVERLAY_PAGE_SIZE) break;
+    }
 
     if (queryError) {
       setItems([]);
@@ -28,7 +42,7 @@ export function useStandardCompanyOverlay() {
         ? '标准公司库数据表尚未创建'
         : queryError.message);
     } else {
-      setItems((data ?? []) as StandardCompanyOverlay[]);
+      setItems(rows);
       setError(null);
     }
     setLoading(false);
