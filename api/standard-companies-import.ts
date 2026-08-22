@@ -78,6 +78,7 @@ export default async function handler(request: Request) {
     const payloads = parsed.companies.map((company) => ({
       company_key: normalizeCompanyName(company.name),
       company_name: company.name,
+      source_update_date: company.updateDate || null,
       company_type: company.companyType || '',
       industry: company.industry,
       city: company.city,

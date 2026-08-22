@@ -10,10 +10,11 @@ export const STANDARD_CATALOG_PREVIEW_LIMIT = 40;
 export const DEFAULT_IMPORT_GROUP = '飞书导入';
 export const TARGET_CAMPUS_YEAR = 2027;
 
-export type CatalogColumnKind = 'name' | 'companyType' | 'industry' | 'city' | 'deadline' | 'noticeUrl' | 'url' | 'group';
+export type CatalogColumnKind = 'updateDate' | 'name' | 'companyType' | 'industry' | 'city' | 'deadline' | 'noticeUrl' | 'url' | 'group';
 
 export type IncomingCompany = {
   name: string;
+  updateDate?: string;
   companyType?: string;
   industry: string;
   city: string;
@@ -27,6 +28,7 @@ export type IncomingCompany = {
 
 export type CatalogCompany = {
   name: string;
+  updateDate?: string;
   companyType?: string;
   industry: string;
   city: string;
@@ -57,6 +59,9 @@ export type CatalogDiffSummary = {
 export type SheetMatrix = { name: string; rows: unknown[][] };
 
 const HEADER_ALIASES: Record<CatalogColumnKind, Array<{ match: RegExp; weight: number }>> = {
+  updateDate: [
+    { match: /^(?:更新时间|更新日期|发布日期|发布日|updatedate|lastupdated)$/u, weight: 6 },
+  ],
   name: [
     { match: /^(?:公司名称|企业名称|单位名称|招录单位|公司全称|公司简称|公司名|companyname|company)$/u, weight: 6 },
     { match: /(?:公司名称|企业名称|单位名称|招录单位|公司全称)/u, weight: 5 },
@@ -268,6 +273,26 @@ function resolveImportedUrl(url: unknown, altUrl?: unknown) {
   return { url: '', ok: true as const };
 }
 
+export function normalizeCatalogUpdateDate(value: unknown) {
+  if (value instanceof Date && !Number.isNaN(value.getTime())) {
+    return value.toISOString().slice(0, 10);
+  }
+  const text = sanitizePlainText(value, 40);
+  if (!text) return '';
+  if (/^\d{5}(?:\.\d+)?$/u.test(text)) {
+    const timestamp = Date.UTC(1899, 11, 30) + Math.floor(Number(text)) * 86_400_000;
+    return new Date(timestamp).toISOString().slice(0, 10);
+  }
+  const match = text.match(/^(\d{4})[年/.\-](\d{1,2})[月/.\-](\d{1,2})(?:日|\b)/u);
+  if (!match) return '';
+  const year = Number(match[1]);
+  const month = Number(match[2]);
+  const day = Number(match[3]);
+  const date = new Date(Date.UTC(year, month - 1, day));
+  if (date.getUTCFullYear() !== year || date.getUTCMonth() !== month - 1 || date.getUTCDate() !== day) return '';
+  return date.toISOString().slice(0, 10);
+}
+
 function optionalHttpUrl(value: unknown) {
   const candidate = sanitizePlainText(value, 500);
   return isHttpUrl(candidate) ? candidate : '';
@@ -297,6 +322,7 @@ export function isHttpUrl(value: string) {
 
 export function sanitizeIncomingCompany(input: {
   name: unknown;
+  updateDate?: unknown;
   companyType?: unknown;
   industry?: unknown;
   city?: unknown;
@@ -309,6 +335,7 @@ export function sanitizeIncomingCompany(input: {
   sheet?: string;
 }): { ok: true; company: IncomingCompany } | { ok: false; reason: string; company: IncomingCompany } {
   const name = sanitizePlainText(input.name);
+  const updateDate = normalizeCatalogUpdateDate(input.updateDate);
   const companyType = sanitizePlainText(input.companyType);
   const industry = sanitizeIndustry(input.industry);
   const city = sanitizePlainText(input.city);
@@ -319,6 +346,7 @@ export function sanitizeIncomingCompany(input: {
   const noticeUrl = optionalHttpUrl(input.noticeUrl);
   const company: IncomingCompany = {
     name,
+    updateDate,
     companyType,
     industry,
     city,
@@ -353,7 +381,7 @@ export function parseSheetMatrix(rows: unknown[][], sheet = 'Sheet1') {
       skipped: [{
         kind: 'skip' as const,
         reason: '名录分表',
-        incoming: { name: sanitizePlainText(sheet), companyType: '', industry: '', city: '', deadlineText: '', noticeUrl: '', applyUrl: '', url: '', group: '', sheet },
+        incoming: { name: sanitizePlainText(sheet), updateDate: '', companyType: '', industry: '', city: '', deadlineText: '', noticeUrl: '', applyUrl: '', url: '', group: '', sheet },
       }],
     };
   }
@@ -362,6 +390,7 @@ export function parseSheetMatrix(rows: unknown[][], sheet = 'Sheet1') {
     if (!Array.isArray(row) || row.every((cell) => sanitizePlainText(cell) === '')) return;
     const parsed = sanitizeIncomingCompany({
       name: header.map.name == null ? '' : row[header.map.name],
+      updateDate: header.map.updateDate == null ? '' : row[header.map.updateDate],
       companyType: header.map.companyType == null ? '' : row[header.map.companyType],
       industry: header.map.industry == null ? '' : row[header.map.industry],
       city: header.map.city == null ? '' : row[header.map.city],
@@ -446,6 +475,7 @@ export function normalizeImportedCompanies(raw: unknown[]) {
     const row = item as Record<string, unknown>;
     const parsed = sanitizeIncomingCompany({
       name: row.name,
+      updateDate: row.updateDate,
       companyType: row.companyType,
       industry: row.industry,
       city: row.city,
@@ -489,6 +519,7 @@ export function attachClientSkipped(
     const incoming = row.incoming && typeof row.incoming === 'object' ? row.incoming : {};
     const sanitized = sanitizeIncomingCompany({
       name: incoming.name,
+      updateDate: incoming.updateDate,
       companyType: incoming.companyType,
       industry: incoming.industry,
       city: incoming.city,
@@ -511,6 +542,7 @@ export function attachClientSkipped(
 export function mergeCompanyFields(incoming: IncomingCompany, current?: CatalogCompany): CatalogCompany {
   return {
     name: current?.name || incoming.name,
+    updateDate: incoming.updateDate || current?.updateDate || '',
     companyType: incoming.companyType || current?.companyType || '',
     industry: incoming.industry || current?.industry || '其他',
     city: incoming.city || current?.city || '',
@@ -523,7 +555,8 @@ export function mergeCompanyFields(incoming: IncomingCompany, current?: CatalogC
 }
 
 function sameCatalogCompany(left: CatalogCompany, right: CatalogCompany) {
-  return left.companyType === right.companyType
+  return left.updateDate === right.updateDate
+    && left.companyType === right.companyType
     && left.industry === right.industry
     && left.city === right.city
     && left.deadlineText === right.deadlineText

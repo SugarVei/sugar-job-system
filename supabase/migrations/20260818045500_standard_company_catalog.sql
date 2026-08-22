@@ -5,6 +5,7 @@
 create table if not exists public.standard_companies (
   company_key text primary key,
   company_name text not null,
+  source_update_date date,
   company_type text not null default '',
   industry text not null default '其他',
   city text not null default '',

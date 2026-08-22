@@ -6,6 +6,7 @@ import { STATE_OWNED_STANDARD_COMPANIES } from './stateOwnedStandardCompanies202
 
 export interface HotCompany {
   name: string;
+  updateDate?: string;
   industry: string;
   city: string;
   url: string;

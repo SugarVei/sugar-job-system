@@ -10,7 +10,7 @@ async function loadOverlay(): Promise<StandardCompanyOverlay[]> {
   if (!supabaseUrl || !apiKey) return [];
 
   const response = await fetch(
-    `${supabaseUrl}/rest/v1/standard_companies?select=company_key,company_name,industry,city,url,group_name&limit=${STANDARD_CATALOG_OVERLAY_LIMIT}`,
+    `${supabaseUrl}/rest/v1/standard_companies?select=company_key,company_name,source_update_date,company_type,industry,city,deadline_text,notice_url,apply_url,url,group_name&limit=${STANDARD_CATALOG_OVERLAY_LIMIT}`,
     { headers: { apikey: apiKey, authorization: `Bearer ${apiKey}` } },
   );
   if (!response.ok) return [];

@@ -67,7 +67,7 @@ function formatUpdateDateLabel(date: string) {
 }
 
 function updateDateForCompany(company: HotCompany) {
-  return EXCEL_CAMPUS_UPDATE_DATES[company.name];
+  return company.updateDate || EXCEL_CAMPUS_UPDATE_DATES[company.name];
 }
 
 export default function HotCompanies() {

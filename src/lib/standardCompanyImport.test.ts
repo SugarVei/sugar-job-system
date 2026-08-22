@@ -183,9 +183,18 @@ describe('standardCompanyImport', () => {
       ['2026/08/22', '新公司', '民企', '半导体', '上海', '2026-09-30', 'https://notice.example', 'https://apply.example', '2027届'],
     ]);
     assert.equal(parsed.companies[0]?.companyType, '民企');
+    assert.equal(parsed.companies[0]?.updateDate, '2026-08-22');
     assert.equal(parsed.companies[0]?.deadlineText, '2026-09-30');
     assert.equal(parsed.companies[0]?.noticeUrl, 'https://notice.example');
     assert.equal(parsed.companies[0]?.applyUrl, 'https://apply.example');
+  });
+
+  it('normalizes an Excel serial update date', () => {
+    const parsed = parseSheetMatrix([
+      ['更新时间', '公司名称', '届次'],
+      [46256, '序列日期公司', '2027届'],
+    ]);
+    assert.equal(parsed.companies[0]?.updateDate, '2026-08-22');
   });
 
   it('does not treat an all-26届 workbook as a missing company column', () => {

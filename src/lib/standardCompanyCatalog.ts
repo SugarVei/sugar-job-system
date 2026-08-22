@@ -5,6 +5,7 @@ import { DEFAULT_IMPORT_GROUP, type CatalogCompany } from './standardCompanyImpo
 export type StandardCompanyOverlay = {
   company_key: string;
   company_name: string;
+  source_update_date?: string | null;
   company_type?: string | null;
   industry: string;
   city: string;
@@ -33,6 +34,7 @@ export function flattenCatalogGroups(groups: HotCompanyGroup[]): CatalogCompany[
       seen.add(key);
       rows.push({
         name: company.name,
+        updateDate: company.updateDate,
         companyType: company.companyType,
         industry: company.industry,
         city: company.city,
@@ -82,6 +84,7 @@ export function mergeStandardCatalog(
       company: {
         ...existing?.company,
         name: existing?.company.name || row.company_name,
+        updateDate: row.source_update_date || existing?.company.updateDate,
         companyType: row.company_type || existing?.company.companyType,
         industry: row.industry || existing?.company.industry || '其他',
         industryTags: row.industry

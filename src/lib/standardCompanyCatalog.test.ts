@@ -61,6 +61,7 @@ describe('standardCompanyCatalog', () => {
     ], [{
       company_key: '秋招',
       company_name: '秋招公司',
+      source_update_date: '2026-08-22',
       company_type: '民企',
       industry: '新行业',
       city: '上海',
@@ -72,6 +73,7 @@ describe('standardCompanyCatalog', () => {
     }]);
 
     assert.equal(companies[0]?.companyType, '民企');
+    assert.equal(companies[0]?.updateDate, '2026-08-22');
     assert.equal(companies[0]?.industry, '新行业');
     assert.deepEqual(companies[0]?.industryTags, ['新行业']);
     assert.equal(companies[0]?.deadlineText, '2026-09-30');

@@ -41,6 +41,7 @@ function overlayCompanies(items: StandardCompanyOverlay[], excelCompanies: HotCo
       const industry = row.industry || excel.industry;
       return {
         ...excel,
+        updateDate: row.source_update_date || excel.updateDate,
         companyType: row.company_type || excel.companyType,
         industry,
         industryTags: row.industry
@@ -55,6 +56,7 @@ function overlayCompanies(items: StandardCompanyOverlay[], excelCompanies: HotCo
     }
     return {
       name: row.company_name,
+      updateDate: row.source_update_date || undefined,
       companyType: row.company_type || undefined,
       industry: row.industry || '其他',
       industryTags: row.industry ? row.industry.split(/[、,，/|]+/u).map((tag) => tag.trim()).filter(Boolean) : ['其他'],
