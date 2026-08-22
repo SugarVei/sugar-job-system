@@ -37,13 +37,32 @@ function overlayCompanies(items: StandardCompanyOverlay[], excelCompanies: HotCo
   const excelByName = new Map(excelCompanies.map((company) => [normalizeCompanyName(company.name), company]));
   return items.map((row): HotCompany => {
     const excel = excelByName.get(normalizeCompanyName(row.company_name));
-    return excel ?? {
+    if (excel) {
+      const industry = row.industry || excel.industry;
+      return {
+        ...excel,
+        companyType: row.company_type || excel.companyType,
+        industry,
+        industryTags: row.industry
+          ? industry.split(/[、,，/|]+/u).map((tag) => tag.trim()).filter(Boolean)
+          : excel.industryTags,
+        city: row.city || excel.city,
+        url: row.url || excel.url,
+        noticeUrl: row.notice_url || excel.noticeUrl,
+        applyUrl: row.apply_url || excel.applyUrl || row.url || excel.url,
+        deadlineText: row.deadline_text || excel.deadlineText,
+      };
+    }
+    return {
       name: row.company_name,
+      companyType: row.company_type || undefined,
       industry: row.industry || '其他',
       industryTags: row.industry ? row.industry.split(/[、,，/|]+/u).map((tag) => tag.trim()).filter(Boolean) : ['其他'],
       city: row.city || '',
+      noticeUrl: row.notice_url || '',
+      applyUrl: row.apply_url || row.url || '',
+      deadlineText: row.deadline_text || '',
       url: row.url || '',
-      companyType: '未标明',
       source: 'excel',
     };
   });

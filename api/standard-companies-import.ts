@@ -78,8 +78,12 @@ export default async function handler(request: Request) {
     const payloads = parsed.companies.map((company) => ({
       company_key: normalizeCompanyName(company.name),
       company_name: company.name,
+      company_type: company.companyType || '',
       industry: company.industry,
       city: company.city,
+      deadline_text: company.deadlineText || '',
+      notice_url: company.noticeUrl || '',
+      apply_url: company.applyUrl || company.url || '',
       url: company.url,
       group_name: company.group,
       source: 'excel_import',

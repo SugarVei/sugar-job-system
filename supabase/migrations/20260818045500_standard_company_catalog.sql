@@ -5,8 +5,12 @@
 create table if not exists public.standard_companies (
   company_key text primary key,
   company_name text not null,
+  company_type text not null default '',
   industry text not null default '其他',
   city text not null default '',
+  deadline_text text not null default '',
+  notice_url text not null default '',
+  apply_url text not null default '',
   url text not null default '',
   group_name text not null default '飞书导入',
   source text not null default 'excel_import',
@@ -14,6 +18,8 @@ create table if not exists public.standard_companies (
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now(),
   constraint standard_companies_name_len check (char_length(company_name) between 1 and 80),
+  constraint standard_companies_notice_url_http check (notice_url = '' or notice_url ~* '^https?://'),
+  constraint standard_companies_apply_url_http check (apply_url = '' or apply_url ~* '^https?://'),
   constraint standard_companies_url_http check (url = '' or url ~* '^https?://')
 );
 

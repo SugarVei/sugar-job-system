@@ -177,6 +177,17 @@ describe('standardCompanyImport', () => {
     assert.equal(parsed.skipped.some((row) => row.incoming.name === '（必看）表格使用说明' && row.reason === '说明行'), true);
   });
 
+  it('keeps the recruitment fields used by the company cards', () => {
+    const parsed = parseSheetMatrix([
+      ['更新时间', '公司名称', '企业性质', '行业分类', '工作地点', '截止时间', '公告链接', '投递链接', '届次'],
+      ['2026/08/22', '新公司', '民企', '半导体', '上海', '2026-09-30', 'https://notice.example', 'https://apply.example', '2027届'],
+    ]);
+    assert.equal(parsed.companies[0]?.companyType, '民企');
+    assert.equal(parsed.companies[0]?.deadlineText, '2026-09-30');
+    assert.equal(parsed.companies[0]?.noticeUrl, 'https://notice.example');
+    assert.equal(parsed.companies[0]?.applyUrl, 'https://apply.example');
+  });
+
   it('does not treat an all-26届 workbook as a missing company column', () => {
     const parsed = parseSheetMatrix([
       ['单位名称', '届别'],

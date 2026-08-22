@@ -5,8 +5,12 @@ import { DEFAULT_IMPORT_GROUP, type CatalogCompany } from './standardCompanyImpo
 export type StandardCompanyOverlay = {
   company_key: string;
   company_name: string;
+  company_type?: string | null;
   industry: string;
   city: string;
+  deadline_text?: string | null;
+  notice_url?: string | null;
+  apply_url?: string | null;
   url: string;
   group_name: string;
   updated_at?: string | null;
@@ -29,8 +33,12 @@ export function flattenCatalogGroups(groups: HotCompanyGroup[]): CatalogCompany[
       seen.add(key);
       rows.push({
         name: company.name,
+        companyType: company.companyType,
         industry: company.industry,
         city: company.city,
+        deadlineText: company.deadlineText,
+        noticeUrl: company.noticeUrl,
+        applyUrl: company.applyUrl,
         url: company.url,
         group: group.name,
       });
@@ -72,9 +80,17 @@ export function mergeStandardCatalog(
       : knownDots.get(nextGroup) || groupDot(nextGroup));
     placements.set(key, {
       company: {
+        ...existing?.company,
         name: existing?.company.name || row.company_name,
+        companyType: row.company_type || existing?.company.companyType,
         industry: row.industry || existing?.company.industry || '其他',
+        industryTags: row.industry
+          ? row.industry.split(/[、,，/|]+/u).map((tag) => tag.trim()).filter(Boolean)
+          : existing?.company.industryTags,
         city: row.city || existing?.company.city || '',
+        deadlineText: row.deadline_text || existing?.company.deadlineText,
+        noticeUrl: row.notice_url || existing?.company.noticeUrl,
+        applyUrl: row.apply_url || existing?.company.applyUrl || row.url || existing?.company.applyUrl,
         url: row.url || existing?.company.url || '',
         recruitment: existing?.company.recruitment,
       },

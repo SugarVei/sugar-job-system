@@ -10,12 +10,16 @@ export const STANDARD_CATALOG_PREVIEW_LIMIT = 40;
 export const DEFAULT_IMPORT_GROUP = '飞书导入';
 export const TARGET_CAMPUS_YEAR = 2027;
 
-export type CatalogColumnKind = 'name' | 'industry' | 'city' | 'url' | 'group';
+export type CatalogColumnKind = 'name' | 'companyType' | 'industry' | 'city' | 'deadline' | 'noticeUrl' | 'url' | 'group';
 
 export type IncomingCompany = {
   name: string;
+  companyType?: string;
   industry: string;
   city: string;
+  deadlineText?: string;
+  noticeUrl?: string;
+  applyUrl?: string;
   url: string;
   group: string;
   sheet: string;
@@ -23,8 +27,12 @@ export type IncomingCompany = {
 
 export type CatalogCompany = {
   name: string;
+  companyType?: string;
   industry: string;
   city: string;
+  deadlineText?: string;
+  noticeUrl?: string;
+  applyUrl?: string;
   url: string;
   group: string;
 };
@@ -54,6 +62,10 @@ const HEADER_ALIASES: Record<CatalogColumnKind, Array<{ match: RegExp; weight: n
     { match: /(?:公司名称|企业名称|单位名称|招录单位|公司全称)/u, weight: 5 },
     { match: /^(?:公司|企业|名称|name)$/u, weight: 3 },
   ],
+  companyType: [
+    { match: /^(?:企业性质|公司性质|企业类型|公司类型|性质|companytype|type)$/u, weight: 5 },
+    { match: /(?:企业性质|公司性质|企业类型|公司类型)/u, weight: 4 },
+  ],
   industry: [
     { match: /^(?:行业分类|所属行业|行业|赛道|industry)$/u, weight: 5 },
     { match: /(?:行业分类|所属行业)/u, weight: 4 },
@@ -61,6 +73,13 @@ const HEADER_ALIASES: Record<CatalogColumnKind, Array<{ match: RegExp; weight: n
   city: [
     { match: /^(?:工作地址|工作地点|城市|地点|总部|所在地|city|location)$/u, weight: 5 },
     { match: /(?:工作地址|工作地点)/u, weight: 4 },
+  ],
+  deadline: [
+    { match: /^(?:截止时间|截止日期|报名截止|申请截止|deadline)$/u, weight: 5 },
+  ],
+  noticeUrl: [
+    { match: /^(?:公告链接|原文链接|微信推文|公告地址|公告来源链接)$/u, weight: 6 },
+    { match: /(?:公告链接|原文链接|微信推文|公告地址)/u, weight: 5 },
   ],
   url: [
     { match: /^(?:校招链接|校招网址|校招入口|网申链接|网申入口|网申地址|投递链接|投递入口)$/u, weight: 6 },
@@ -74,7 +93,7 @@ const HEADER_ALIASES: Record<CatalogColumnKind, Array<{ match: RegExp; weight: n
   ],
 };
 
-const SKIPPED_HEADER = /备注|内推|推荐人|是否开招|开招状态|截止日期|截止时间|状态说明|note|comment|referral|status/iu;
+const SKIPPED_HEADER = /备注|内推|推荐人|是否开招|开招状态|状态说明|note|comment|referral|status/iu;
 const YEAR_HEADER = /届次|届别|毕业届|招聘对象|面向届|毕业年份|目标届|毕业年|^届$/u;
 const CAMPUS_YEAR_SKIP_REASON = '非27届';
 const WATERMARK = /婉清学姐冲冲冲的店唯一正版/gu;
@@ -249,6 +268,11 @@ function resolveImportedUrl(url: unknown, altUrl?: unknown) {
   return { url: '', ok: true as const };
 }
 
+function optionalHttpUrl(value: unknown) {
+  const candidate = sanitizePlainText(value, 500);
+  return isHttpUrl(candidate) ? candidate : '';
+}
+
 export function isMissingCompanyColumn(parsed: { companies: IncomingCompany[]; skipped: CatalogDiffRow[] }) {
   return parsed.companies.length === 0 && parsed.skipped.every((row) => row.reason === '缺少公司名' || !row.reason);
 }
@@ -273,23 +297,35 @@ export function isHttpUrl(value: string) {
 
 export function sanitizeIncomingCompany(input: {
   name: unknown;
+  companyType?: unknown;
   industry?: unknown;
   city?: unknown;
+  deadlineText?: unknown;
+  noticeUrl?: unknown;
+  applyUrl?: unknown;
   url?: unknown;
   altUrl?: unknown;
   group?: unknown;
   sheet?: string;
 }): { ok: true; company: IncomingCompany } | { ok: false; reason: string; company: IncomingCompany } {
   const name = sanitizePlainText(input.name);
+  const companyType = sanitizePlainText(input.companyType);
   const industry = sanitizeIndustry(input.industry);
   const city = sanitizePlainText(input.city);
+  const deadlineText = sanitizePlainText(input.deadlineText);
   const group = sanitizePlainText(input.group);
   const resolved = resolveImportedUrl(input.url, input.altUrl);
+  const applyUrl = optionalHttpUrl(input.applyUrl) || resolved.url;
+  const noticeUrl = optionalHttpUrl(input.noticeUrl);
   const company: IncomingCompany = {
     name,
+    companyType,
     industry,
     city,
-    url: resolved.url,
+    deadlineText,
+    noticeUrl,
+    applyUrl,
+    url: applyUrl,
     group,
     sheet: input.sheet || 'Sheet1',
   };
@@ -317,7 +353,7 @@ export function parseSheetMatrix(rows: unknown[][], sheet = 'Sheet1') {
       skipped: [{
         kind: 'skip' as const,
         reason: '名录分表',
-        incoming: { name: sanitizePlainText(sheet), industry: '', city: '', url: '', group: '', sheet },
+        incoming: { name: sanitizePlainText(sheet), companyType: '', industry: '', city: '', deadlineText: '', noticeUrl: '', applyUrl: '', url: '', group: '', sheet },
       }],
     };
   }
@@ -326,8 +362,12 @@ export function parseSheetMatrix(rows: unknown[][], sheet = 'Sheet1') {
     if (!Array.isArray(row) || row.every((cell) => sanitizePlainText(cell) === '')) return;
     const parsed = sanitizeIncomingCompany({
       name: header.map.name == null ? '' : row[header.map.name],
+      companyType: header.map.companyType == null ? '' : row[header.map.companyType],
       industry: header.map.industry == null ? '' : row[header.map.industry],
       city: header.map.city == null ? '' : row[header.map.city],
+      deadlineText: header.map.deadline == null ? '' : row[header.map.deadline],
+      noticeUrl: header.map.noticeUrl == null ? '' : row[header.map.noticeUrl],
+      applyUrl: header.map.url == null ? '' : row[header.map.url],
       url: header.map.url == null ? '' : row[header.map.url],
       altUrl: altUrlIndex == null ? '' : row[altUrlIndex],
       group: (header.map.group == null ? '' : row[header.map.group]) || groupFromSheetName(sheet),
@@ -406,8 +446,12 @@ export function normalizeImportedCompanies(raw: unknown[]) {
     const row = item as Record<string, unknown>;
     const parsed = sanitizeIncomingCompany({
       name: row.name,
+      companyType: row.companyType,
       industry: row.industry,
       city: row.city,
+      deadlineText: row.deadlineText,
+      noticeUrl: row.noticeUrl,
+      applyUrl: row.applyUrl,
       url: row.url,
       group: row.group || groupFromSheetName(String(row.sheet ?? '')),
       sheet: sanitizePlainText(row.sheet, 40) || 'Sheet1',
@@ -445,8 +489,12 @@ export function attachClientSkipped(
     const incoming = row.incoming && typeof row.incoming === 'object' ? row.incoming : {};
     const sanitized = sanitizeIncomingCompany({
       name: incoming.name,
+      companyType: incoming.companyType,
       industry: incoming.industry,
       city: incoming.city,
+      deadlineText: incoming.deadlineText,
+      noticeUrl: incoming.noticeUrl,
+      applyUrl: incoming.applyUrl,
       url: incoming.url,
       group: incoming.group,
       sheet: sanitizePlainText(incoming.sheet, 40) || 'Sheet1',
@@ -463,16 +511,24 @@ export function attachClientSkipped(
 export function mergeCompanyFields(incoming: IncomingCompany, current?: CatalogCompany): CatalogCompany {
   return {
     name: current?.name || incoming.name,
+    companyType: incoming.companyType || current?.companyType || '',
     industry: incoming.industry || current?.industry || '其他',
     city: incoming.city || current?.city || '',
+    deadlineText: incoming.deadlineText || current?.deadlineText || '',
+    noticeUrl: incoming.noticeUrl || current?.noticeUrl || '',
+    applyUrl: incoming.applyUrl || current?.applyUrl || incoming.url || current?.url || '',
     url: incoming.url || current?.url || '',
     group: resolveImportedGroup(incoming, current?.group),
   };
 }
 
 function sameCatalogCompany(left: CatalogCompany, right: CatalogCompany) {
-  return left.industry === right.industry
+  return left.companyType === right.companyType
+    && left.industry === right.industry
     && left.city === right.city
+    && left.deadlineText === right.deadlineText
+    && left.noticeUrl === right.noticeUrl
+    && left.applyUrl === right.applyUrl
     && left.url === right.url
     && left.group === right.group;
 }
