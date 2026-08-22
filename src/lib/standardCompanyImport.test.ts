@@ -1,8 +1,24 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
-import { attachClientSkipped, campusYearDecision, collectIncomingCompanies, diffCatalog, extractCampusYears, findHeaderRow, isMissingCompanyColumn, normalizeImportedCompanies, parseSheetMatrix, sanitizeIncomingCompany } from './standardCompanyImport.ts';
+import { attachClientSkipped, campusYearDecision, collectIncomingCompanies, diffCatalog, extractCampusYears, findHeaderRow, isMissingCompanyColumn, normalizeImportedCompanies, parseSheetMatrix, recentCatalogUpdateDates, sanitizeIncomingCompany } from './standardCompanyImport.ts';
 
 describe('standardCompanyImport', () => {
+  it('keeps only the newest update date and the previous seven calendar days', () => {
+    assert.deepEqual(recentCatalogUpdateDates([
+      '2026-08-14',
+      '2026-08-22',
+      '2026-08-15',
+      '2026-08-21',
+      '2026-08-16',
+      '2026-08-15',
+    ]), ['2026-08-22', '2026-08-21', '2026-08-16', '2026-08-15']);
+    assert.deepEqual(recentCatalogUpdateDates([
+      '2026-08-15',
+      '2026-08-16',
+      '2026-08-23',
+    ]), ['2026-08-23', '2026-08-16']);
+  });
+
   it('finds the Feishu-style header row under a title', () => {
     const header = findHeaderRow([
       ['2027校招公司汇总'],

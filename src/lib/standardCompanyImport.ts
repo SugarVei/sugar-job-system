@@ -293,6 +293,19 @@ export function normalizeCatalogUpdateDate(value: unknown) {
   return date.toISOString().slice(0, 10);
 }
 
+export function recentCatalogUpdateDates(dates: string[], lookbackDays = 7) {
+  const sorted = Array.from(new Set(dates.filter((date) => /^\d{4}-\d{2}-\d{2}$/u.test(date))))
+    .sort((left, right) => right.localeCompare(left));
+  const newest = sorted[0];
+  if (!newest) return [];
+  const newestTime = Date.parse(`${newest}T00:00:00Z`);
+  const earliestTime = newestTime - lookbackDays * 86_400_000;
+  return sorted.filter((date) => {
+    const time = Date.parse(`${date}T00:00:00Z`);
+    return time >= earliestTime && time <= newestTime;
+  });
+}
+
 function optionalHttpUrl(value: unknown) {
   const candidate = sanitizePlainText(value, 500);
   return isHttpUrl(candidate) ? candidate : '';

@@ -23,6 +23,7 @@ import {
   useHotCompanyCatalog,
 } from '../hooks/useHotCompanyCatalog';
 import { EXCEL_CAMPUS_UPDATE_DATES } from '../data/excelCampusRecruitmentUpdateDates';
+import { recentCatalogUpdateDates } from '../lib/standardCompanyImport';
 
 const ALL = ALL_GROUP_NAME;
 const ALL_RECRUITMENT_STATUSES = 'all';
@@ -136,13 +137,15 @@ export default function HotCompanies() {
       : [company.industry || '其他']),
   )), [recruitmentOverviewCompanies]);
 
-  const updateDateOptions = useMemo(() => Array.from(new Set(
+  const updateDateOptions = useMemo(() => recentCatalogUpdateDates(
     recruitmentOverviewCompanies
       .map(updateDateForCompany)
       .filter((date): date is string => Boolean(date)),
-  )).sort((a, b) => b.localeCompare(a)).map(formatUpdateDateLabel), [recruitmentOverviewCompanies]);
+  ).map(formatUpdateDateLabel), [recruitmentOverviewCompanies]);
 
-  const selectedUpdateDate = activeUpdateDate ?? updateDateOptions[0] ?? ALL;
+  const selectedUpdateDate = activeUpdateDate === ALL || (activeUpdateDate && updateDateOptions.includes(activeUpdateDate))
+    ? activeUpdateDate
+    : updateDateOptions[0] ?? ALL;
 
   const groups = useMemo(() => {
     const q = pageSearch.trim().toLowerCase();
