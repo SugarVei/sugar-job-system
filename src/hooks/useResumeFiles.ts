@@ -6,7 +6,6 @@ import type { ResumeFile, ResumeFileKind } from '../types';
 const BUCKET = 'resumes';
 const MAX_UPLOAD_SIZE = 10 * 1024 * 1024;
 const TUS_CHUNK_SIZE = 6 * 1024 * 1024;
-const STORAGE_PROXY_PREFIX = '/storage-proxy';
 const UPLOAD_CONTENT_TYPES: Record<string, string> = {
   pdf: 'application/pdf',
   docx: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
@@ -110,6 +109,11 @@ function readableSupabaseError(error: unknown) {
 async function uploadToStorage(path: string, file: File, contentType: string, accessToken: string) {
   if (!supabaseUrl || !supabaseAnonKey) throw new Error('Supabase 尚未配置，无法上传文件。');
 
+  const projectId = new URL(supabaseUrl).hostname.split('.')[0];
+  if (!projectId) throw new Error('Supabase 项目地址无效，无法上传文件。');
+  const storageOrigin = `https://${projectId}.storage.supabase.co`;
+  const resumableEndpoint = `${storageOrigin}/storage/v1/upload/resumable`;
+
   const authHeaders = {
     apikey: supabaseAnonKey,
     Authorization: `Bearer ${accessToken}`,
@@ -121,7 +125,7 @@ async function uploadToStorage(path: string, file: File, contentType: string, ac
     ['contentType', contentType],
     ['cacheControl', '3600'],
   ].map(([key, value]) => `${key} ${btoa(value)}`).join(',');
-  const creation = await fetch(`${STORAGE_PROXY_PREFIX}/upload/resumable`, {
+  const creation = await fetch(resumableEndpoint, {
     method: 'POST',
     headers: {
       ...authHeaders,
@@ -139,19 +143,18 @@ async function uploadToStorage(path: string, file: File, contentType: string, ac
 
   const location = creation.headers.get('location');
   if (!location) throw new Error('存储服务未返回分片上传地址。');
-  const uploadLocation = new URL(location, window.location.origin);
-  const storagePrefix = '/storage/v1/';
-  const uploadPath = uploadLocation.pathname.startsWith(storagePrefix)
-    ? `${STORAGE_PROXY_PREFIX}/${uploadLocation.pathname.slice(storagePrefix.length)}`
-    : uploadLocation.pathname;
-  if (!uploadPath.startsWith(`${STORAGE_PROXY_PREFIX}/upload/resumable/`)) {
+  const uploadLocation = new URL(location, storageOrigin);
+  if (
+    uploadLocation.origin !== storageOrigin
+    || !uploadLocation.pathname.startsWith('/storage/v1/upload/resumable/')
+  ) {
     throw new Error('存储服务返回了无效的分片上传地址。');
   }
 
   let offset = 0;
   while (offset < file.size) {
     const chunk = file.slice(offset, Math.min(offset + TUS_CHUNK_SIZE, file.size));
-    const response = await fetch(`${uploadPath}${uploadLocation.search}`, {
+    const response = await fetch(uploadLocation.toString(), {
       method: 'PATCH',
       headers: {
         ...authHeaders,
@@ -214,15 +217,17 @@ export function useResumeFiles() {
       if (!contentType) throw new Error('暂不支持该格式，请上传 PDF 或 DOCX 文件。');
       await validateUploadContents(file, extension);
 
-      const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
+      // Always mint a fresh JWT immediately before upload. This prevents a
+      // cached pre-migration token from being sent to Storage.
+      const { data: sessionData, error: sessionError } = await supabase.auth.refreshSession();
       const session = sessionData.session;
       if (sessionError || !session?.access_token || session.user.id !== user.id) {
-        throw new Error('登录会话无效，请退出账号后重新登录。');
+        throw new Error('登录会话刷新失败，请退出账号后重新登录。');
       }
 
       const path = buildStoragePath(user.id, resumeId, file.name);
-      // Send the current session JWT explicitly. This avoids a stale Storage
-      // client falling back to the anon key, which Storage reports as HTTP 400.
+      // Send the fresh session JWT directly to Supabase's documented Storage
+      // hostname. Vercel rewrites do not preserve the TUS upload exchange.
       await uploadToStorage(path, file, contentType, session.access_token);
 
       const { data, error: insErr } = await supabase
