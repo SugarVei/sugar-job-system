@@ -14,11 +14,6 @@ function getExtension(fileName: string) {
   return fileName.split('.').pop()?.toLowerCase() ?? '';
 }
 
-function getSafeExtension(fileName: string) {
-  const ext = getExtension(fileName);
-  return /^[a-z0-9]{1,10}$/.test(ext) ? `.${ext}` : '';
-}
-
 async function validateUploadContents(file: File, extension: string) {
   if (file.size === 0) throw new Error('文件内容为空，请重新选择简历文件。');
   if (file.size > MAX_UPLOAD_SIZE) throw new Error('简历文件不能超过 10MB。');
@@ -31,18 +26,6 @@ async function validateUploadContents(file: File, extension: string) {
   if (extension === 'docx' && (signature[0] !== 0x50 || signature[1] !== 0x4b)) {
     throw new Error('所选文件不是有效的 DOCX，请用 Word 重新另存后上传。');
   }
-}
-
-function safePathPart(value: string) {
-  return value.replace(/[^a-zA-Z0-9_-]/g, '_');
-}
-
-function buildStoragePath(userId: string, resumeId: string, fileName: string) {
-  return [
-    safePathPart(userId),
-    safePathPart(resumeId),
-    `${Date.now()}_${crypto.randomUUID()}${getSafeExtension(fileName)}`,
-  ].join('/');
 }
 
 function stringifyErrorValue(value: unknown): string {
@@ -105,6 +88,38 @@ function readableSupabaseError(error: unknown) {
   return message || '未知上传错误，请打开浏览器开发者工具查看 Network/Console 里的 Supabase 返回内容。';
 }
 
+async function fileToDataUrl(file: File, contentType: string) {
+  return new Promise<string>((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onerror = () => reject(new Error('无法读取文件。'));
+    reader.onload = () => resolve(String(reader.result));
+    reader.readAsDataURL(new Blob([file], { type: contentType }));
+  });
+}
+
+async function uploadViaAppApi(
+  resumeId: string,
+  kind: ResumeFileKind,
+  file: File,
+  contentType: string,
+  accessToken: string,
+) {
+  const response = await fetch('/api/resume-company-upload', {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${accessToken}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      storage_scope: 'resume-library',
+      resume_id: resumeId,
+      kind,
+      file_name: file.name,
+      file_data: await fileToDataUrl(file, contentType),
+    }),
+  });
+  const result = await response.json().catch(() => ({})) as { file?: ResumeFile; error?: string };
+  if (!response.ok || !result.file) throw new Error(result.error || `网站上传接口返回 HTTP ${response.status}。`);
+  return result.file;
+}
+
 export function useResumeFiles() {
   const { user } = useAuth();
   const [files, setFiles] = useState<ResumeFile[]>([]);
@@ -153,42 +168,10 @@ export function useResumeFiles() {
         throw new Error('登录会话刷新失败，请退出账号后重新登录。');
       }
 
-      const path = buildStoragePath(user.id, resumeId, file.name);
-      // Use the standard SDK endpoint on the same Supabase project hostname as
-      // Auth and Database. The dedicated TUS hostname is blocked on some user
-      // network paths before the request reaches Storage.
-      const { error: uploadError } = await supabase.storage.from(BUCKET).upload(path, file, {
-        cacheControl: '3600',
-        contentType,
-        upsert: false,
-      });
-      if (uploadError) {
-        console.error('[resume upload] standard Storage upload failed:', uploadError);
-        throw new Error(`标准上传失败：${readableSupabaseError(uploadError)}`);
-      }
+      const data = await uploadViaAppApi(resumeId, kind, file, contentType, session.access_token);
 
-      const { data, error: insErr } = await supabase
-        .from('resume_files')
-        .insert({
-          user_id: user.id,
-          resume_id: resumeId,
-          file_name: file.name,
-          file_path: path,
-          kind,
-          size: file.size,
-          source: 'upload',
-        })
-        .select()
-        .single();
-
-      if (insErr) {
-        console.error('[upload] resume_files insert error raw:', insErr);
-        await supabase.storage.from(BUCKET).remove([path]);
-        throw new Error(readableSupabaseError(insErr));
-      }
-
-      setFiles((prev) => [data as ResumeFile, ...prev]);
-      return data as ResumeFile;
+      setFiles((prev) => [data, ...prev]);
+      return data;
     },
     [user],
   );

@@ -3,6 +3,7 @@ type NativeResponse = { status(code: number): NativeResponse; json(body: unknown
 
 const MAX_FILE_SIZE = 10 * 1024 * 1024;
 const DOCX_MIME_TYPE = 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
+const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 const requests = new Map<string, { count: number; reset: number }>();
 
 function header(request: NativeRequest, name: string) { const value = request.headers[name]; return Array.isArray(value) ? value[0] ?? '' : value ?? ''; }
@@ -51,12 +52,47 @@ function fileFromBody(body: Record<string, unknown>) {
   const baseName = safeFileName(fileName).replace(/\.[^.]+$/, '') || 'resume';
   return { extension, file, baseName };
 }
-function objectUrl(path: string) {
-  return `${required('SUPABASE_URL').replace(/\/$/, '')}/storage/v1/object/company-resumes/${path.split('/').map(encodeURIComponent).join('/')}`;
+function objectUrl(bucket: 'company-resumes' | 'resumes', path: string) {
+  return `${required('SUPABASE_URL').replace(/\/$/, '')}/storage/v1/object/${bucket}/${path.split('/').map(encodeURIComponent).join('/')}`;
 }
 function serviceHeaders(contentType?: string) {
   const serviceKey = required('SUPABASE_SERVICE_ROLE_KEY');
   return { authorization: `Bearer ${serviceKey}`, apikey: serviceKey, ...(contentType ? { 'Content-Type': contentType } : {}) };
+}
+async function ownsResume(userId: string, resumeId: string) {
+  const query = new URLSearchParams({ id: `eq.${resumeId}`, user_id: `eq.${userId}`, select: 'id', limit: '1' });
+  const result = await fetch(`${required('SUPABASE_URL').replace(/\/$/, '')}/rest/v1/resumes?${query}`, {
+    headers: serviceHeaders('application/json'),
+  });
+  if (!result.ok) throw new Error('RESUME_LOOKUP_FAILED');
+  const rows = await result.json() as Array<{ id?: string }>;
+  return rows[0]?.id === resumeId;
+}
+async function insertResumeFile(input: {
+  userId: string;
+  resumeId: string;
+  fileName: string;
+  path: string;
+  kind: 'resume' | 'script';
+  size: number;
+}) {
+  const result = await fetch(`${required('SUPABASE_URL').replace(/\/$/, '')}/rest/v1/resume_files`, {
+    method: 'POST',
+    headers: { ...serviceHeaders('application/json'), Prefer: 'return=representation' },
+    body: JSON.stringify({
+      user_id: input.userId,
+      resume_id: input.resumeId,
+      file_name: input.fileName,
+      file_path: input.path,
+      kind: input.kind,
+      size: input.size,
+      source: 'upload',
+    }),
+  });
+  if (!result.ok) throw new Error('RESUME_FILE_INSERT_FAILED');
+  const rows = await result.json() as Array<Record<string, unknown>>;
+  if (!rows[0]) throw new Error('RESUME_FILE_INSERT_FAILED');
+  return rows[0];
 }
 
 export default async function handler(request: NativeRequest, response: NativeResponse) {
@@ -67,21 +103,46 @@ export default async function handler(request: NativeRequest, response: NativeRe
     const userId = await requireUserId(request);
     if (!rateLimit(`resume-upload:${userId}:${clientIp(request)}`)) return response.status(429).json({ error: '上传请求过于频繁，请稍后再试。' });
     const body = readBody(request);
+    const resumeLibrary = body.storage_scope === 'resume-library';
+    const bucket = resumeLibrary ? 'resumes' : 'company-resumes';
     if (request.method === 'DELETE') {
       const path = typeof body.path === 'string' ? body.path : '';
       if (!path.startsWith(`${userId}/`) || !/\.(pdf|docx)$/i.test(path)) return response.status(400).json({ error: '无效的简历路径。' });
-      const deleted = await fetch(objectUrl(path), { method: 'DELETE', headers: serviceHeaders() });
+      const deleted = await fetch(objectUrl(bucket, path), { method: 'DELETE', headers: serviceHeaders() });
       if (!deleted.ok && deleted.status !== 404) throw new Error('STORAGE_DELETE_FAILED');
       return response.status(200).json({ ok: true });
     }
 
     const { extension, file, baseName } = fileFromBody(body);
-    const path = `${userId}/${Date.now()}_${crypto.randomUUID()}_${baseName}.${extension}`;
+    const resumeId = typeof body.resume_id === 'string' ? body.resume_id : '';
+    const kind = body.kind === 'script' ? 'script' : 'resume';
+    if (resumeLibrary && (!UUID_PATTERN.test(resumeId) || !await ownsResume(userId, resumeId))) {
+      return response.status(403).json({ error: '无权向这份简历上传文件。' });
+    }
+    const path = resumeLibrary
+      ? `${userId}/${resumeId}/${Date.now()}_${crypto.randomUUID()}.${extension}`
+      : `${userId}/${Date.now()}_${crypto.randomUUID()}_${baseName}.${extension}`;
     const contentType = extension === 'pdf' ? 'application/pdf' : DOCX_MIME_TYPE;
-    const uploaded = await fetch(objectUrl(path), { method: 'POST', headers: { ...serviceHeaders(contentType), 'x-upsert': 'false', 'cache-control': '3600' }, body: file });
+    const uploaded = await fetch(objectUrl(bucket, path), { method: 'POST', headers: { ...serviceHeaders(contentType), 'x-upsert': 'false', 'cache-control': '3600' }, body: file });
     if (!uploaded.ok) {
-      console.error('resume-company-upload storage failure', { status: uploaded.status, userId });
+      console.error('resume-company-upload storage failure', { status: uploaded.status, userId, bucket });
       throw new Error('STORAGE_UPLOAD_FAILED');
+    }
+    if (resumeLibrary) {
+      try {
+        const resumeFile = await insertResumeFile({
+          userId,
+          resumeId,
+          fileName: typeof body.file_name === 'string' ? body.file_name.slice(0, 180) : `${baseName}.${extension}`,
+          path,
+          kind,
+          size: file.length,
+        });
+        return response.status(200).json({ path, file: resumeFile });
+      } catch (error) {
+        await fetch(objectUrl(bucket, path), { method: 'DELETE', headers: serviceHeaders() });
+        throw error;
+      }
     }
     return response.status(200).json({ path });
   } catch (error) {
