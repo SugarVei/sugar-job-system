@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
-import { supabase, isSupabaseConfigured } from '../lib/supabase';
+import { supabase, supabaseAnonKey, supabaseUrl, isSupabaseConfigured } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
 import type { ResumeFile, ResumeFileKind } from '../types';
 
@@ -43,6 +43,10 @@ function buildStoragePath(userId: string, resumeId: string, fileName: string) {
     safePathPart(resumeId),
     `${Date.now()}_${crypto.randomUUID()}${getSafeExtension(fileName)}`,
   ].join('/');
+}
+
+function encodeStoragePath(path: string) {
+  return path.split('/').map(encodeURIComponent).join('/');
 }
 
 function stringifyErrorValue(value: unknown): string {
@@ -105,6 +109,45 @@ function readableSupabaseError(error: unknown) {
   return message || '未知上传错误，请打开浏览器开发者工具查看 Network/Console 里的 Supabase 返回内容。';
 }
 
+async function uploadToStorage(path: string, file: File, contentType: string, accessToken: string) {
+  if (!supabaseUrl || !supabaseAnonKey) throw new Error('Supabase 尚未配置，无法上传文件。');
+
+  let response: Response;
+  try {
+    response = await fetch(
+      `${supabaseUrl.replace(/\/$/, '')}/storage/v1/object/${BUCKET}/${encodeStoragePath(path)}`,
+      {
+        method: 'POST',
+        headers: {
+          apikey: supabaseAnonKey,
+          Authorization: `Bearer ${accessToken}`,
+          'Content-Type': contentType,
+          'cache-control': '3600',
+          'x-upsert': 'false',
+        },
+        body: file,
+      },
+    );
+  } catch (error) {
+    throw new Error(readableSupabaseError(error), { cause: error });
+  }
+
+  if (response.ok) return;
+
+  const rawBody = await response.text();
+  let detail: unknown = rawBody;
+  try {
+    detail = JSON.parse(rawBody);
+  } catch {
+    // Keep the raw body when an upstream gateway does not return JSON.
+  }
+
+  const record = detail && typeof detail === 'object'
+    ? { ...(detail as Record<string, unknown>), statusCode: response.status }
+    : { message: rawBody || response.statusText, statusCode: response.status };
+  throw new Error(readableSupabaseError(record));
+}
+
 export function useResumeFiles() {
   const { user } = useAuth();
   const [files, setFiles] = useState<ResumeFile[]>([]);
@@ -145,19 +188,16 @@ export function useResumeFiles() {
       if (!contentType) throw new Error('暂不支持该格式，请上传 PDF 或 DOCX 文件。');
       await validateUploadContents(file, extension);
 
-      const path = buildStoragePath(user.id, resumeId, file.name);
-      const { error: upErr } = await supabase.storage.from(BUCKET).upload(path, file, {
-        cacheControl: '3600',
-        // Browser-provided File.type may be empty or application/octet-stream.
-        // Storage bucket restrictions require the canonical MIME type.
-        contentType,
-        upsert: false,
-      });
-
-      if (upErr) {
-        console.error('[upload] storage error raw:', upErr);
-        throw new Error(readableSupabaseError(upErr));
+      const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
+      const session = sessionData.session;
+      if (sessionError || !session?.access_token || session.user.id !== user.id) {
+        throw new Error('登录会话无效，请退出账号后重新登录。');
       }
+
+      const path = buildStoragePath(user.id, resumeId, file.name);
+      // Send the current session JWT explicitly. This avoids a stale Storage
+      // client falling back to the anon key, which Storage reports as HTTP 400.
+      await uploadToStorage(path, file, contentType, session.access_token);
 
       const { data, error: insErr } = await supabase
         .from('resume_files')
