@@ -1,5 +1,12 @@
-type NativeRequest = { method?: string; headers: Record<string, string | string[] | undefined>; body?: unknown };
-type NativeResponse = { status(code: number): NativeResponse; json(body: unknown): void; setHeader(name: string, value: string): void; end(): void };
+import { createHmac, timingSafeEqual } from 'node:crypto';
+
+type NativeRequest = {
+  method?: string;
+  headers: Record<string, string | string[] | undefined>;
+  body?: unknown;
+  query?: Record<string, string | string[] | undefined>;
+};
+type NativeResponse = { status(code: number): NativeResponse; json(body: unknown): void; setHeader(name: string, value: string): void; end(body?: unknown): void };
 
 const MAX_FILE_SIZE = 10 * 1024 * 1024;
 const DOCX_MIME_TYPE = 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
@@ -21,7 +28,7 @@ function setCors(request: NativeRequest, response: NativeResponse) {
   if (process.env.ALLOWED_ORIGIN) allowed.add(process.env.ALLOWED_ORIGIN);
   if (process.env.VERCEL_URL) allowed.add(`https://${process.env.VERCEL_URL}`);
   if (allowed.has(origin)) response.setHeader('Access-Control-Allow-Origin', origin);
-  response.setHeader('Access-Control-Allow-Methods', 'POST, DELETE, OPTIONS');
+  response.setHeader('Access-Control-Allow-Methods', 'GET, POST, DELETE, OPTIONS');
   response.setHeader('Access-Control-Allow-Headers', 'Authorization, Content-Type');
   response.setHeader('Cache-Control', 'no-store');
   response.setHeader('Vary', 'Origin');
@@ -58,6 +65,38 @@ function objectUrl(bucket: 'company-resumes' | 'resumes', path: string) {
 function serviceHeaders(contentType?: string) {
   const serviceKey = required('SUPABASE_SERVICE_ROLE_KEY');
   return { authorization: `Bearer ${serviceKey}`, apikey: serviceKey, ...(contentType ? { 'Content-Type': contentType } : {}) };
+}
+function queryValue(request: NativeRequest, name: string) {
+  const value = request.query?.[name];
+  return Array.isArray(value) ? value[0] ?? '' : value ?? '';
+}
+function signDownloadToken(token: string) {
+  return createHmac('sha256', required('SUPABASE_SERVICE_ROLE_KEY')).update(token).digest('base64url');
+}
+function createDownloadUrl(path: string, userId: string) {
+  const token = Buffer.from(JSON.stringify({ path, userId, expiresAt: Date.now() + 60_000 })).toString('base64url');
+  const signature = signDownloadToken(token);
+  return `/api/resume-company-upload?download=${encodeURIComponent(token)}&signature=${encodeURIComponent(signature)}`;
+}
+function readDownloadToken(token: string, signature: string) {
+  const expected = Buffer.from(signDownloadToken(token), 'base64url');
+  const actual = Buffer.from(signature, 'base64url');
+  if (expected.length !== actual.length || !timingSafeEqual(expected, actual)) throw new Error('INVALID_DOWNLOAD_TOKEN');
+  const payload = JSON.parse(Buffer.from(token, 'base64url').toString('utf8')) as {
+    path?: string;
+    userId?: string;
+    expiresAt?: number;
+  };
+  if (
+    typeof payload.path !== 'string'
+    || typeof payload.userId !== 'string'
+    || typeof payload.expiresAt !== 'number'
+    || payload.expiresAt < Date.now()
+    || payload.expiresAt > Date.now() + 120_000
+    || !payload.path.startsWith(`${payload.userId}/`)
+    || !/\.(pdf|docx)$/i.test(payload.path)
+  ) throw new Error('INVALID_DOWNLOAD_TOKEN');
+  return payload.path;
 }
 async function ownsResume(userId: string, resumeId: string) {
   const query = new URLSearchParams({ id: `eq.${resumeId}`, user_id: `eq.${userId}`, select: 'id', limit: '1' });
@@ -98,6 +137,19 @@ async function insertResumeFile(input: {
 export default async function handler(request: NativeRequest, response: NativeResponse) {
   setCors(request, response);
   if (request.method === 'OPTIONS') return response.status(204).end();
+  if (request.method === 'GET') {
+    try {
+      const path = readDownloadToken(queryValue(request, 'download'), queryValue(request, 'signature'));
+      const downloaded = await fetch(objectUrl('resumes', path), { headers: serviceHeaders() });
+      if (!downloaded.ok) return response.status(downloaded.status === 404 ? 404 : 503).json({ error: '简历文件读取失败。' });
+      const extension = path.split('.').pop()?.toLowerCase();
+      response.setHeader('Content-Type', extension === 'pdf' ? 'application/pdf' : DOCX_MIME_TYPE);
+      response.setHeader('Content-Disposition', 'inline');
+      return response.status(200).end(Buffer.from(await downloaded.arrayBuffer()));
+    } catch {
+      return response.status(403).json({ error: '简历下载地址无效或已过期。' });
+    }
+  }
   if (!['POST', 'DELETE'].includes(request.method ?? '')) return response.status(405).json({ error: 'Method not allowed' });
   try {
     const userId = await requireUserId(request);
@@ -105,6 +157,13 @@ export default async function handler(request: NativeRequest, response: NativeRe
     const body = readBody(request);
     const resumeLibrary = body.storage_scope === 'resume-library';
     const bucket = resumeLibrary ? 'resumes' : 'company-resumes';
+    if (request.method === 'POST' && resumeLibrary && body.action === 'create-download-url') {
+      const path = typeof body.path === 'string' ? body.path : '';
+      if (!path.startsWith(`${userId}/`) || !/\.(pdf|docx)$/i.test(path)) {
+        return response.status(400).json({ error: '无效的简历路径。' });
+      }
+      return response.status(200).json({ url: createDownloadUrl(path, userId) });
+    }
     if (request.method === 'DELETE') {
       const path = typeof body.path === 'string' ? body.path : '';
       if (!path.startsWith(`${userId}/`) || !/\.(pdf|docx)$/i.test(path)) return response.status(400).json({ error: '无效的简历路径。' });

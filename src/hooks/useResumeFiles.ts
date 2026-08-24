@@ -178,13 +178,17 @@ export function useResumeFiles() {
 
   const getDownloadUrl = useCallback(async (filePath: string) => {
     if (!filePath) throw new Error('文件路径为空，无法下载。');
-
-    const { data, error } = await supabase.storage.from(BUCKET).createSignedUrl(filePath, 60, {
-      download: true,
+    const { data: sessionData, error: sessionError } = await supabase.auth.refreshSession();
+    const accessToken = sessionData.session?.access_token;
+    if (sessionError || !accessToken) throw new Error('登录会话刷新失败，请重新登录。');
+    const response = await fetch('/api/resume-company-upload', {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${accessToken}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ storage_scope: 'resume-library', action: 'create-download-url', path: filePath }),
     });
-
-    if (error) throw new Error(readableSupabaseError(error));
-    return data.signedUrl;
+    const result = await response.json().catch(() => ({})) as { url?: string; error?: string };
+    if (!response.ok || !result.url) throw new Error(result.error || `文件读取接口返回 HTTP ${response.status}。`);
+    return new URL(result.url, window.location.origin).toString();
   }, []);
 
   const remove = useCallback(async (f: ResumeFile) => {
