@@ -1,10 +1,12 @@
 import { useCallback, useEffect, useState } from 'react';
+import * as tus from 'tus-js-client';
 import { supabase, supabaseAnonKey, supabaseUrl, isSupabaseConfigured } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
 import type { ResumeFile, ResumeFileKind } from '../types';
 
 const BUCKET = 'resumes';
 const MAX_UPLOAD_SIZE = 10 * 1024 * 1024;
+const TUS_CHUNK_SIZE = 6 * 1024 * 1024;
 const UPLOAD_CONTENT_TYPES: Record<string, string> = {
   pdf: 'application/pdf',
   docx: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
@@ -43,10 +45,6 @@ function buildStoragePath(userId: string, resumeId: string, fileName: string) {
     safePathPart(resumeId),
     `${Date.now()}_${crypto.randomUUID()}${getSafeExtension(fileName)}`,
   ].join('/');
-}
-
-function encodeStoragePath(path: string) {
-  return path.split('/').map(encodeURIComponent).join('/');
 }
 
 function stringifyErrorValue(value: unknown): string {
@@ -112,35 +110,35 @@ function readableSupabaseError(error: unknown) {
 async function uploadToStorage(path: string, file: File, contentType: string, accessToken: string) {
   if (!supabaseUrl || !supabaseAnonKey) throw new Error('Supabase 尚未配置，无法上传文件。');
 
-  const response = await fetch(
-    `${supabaseUrl.replace(/\/$/, '')}/storage/v1/object/${BUCKET}/${encodeStoragePath(path)}`,
-    {
-      method: 'POST',
+  const anonKey = supabaseAnonKey;
+  const projectUrl = new URL(supabaseUrl);
+  const projectRef = projectUrl.hostname.split('.')[0];
+  const endpoint = `${projectUrl.protocol}//${projectRef}.storage.supabase.co/storage/v1/upload/resumable`;
+
+  await new Promise<void>((resolve, reject) => {
+    const upload = new tus.Upload(file, {
+      endpoint,
+      retryDelays: [0, 3000, 5000, 10000],
       headers: {
-        apikey: supabaseAnonKey,
-        Authorization: `Bearer ${accessToken}`,
-        'Content-Type': contentType,
-        'cache-control': '3600',
+        apikey: anonKey,
+        authorization: `Bearer ${accessToken}`,
         'x-upsert': 'false',
       },
-      body: file,
-    },
-  );
+      uploadDataDuringCreation: true,
+      removeFingerprintOnSuccess: true,
+      chunkSize: TUS_CHUNK_SIZE,
+      metadata: {
+        bucketName: BUCKET,
+        objectName: path,
+        contentType,
+        cacheControl: '3600',
+      },
+      onError: (error) => reject(new Error(readableSupabaseError(error))),
+      onSuccess: () => resolve(),
+    });
 
-  if (response.ok) return;
-
-  const rawBody = await response.text();
-  let detail: unknown = rawBody;
-  try {
-    detail = JSON.parse(rawBody);
-  } catch {
-    // Keep the raw body when an upstream gateway does not return JSON.
-  }
-
-  const record = detail && typeof detail === 'object'
-    ? { ...(detail as Record<string, unknown>), statusCode: response.status }
-    : { message: rawBody || response.statusText, statusCode: response.status };
-  throw new Error(readableSupabaseError(record));
+    upload.start();
+  });
 }
 
 export function useResumeFiles() {
