@@ -70,15 +70,10 @@ const JOB_ASSIST_EXPLAINER = (
 
 const SUPPORTED_UPLOAD_ACCEPT = '.pdf,.docx,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document';
 const SUPPORTED_UPLOAD_EXTENSIONS = new Set(['pdf', 'docx']);
-const SUPPORTED_UPLOAD_MIME_TYPES = new Set([
-  'application/pdf',
-  'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-]);
 
 function validateUploadFile(file: File) {
   const ext = file.name.split('.').pop()?.toLowerCase() ?? '';
-  if (!SUPPORTED_UPLOAD_EXTENSIONS.has(ext)) return false;
-  return !file.type || SUPPORTED_UPLOAD_MIME_TYPES.has(file.type);
+  return SUPPORTED_UPLOAD_EXTENSIONS.has(ext);
 }
 
 function fmtDateTime(iso: string) {

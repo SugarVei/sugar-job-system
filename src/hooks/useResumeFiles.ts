@@ -4,10 +4,33 @@ import { useAuth } from '../contexts/AuthContext';
 import type { ResumeFile, ResumeFileKind } from '../types';
 
 const BUCKET = 'resumes';
+const MAX_UPLOAD_SIZE = 10 * 1024 * 1024;
+const UPLOAD_CONTENT_TYPES: Record<string, string> = {
+  pdf: 'application/pdf',
+  docx: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+};
+
+function getExtension(fileName: string) {
+  return fileName.split('.').pop()?.toLowerCase() ?? '';
+}
 
 function getSafeExtension(fileName: string) {
-  const ext = fileName.split('.').pop()?.toLowerCase() ?? '';
+  const ext = getExtension(fileName);
   return /^[a-z0-9]{1,10}$/.test(ext) ? `.${ext}` : '';
+}
+
+async function validateUploadContents(file: File, extension: string) {
+  if (file.size === 0) throw new Error('文件内容为空，请重新选择简历文件。');
+  if (file.size > MAX_UPLOAD_SIZE) throw new Error('简历文件不能超过 10MB。');
+
+  const signature = new Uint8Array(await file.slice(0, 5).arrayBuffer());
+  if (extension === 'pdf') {
+    const header = String.fromCharCode(...signature);
+    if (header !== '%PDF-') throw new Error('所选文件不是有效的 PDF，请重新导出后上传。');
+  }
+  if (extension === 'docx' && (signature[0] !== 0x50 || signature[1] !== 0x4b)) {
+    throw new Error('所选文件不是有效的 DOCX，请用 Word 重新另存后上传。');
+  }
 }
 
 function safePathPart(value: string) {
@@ -71,6 +94,14 @@ function readableSupabaseError(error: unknown) {
     return '无法连接 Supabase，请检查 Vercel 环境变量和 Supabase 项目状态。';
   }
 
+  if (/mime|content.?type/i.test(message)) {
+    return `文件类型被存储服务拒绝。系统已按 PDF / DOCX 扩展名修正上传类型；原始错误：${message}`;
+  }
+
+  if (/http 400/i.test(message)) {
+    return `存储服务拒绝了上传请求（HTTP 400）。请刷新页面并重新登录后再试。原始错误：${message}`;
+  }
+
   return message || '未知上传错误，请打开浏览器开发者工具查看 Network/Console 里的 Supabase 返回内容。';
 }
 
@@ -109,10 +140,17 @@ export function useResumeFiles() {
       if (!user) throw new Error('未登录');
       if (!isSupabaseConfigured) throw new Error('Supabase 尚未配置，无法上传文件。');
 
+      const extension = getExtension(file.name);
+      const contentType = UPLOAD_CONTENT_TYPES[extension];
+      if (!contentType) throw new Error('暂不支持该格式，请上传 PDF 或 DOCX 文件。');
+      await validateUploadContents(file, extension);
+
       const path = buildStoragePath(user.id, resumeId, file.name);
       const { error: upErr } = await supabase.storage.from(BUCKET).upload(path, file, {
         cacheControl: '3600',
-        contentType: file.type || undefined,
+        // Browser-provided File.type may be empty or application/octet-stream.
+        // Storage bucket restrictions require the canonical MIME type.
+        contentType,
         upsert: false,
       });
 
