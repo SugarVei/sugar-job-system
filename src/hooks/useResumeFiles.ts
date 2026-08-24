@@ -124,7 +124,10 @@ async function uploadToStorage(path: string, file: File, contentType: string, ac
         authorization: `Bearer ${accessToken}`,
         'x-upsert': 'false',
       },
-      uploadDataDuringCreation: true,
+      // Keep the creation POST metadata-only. Sending the first 6MB chunk in
+      // this request is rejected by the project's upstream gateway before it
+      // reaches Storage; tus-js-client will send file data via PATCH instead.
+      uploadDataDuringCreation: false,
       removeFingerprintOnSuccess: true,
       chunkSize: TUS_CHUNK_SIZE,
       metadata: {
