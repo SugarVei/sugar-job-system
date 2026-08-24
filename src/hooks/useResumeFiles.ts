@@ -1,5 +1,4 @@
 import { useCallback, useEffect, useState } from 'react';
-import * as tus from 'tus-js-client';
 import { supabase, supabaseAnonKey, supabaseUrl, isSupabaseConfigured } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
 import type { ResumeFile, ResumeFileKind } from '../types';
@@ -7,6 +6,7 @@ import type { ResumeFile, ResumeFileKind } from '../types';
 const BUCKET = 'resumes';
 const MAX_UPLOAD_SIZE = 10 * 1024 * 1024;
 const TUS_CHUNK_SIZE = 6 * 1024 * 1024;
+const STORAGE_PROXY_PREFIX = '/storage-proxy';
 const UPLOAD_CONTENT_TYPES: Record<string, string> = {
   pdf: 'application/pdf',
   docx: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
@@ -110,38 +110,68 @@ function readableSupabaseError(error: unknown) {
 async function uploadToStorage(path: string, file: File, contentType: string, accessToken: string) {
   if (!supabaseUrl || !supabaseAnonKey) throw new Error('Supabase 尚未配置，无法上传文件。');
 
-  const anonKey = supabaseAnonKey;
-  const projectUrl = new URL(supabaseUrl);
-  const projectRef = projectUrl.hostname.split('.')[0];
-  const endpoint = `${projectUrl.protocol}//${projectRef}.storage.supabase.co/storage/v1/upload/resumable`;
-
-  await new Promise<void>((resolve, reject) => {
-    const upload = new tus.Upload(file, {
-      endpoint,
-      retryDelays: [0, 3000, 5000, 10000],
-      headers: {
-        apikey: anonKey,
-        authorization: `Bearer ${accessToken}`,
-        'x-upsert': 'false',
-      },
-      // Keep the creation POST metadata-only. Sending the first 6MB chunk in
-      // this request is rejected by the project's upstream gateway before it
-      // reaches Storage; tus-js-client will send file data via PATCH instead.
-      uploadDataDuringCreation: false,
-      removeFingerprintOnSuccess: true,
-      chunkSize: TUS_CHUNK_SIZE,
-      metadata: {
-        bucketName: BUCKET,
-        objectName: path,
-        contentType,
-        cacheControl: '3600',
-      },
-      onError: (error) => reject(new Error(readableSupabaseError(error))),
-      onSuccess: () => resolve(),
-    });
-
-    upload.start();
+  const authHeaders = {
+    apikey: supabaseAnonKey,
+    Authorization: `Bearer ${accessToken}`,
+    'Tus-Resumable': '1.0.0',
+  };
+  const metadata = [
+    ['bucketName', BUCKET],
+    ['objectName', path],
+    ['contentType', contentType],
+    ['cacheControl', '3600'],
+  ].map(([key, value]) => `${key} ${btoa(value)}`).join(',');
+  const creation = await fetch(`${STORAGE_PROXY_PREFIX}/upload/resumable`, {
+    method: 'POST',
+    headers: {
+      ...authHeaders,
+      'Upload-Length': String(file.size),
+      'Upload-Metadata': metadata,
+      'x-upsert': 'false',
+    },
   });
+  if (!creation.ok) {
+    throw new Error(readableSupabaseError({
+      message: await creation.text(),
+      statusCode: creation.status,
+    }));
+  }
+
+  const location = creation.headers.get('location');
+  if (!location) throw new Error('存储服务未返回分片上传地址。');
+  const uploadLocation = new URL(location, window.location.origin);
+  const storagePrefix = '/storage/v1/';
+  const uploadPath = uploadLocation.pathname.startsWith(storagePrefix)
+    ? `${STORAGE_PROXY_PREFIX}/${uploadLocation.pathname.slice(storagePrefix.length)}`
+    : uploadLocation.pathname;
+  if (!uploadPath.startsWith(`${STORAGE_PROXY_PREFIX}/upload/resumable/`)) {
+    throw new Error('存储服务返回了无效的分片上传地址。');
+  }
+
+  let offset = 0;
+  while (offset < file.size) {
+    const chunk = file.slice(offset, Math.min(offset + TUS_CHUNK_SIZE, file.size));
+    const response = await fetch(`${uploadPath}${uploadLocation.search}`, {
+      method: 'PATCH',
+      headers: {
+        ...authHeaders,
+        'Content-Type': 'application/offset+octet-stream',
+        'Upload-Offset': String(offset),
+      },
+      body: chunk,
+    });
+    if (!response.ok) {
+      throw new Error(readableSupabaseError({
+        message: await response.text(),
+        statusCode: response.status,
+      }));
+    }
+    const nextOffset = Number(response.headers.get('upload-offset'));
+    if (!Number.isSafeInteger(nextOffset) || nextOffset <= offset) {
+      throw new Error('存储服务没有正确确认文件分片。');
+    }
+    offset = nextOffset;
+  }
 }
 
 export function useResumeFiles() {

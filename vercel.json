@@ -36,6 +36,10 @@
     }
   ],
   "rewrites": [
+    {
+      "source": "/storage-proxy/:path*",
+      "destination": "https://evnnkfclhxmjprttcmal.storage.supabase.co/storage/v1/:path*"
+    },
     { "source": "/((?!api/).*)", "destination": "/" }
   ]
 }
