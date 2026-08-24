@@ -35,8 +35,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     // 启动时取一次当前会话
     supabase.auth.getSession()
-      .then(({ data }) => {
-        setSession(data.session);
+      .then(async ({ data }) => {
+        let currentSession = data.session;
+        const embeddedAvatar = currentSession?.user.user_metadata?.avatar_url;
+        if (currentSession && (currentSession.access_token.length > 8_000 || typeof embeddedAvatar === 'string')) {
+          const refreshed = await supabase.auth.refreshSession({ refresh_token: currentSession.refresh_token });
+          if (!refreshed.error) currentSession = refreshed.data.session;
+        }
+        setSession(currentSession);
       })
       .finally(() => {
         setLoading(false);

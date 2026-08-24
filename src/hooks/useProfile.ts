@@ -4,33 +4,51 @@ import { supabase } from '../lib/supabase';
 
 // ============================================================
 // 个人资料（昵称 + 头像）
-// 昵称和头像同时保存到 Supabase 用户资料，并保留 localStorage 作为离线兜底。
+// 昵称和头像保存到独立资料表，避免大型头像 Data URL 进入登录 JWT。
+// localStorage 继续作为离线兜底。
 // ============================================================
 export function useProfile() {
   const { user } = useAuth();
-  const nameKey = `sugar_name_${user?.id ?? 'guest'}`;
-  const avatarKey = `sugar_avatar_${user?.id ?? 'guest'}`;
+  const userId = user?.id;
+  const nameKey = `sugar_name_${userId ?? 'guest'}`;
+  const avatarKey = `sugar_avatar_${userId ?? 'guest'}`;
 
   const defaultName = user?.email ? user.email.split('@')[0] : '你';
   const [name, setName] = useState(defaultName);
   const [avatar, setAvatar] = useState('');
 
   useEffect(() => {
+    let cancelled = false;
     try {
       const n = localStorage.getItem(nameKey);
       const localAvatar = localStorage.getItem(avatarKey);
-      const cloudAvatar = user?.user_metadata?.avatar_url;
-      const a = cloudAvatar ?? localAvatar;
       setName(n ?? defaultName);
-      setAvatar(a ?? '');
-      // 将旧版本只保存在本机的头像迁移到云端，用户无需重新选择图片。
-      if (user && !cloudAvatar && localAvatar) {
-        void supabase.auth.updateUser({ data: { avatar_url: localAvatar } });
-      }
+      setAvatar(localAvatar ?? '');
     } catch {
       /* ignore */
     }
-  }, [nameKey, avatarKey, user, user?.user_metadata?.avatar_url, defaultName]);
+
+    if (userId) {
+      void supabase
+        .from('user_profiles')
+        .select('display_name,avatar_url')
+        .eq('user_id', userId)
+        .maybeSingle()
+        .then(({ data, error }) => {
+          if (cancelled || error || !data) return;
+          if (data.display_name) {
+            setName(data.display_name);
+            try { localStorage.setItem(nameKey, data.display_name); } catch { /* ignore */ }
+          }
+          if (data.avatar_url) {
+            setAvatar(data.avatar_url);
+            try { localStorage.setItem(avatarKey, data.avatar_url); } catch { /* ignore */ }
+          }
+        });
+    }
+
+    return () => { cancelled = true; };
+  }, [nameKey, avatarKey, userId, defaultName]);
 
   const updateName = useCallback(
     (v: string) => {
@@ -40,8 +58,15 @@ export function useProfile() {
       } catch {
         /* ignore */
       }
+      if (userId) {
+        void supabase.from('user_profiles').upsert({
+          user_id: userId,
+          display_name: v.slice(0, 100),
+          updated_at: new Date().toISOString(),
+        });
+      }
     },
-    [nameKey],
+    [nameKey, userId],
   );
 
   const updateAvatar = useCallback(
@@ -53,12 +78,16 @@ export function useProfile() {
       } catch {
         /* ignore */
       }
-      if (user && supabase) {
-        const { error } = await supabase.auth.updateUser({ data: { avatar_url: optimized } });
+      if (userId) {
+        const { error } = await supabase.from('user_profiles').upsert({
+          user_id: userId,
+          avatar_url: optimized,
+          updated_at: new Date().toISOString(),
+        });
         if (error) console.warn('头像云端保存失败，已保留本地头像。', error.message);
       }
     },
-    [avatarKey, user],
+    [avatarKey, userId],
   );
 
   return { name, avatar, updateName, updateAvatar };
