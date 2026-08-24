@@ -1,11 +1,10 @@
 import { useCallback, useEffect, useState } from 'react';
-import { supabase, supabaseAnonKey, supabaseUrl, isSupabaseConfigured } from '../lib/supabase';
+import { supabase, isSupabaseConfigured } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
 import type { ResumeFile, ResumeFileKind } from '../types';
 
 const BUCKET = 'resumes';
 const MAX_UPLOAD_SIZE = 10 * 1024 * 1024;
-const TUS_CHUNK_SIZE = 6 * 1024 * 1024;
 const UPLOAD_CONTENT_TYPES: Record<string, string> = {
   pdf: 'application/pdf',
   docx: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
@@ -106,77 +105,6 @@ function readableSupabaseError(error: unknown) {
   return message || '未知上传错误，请打开浏览器开发者工具查看 Network/Console 里的 Supabase 返回内容。';
 }
 
-async function uploadToStorage(path: string, file: File, contentType: string, accessToken: string) {
-  if (!supabaseUrl || !supabaseAnonKey) throw new Error('Supabase 尚未配置，无法上传文件。');
-
-  const projectId = new URL(supabaseUrl).hostname.split('.')[0];
-  if (!projectId) throw new Error('Supabase 项目地址无效，无法上传文件。');
-  const storageOrigin = `https://${projectId}.storage.supabase.co`;
-  const resumableEndpoint = `${storageOrigin}/storage/v1/upload/resumable`;
-
-  const authHeaders = {
-    apikey: supabaseAnonKey,
-    Authorization: `Bearer ${accessToken}`,
-    'Tus-Resumable': '1.0.0',
-  };
-  const metadata = [
-    ['bucketName', BUCKET],
-    ['objectName', path],
-    ['contentType', contentType],
-    ['cacheControl', '3600'],
-  ].map(([key, value]) => `${key} ${btoa(value)}`).join(',');
-  const creation = await fetch(resumableEndpoint, {
-    method: 'POST',
-    headers: {
-      ...authHeaders,
-      'Upload-Length': String(file.size),
-      'Upload-Metadata': metadata,
-      'x-upsert': 'false',
-    },
-  });
-  if (!creation.ok) {
-    throw new Error(readableSupabaseError({
-      message: await creation.text(),
-      statusCode: creation.status,
-    }));
-  }
-
-  const location = creation.headers.get('location');
-  if (!location) throw new Error('存储服务未返回分片上传地址。');
-  const uploadLocation = new URL(location, storageOrigin);
-  if (
-    uploadLocation.origin !== storageOrigin
-    || !uploadLocation.pathname.startsWith('/storage/v1/upload/resumable/')
-  ) {
-    throw new Error('存储服务返回了无效的分片上传地址。');
-  }
-
-  let offset = 0;
-  while (offset < file.size) {
-    const chunk = file.slice(offset, Math.min(offset + TUS_CHUNK_SIZE, file.size));
-    const response = await fetch(uploadLocation.toString(), {
-      method: 'PATCH',
-      headers: {
-        ...authHeaders,
-        'Content-Type': 'application/offset+octet-stream',
-        'Upload-Offset': String(offset),
-      },
-      body: chunk,
-    });
-    if (!response.ok) {
-      throw new Error(readableSupabaseError({
-        message: await response.text(),
-        statusCode: response.status,
-      }));
-    }
-    const nextOffset = Number(response.headers.get('upload-offset'));
-    if (!Number.isSafeInteger(nextOffset) || nextOffset <= offset) {
-      throw new Error('存储服务没有正确确认文件分片。');
-    }
-    offset = nextOffset;
-  }
-}
-
 export function useResumeFiles() {
   const { user } = useAuth();
   const [files, setFiles] = useState<ResumeFile[]>([]);
@@ -226,9 +154,18 @@ export function useResumeFiles() {
       }
 
       const path = buildStoragePath(user.id, resumeId, file.name);
-      // Send the fresh session JWT directly to Supabase's documented Storage
-      // hostname. Vercel rewrites do not preserve the TUS upload exchange.
-      await uploadToStorage(path, file, contentType, session.access_token);
+      // Use the standard SDK endpoint on the same Supabase project hostname as
+      // Auth and Database. The dedicated TUS hostname is blocked on some user
+      // network paths before the request reaches Storage.
+      const { error: uploadError } = await supabase.storage.from(BUCKET).upload(path, file, {
+        cacheControl: '3600',
+        contentType,
+        upsert: false,
+      });
+      if (uploadError) {
+        console.error('[resume upload] standard Storage upload failed:', uploadError);
+        throw new Error(`标准上传失败：${readableSupabaseError(uploadError)}`);
+      }
 
       const { data, error: insErr } = await supabase
         .from('resume_files')
