@@ -112,25 +112,20 @@ function readableSupabaseError(error: unknown) {
 async function uploadToStorage(path: string, file: File, contentType: string, accessToken: string) {
   if (!supabaseUrl || !supabaseAnonKey) throw new Error('Supabase 尚未配置，无法上传文件。');
 
-  let response: Response;
-  try {
-    response = await fetch(
-      `${supabaseUrl.replace(/\/$/, '')}/storage/v1/object/${BUCKET}/${encodeStoragePath(path)}`,
-      {
-        method: 'POST',
-        headers: {
-          apikey: supabaseAnonKey,
-          Authorization: `Bearer ${accessToken}`,
-          'Content-Type': contentType,
-          'cache-control': '3600',
-          'x-upsert': 'false',
-        },
-        body: file,
+  const response = await fetch(
+    `${supabaseUrl.replace(/\/$/, '')}/storage/v1/object/${BUCKET}/${encodeStoragePath(path)}`,
+    {
+      method: 'POST',
+      headers: {
+        apikey: supabaseAnonKey,
+        Authorization: `Bearer ${accessToken}`,
+        'Content-Type': contentType,
+        'cache-control': '3600',
+        'x-upsert': 'false',
       },
-    );
-  } catch (error) {
-    throw new Error(readableSupabaseError(error), { cause: error });
-  }
+      body: file,
+    },
+  );
 
   if (response.ok) return;
 
