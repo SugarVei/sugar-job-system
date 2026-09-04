@@ -81,6 +81,42 @@ describe('standardCompanyImport', () => {
     assert.equal(sanitizeIncomingCompany({ name: '测试', url: 'https://career.example.com/campus' }).ok, true);
   });
 
+  it('replaces the known Kaos cross-company link during import', () => {
+    const parsed = sanitizeIncomingCompany({
+      name: '卡奥斯',
+      url: 'https://maker.haier.net/client/campus/customizedptjobs/id/87.html',
+    });
+    assert.equal(parsed.ok, true);
+    if (parsed.ok) {
+      assert.equal(parsed.company.url, 'https://maker.haier.net/client/newarea/businessdetail/type/2');
+      assert.equal(parsed.company.applyUrl, 'https://maker.haier.net/client/newarea/businessdetail/type/2');
+    }
+  });
+
+  it('replaces the known Yingkang generic portal link during import', () => {
+    const parsed = sanitizeIncomingCompany({
+      name: '盈康一生',
+      url: 'https://maker.haier.net/client/campus/activityindex.html',
+    });
+    assert.equal(parsed.ok, true);
+    if (parsed.ok) {
+      assert.equal(parsed.company.url, 'https://maker.haier.net/client/healthy/index.html');
+      assert.equal(parsed.company.applyUrl, 'https://maker.haier.net/client/healthy/index.html');
+    }
+  });
+
+  it('replaces the known COFCO cross-company article link during import', () => {
+    const parsed = sanitizeIncomingCompany({
+      name: '中粮家佳康',
+      url: 'https://mp.weixin.qq.com/s/vzOQzoxXQdufGGZx3sMcUg',
+    });
+    assert.equal(parsed.ok, true);
+    if (parsed.ok) {
+      assert.equal(parsed.company.url, 'https://cofcojoycome.zhaopin.com/');
+      assert.equal(parsed.company.applyUrl, 'https://cofcojoycome.zhaopin.com/');
+    }
+  });
+
   it('recognizes 婉清学姐-style headers after a long title block', () => {
     const headerRows = Array.from({ length: 11 }, () => ['【秋招_春招_实习】汇总表-婉清学姐']);
     const header = findHeaderRow([

@@ -1,4 +1,5 @@
 import { normalizeCompanyName } from './companyName';
+import { applyVerifiedCompanyUrl } from './companyUrlIntegrity';
 
 export const STANDARD_CATALOG_MAX_ROWS = 4000;
 export const STANDARD_CATALOG_MAX_FILE_BYTES = 20 * 1024 * 1024;
@@ -357,6 +358,7 @@ export function sanitizeIncomingCompany(input: {
   const resolved = resolveImportedUrl(input.url, input.altUrl);
   const applyUrl = optionalHttpUrl(input.applyUrl) || resolved.url;
   const noticeUrl = optionalHttpUrl(input.noticeUrl);
+  const verifiedUrls = applyVerifiedCompanyUrl(name, resolved.url, applyUrl);
   const company: IncomingCompany = {
     name,
     updateDate,
@@ -365,8 +367,8 @@ export function sanitizeIncomingCompany(input: {
     city,
     deadlineText,
     noticeUrl,
-    applyUrl,
-    url: applyUrl,
+    applyUrl: verifiedUrls.applyUrl,
+    url: verifiedUrls.url,
     group,
     sheet: input.sheet || 'Sheet1',
   };

@@ -7,6 +7,7 @@ import type { Application, Company } from '../types';
 import { useCollection } from './useCollection';
 import { useCompanyRecommendations } from './useCompanyRecommendations';
 import { useStandardCompanyOverlay } from './useStandardCompanyOverlay';
+import { applyVerifiedCompanyUrl } from '../lib/companyUrlIntegrity';
 
 export const ALL_GROUP_NAME = '全部';
 export const APPLIED_GROUP_NAME = '已投递';
@@ -37,6 +38,11 @@ function overlayCompanies(items: StandardCompanyOverlay[], excelCompanies: HotCo
   const excelByName = new Map(excelCompanies.map((company) => [normalizeCompanyName(company.name), company]));
   return items.map((row): HotCompany => {
     const excel = excelByName.get(normalizeCompanyName(row.company_name));
+    const verifiedUrls = applyVerifiedCompanyUrl(
+      row.company_name,
+      row.url || excel?.url || '',
+      row.apply_url || excel?.applyUrl || row.url || excel?.url || '',
+    );
     if (excel) {
       const industry = row.industry || excel.industry;
       return {
@@ -48,9 +54,9 @@ function overlayCompanies(items: StandardCompanyOverlay[], excelCompanies: HotCo
           ? industry.split(/[、,，/|]+/u).map((tag) => tag.trim()).filter(Boolean)
           : excel.industryTags,
         city: row.city || excel.city,
-        url: row.url || excel.url,
+        url: verifiedUrls.url,
         noticeUrl: row.notice_url || excel.noticeUrl,
-        applyUrl: row.apply_url || excel.applyUrl || row.url || excel.url,
+        applyUrl: verifiedUrls.applyUrl,
         deadlineText: row.deadline_text || excel.deadlineText,
       };
     }
@@ -62,9 +68,9 @@ function overlayCompanies(items: StandardCompanyOverlay[], excelCompanies: HotCo
       industryTags: row.industry ? row.industry.split(/[、,，/|]+/u).map((tag) => tag.trim()).filter(Boolean) : ['其他'],
       city: row.city || '',
       noticeUrl: row.notice_url || '',
-      applyUrl: row.apply_url || row.url || '',
+      applyUrl: verifiedUrls.applyUrl,
       deadlineText: row.deadline_text || '',
-      url: row.url || '',
+      url: verifiedUrls.url,
       source: 'excel',
     };
   });
