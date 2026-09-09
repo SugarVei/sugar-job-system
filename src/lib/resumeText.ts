@@ -9,14 +9,21 @@ export async function extractResumeText(
   const extension = file.file_name.split('.').pop()?.toLowerCase() ?? '';
 
   if (extension === 'pdf') {
-    const response = await fetch('/api/parse-resume', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ signedUrl }),
-    });
-    const payload = await response.json() as { text?: string; error?: string };
-    if (!response.ok || payload.error) throw new Error(payload.error ?? 'PDF 解析失败');
-    return payload.text?.trim() ?? '';
+    // The deployed legacy parser can report a transient XRef error on its
+    // first read of a valid PDF. Retry that specific failure once.
+    for (let attempt = 0; attempt < 2; attempt += 1) {
+      const response = await fetch('/api/parse-resume', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ signedUrl }),
+      });
+      const payload = await response.json().catch(() => ({})) as { text?: string; error?: string };
+      if (!response.ok || payload.error) {
+        if (attempt === 0 && /bad XRef entry/i.test(payload.error ?? '')) continue;
+        throw new Error(payload.error || 'PDF 解析失败，请重新导出可复制文字的 PDF 或使用 DOCX。');
+      }
+      return payload.text?.trim() ?? '';
+    }
   }
 
   if (extension === 'docx') {
@@ -34,7 +41,16 @@ export async function extractResumeText(
         const parts: string[] = [];
         const textNode = /<w:t(?:\s[^>]*)?>([^<]*)<\/w:t>/g;
         let match: RegExpExecArray | null;
-        while ((match = textNode.exec(segment)) !== null) parts.push(match[1]);
+        while ((match = textNode.exec(segment)) !== null) parts.push(match[1].replace(
+          /&(#x[0-9a-f]+|#\d+|amp|lt|gt|quot|apos);/gi,
+          (entity, name: string) => {
+            if (name.startsWith('#')) {
+              const code = name[1].toLowerCase() === 'x' ? parseInt(name.slice(2), 16) : Number(name.slice(1));
+              return code >= 0 && code <= 0x10ffff ? String.fromCodePoint(code) : entity;
+            }
+            return ({ amp: '&', lt: '<', gt: '>', quot: '"', apos: "'" } as Record<string, string>)[name] ?? entity;
+          },
+        ));
         return parts.join('');
       })
       .join('\n')

@@ -122,11 +122,12 @@ async function uploadViaAppApi(
 
 export function useResumeFiles() {
   const { user } = useAuth();
+  const userId = user?.id;
   const [files, setFiles] = useState<ResumeFile[]>([]);
   const [loading, setLoading] = useState(true);
 
   const fetchAll = useCallback(async () => {
-    if (!user || !isSupabaseConfigured) {
+    if (!userId || !isSupabaseConfigured) {
       setFiles([]);
       setLoading(false);
       return;
@@ -137,14 +138,14 @@ export function useResumeFiles() {
       const { data, error } = await supabase
         .from('resume_files')
         .select('*')
-        .eq('user_id', user.id)
+        .eq('user_id', userId)
         .order('created_at', { ascending: false });
 
       if (!error) setFiles((data ?? []) as ResumeFile[]);
     } finally {
       setLoading(false);
     }
-  }, [user]);
+  }, [userId]);
 
   useEffect(() => {
     fetchAll();

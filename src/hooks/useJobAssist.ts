@@ -18,10 +18,10 @@ function errorMessage(error: unknown) {
   const raw = error && typeof error === 'object' && 'message' in error
     ? String((error as { message: unknown }).message)
     : String(error ?? '未知错误');
-  if (/job_assist_|campaign_id|hard_requirements|tailored_draft|schema cache|does not exist/i.test(raw)) {
+  if (/row-level security|permission denied/i.test(raw)) return '账号权限校验失败，请重新登录后重试。';
+  if (/schema cache|does not exist/i.test(raw)) {
     return '数据库尚未安装求职辅助表。请先执行最新的 job_assist_mvp migration。';
   }
-  if (/row-level security|permission denied/i.test(raw)) return '账号权限校验失败，请重新登录后重试。';
   if (/failed to fetch|network/i.test(raw)) return '无法连接 Supabase，请检查网络和环境变量。';
   return raw;
 }
@@ -51,13 +51,14 @@ function normalizeJdMatch(row: Record<string, unknown>): JobAssistJdMatch {
 
 export function useJobAssist(resumeId: string) {
   const { user } = useAuth();
+  const userId = user?.id;
   const [campaign, setCampaign] = useState<JobAssistCampaign | null>(null);
   const [jdMatches, setJdMatches] = useState<JobAssistJdMatch[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
   const refresh = useCallback(async () => {
-    if (!user || !isSupabaseConfigured) {
+    if (!userId || !isSupabaseConfigured) {
       setCampaign(null);
       setJdMatches([]);
       setLoading(false);
@@ -70,13 +71,13 @@ export function useJobAssist(resumeId: string) {
         supabase
           .from('job_assist_campaigns')
           .select('*')
-          .eq('user_id', user.id)
+          .eq('user_id', userId)
           .eq('resume_id', resumeId)
           .maybeSingle(),
         supabase
           .from('jd_matches')
           .select('*')
-          .eq('user_id', user.id)
+          .eq('user_id', userId)
           .eq('resume_id', resumeId)
           .not('campaign_id', 'is', null)
           .order('created_at', { ascending: false }),
@@ -90,7 +91,7 @@ export function useJobAssist(resumeId: string) {
     } finally {
       setLoading(false);
     }
-  }, [resumeId, user]);
+  }, [resumeId, userId]);
 
   useEffect(() => {
     refresh();
@@ -99,6 +100,8 @@ export function useJobAssist(resumeId: string) {
   const saveCampaign = useCallback(async (route: JobAssistRoute, resumeFileId?: string | null) => {
     if (!user) throw new Error('未登录');
     if (!isSupabaseConfigured) throw new Error('Supabase 尚未配置，无法保存求职辅助数据。');
+    const sourceChanged = campaign && (campaign.route !== route
+      || (resumeFileId !== undefined && campaign.resume_file_id !== resumeFileId));
     const { data, error: saveError } = await supabase
       .from('job_assist_campaigns')
       .upsert(
@@ -106,6 +109,7 @@ export function useJobAssist(resumeId: string) {
           user_id: user.id,
           resume_id: resumeId,
           route,
+          ...(sourceChanged ? { profile: {}, profile_confirmed: false, confirmed_facts: [], preferences: {} } : {}),
           ...(resumeFileId !== undefined ? { resume_file_id: resumeFileId } : {}),
           updated_at: new Date().toISOString(),
         },
@@ -116,7 +120,7 @@ export function useJobAssist(resumeId: string) {
     if (saveError) throw new Error(errorMessage(saveError));
     setCampaign(data as JobAssistCampaign);
     return data as JobAssistCampaign;
-  }, [resumeId, user]);
+  }, [campaign, resumeId, user]);
 
   const updateCampaign = useCallback(async (payload: Record<string, unknown>) => {
     if (!user || !campaign) throw new Error('请先选择校招或社招并建立 Campaign。');
@@ -222,7 +226,7 @@ export function useJobAssist(resumeId: string) {
       .eq('user_id', user.id);
     if (saveError) throw new Error(errorMessage(saveError));
     setJdMatches((current) => current.map((item) => item.id === jdMatchId
-      ? { ...item, application_id: applicationId }
+      ? { ...item, application_id: applicationId, applied }
       : item));
   }, [user]);
 

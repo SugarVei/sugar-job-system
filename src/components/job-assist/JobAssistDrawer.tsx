@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import type { Application, ApplicationStatus, Resume, ResumeFile } from '../../types';
 import type {
@@ -100,7 +100,7 @@ export default function JobAssistDrawer(props: JobAssistDrawerProps) {
   const [selectedJdId, setSelectedJdId] = useState('');
   const [applicationStatus, setApplicationStatus] = useState<ApplicationStatus>('待投递');
   const [applicationNotes, setApplicationNotes] = useState('');
-  const [savedApplicationId, setSavedApplicationId] = useState('');
+  const pendingApplications = useRef<Record<string, { id: string; submitted: boolean }>>({});
   const [session, setSession] = useState<JobAssistInterviewSession | null>(null);
   const [questionIndex, setQuestionIndex] = useState(0);
   const [answer, setAnswer] = useState('');
@@ -109,9 +109,14 @@ export default function JobAssistDrawer(props: JobAssistDrawerProps) {
   const [working, setWorking] = useState('');
   const [actionError, setActionError] = useState('');
   const [notice, setNotice] = useState('');
+  const actionRunning = useRef(false);
+  const bodyRef = useRef<HTMLElement>(null);
 
   const selectedResumeFile = resumeFiles.find((file) => file.id === selectedResumeFileId) ?? resumeFiles[0];
-  const selectedJd = assist.jdMatches.find((item) => item.id === selectedJdId) ?? assist.jdMatches[0] ?? null;
+  const currentJdMatches = assist.campaign?.profile_confirmed
+    ? assist.jdMatches.filter((item) => !profile?.superseded_jd_ids?.includes(item.id))
+    : [];
+  const selectedJd = currentJdMatches.find((item) => item.id === selectedJdId) ?? currentJdMatches[0] ?? null;
 
   useEffect(() => {
     if (!open) return;
@@ -129,18 +134,28 @@ export default function JobAssistDrawer(props: JobAssistDrawerProps) {
   useEffect(() => {
     if (!assist.campaign) return;
     setRoute(assist.campaign.route);
-    setSelectedResumeFileId(assist.campaign.resume_file_id ?? resumeFiles[0]?.id ?? '');
+    setSelectedResumeFileId(assist.campaign.resume_file_id ?? '');
     setProfile(asProfile(assist.campaign.profile));
     setPreferences(asPreferences(assist.campaign.preferences));
-  }, [assist.campaign, resumeFiles]);
+  }, [assist.campaign]);
 
   useEffect(() => {
     if (!selectedResumeFileId && resumeFiles[0]) setSelectedResumeFileId(resumeFiles[0].id);
   }, [resumeFiles, selectedResumeFileId]);
 
   useEffect(() => {
-    if (!selectedJdId && assist.jdMatches[0]) setSelectedJdId(assist.jdMatches[0].id);
-  }, [assist.jdMatches, selectedJdId]);
+    setSession(null);
+    setQuestionIndex(0);
+    setAnswer('');
+    setFeedback(null);
+    setScores([]);
+    setApplicationStatus(selectedJd?.applied ? '已投递' : '待投递');
+    setApplicationNotes('');
+  }, [selectedJd?.id, selectedJd?.applied]);
+
+  useEffect(() => {
+    bodyRef.current?.scrollTo({ top: 0 });
+  }, [step, actionError, notice]);
 
   const requireAI = () => requireActiveConfig('AI 求职辅助');
 
@@ -152,6 +167,8 @@ export default function JobAssistDrawer(props: JobAssistDrawerProps) {
   };
 
   const runAction = async (label: string, action: () => Promise<void>) => {
+    if (actionRunning.current) return;
+    actionRunning.current = true;
     setWorking(label);
     setActionError('');
     setNotice('');
@@ -160,6 +177,7 @@ export default function JobAssistDrawer(props: JobAssistDrawerProps) {
     } catch (error) {
       setActionError(toMessage(error));
     } finally {
+      actionRunning.current = false;
       setWorking('');
     }
   };
@@ -167,9 +185,17 @@ export default function JobAssistDrawer(props: JobAssistDrawerProps) {
   const chooseRoute = (nextRoute: JobAssistRoute) => runAction('正在保存求职路径…', async () => {
     await assist.saveCampaign(nextRoute, selectedResumeFile?.id ?? null);
     setRoute(nextRoute);
-    setProfile(null);
     setStep(1);
-    setNotice(`已建立${routeName(nextRoute)} Campaign。`);
+    setNotice(`已选择${routeName(nextRoute)}路径。`);
+  });
+
+  const changeResumeFile = (fileId: string) => runAction('正在切换简历文件…', async () => {
+    if (route) await assist.saveCampaign(route, fileId);
+    setSelectedResumeFileId(fileId);
+    setProfile(null);
+    setCorrection('');
+    setStep(route ? 1 : 0);
+    setNotice('已切换简历文件，请重新分析并确认画像后继续。历史匹配记录仍保留。');
   });
 
   const analyzeProfile = (corrections?: string) => runAction('正在读取并分析简历…', async () => {
@@ -181,7 +207,12 @@ export default function JobAssistDrawer(props: JobAssistDrawerProps) {
     const nextFacts = corrections?.trim()
       ? Array.from(new Set([...(assist.campaign?.confirmed_facts ?? []), corrections.trim()]))
       : assist.campaign?.confirmed_facts ?? [];
-    const result = await analyzeResumeProfile({ config, route, resumeText, corrections });
+    setWorking('简历读取完成，正在生成画像…');
+    const result = await analyzeResumeProfile({ config, route, resumeText, corrections: nextFacts.join('\n') });
+    // Keep earlier analyses as history, but never reuse their scores for a
+    // changed resume/profile. IDs avoid depending on the browser's clock.
+    result.superseded_jd_ids = assist.jdMatches.map((item) => item.id);
+    setWorking('画像已生成，正在保存结果…');
     await assist.saveProfile(result, nextFacts, false);
     setProfile(result);
     setCorrection('');
@@ -196,6 +227,7 @@ export default function JobAssistDrawer(props: JobAssistDrawerProps) {
   });
 
   const persistPreferences = () => runAction('正在保存求职偏好…', async () => {
+    if (!assist.campaign?.profile_confirmed) throw new Error('请先完成并确认简历画像。');
     if (!preferences.cities.trim() || !preferences.directions.trim()) {
       throw new Error('请至少填写目标城市和目标方向。');
     }
@@ -259,10 +291,12 @@ export default function JobAssistDrawer(props: JobAssistDrawerProps) {
 
   const saveApplication = () => runAction('正在写入投递记录…', async () => {
     if (!selectedJd) throw new Error('请先选择一份 JD 匹配结果。');
+    if (selectedJd.application_id) throw new Error('该岗位已关联投递记录，请到“投递记录”更新状态。');
     if (!selectedJd.company_name || !selectedJd.position_name) throw new Error('记录投递前请补全公司和岗位名称并重新分析 JD。');
-    const submitted = applicationStatus !== '待投递';
+    const pending = pendingApplications.current[selectedJd.id];
+    const submitted = pending?.submitted ?? applicationStatus !== '待投递';
     const nextActionAt = submitted ? new Date(Date.now() + 3 * 24 * 60 * 60 * 1000).toISOString() : null;
-    const application = await onCreateApplication({
+    const application = pending ?? await onCreateApplication({
       company_id: null,
       company_name: selectedJd.company_name,
       position_name: selectedJd.position_name,
@@ -283,8 +317,9 @@ export default function JobAssistDrawer(props: JobAssistDrawerProps) {
       deadline_at: null,
       priority: 'normal',
     });
+    // A failed link can be retried without creating another application.
+    pendingApplications.current[selectedJd.id] = { id: application.id, submitted };
     await assist.linkApplication(selectedJd.id, application.id, submitted);
-    setSavedApplicationId(application.id);
     setNotice(`已写入现有投递记录，状态为“${APPLICATION_STATUSES.find((item) => item.value === applicationStatus)?.label}”。`);
   });
 
@@ -302,7 +337,7 @@ export default function JobAssistDrawer(props: JobAssistDrawerProps) {
       count: 3,
     });
     if (!Array.isArray(plan) || plan.length < 3) throw new Error('AI 返回题目不足 3 道，请重试。');
-    const nextSession = await assist.createInterviewSession(selectedJd.id, plan.slice(0, 3), savedApplicationId || selectedJd.application_id);
+    const nextSession = await assist.createInterviewSession(selectedJd.id, plan.slice(0, 3), selectedJd.application_id);
     setSession(nextSession);
     setQuestionIndex(0);
     setAnswer('');
@@ -372,6 +407,7 @@ export default function JobAssistDrawer(props: JobAssistDrawerProps) {
             <button
               key={label}
               type="button"
+              disabled={Boolean(working)}
               onClick={() => setStep(index)}
               className="btn-press"
               style={{
@@ -386,20 +422,20 @@ export default function JobAssistDrawer(props: JobAssistDrawerProps) {
           ))}
         </nav>
 
-        <main style={bodyStyle}>
+        <main ref={bodyRef} style={bodyStyle}>
           {assist.loading ? (
             <StatusPanel text="正在读取当前简历的求职辅助数据…" />
           ) : resumeFiles.length === 0 ? (
             <EmptyResumePanel />
           ) : (
             <>
-              <FormError message={assist.error || actionError} />
+              <div role="alert"><FormError message={actionError || assist.error} /></div>
               {assist.error && <div style={{ marginBottom: 14 }}><GhostButton onClick={assist.refresh}>重试读取</GhostButton></div>}
               {notice && <Notice text={notice} />}
               {working && <StatusPanel text={working} />}
 
               <Field label="本次使用的简历文件">
-                <Select value={selectedResumeFile?.id ?? ''} onChange={(event) => setSelectedResumeFileId(event.target.value)} disabled={Boolean(working)}>
+                <Select value={selectedResumeFile?.id ?? ''} onChange={(event) => changeResumeFile(event.target.value)} disabled={Boolean(working)}>
                   {resumeFiles.map((file) => <option key={file.id} value={file.id}>{file.file_name}</option>)}
                 </Select>
               </Field>
@@ -430,7 +466,7 @@ export default function JobAssistDrawer(props: JobAssistDrawerProps) {
               )}
               {step === 3 && (
                 <JdStep
-                  jdMatches={assist.jdMatches}
+                  jdMatches={currentJdMatches}
                   selectedJdId={selectedJd?.id ?? ''}
                   companyName={companyName}
                   positionName={positionName}
@@ -640,7 +676,7 @@ function JdResult({ jd }: { jd: JobAssistJdMatch }) {
   return (
     <div style={{ ...resultBlockStyle, marginBottom: 16 }}>
       <div className="flex items-center justify-between gap-3 flex-wrap">
-        <strong>{jd.eligible ? '通过硬门槛' : '硬门槛未通过'}</strong>
+        <strong>{jd.eligible ? '通过硬门槛' : jd.hard_requirements.some((item) => item.passed === null) ? '硬门槛待确认' : '硬门槛未通过'}</strong>
         <span style={{ fontSize: 18, fontWeight: 800 }}>{jd.match_score === null ? '不评分' : `${jd.match_score} 分`}</span>
       </div>
       <div style={mutedStyle}>证据覆盖 {jd.coverage}% · 置信度 {jd.confidence} · {jd.summary}</div>
@@ -684,7 +720,8 @@ function TailoringAndApplicationStep(props: {
           <Field label="状态"><Select value={props.status} onChange={(event) => props.onStatus(event.target.value as ApplicationStatus)}>{APPLICATION_STATUSES.map((item) => <option key={item.value} value={item.value}>{item.label}</option>)}</Select></Field>
           <Field label="备注"><TextInput value={props.notes} onChange={(event) => props.onNotes(event.target.value)} placeholder="如：等待内推 / 已约一面" /></Field>
         </div>
-        <div className="flex justify-end"><PrimaryButton accent={props.accent} onClick={props.onSaveApplication} disabled={props.busy}>保存到投递记录</PrimaryButton></div>
+        {props.jd.application_id && <Notice text="已关联投递记录，可在“投递记录”中查看或更新状态。" />}
+        <div className="flex justify-end"><PrimaryButton accent={props.accent} onClick={props.onSaveApplication} disabled={props.busy || Boolean(props.jd.application_id)}>{props.jd.application_id ? '已保存到投递记录' : '保存到投递记录'}</PrimaryButton></div>
       </div>
 
       <div style={{ ...resultBlockStyle, marginTop: 18, opacity: 0.7 }}>
@@ -746,6 +783,7 @@ function InterviewStep(props: {
         <div style={{ ...resultBlockStyle, background: '#f0f6ec', marginTop: 14 }}>
           <strong>3 题训练完成 · 当前平均 {props.averageScore} 分</strong>
           <p style={mutedStyle}>已保存每题分数、问题标签和简短改进摘要；未保存回答原文和完整润色答案。</p>
+          <GhostButton onClick={props.onStart} disabled={props.busy}>重新开始 3 题训练</GhostButton>
         </div>
       )}
     </StepSection>

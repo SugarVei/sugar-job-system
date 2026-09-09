@@ -96,12 +96,15 @@ export function useCollection<T extends BaseRow>(
   orderBy: { column: string; ascending?: boolean } = { column: 'created_at', ascending: false },
 ) {
   const { user } = useAuth();
+  // Token refresh replaces the User object without changing the account.
+  // Reloading here would unmount open editors and discard in-flight results.
+  const userId = user?.id;
   const [items, setItems] = useState<T[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   const fetchAll = useCallback(async () => {
-    if (!user || !isSupabaseConfigured) {
+    if (!userId || !isSupabaseConfigured) {
       setItems([]);
       setLoading(false);
       return;
@@ -114,7 +117,7 @@ export function useCollection<T extends BaseRow>(
       const { data, error: err } = await supabase
         .from(table)
         .select('*')
-        .eq('user_id', user.id)
+        .eq('user_id', userId)
         .order(orderBy.column, { ascending: orderBy.ascending ?? false });
 
       if (err) {
@@ -129,7 +132,7 @@ export function useCollection<T extends BaseRow>(
     } finally {
       setLoading(false);
     }
-  }, [user, table, orderBy.column, orderBy.ascending]);
+  }, [userId, table, orderBy.column, orderBy.ascending]);
 
   useEffect(() => {
     fetchAll();

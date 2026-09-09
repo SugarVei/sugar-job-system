@@ -30,6 +30,7 @@ const Ctx = createContext<ApiKeysValue | null>(null);
 
 export function ApiKeysProvider({ children }: { children: ReactNode }) {
   const { user } = useAuth();
+  const userId = user?.id;
   const [keys, setKeys] = useState<KeyMap>({});
   const [loading, setLoading] = useState(true);
   const [activeProvider, setActiveProviderState] = useState<ProviderId>(
@@ -38,16 +39,16 @@ export function ApiKeysProvider({ children }: { children: ReactNode }) {
   const [requiredFeature, setRequiredFeature] = useState<string | null>(null);
 
   const fetchKeys = useCallback(async () => {
-    if (!user || !isSupabaseConfigured) { setLoading(false); return; }
+    if (!userId || !isSupabaseConfigured) { setKeys({}); setLoading(false); return; }
     const { data } = await supabase
       .from('user_api_keys')
       .select('provider, api_key')
-      .eq('user_id', user.id);
+      .eq('user_id', userId);
     const map: KeyMap = {};
     for (const row of (data ?? [])) map[row.provider as ProviderId] = row.api_key as string;
     setKeys(map);
     setLoading(false);
-  }, [user]);
+  }, [userId]);
 
   useEffect(() => { fetchKeys(); }, [fetchKeys]);
 

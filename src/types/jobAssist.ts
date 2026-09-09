@@ -12,6 +12,7 @@ export interface JobAssistDirection {
 }
 
 export interface JobAssistProfile {
+  superseded_jd_ids?: string[];
   snapshot: string[];
   strengths: Array<{ conclusion: string; evidence: string }>;
   weaknesses: Array<{ gap: string; impact: string }>;
@@ -89,6 +90,7 @@ export interface JobAssistJdMatch extends JobAssistJdAnalysis {
   channel: string | null;
   tailoring_suggestions: string[];
   tailored_draft: string | null;
+  applied?: boolean;
   created_at: string;
   updated_at: string;
 }

@@ -109,7 +109,20 @@ export async function analyzeJd({
       },
     ],
   });
-  const eligible = Boolean(raw.eligible);
+  if (typeof raw.eligible !== 'boolean' || !Array.isArray(raw.hard_requirements) || !raw.hard_requirements.length
+      || typeof raw.summary !== 'string' || !raw.summary.trim()) {
+    throw new Error('AI 返回的 JD 匹配字段不完整，请重试。');
+  }
+  const hardRequirements = raw.hard_requirements.map((item) => {
+    if (!item || typeof item.requirement !== 'string' || typeof item.evidence !== 'string') {
+      throw new Error('AI 返回的硬门槛证据不完整，请重试。');
+    }
+    return { ...item, passed: typeof item.passed === 'boolean' ? item.passed : null };
+  });
+  const eligible = raw.eligible && hardRequirements.every((item) => item.passed === true);
+  if (eligible && (typeof raw.match_score !== 'number' || !Number.isFinite(raw.match_score))) {
+    throw new Error('AI 没有返回有效的匹配分数，请重试。');
+  }
   const matchScore = eligible ? score(raw.match_score) : null;
   const coverage = score(raw.coverage);
   const matchLevel: JobAssistJdAnalysis['match_level'] = matchScore !== null && matchScore >= 80
@@ -120,7 +133,7 @@ export async function analyzeJd({
     : coverage >= 60 ? 'medium' : 'low';
   return {
     eligible,
-    hard_requirements: Array.isArray(raw.hard_requirements) ? raw.hard_requirements : [],
+    hard_requirements: hardRequirements,
     match_score: matchScore,
     match_level: matchLevel,
     score_breakdown: raw.score_breakdown && typeof raw.score_breakdown === 'object' ? raw.score_breakdown : {},
@@ -227,6 +240,9 @@ export async function scoreInterviewAnswer({
       },
     ],
   });
+  if (!raw.scores || ['relevance', 'evidence', 'structure', 'role_fit', 'clarity'].some(
+    (key) => typeof raw.scores[key as keyof InterviewFeedback['scores']] !== 'number',
+  )) throw new Error('AI 返回的面试评分字段不完整，请重试。');
   const scores = {
     relevance: score(raw.scores?.relevance, 25),
     evidence: score(raw.scores?.evidence, 25),
