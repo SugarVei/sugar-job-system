@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { Application, ApplicationPriority, ApplicationStatus, NewRecord, Resume } from '../types';
 import { useCollection } from '../hooks/useCollection';
 import { useAppShell, type ApplicationsListFilter } from '../contexts/AppShellContext';
@@ -17,9 +17,9 @@ const empty: NewRecord<Application> = {
   company_name: '',
   position_name: '',
   city: '',
-  channel: '',
+  channel: '官网',
   apply_date: '',
-  status: '待投递',
+  status: '已投递',
   salary_range: '',
   job_url: '',
   notes: '',
@@ -43,6 +43,12 @@ const PRIORITY_OPTIONS: Array<{ value: ApplicationPriority; label: string }> = [
 
 const VIEW_STORAGE_KEY = 'sugar.applications.view';
 const CLOSED_STATUSES: ApplicationStatus[] = ['Offer', '已拒绝', '已放弃', '人才库'];
+
+function today() {
+  const now = new Date();
+  const pad = (value: number) => String(value).padStart(2, '0');
+  return `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
+}
 
 function priorityTag(priority: ApplicationPriority | null | undefined): { label: string; bg: string; fg: string } {
   switch (priority) {
@@ -121,6 +127,10 @@ function matchesFilter(application: Application, filter: ApplicationsListFilter)
 export default function Applications() {
   const { items, loading, error: applicationsError, create, update, remove } = useCollection<Application>('applications');
   const { items: resumes, error: resumesError } = useCollection<Resume>('resumes');
+  const latestResumeId = useMemo(() => [...resumes].sort((a, b) =>
+    Date.parse(b.updated_at || b.created_at) - Date.parse(a.updated_at || a.created_at)
+    || Date.parse(b.created_at) - Date.parse(a.created_at)
+  )[0]?.id ?? null, [resumes]);
   const {
     query,
     registerAdd,
@@ -138,11 +148,26 @@ export default function Applications() {
   const [scrollSig, setScrollSig] = useState(0);
   const [actionError, setActionError] = useState('');
   const companyRef = useRef<HTMLInputElement>(null);
+  const resumeSelectionTouched = useRef(false);
+
+  const openCreate = useCallback(() => {
+    setEditing(null);
+    resumeSelectionTouched.current = false;
+    setForm({ ...empty, apply_date: today(), resume_id: latestResumeId });
+    setFormError('');
+    setModalOpen(true);
+  }, [latestResumeId]);
 
   useEffect(() => {
     registerAdd(() => openCreate());
     return () => registerAdd(null);
-  }, [registerAdd]);
+  }, [registerAdd, openCreate]);
+
+  useEffect(() => {
+    if (modalOpen && !editing && !resumeSelectionTouched.current) {
+      setForm(current => ({ ...current, resume_id: latestResumeId }));
+    }
+  }, [modalOpen, editing, latestResumeId]);
 
   useEffect(() => {
     try {
@@ -151,13 +176,6 @@ export default function Applications() {
       /* ignore */
     }
   }, [viewMode]);
-
-  const openCreate = () => {
-    setEditing(null);
-    setForm(empty);
-    setFormError('');
-    setModalOpen(true);
-  };
 
   const openEdit = (application: Application) => {
     setEditing(application);
@@ -187,14 +205,16 @@ export default function Applications() {
   };
 
   const applyAIExtraction = (data: ApplicationExtraction) => {
+    resumeSelectionTouched.current = false;
     setForm((current) => ({
       ...current,
       company_name: data.company_name ?? current.company_name,
       position_name: data.position_name ?? current.position_name,
       city: data.city ?? current.city,
-      channel: data.channel ?? current.channel,
-      apply_date: data.apply_date ?? current.apply_date,
-      status: STATUS_OPTIONS.includes(data.status as ApplicationStatus) ? (data.status as ApplicationStatus) : current.status,
+      channel: '官网',
+      apply_date: today(),
+      status: '已投递',
+      resume_id: latestResumeId,
       salary_range: data.salary_range ?? current.salary_range,
       job_url: data.job_url ?? current.job_url,
       jd_text: data.jd_text ?? current.jd_text,
@@ -636,7 +656,10 @@ export default function Applications() {
           </Field>
         </div>
         <Field label="使用简历（关联简历库）">
-          <Select value={form.resume_id ?? ''} onChange={(event) => setForm({ ...form, resume_id: event.target.value || null })}>
+          <Select value={form.resume_id ?? ''} onChange={(event) => {
+            resumeSelectionTouched.current = true;
+            setForm({ ...form, resume_id: event.target.value || null });
+          }}>
             <option value="">不关联</option>
             {resumes.map((resume) => (
               <option key={resume.id} value={resume.id}>
