@@ -34,14 +34,12 @@ export default function InterviewWeekGrid({ days, entries, onEdit, onCreate, onD
           <div className="interview-slot-label"><span>{hourLabel(hour)}</span><span>– {hourLabel(hour + 2)}</span></div>
           {days.map((day, index) => {
             const events = slotEntries(index, hour);
-            const first = events[0];
             return <div className="interview-slot" key={day.toISOString()} data-slot={`${index}-${hour}`} onDoubleClick={e => {
               if (e.target === e.currentTarget) onCreate(new Date(day.getFullYear(), day.getMonth(), day.getDate(), hour));
             }}>
-              {first && <button type="button" onClick={() => onEdit(first.ev)} className={`interview-slot-event tone-${index % 4}${events.length > 1 ? ' is-compact' : ''}`} title={`${first.ev.company_name} · ${time(first.date)} · ${first.ev.round || '面试'}`}>
-                <strong>{first.ev.company_name}</strong><span>{time(first.date)} · {first.ev.round || '面试'}</span>
-              </button>}
-              {events.length > 1 && <button type="button" className="interview-slot-more" onClick={() => setExpanded({ dayIndex: index, hour })}>共 {events.length} 场 · 查看全部</button>}
+              {events.map(({ ev, date }) => <button type="button" key={ev.id} onClick={() => onEdit(ev)} className={`interview-slot-event tone-${index % 4}${events.length > 1 ? ' is-compact' : ''}`} title={`${ev.company_name} · ${time(date)} · ${ev.round || '面试'}`}>
+                <strong>{ev.company_name}</strong><span>{time(date)} · {ev.round || '面试'}</span>
+              </button>)}
             </div>;
           })}
         </div>)}

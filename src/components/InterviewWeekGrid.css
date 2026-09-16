@@ -22,7 +22,6 @@
 .interview-slot-event.tone-1 { background:#fff0ca; border-color:#e8cc7a; color:#806020; }
 .interview-slot-event.tone-2 { background:#eaf2e3; border-color:#bfd3b1; color:#507044; }
 .interview-slot-event.tone-3 { background:#e8effa; border-color:#bdcee7; color:#46628e; }
-.interview-slot-more { padding:0 5px; height:16px; line-height:16px; border:0; text-align:left; background:transparent; color:#72665d; font-size:10px; cursor:pointer; }
 .interview-outside { border:0; border-top:1px solid #e8e2d6; background:#faf3e4; color:#82662e; padding:5px; font-size:11px; cursor:pointer; }
 .interview-slot-details { display:grid; gap:9px; }
 .interview-slot-details button { display:flex; flex-direction:column; gap:5px; border:1px solid #e4dcd0; border-radius:12px; padding:14px; text-align:left; background:#fffdf8; cursor:pointer; }
