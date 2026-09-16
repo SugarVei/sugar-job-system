@@ -1,131 +1,79 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useAppShell } from '../contexts/AppShellContext';
 import { useTheme } from '../contexts/ThemeContext';
-import { useAutofillProfile } from '../hooks/useAutofillProfile';
-import { useAutofillRuns } from '../hooks/useAutofillRuns';
-import { useExtensionDevices } from '../hooks/useExtensionDevices';
-import { overallCompleteness } from '../lib/resumeAssistantProfile';
-import { resumeAssistantApi } from '../lib/resumeAssistantApi';
-import type { AiCredentialStatus, AutofillRun, ResumeAssistantTab } from '../types/resumeAssistant';
-import { PairExtensionDrawer } from '../components/resume-assistant/PairExtensionDrawer';
-import { PrivacyNotice } from '../components/resume-assistant/PrivacyNotice';
-import { ProfileEditor } from '../components/resume-assistant/ProfileEditor';
-import { RunDetailsDrawer } from '../components/resume-assistant/RunDetailsDrawer';
-import { creamCard, ghostBtn, muted, primaryBtn } from '../components/resume-assistant/styles';
-import { IconArrowRight, IconCheck, IconFile, IconPlugin, IconReview, IconSettings } from '../components/icons';
-import type { ThemeKey } from '../styles/theme';
-import './ResumeAssistant.css';
+import { IconArrowRight, IconCheck, IconFile, IconPlugin } from '../components/icons';
+import Modal from '../components/Modal';
+import './ResumeAssistantGuide.css';
 
-const tabs: Array<{ key: ResumeAssistantTab; label: string }> = [
-  { key: 'overview', label: '概览' }, { key: 'profile', label: '标准资料' }, { key: 'settings', label: '插件与 AI' }, { key: 'runs', label: '填写记录' },
+const DOWNLOAD = '/downloads/Sugar-Resume-Assistant-1.2.0.zip';
+const STEPS = [
+  { title: '下载并解压', brief: '把插件放在固定文件夹', image: '' },
+  { title: '安装到浏览器', brief: '开启开发者模式并加载', image: 'install.png' },
+  { title: '选择 API 厂商', brief: '只需输入自己的 API Key', image: 'api-settings.png' },
+  { title: '保存简历，开始填表', brief: '填一次资料，多次使用', image: 'resume-editor.png' },
 ];
 
-const assistantPalettes: Record<ThemeKey, { accent: string; soft: string; border: string; surface: string }> = {
-  pink: { accent: '#e96883', soft: '#fcecef', border: '#f2ccd5', surface: '#fffafb' },
-  blue: { accent: '#4f8fd5', soft: '#eaf3fc', border: '#cadef2', surface: '#fafdff' },
-  green: { accent: '#72a962', soft: '#edf5ea', border: '#d2e3cd', surface: '#fbfdf9' },
-  gray: { accent: '#8c86c7', soft: '#f0eef9', border: '#dcd8ee', surface: '#fcfbff' },
-  cream: { accent: '#c09b62', soft: '#f7f0e4', border: '#e8d9c2', surface: '#fffdf9' },
-};
-
 export default function ResumeAssistant() {
-  const { assistantTab, setAssistantTab, setHeaderChrome } = useAppShell();
-  const { themeKey } = useTheme();
-  const profile = useAutofillProfile();
-  const devices = useExtensionDevices();
-  const runs = useAutofillRuns();
-  const [credential, setCredential] = useState<AiCredentialStatus | null>(null);
-  const [selectedRun, setSelectedRun] = useState<AutofillRun | null>(null);
-  const [provider, setProvider] = useState('deepseek');
-  const [model, setModel] = useState('');
-  const [apiKey, setApiKey] = useState('');
-  const [credentialMessage, setCredentialMessage] = useState('');
-  const requestPair = devices.requestPair;
-  const saveProfile = profile.save;
+  const { setHeaderChrome } = useAppShell();
+  const { theme } = useTheme();
+  const [step, setStep] = useState(0);
+  const [browser, setBrowser] = useState<'chrome' | 'edge'>('chrome');
+  const [copyStatus, setCopyStatus] = useState('');
+  const [zoom, setZoom] = useState(false);
+  const current = STEPS[step];
+  const address = `${browser}://extensions`;
 
-  const loadCredential = useCallback(() => { resumeAssistantApi.getAiCredentialStatus().then(result => setCredential(result.credential)).catch(() => setCredential(null)); }, []);
-  useEffect(() => { loadCredential(); }, [loadCredential]);
-
-  const hasDevices = devices.devices.length > 0;
-  const onPrimary = useCallback(() => {
-    if (hasDevices) { void saveProfile(); }
-    else { void requestPair(); }
-  }, [hasDevices, requestPair, saveProfile]);
-  const primaryLabel = hasDevices ? (profile.saving ? '正在同步…' : '同步到插件') : '连接插件';
   useEffect(() => {
-    setHeaderChrome({ searchPlaceholder: null, showAdd: false, primaryAction: { label: primaryLabel, onClick: onPrimary, loading: profile.saving } });
+    setHeaderChrome({ searchPlaceholder: null, showAdd: false });
     return () => setHeaderChrome(null);
-  }, [onPrimary, primaryLabel, profile.saving, setHeaderChrome]);
+  }, [setHeaderChrome]);
 
-  const saveCredential = async () => {
-    if (!apiKey.trim()) { setCredentialMessage('请输入 API Key。'); return; }
-    try { const result = await resumeAssistantApi.saveAiCredential(provider, apiKey.trim(), model.trim() || undefined); setCredential(result.credential); setApiKey(''); setCredentialMessage('已加密保存；界面只显示末四位。'); }
-    catch (error) { setCredentialMessage(error instanceof Error ? error.message : '保存失败。'); }
-  };
-  const testCredential = async () => { try { await resumeAssistantApi.testAiCredential(); setCredentialMessage('连接测试成功。'); } catch (error) { setCredentialMessage(error instanceof Error ? error.message : '测试失败。'); } };
-  const deleteCredential = async () => { try { await resumeAssistantApi.deleteAiCredential(); setCredential(null); setCredentialMessage('凭证已删除。'); } catch (error) { setCredentialMessage(error instanceof Error ? error.message : '删除失败。'); } };
+  async function copyAddress() {
+    try {
+      await navigator.clipboard.writeText(address);
+      setCopyStatus('已复制，请粘贴到浏览器地址栏');
+    } catch {
+      setCopyStatus(`请手动复制：${address}`);
+    }
+  }
 
-  const palette = assistantPalettes[themeKey];
-  const device = devices.devices[0];
-  const completeness = overallCompleteness(profile.profile);
-  const assistantStyle = {
-    '--assistant-accent': palette.accent,
-    '--assistant-soft': palette.soft,
-    '--assistant-border': palette.border,
-    '--assistant-surface': palette.surface,
-  } as React.CSSProperties;
-
-  return <div className="assistant-page" style={assistantStyle}>
-    <div className="assistant-tabs" role="tablist" aria-label="智能填表助手功能">
-      {tabs.map(tab => <button key={tab.key} type="button" role="tab" aria-selected={assistantTab === tab.key} onClick={() => setAssistantTab(tab.key)} className={`assistant-tab${assistantTab === tab.key ? ' is-active' : ''}`}>{tab.label}</button>)}
-    </div>
-    {profile.localOnly && <div style={{ ...creamCard, borderColor: '#ecd29b', background: '#fff8e8', ...muted }}>云端连接暂时不可用，系统正在自动重连。若持续显示，请退出后重新登录；当前资料仍安全保存在本浏览器。</div>}
-    {assistantTab === 'overview' && <div className="assistant-overview">
-      <section className="assistant-card assistant-status-card">
-        <div className="assistant-icon"><IconPlugin size={24} /></div>
-        <div className="assistant-card-copy">
-          <span className="assistant-eyebrow">插件状态</span>
-          <h2>{device ? '插件已连接' : '尚未连接插件'}</h2>
-          <p>{device ? `${device.display_name} · ${device.browser ?? '浏览器'}${device.last_seen_at ? ' · 最近在线' : ''}` : '生成 6 位配对码，在浏览器插件中完成连接。'}</p>
+  return <div className="filler-guide animate-rise" style={{ '--filler-accent': theme.accent } as React.CSSProperties}>
+    <section className="filler-hero">
+      <div>
+        <span className="filler-kicker"><IconPlugin size={15} /> SUGAR · 浏览器扩展</span>
+        <h2>简历填一次，<br />网申轻松一点。</h2>
+        <p>安装插件，配置自己的标准简历和 API Key，即可辅助填写招聘网页。填完后由你核对并提交。</p>
+        <div className="filler-actions">
+          <a className="filler-primary" href={DOWNLOAD} download>下载浏览器插件 <span>↓</span></a>
+          <button type="button" className="filler-link" onClick={() => { setStep(1); document.getElementById('filler-install')?.scrollIntoView({ behavior: 'smooth' }); }}>查看安装步骤 <IconArrowRight size={16} /></button>
         </div>
-        <button className="assistant-primary" type="button" onClick={() => void devices.requestPair()}>{device ? '再连一台' : '连接插件'}</button>
-      </section>
+        <small>v1.2.0 · Chrome / Edge 114+ · ZIP 解压安装</small>
+      </div>
+      <div className="filler-card" aria-label="插件使用流程">
+        <header><span><IconPlugin size={21} /></span><div><b>智能填表助手</b><small>为每一份认真准备的简历</small></div><em>本地保存</em></header>
+        {[['01','准备你的简历','在插件中保存自己的标准资料'],['02','接入你选择的 AI','厂商选好，只需输入 API Key'],['03','在招聘网页开始填充','核对完成后，由你手动提交']].map(([n,title,desc]) => <div className="filler-flow" key={n}><i>{n}</i><div><b>{title}</b><small>{desc}</small></div><IconCheck size={16} /></div>)}
+        <footer>你的资料，由你掌握。每次提交，由你确认。</footer>
+      </div>
+    </section>
 
-      <section className="assistant-card assistant-profile-card">
-        <div className="assistant-card-head"><div><span className="assistant-eyebrow">资料准备</span><h2>标准资料</h2></div><div className="assistant-icon"><IconFile size={23} /></div></div>
-        <div className="assistant-score-row"><strong>{completeness}%</strong><span>完整度</span></div>
-        <div className="assistant-progress" role="progressbar" aria-label="资料完整度" aria-valuemin={0} aria-valuemax={100} aria-valuenow={completeness}><span style={{ width: `${completeness}%` }} /></div>
-        <div className="assistant-card-footer"><p>填写越完整，插件可自动填写的字段越多。</p><button className="assistant-secondary" type="button" onClick={() => setAssistantTab('profile')}>编辑资料</button></div>
-      </section>
+    <section id="filler-install" className="filler-install">
+      <div className="filler-section-head"><div><span className="filler-kicker">开始使用</span><h3>跟着四步，装好就能用</h3></div><div className="filler-browser">{(['chrome','edge'] as const).map(value => <button type="button" aria-pressed={browser === value} className={browser === value ? 'active' : ''} key={value} onClick={() => { setBrowser(value); setCopyStatus(''); }}>{value === 'chrome' ? 'Chrome' : 'Edge'}</button>)}</div></div>
+      <div className="filler-install-layout">
+        <nav className="filler-steps" aria-label="安装步骤">{STEPS.map((item,index) => <button type="button" aria-current={step === index ? 'step' : undefined} key={item.title} onClick={() => setStep(index)} className={step === index ? 'active' : ''}><span>{String(index + 1).padStart(2,'0')}</span><div><b>{item.title}</b><small>{item.brief}</small></div><IconArrowRight size={15} /></button>)}</nav>
+        <article className="filler-step">
+          <span>STEP {String(step + 1).padStart(2,'0')} / 04</span><h4>{current.title}</h4>
+          {step === 0 && <><p>点击下载，把 ZIP 解压到电脑上的固定位置。安装时选择解压后的 <b>Sugar-Resume-Assistant</b> 文件夹。</p><div className="filler-folder"><IconFile size={28} /><div><b>Sugar-Resume-Assistant</b><small>manifest.json · popup.html · shared · icons …</small></div><em>选择这一层</em></div><p className="filler-note">看到 manifest.json 就是正确目录。不要直接选择 ZIP。安装后请保留这个文件夹。</p><a className="filler-primary" href={DOWNLOAD} download>下载插件 ZIP ↓</a></>}
+          {step === 1 && <><p>在 <b>{browser === 'chrome' ? 'Chrome' : 'Edge'}</b> 地址栏粘贴下方地址，打开扩展管理页。</p><div className="filler-address"><code>{address}</code><button type="button" onClick={() => void copyAddress()}>复制地址</button></div><small className="filler-status" role="status">{copyStatus}</small><ol><li>开启「开发者模式」。</li><li>点击「加载已解压的扩展程序」，选择含 manifest.json 的文件夹。</li><li>在扩展菜单中固定「Sugar 智能填表助手」。</li></ol><p className="filler-note">下图为 Chrome 实际操作截图；Edge 的入口位置略有不同，步骤相同。</p></>}
+          {step === 2 && <><p>点击插件右上角齿轮，进入「API 设置」，点击「配置 API」或「添加 API 厂商」。</p><ol><li>选择你已经开通 API 的厂商。</li><li>粘贴该厂商的 API Key，点击保存，即会自动启用。</li></ol><div className="filler-tags">{['DeepSeek','通义千问','Kimi','OpenAI','智谱 GLM'].map(name => <span key={name}><IconCheck size={12} />{name}</span>)}</div><p className="filler-note">接口地址和默认模型自动匹配，无需填写。通义千问使用北京区域密钥，Kimi 使用中国站密钥；API 账户需有可用额度和模型权限。</p></>}
+          {step === 3 && <><ol><li>在插件中打开「标准简历」→「打开简历配置页」。</li><li>填写自己的资料，点击「保存标准简历」。也可以用 AI 导入自己的文本或 PDF，再核对保存。</li><li>打开招聘网站的表单页，点击插件图标，再点击「开始填充」。</li><li>检查填写结果，补充附件与遗漏字段，最后手动提交。</li></ol><p className="filler-note">只补空白字段可用「增量填入」；只填局部可用「选区填入」。插件不会自动上传附件、处理验证码或提交申请。</p></>}
+          {current.image && <button type="button" className="filler-shot" onClick={() => setZoom(true)} aria-label={`放大${current.title}截图`}><img src={`/guides/resume-assistant/${current.image}`} alt={`${current.title}实际操作截图，使用空白演示资料`} /><span>实际操作截图 · 点击放大 ↗</span></button>}
+          <div className="filler-next"><span>{step === 3 ? '准备完成，去招聘网页试试吧' : '按顺序完成，更容易上手'}</span>{step < 3 && <button type="button" onClick={() => setStep(step + 1)}>下一步 <IconArrowRight size={14} /></button>}</div>
+        </article>
+      </div>
+    </section>
 
-      <section className="assistant-card assistant-ai-card">
-        <div className="assistant-card-head"><div><span className="assistant-eyebrow">智能识别</span><h2>AI 映射</h2></div><div className="assistant-icon"><IconSettings size={23} /></div></div>
-        <p>{credential ? `${credential.provider} 已配置（末四位 ${credential.last4}）` : '未配置 AI Key；插件仍可填写已识别的标准字段。'}</p>
-        <span className={`assistant-state${credential ? ' is-ready' : ''}`}><i />{credential ? '运行正常' : '等待配置'}</span>
-      </section>
-
-      <section className="assistant-card assistant-workflow-card">
-        <div className="assistant-card-head"><div><span className="assistant-eyebrow">四步完成</span><h2>使用流程</h2></div><span className="assistant-step-count">01—04</span></div>
-        <div className="assistant-workflow">
-          {['网站管理资料', '生成配对码', '插件同步资料', '在招聘页填写'].map((item, index) => <div className="assistant-step" key={item}><span>{index + 1}</span><b>{item}</b>{index < 3 && <IconArrowRight size={16} />}</div>)}
-        </div>
-      </section>
-
-      <section className="assistant-card assistant-runs-card">
-        <div className="assistant-card-head"><div><span className="assistant-eyebrow">历史记录</span><h2>最近填写记录</h2></div><div className="assistant-icon"><IconReview size={23} /></div></div>
-        {runs.runs.length ? <div className="assistant-run-list">{runs.runs.slice(0, 4).map(run => <button key={run.id} type="button" onClick={() => setSelectedRun(run)}><span>{run.origin_host}</span><b>{run.fields_filled}/{run.fields_total}</b><small>{run.status}</small></button>)}</div> : <div className="assistant-empty"><IconReview size={30} /><strong>还没有记录</strong><p>完成一次填表后会显示在这里，只保存统计和错误码。</p></div>}
-      </section>
-
-      <section className="assistant-card assistant-boundary-card">
-        <div className="assistant-card-head"><div><span className="assistant-eyebrow">隐私与控制</span><h2>能力边界</h2></div><div className="assistant-icon"><IconCheck size={24} /></div></div>
-        <div className="assistant-boundary-list"><p><IconCheck size={16} />只识别并填写标准字段</p><p><IconCheck size={16} />敏感信息不会发送给 AI</p><p><IconCheck size={16} />不会自动提交、上传附件或处理验证码</p></div>
-        <button className="assistant-text-action" type="button" onClick={() => setAssistantTab('settings')}>查看完整设置 <IconArrowRight size={15} /></button>
-      </section>
-    </div>}
-    {assistantTab === 'profile' && <ProfileEditor profile={profile.profile} setProfile={profile.setProfile} onSave={() => void profile.save()} saving={profile.saving} localOnly={profile.localOnly} credential={credential} />}
-    {assistantTab === 'settings' && <div className="assistant-settings-grid"><PrivacyNotice /><section className="assistant-form-card"><strong>已配对设备</strong><p>{devices.devices.length ? '撤销后，该浏览器令牌会立即失效。' : '还没有已配对设备。'}</p>{devices.devices.map(device => <div key={device.id} className="assistant-device-row"><span>{device.display_name} · {device.browser ?? '浏览器'}</span><button style={ghostBtn} onClick={() => void devices.revoke(device.id)}>撤销</button></div>)}</section><section className="assistant-form-card"><strong>同步范围</strong><p>证件与资格默认不同步；敏感字段即便选择同步也会在云端剥离。</p>{Object.entries(profile.syncScope).map(([key, enabled]) => <label key={key}><input type="checkbox" checked={enabled} onChange={e => profile.setSyncScope({ ...profile.syncScope, [key]: e.target.checked })} /> {key}</label>)}</section><section className="assistant-form-card"><strong>AI 凭证</strong><p>密钥只在服务端加密保存，扩展默认使用 Sugar 代理。不会用于自动提交。</p><select value={provider} onChange={e => setProvider(e.target.value)}><option value="deepseek">DeepSeek</option><option value="openai">OpenAI</option><option value="kimi">Kimi</option><option value="qwen">Qwen</option><option value="minimax">MiniMax</option><option value="gemini">Gemini</option></select><input value={model} onChange={e => setModel(e.target.value)} placeholder="可选：模型名称"/><input type="password" value={apiKey} onChange={e => setApiKey(e.target.value)} placeholder="API Key"/><div className="assistant-form-actions"><button style={primaryBtn} onClick={() => void saveCredential()}>加密保存</button>{credential && <><button style={ghostBtn} onClick={() => void testCredential()}>测试</button><button style={ghostBtn} onClick={() => void deleteCredential()}>删除</button></>}</div>{credential && <p>当前：{credential.provider} · ****{credential.last4}</p>}{credentialMessage && <p>{credentialMessage}</p>}</section></div>}
-    {assistantTab === 'runs' && <section className="assistant-form-card assistant-runs-page"><strong>填写记录</strong><p>只保存统计、适配器与错误码，不保存实际填写内容。</p>{runs.runs.length ? <div className="assistant-run-list">{runs.runs.map(run => <button key={run.id} onClick={() => setSelectedRun(run)}><span>{run.origin_host}</span><b>{run.fields_filled}/{run.fields_total}</b><small>{run.status}</small></button>)}</div> : <div className="assistant-empty"><IconReview size={30} /><strong>暂时没有填写记录</strong><p>完成一次填表后会显示在这里。</p></div>}</section>}
-    <PairExtensionDrawer code={devices.pairCode} expiresAt={devices.pairExpiresAt} localOnly={devices.localOnly} onClose={devices.closePair} onRefresh={() => void devices.requestPair()} />
-    <RunDetailsDrawer run={selectedRun} onClose={() => setSelectedRun(null)} />
+    <div className="filler-bottom"><section><h3>资料与密钥如何保存？</h3><p>下载包不含任何人的简历或密钥。你的资料和 API Key 保存在当前浏览器中，无需网站配对。</p><p>使用 AI 映射时，页面字段和简历字段摘要会发送给所选厂商；AI 导入会发送原始简历。</p></section><section><h3>遇到问题？先看这里</h3><details><summary>插件无法安装或没有显示</summary><p>确认使用桌面版 Chrome / Edge，选择的文件夹包含 manifest.json，并已开启开发者模式。</p></details><details><summary>API 报错或没有填入内容</summary><p>检查密钥对应的厂商、区域、额度和权限，并确认已保存标准简历、当前是招聘表单页面。</p></details><details><summary>更新时如何保留资料</summary><p>用新版文件替换原目录，在扩展管理页点击重新加载。不要先卸载插件。</p></details></section></div>
+    <p className="filler-license">基于 AI Resume Form Filling Assistant 修改 · GPL-3.0 · 完整扩展源码与许可证随下载包提供</p>
+    <Modal open={zoom} title={current.title} onClose={() => setZoom(false)} maxWidth={1000}>{current.image && <img className="filler-zoom" src={`/guides/resume-assistant/${current.image}`} alt={`${current.title}放大截图`} />}</Modal>
   </div>;
 }

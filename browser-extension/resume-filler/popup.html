@@ -1,0 +1,308 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Sugar 智能填表助手</title>
+    <link rel="stylesheet" href="popup.css" />
+  </head>
+  <body>
+    <div class="app">
+      <header class="app-header">
+        <div class="brand">
+          <img class="logo-icon" src="icons/icon128.png" alt="Sugar 智能填表助手图标" />
+          <span class="title">简历自动填表</span>
+          <div class="status-badge">
+            <span class="status-dot" id="statusDot"></span>
+            <span class="status-text" id="statusText">等待开始</span>
+          </div>
+        </div>
+        <div class="header-actions">
+          <button class="icon-btn" id="openSettingsBtn" title="API 设置" aria-label="API 设置">
+            <svg
+              width="20"
+              height="20"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+            >
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="1.5"
+                d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"
+              />
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="1.5"
+                d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"
+              />
+            </svg>
+          </button>
+        </div>
+      </header>
+
+      <main class="app-content">
+        <div class="tabs" id="tabs">
+          <button class="tab active" data-tab="fill">自动填充</button>
+          <button class="tab" data-tab="resume">标准简历</button>
+        </div>
+
+        <section class="tab-panel active" id="tab-fill">
+          <div class="stats-grid stats-grid-3">
+            <div class="stat-card">
+              <span class="stat-value" id="fieldCount">0</span>
+              <span class="stat-label">识别字段</span>
+            </div>
+            <div class="stat-card">
+              <span class="stat-value" id="mappedCount">0</span>
+              <span class="stat-label">已映射</span>
+            </div>
+            <div class="stat-card">
+              <span class="stat-value" id="filledCount">0</span>
+              <span class="stat-label">已填充</span>
+            </div>
+          </div>
+
+          <div class="steps-area">
+            <button class="btn btn-primary btn-lg" id="startFillBtn">
+              <svg
+                width="20"
+                height="20"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+              >
+                <path
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  stroke-width="2"
+                  d="M9 12h6m2 10H7a2 2 0 01-2-2V6a2 2 0 012-2h7l5 5v11a2 2 0 01-2 2z"
+                />
+              </svg>
+              <span id="startFillBtnText">开始填充</span>
+            </button>
+            <button class="btn btn-outline btn-lg" id="startIncrementalFillBtn">
+              <span id="startIncrementalFillBtnText">增量填入</span>
+            </button>
+            <button class="btn btn-outline btn-lg" id="startSelectionFillBtn">
+              <span id="startSelectionFillBtnText">选区填入</span>
+            </button>
+            <button class="btn btn-outline btn-lg" id="clearMappingCacheBtn">
+              清理映射缓存
+            </button>
+            <div class="tip" id="fillTip" hidden></div>
+          </div>
+        </section>
+
+        <section class="tab-panel" id="tab-resume">
+          <div class="section-block">
+            <div class="section-header section-header-normal">
+              <span>简历配置</span>
+            </div>
+            <div class="tip">
+              简历字段较多，推荐在独立网页里编辑。新页面会复用当前扩展里的同一份标准简历数据。
+            </div>
+            <div class="resume-launch-card">
+              <div class="resume-launch-copy">
+                <div class="resume-launch-title">在宽页面里配置个人简历</div>
+                <div class="resume-launch-desc">
+                  更适合填写长文本、工作经历、教育经历和项目说明，保存后会立即同步到自动填充流程。
+                </div>
+              </div>
+              <button class="btn btn-primary" id="openResumeEditorBtn">打开简历配置页</button>
+            </div>
+            <div class="resume-summary-grid" id="resumeSummaryGrid"></div>
+          </div>
+
+          <div class="resume-sidepanel-legacy" hidden>
+            <div class="section-block">
+              <div class="section-header section-header-normal">
+                <span>标准化简历字段</span>
+                <div class="section-actions">
+                  <button class="btn-text" id="reloadResumeBtn">重新加载</button>
+                </div>
+              </div>
+              <div class="tip">
+                主流程以这份标准简历为准。请尽量填写完整，尤其是基本信息、工作经历、教育经历和求职偏好。
+              </div>
+              <div class="resume-editor-layout">
+                <aside class="resume-nav" id="resumeNav"></aside>
+                <div class="resume-form-host" id="resumeFormHost"></div>
+              </div>
+              <div class="action-row">
+                <button class="btn btn-primary" id="saveResumeBtn">保存标准简历</button>
+              </div>
+            </div>
+
+            <div class="section-block">
+              <div class="section-header section-header-normal">
+                <span>导入辅助（可选）</span>
+              </div>
+              <div class="tip">
+                你仍然可以粘贴原始简历文本或上传 PDF，用 AI 预填上面的标准字段；导入后请自行检查并保存。
+              </div>
+              <div class="form-group">
+                <label for="resumeImportText">原始简历文本</label>
+                <textarea
+                  id="resumeImportText"
+                  class="textarea"
+                  placeholder="粘贴原始简历文本，或上传 PDF 后自动填入这里。"
+                ></textarea>
+              </div>
+              <div class="action-row">
+                <button class="btn btn-primary" id="importResumeBtn">AI 导入到标准简历</button>
+                <button class="btn btn-outline" id="uploadPdfBtn">上传 PDF 并导入</button>
+              </div>
+              <input type="file" id="resumePdfFile" accept="application/pdf" hidden />
+            </div>
+          </div>
+        </section>
+
+        <div class="log-section">
+          <div class="section-header">
+            <span>运行日志</span>
+            <div class="section-actions">
+              <button class="btn-text" id="selectLogDirectoryBtn">选择项目目录</button>
+              <button class="btn-text" id="clearLog">清空</button>
+            </div>
+          </div>
+          <div class="tip" id="logExportStatus">
+            未配置自动导出。点击“选择项目目录”后，填充诊断日志会自动保存到所选目录下的 debug-logs/。
+          </div>
+          <div class="log-container" id="logContent">
+            <div class="log-item log-info">
+              <span class="log-time">--:--</span>
+              <span class="log-msg">
+                先在“标准简历”里填写或导入资料，再到“自动填充”执行映射和填表。
+              </span>
+            </div>
+          </div>
+        </div>
+      </main>
+
+      <div class="modal" id="settingsModal">
+        <div class="modal-backdrop" id="closeSettingsBackdrop"></div>
+        <div class="modal-content">
+          <div class="modal-header">
+            <h3>API 设置</h3>
+            <button class="icon-btn" id="closeSettingsBtn">
+              <svg
+                width="20"
+                height="20"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+              >
+                <path
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  stroke-width="2"
+                  d="M6 18L18 6M6 6l12 12"
+                />
+              </svg>
+            </button>
+          </div>
+          <div class="modal-body">
+            <div class="model-list" id="modelList"></div>
+            <button class="btn btn-outline btn-block" id="addModelBtn">
+              <svg
+                width="16"
+                height="16"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+              >
+                <path
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  stroke-width="2"
+                  d="M12 4v16m8-8H4"
+                />
+              </svg>
+              <span>添加 API 厂商</span>
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <div class="modal" id="editModelModal">
+        <div class="modal-backdrop" id="closeEditBackdrop"></div>
+        <div class="modal-content">
+          <div class="modal-header">
+            <h3 id="editModalTitle">添加模型</h3>
+            <button class="icon-btn" id="closeEditBtn">
+              <svg
+                width="20"
+                height="20"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+              >
+                <path
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  stroke-width="2"
+                  d="M6 18L18 6M6 6l12 12"
+                />
+              </svg>
+            </button>
+          </div>
+          <div class="modal-body">
+            <div class="form-group">
+              <label for="editProvider">API 厂商</label>
+              <select id="editProvider"></select>
+            </div>
+            <div class="tip" id="providerHint">接口地址与模型已自动配置，只需输入该厂商的 API Key。</div>
+            <div class="form-group">
+              <label for="editApiKey">API Key</label>
+              <div class="input-wrapper">
+                <input type="password" id="editApiKey" placeholder="sk-..." />
+                <button class="toggle-visibility" id="toggleEditApiKey">
+                  <svg
+                    width="16"
+                    height="16"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
+                  >
+                    <path
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                      stroke-width="2"
+                      d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"
+                    />
+                    <path
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                      stroke-width="2"
+                      d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"
+                    />
+                  </svg>
+                </button>
+              </div>
+            </div>
+
+            <p class="tip">密钥仅保存在当前浏览器。使用 AI 时，相关字段或导入的简历会发送给你选择的厂商。</p>
+            <div class="config-status" id="editStatus" role="status"></div>
+          </div>
+          <div class="modal-footer">
+            <button class="btn btn-primary btn-block" id="saveModelBtn">保存</button>
+          </div>
+        </div>
+      </div>
+    </div>
+    <script src="libs/pdfjs/pdf.min.js"></script>
+    <script src="shared/resume-schema.js"></script>
+    <script src="shared/resume-storage.js"></script>
+    <script src="shared/model-storage.js"></script>
+    <script src="shared/provider-presets.js"></script>
+    <script src="shared/ai-client.js"></script>
+    <script src="shared/resume-prompts.js"></script>
+    <script src="shared/log-export.js"></script>
+    <script src="shared/log-visibility.js"></script>
+    <script src="shared/content-bridge.js"></script>
+    <script src="popup.js"></script>
+  </body>
+</html>

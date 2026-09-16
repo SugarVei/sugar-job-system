@@ -1,0 +1,30 @@
+{
+  "manifest_version": 3,
+  "name": "Sugar 智能填表助手",
+  "version": "1.2.0",
+  "description": "配置自己的简历和 API Key，辅助填写招聘网页；填写后自行核对并提交。",
+  "minimum_chrome_version": "114",
+  "permissions": [
+    "storage",
+    "scripting",
+    "sidePanel"
+  ],
+  "host_permissions": [
+    "http://*/*",
+    "https://*/*"
+  ],
+  "action": {
+    "default_icon": {
+      "128": "icons/icon128.png"
+    }
+  },
+  "icons": {
+    "128": "icons/icon128.png"
+  },
+  "side_panel": {
+    "default_path": "popup.html"
+  },
+  "background": {
+    "service_worker": "background.js"
+  }
+}

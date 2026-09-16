@@ -5,15 +5,13 @@ import { useAppShell } from '../contexts/AppShellContext';
 import { useTheme } from '../contexts/ThemeContext';
 import Modal from '../components/Modal';
 import { Field, TextInput, TextArea, Select, PrimaryButton, GhostButton, FormError } from '../components/Field';
-import { IconEdit, IconTrash, IconPlus, IconMapPin } from '../components/icons';
+import { IconEdit, IconTrash, IconPlus } from '../components/icons';
 import { CARD } from '../lib/appHelpers';
 import EmptyState from '../components/EmptyState';
+import InterviewWeekGrid from '../components/InterviewWeekGrid';
 import { IMPORTED_EXPERIENCE_ARTICLES } from '../data/interviewExperienceData';
 
 const TYPES: InterviewType[] = ['电话', '视频', '现场'];
-const START_HOUR = 9;
-const END_HOUR = 21;
-const HOUR_PX = 64;
 
 const EVENT_COLORS = [
   { bg: '#ece8fb', bd: '#cfc6f2', ac: '#5a4fb0', sub: '#8076c4' },
@@ -314,6 +312,7 @@ export default function Interviews() {
   const [formError, setFormError] = useState('');
   const [scrollSig, setScrollSig] = useState(0);
   const [activeModule, setActiveModule] = useState<'calendar' | 'experience'>('calendar');
+  const [desktopCalendar, setDesktopCalendar] = useState(() => window.innerWidth >= 768);
   const companyRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -322,14 +321,20 @@ export default function Interviews() {
   }, [registerAdd]);
 
   useEffect(() => {
+    const updateLayout = () => setDesktopCalendar(window.innerWidth >= 768);
+    window.addEventListener('resize', updateLayout);
+    return () => window.removeEventListener('resize', updateLayout);
+  }, []);
+
+  useEffect(() => {
     setHeaderChrome({
       searchPlaceholder: activeModule === 'calendar' ? '搜索公司、岗位…' : null,
       showAdd: activeModule === 'calendar',
-      contentScroll: activeModule === 'calendar',
+      contentScroll: activeModule === 'calendar' && !desktopCalendar,
       inlineContent: <ModuleToggle active={activeModule} onChange={setActiveModule} />,
     });
     return () => setHeaderChrome(null);
-  }, [activeModule, setHeaderChrome]);
+  }, [activeModule, desktopCalendar, setHeaderChrome]);
 
   useEffect(() => {
     if (!interviewDateFilter) return;
@@ -339,7 +344,6 @@ export default function Interviews() {
 
   const weekDays = useMemo(() => Array.from({ length: 7 }, (_, i) => addDays(weekStart, i)), [weekStart]);
   const weekEnd = addDays(weekStart, 6);
-  const WD = ['周一', '周二', '周三', '周四', '周五', '周六', '周日'];
   const focusDay = interviewDateFilter ? parseDateKey(interviewDateFilter) : null;
 
   const eventsByDay = useMemo(() => {
@@ -431,11 +435,10 @@ export default function Interviews() {
     await remove(ev.id);
   };
 
-  const hours = Array.from({ length: END_HOUR - START_HOUR }, (_, i) => START_HOUR + i);
-  const today = new Date();
+
 
   return (
-    <div className="flex flex-col gap-[18px] animate-rise" style={activeModule === 'experience' ? { height: '100%', minHeight: 0, overflow: 'hidden' } : undefined}>
+    <div className="interview-calendar-page flex flex-col gap-[12px] animate-rise" style={activeModule === 'experience' ? { height: '100%', minHeight: 0, overflow: 'hidden' } : undefined}>
       {activeModule === 'experience' ? <ExperienceShare /> : <>
       <div className="flex items-center justify-between flex-wrap gap-3" style={{ ...CARD, borderRadius: 18, padding: '14px 18px' }}>
         <div style={{ fontFamily: 'Poppins', fontSize: 15, fontWeight: 600 }}>
@@ -460,6 +463,7 @@ export default function Interviews() {
       </div>
 
       {focusDay && (
+        <Modal open title="当天面试安排" onClose={() => setInterviewDateFilter(null)}>
         <div style={{ ...CARD, padding: '14px 18px', borderRadius: 18, border: '1px solid #d8e8d2', background: '#f4faf1' }}>
           <div className="flex items-center justify-between gap-3 flex-wrap">
             <div>
@@ -471,7 +475,7 @@ export default function Interviews() {
               </div>
             </div>
             <div className="flex gap-2">
-              <GhostButton onClick={() => openCreate(new Date(focusDay.getFullYear(), focusDay.getMonth(), focusDay.getDate(), 10, 0))}>
+              <GhostButton onClick={() => { openCreate(new Date(focusDay.getFullYear(), focusDay.getMonth(), focusDay.getDate(), 10, 0)); setInterviewDateFilter(null); }}>
                 当天新增
               </GhostButton>
               <GhostButton onClick={() => setInterviewDateFilter(null)}>清除日期筛选</GhostButton>
@@ -486,7 +490,7 @@ export default function Interviews() {
                   <button
                     key={ev.id}
                     type="button"
-                    onClick={() => openEdit(ev)}
+                    onClick={() => { setInterviewDateFilter(null); openEdit(ev); }}
                     className="btn-press"
                     style={{
                       display: 'flex',
@@ -518,118 +522,15 @@ export default function Interviews() {
             <div style={{ fontSize: 13, color: '#8a8478', marginTop: 10 }}>这天还没有面试安排。</div>
           )}
         </div>
+        </Modal>
       )}
 
       {loading ? (
         <EmptyState text="加载中…" />
       ) : (
         <>
-          {/* 桌面周网格 */}
-          <div className="hidden md:block" style={{ ...CARD, borderRadius: 22, overflow: 'hidden' }}>
-            <div style={{ display: 'grid', gridTemplateColumns: '64px repeat(7,1fr)', borderBottom: '1px solid #f0ebe0' }}>
-              <div style={{ padding: '14px 8px', fontSize: 12, color: '#a39d90' }}>时间</div>
-              {weekDays.map((d, i) => {
-                const isToday = sameDay(d, today);
-                const isFocus = focusDay ? sameDay(d, focusDay) : false;
-                return (
-                  <button
-                    key={i}
-                    type="button"
-                    onClick={() => setInterviewDateFilter(toDateKey(d))}
-                    className="btn-press"
-                    style={{
-                      padding: '12px 8px',
-                      textAlign: 'center',
-                      border: 'none',
-                      borderLeft: '1px solid #f4efe5',
-                      background: isFocus ? '#e8f3e4' : isToday ? '#fff8e8' : 'transparent',
-                      cursor: 'pointer',
-                    }}
-                  >
-                    <div style={{ fontSize: 13.5, fontWeight: 600, color: isToday ? theme.accent : '#1b1a17' }}>{WD[i]}</div>
-                    <div style={{ fontSize: 11.5, color: '#a39d90', marginTop: 2 }}>{fmtMD(d)}</div>
-                  </button>
-                );
-              })}
-            </div>
-            <div style={{ display: 'grid', gridTemplateColumns: '64px repeat(7,1fr)', maxHeight: 520, overflowY: 'auto' }}>
-              <div style={{ position: 'relative', height: (END_HOUR - START_HOUR) * HOUR_PX, borderRight: '1px solid #f0ebe0' }}>
-                {Array.from({ length: END_HOUR - START_HOUR + 1 }, (_, i) => START_HOUR + i).map((h) => (
-                  <div
-                    key={h}
-                    style={{
-                      position: 'absolute',
-                      right: 8,
-                      top: (h - START_HOUR) * HOUR_PX,
-                      fontSize: 11,
-                      color: '#a39d90',
-                      transform: 'translateY(-6px)',
-                    }}
-                  >
-                    {String(h).padStart(2, '0')}:00
-                  </div>
-                ))}
-              </div>
-              {weekDays.map((day, dayIdx) => (
-                <div
-                  key={dayIdx}
-                  style={{
-                    position: 'relative',
-                    height: (END_HOUR - START_HOUR) * HOUR_PX,
-                    borderLeft: '1px solid #f4efe5',
-                    background: focusDay && sameDay(day, focusDay) ? 'rgba(220,235,213,.28)' : 'transparent',
-                  }}
-                >
-                  {hours.map((h) => (
-                    <div
-                      key={h}
-                      style={{ height: HOUR_PX, borderBottom: '1px solid #f5f0e7' }}
-                      onDoubleClick={() => openCreate(new Date(day.getFullYear(), day.getMonth(), day.getDate(), h, 0))}
-                    />
-                  ))}
-                  {eventsByDay[dayIdx].map(({ ev, date }, idx) => {
-                    const col = EVENT_COLORS[idx % EVENT_COLORS.length];
-                    const hour = date.getHours() + date.getMinutes() / 60;
-                    const top = Math.max(0, Math.min((END_HOUR - START_HOUR - 0.7) * HOUR_PX, (hour - START_HOUR) * HOUR_PX));
-                    return (
-                      <div
-                        key={ev.id}
-                        role="button"
-                        tabIndex={0}
-                        onClick={() => openEdit(ev)}
-                        onKeyDown={(e) => {
-                          if (e.key === 'Enter' || e.key === ' ') openEdit(ev);
-                        }}
-                        style={{
-                          position: 'absolute',
-                          left: 4,
-                          right: 4,
-                          top,
-                          minHeight: 44,
-                          background: col.bg,
-                          border: `1.5px solid ${col.bd}`,
-                          borderLeft: `3px solid ${col.ac}`,
-                          borderRadius: 10,
-                          padding: '6px 8px',
-                          cursor: 'pointer',
-                          zIndex: 2,
-                          overflow: 'hidden',
-                        }}
-                      >
-                        <div style={{ fontSize: 12, fontWeight: 700, color: col.ac, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                          {ev.company_name}
-                        </div>
-                        <div style={{ fontSize: 11, color: col.sub, marginTop: 2, display: 'flex', alignItems: 'center', gap: 4 }}>
-                          <IconMapPin size={10} />
-                          {date.toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit', hour12: false })}
-                          {ev.round ? ` · ${ev.round}` : ''}
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              ))}
-            </div>
+          <div className="interview-desktop-grid">
+            <InterviewWeekGrid days={weekDays} entries={eventsByDay} onCreate={openCreate} onEdit={openEdit} onDay={day => setInterviewDateFilter(toDateKey(day))} />
           </div>
 
           {/* 移动端列表 */}
