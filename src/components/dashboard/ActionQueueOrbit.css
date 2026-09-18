@@ -82,7 +82,29 @@
 }
 .action-queue-heading p { margin: 0; color: var(--aq-ink-2); font-size: 13.5px; }
 
-.action-queue-header__actions { display: flex; align-items: center; gap: 10px; }
+.action-queue-header__actions { display: flex; align-items: center; flex-wrap: wrap; gap: 10px; }
+.action-queue-speed {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 6px 10px 6px 12px;
+  border: 1px solid var(--aq-line);
+  border-radius: 999px;
+  color: var(--aq-ink-2);
+  font-size: 13px;
+  white-space: nowrap;
+}
+.action-queue-speed:focus-within { outline: 2px solid var(--aq-brand); outline-offset: 2px; }
+.action-queue-speed select {
+  min-width: 52px;
+  border: 0;
+  padding: 0;
+  color: var(--aq-ink);
+  background: transparent;
+  font: inherit;
+  cursor: pointer;
+}
+.action-queue-speed select:focus { outline: none; }
 .action-queue-ghost,
 .action-queue-add,
 .action-queue-drawer button { appearance: none; font: inherit; cursor: pointer; }
@@ -144,8 +166,9 @@
   -webkit-backface-visibility: hidden;
 }
 .action-queue-card-set { display: flex; gap: 16px; padding-right: 16px; }
-.action-queue-row:hover .action-queue-track,
-.action-queue-row:focus-within .action-queue-track { animation-play-state: paused; }
+.action-queue:has(.action-queue-card:hover) .action-queue-track,
+.action-queue:has(button.action-queue-card:focus-visible) .action-queue-track,
+.action-queue--selected .action-queue-track { animation-play-state: paused !important; }
 
 .action-queue-card {
   display: flex;

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { Application } from '../../types';
 import './ActionQueueOrbit.css';
 
@@ -35,11 +35,26 @@ const STATUS: Record<QueueStatus, { label: string; next: string }> = {
 };
 
 const VARIANTS: ColorVariant[] = ['blue', 'purple', 'peach', 'mint', 'slate', 'sand'];
-// Keep the queue readable: each row now takes roughly 80–100 seconds for a
-// complete cycle instead of about 40 seconds. Delays are scaled accordingly
-// so the rows still enter at staggered positions rather than moving in sync.
-const DURATIONS = [80, 94, 84, 100];
-const DELAYS = [-13, -40, -23, -56];
+const CARD_GAP = 16;
+// Keep the visible marquee speed constant regardless of queue length.
+const MARQUEE_SPEED_PX_PER_SECOND = 10;
+const ROW_PHASES = [.17, .42, .27, .56];
+const SPEED_STORAGE_KEY = 'sugar-action-queue-speed-v1';
+const SPEED_OPTIONS = [
+  { value: 'slow', label: '慢速', rate: 0.5 },
+  { value: 'normal', label: '标准', rate: 1 },
+  { value: 'fast', label: '快速', rate: 2 },
+] as const;
+type QueueSpeed = typeof SPEED_OPTIONS[number]['value'];
+
+function readSavedSpeed(): QueueSpeed {
+  try {
+    const saved = window.localStorage.getItem(SPEED_STORAGE_KEY);
+    return SPEED_OPTIONS.find((option) => option.value === saved)?.value ?? 'normal';
+  } catch {
+    return 'normal';
+  }
+}
 
 function rotate<T>(items: T[], amount: number) {
   if (items.length === 0) return items;
@@ -113,19 +128,34 @@ function QueueCard({ item, duplicate, onOpen }: {
   );
 }
 
-function QueueRow({ items, index, onOpen }: {
+function QueueRow({ items, index, speed, onOpen }: {
   items: ActionQueueItem[];
   index: number;
+  speed: number;
   onOpen: (item: ActionQueueItem) => void;
 }) {
+  const trackRef = useRef<HTMLDivElement>(null);
+  const trackDistance = items.reduce((total, item) => total + item.width, 0) + items.length * CARD_GAP;
+  const duration = trackDistance / MARQUEE_SPEED_PX_PER_SECOND;
   const trackStyle = {
-    animation: `aqMarquee ${DURATIONS[index]}s linear infinite`,
-    animationDelay: `${DELAYS[index]}s`,
+    animation: `aqMarquee ${duration}s linear infinite`,
+    animationDelay: `${-duration * ROW_PHASES[index]}s`,
   } as React.CSSProperties;
+
+  useEffect(() => {
+    // Change playback rate without restarting the CSS animation or shifting cards.
+    const applySpeed = () => {
+      trackRef.current?.getAnimations().forEach((animation) => animation.updatePlaybackRate(speed));
+    };
+    applySpeed();
+    const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
+    reducedMotion.addEventListener('change', applySpeed);
+    return () => reducedMotion.removeEventListener('change', applySpeed);
+  }, [speed, duration]);
 
   return (
     <div className="action-queue-row">
-      <div className="action-queue-track" style={trackStyle}>
+      <div ref={trackRef} className="action-queue-track" style={trackStyle}>
         <div className="action-queue-card-set">
           {items.map((item) => <QueueCard key={item.id} item={item} onOpen={onOpen} />)}
         </div>
@@ -184,6 +214,18 @@ function DetailDrawer({ item, onClose, onViewDetail }: {
 
 export default function ActionQueueOrbit({ apps, onViewDetail, onViewAll, onAddAction, fillHeight = false }: ActionQueueOrbitProps) {
   const [selected, setSelected] = useState<ActionQueueItem | null>(null);
+  const [speed, setSpeed] = useState<QueueSpeed>(readSavedSpeed);
+  const playbackRate = SPEED_OPTIONS.find((option) => option.value === speed)!.rate;
+  const changeSpeed = (value: string) => {
+    const option = SPEED_OPTIONS.find((candidate) => candidate.value === value);
+    if (!option) return;
+    setSpeed(option.value);
+    try {
+      window.localStorage.setItem(SPEED_STORAGE_KEY, option.value);
+    } catch {
+      // Speed controls still work when browser storage is unavailable.
+    }
+  };
   const items = useMemo(() => apps.map(toQueueItem), [apps]);
   const rows = useMemo(
     () => [items, rotate(items, 5), [...rotate(items, 8)].reverse(), rotate(items, 3)],
@@ -201,7 +243,7 @@ export default function ActionQueueOrbit({ apps, onViewDetail, onViewAll, onAddA
   }, [closeDetail, selected]);
 
   return (
-    <section className={`action-queue${fillHeight ? ' action-queue--fill-height' : ''}`} data-theme="light" aria-labelledby="action-queue-heading">
+    <section className={`action-queue${fillHeight ? ' action-queue--fill-height' : ''}${selected ? ' action-queue--selected' : ''}`} data-theme="light" aria-labelledby="action-queue-heading">
       <div className="action-queue-panel">
         <header className="action-queue-header">
           <div className="action-queue-heading">
@@ -212,6 +254,12 @@ export default function ActionQueueOrbit({ apps, onViewDetail, onViewAll, onAddA
             <p>集中查看当前需要继续推进的求职任务</p>
           </div>
           <div className="action-queue-header__actions">
+            <label className="action-queue-speed">
+              <span>滚动</span>
+              <select aria-label="行动队列滚动速度" value={speed} onChange={(event) => changeSpeed(event.target.value)}>
+                {SPEED_OPTIONS.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
+              </select>
+            </label>
             <button className="action-queue-ghost" type="button">筛选</button>
             <button className="action-queue-ghost" type="button" onClick={onViewAll}>查看全部</button>
             <button className="action-queue-add" type="button" onClick={onAddAction}>＋ 添加行动</button>
@@ -220,7 +268,7 @@ export default function ActionQueueOrbit({ apps, onViewDetail, onViewAll, onAddA
 
         {items.length > 0 ? (
           <div className="action-queue-mask">
-            {rows.map((row, index) => <QueueRow key={index} items={row} index={index} onOpen={setSelected} />)}
+            {rows.map((row, index) => <QueueRow key={index} items={row} index={index} speed={playbackRate} onOpen={setSelected} />)}
             <div className="action-queue-edge action-queue-edge--left" aria-hidden="true" />
             <div className="action-queue-edge action-queue-edge--right" aria-hidden="true" />
           </div>
