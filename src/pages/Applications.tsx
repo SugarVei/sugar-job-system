@@ -11,6 +11,7 @@ import { getNextApplicationStatus } from '../lib/applicationStatus';
 import EmptyState from '../components/EmptyState';
 import { exportApplicationsToExcel } from '../lib/exportExcel';
 import AIRecordImporter, { type ApplicationExtraction } from '../components/AIRecordImporter';
+import ApplicationsOverview from '../components/applications/ApplicationsOverview';
 
 const empty: NewRecord<Application> = {
   company_id: null,
@@ -90,16 +91,16 @@ function isOverdue(application: Application, now = Date.now()) {
   return times.some((t) => t < now);
 }
 
-type ViewMode = 'list' | 'kanban';
+type ViewMode = 'overview' | 'list' | 'kanban';
 
 function readStoredView(): ViewMode {
   try {
     const raw = localStorage.getItem(VIEW_STORAGE_KEY);
-    if (raw === 'list' || raw === 'kanban') return raw;
+    if (raw === 'overview' || raw === 'list' || raw === 'kanban') return raw;
   } catch {
     /* ignore */
   }
-  return 'list';
+  return 'overview';
 }
 
 function errorText(error: unknown) {
@@ -299,8 +300,9 @@ export default function Applications() {
         <FormError message={applicationsError || resumesError || actionError || ''} />
       )}
 
-      <div className="grid grid-cols-1 lg:grid-cols-[1fr_auto_auto_auto] gap-3 p-4" style={{ ...CARD, borderRadius: 20 }}>
+      <div className="applications-toolbar" style={{ ...CARD, borderRadius: 20 }}>
         <Select
+          aria-label="投递状态筛选"
           value={applicationsFilter}
           onChange={(event) => setApplicationsFilter(event.target.value as ApplicationsListFilter)}
         >
@@ -328,11 +330,12 @@ export default function Applications() {
             </button>
           )}
         </div>
-        <div style={{ display: 'flex', background: '#f5f0e7', border: '1px solid #e4ddcf', borderRadius: 12, padding: 3, height: 44 }}>
-          {(['list', 'kanban'] as const).map((mode) => (
+        <div className="applications-view-switch" role="group" aria-label="投递记录视图" style={{ display: 'flex', background: '#f5f0e7', border: '1px solid #e4ddcf', borderRadius: 12, padding: 3, height: 44 }}>
+          {(['overview', 'list', 'kanban'] as const).map((mode) => (
             <button
               key={mode}
               type="button"
+              aria-pressed={viewMode === mode}
               onClick={() => setViewMode(mode)}
               style={{
                 border: 'none',
@@ -346,7 +349,7 @@ export default function Applications() {
                 boxShadow: viewMode === mode ? '0 2px 7px rgba(60,50,35,.08)' : 'none',
               }}
             >
-              {mode === 'list' ? '列表视图' : '看板视图'}
+              {mode === 'overview' ? '数据概览' : mode === 'list' ? '列表视图' : '看板视图'}
             </button>
           ))}
         </div>
@@ -420,6 +423,16 @@ export default function Applications() {
 
       {loading ? (
         <EmptyState text="加载中..." />
+      ) : viewMode === 'overview' && !applicationsError ? (
+        <ApplicationsOverview
+          filterKey={`${applicationsFilter}:${query}`}
+          applications={filtered}
+          allApplications={items}
+          onEdit={openEdit}
+          onCreate={openCreate}
+          onSelectStatus={setApplicationsFilter}
+          hasRecords={items.length > 0}
+        />
       ) : filtered.length === 0 ? (
         <EmptyState
           text={
