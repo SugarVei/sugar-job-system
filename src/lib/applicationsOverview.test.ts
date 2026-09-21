@@ -2,7 +2,13 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import type { Application, ApplicationStatus, Interview } from '../types';
 import { APPLICATION_STATUSES } from './applicationStatus';
-import { relatedInterviews, summarizeApplications } from './applicationsOverview';
+import {
+  countApplicationsBy,
+  normalizeApplicationCity,
+  normalizeApplicationPosition,
+  relatedInterviews,
+  summarizeApplications,
+} from './applicationsOverview';
 
 function application(status: ApplicationStatus, company = '示例科技', role = '产品运营'): Application {
   return { id: `${company}-${role}-${status}`, company_name: company, position_name: role, status } as Application;
@@ -31,6 +37,31 @@ test('同公司多岗位分别计数、公司去重、零数据统计正常', ()
   assert.equal(summary.companies, 2);
   assert.equal(summarizeApplications([]).applied, 0);
   assert.ok(summarizeApplications([]).stages.every(stage => stage.count === 0));
+});
+
+test('城市名称使用规范行政区名汇总，非城市标签保持原样', () => {
+  const rows = [
+    { city: '上海' }, { city: ' 上海市 ' },
+    { city: '深圳' }, { city: '深圳市' },
+    { city: '远程' }, { city: null },
+  ];
+  assert.deepEqual(
+    countApplicationsBy(rows, row => normalizeApplicationCity(row.city)),
+    [['上海市', 2], ['深圳市', 2], ['远程', 1]],
+  );
+  assert.equal(normalizeApplicationCity('成都'), '成都市');
+  assert.equal(normalizeApplicationCity('合肥市'), '合肥市');
+});
+
+test('IE工程师与工业工程师按同一岗位汇总，其他岗位不受影响', () => {
+  const rows = [
+    { position: 'IE工程师' }, { position: '工业工程师' },
+    { position: ' ie 工程师 ' }, { position: '质量工程师' },
+  ];
+  assert.deepEqual(
+    countApplicationsBy(rows, row => normalizeApplicationPosition(row.position)),
+    [['IE工程师', 3], ['质量工程师', 1]],
+  );
 });
 
 test('面试关联同时匹配公司与岗位，不误配同公司其他岗位或未指明岗位', () => {

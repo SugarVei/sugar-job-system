@@ -8,21 +8,15 @@ import AIChatDialog from '../components/AIChatDialog';
 import { useApiKeys } from '../contexts/ApiKeysContext';
 import { PROVIDERS } from '../lib/providers';
 import { APPLICATION_STATUS_COLORS } from '../lib/applicationStatus';
+import {
+  countApplicationsBy,
+  normalizeApplicationCity,
+  normalizeApplicationPosition,
+} from '../lib/applicationsOverview';
 
 // ============================================================
 // 投递总览 —— 按状态/城市/渠道的真实数据概览，支持按状态查看
 // ============================================================
-
-// 各状态在环形图中的颜色
-function countBy<T>(arr: T[], key: (x: T) => string | null | undefined) {
-  const m = new Map<string, number>();
-  arr.forEach((x) => {
-    const k = key(x);
-    if (!k) return;
-    m.set(k, (m.get(k) ?? 0) + 1);
-  });
-  return Array.from(m.entries()).sort((a, b) => b[1] - a[1]);
-}
 
 function timeValue(value: string | null) {
   if (!value) return Number.POSITIVE_INFINITY;
@@ -50,9 +44,15 @@ export default function Overview() {
     () => STATUS_OPTIONS.map((s) => ({ status: s, count: items.filter((a) => a.status === s).length })),
     [items],
   );
-  const cityBars = useMemo(() => countBy(items, (a) => a.city).slice(0, 6), [items]);
-  const positionBars = useMemo(() => countBy(items, (a) => a.position_name).slice(0, 6), [items]);
-  const channelBars = useMemo(() => countBy(items, (a) => a.channel).slice(0, 6), [items]);
+  const cityBars = useMemo(
+    () => countApplicationsBy(items, (a) => normalizeApplicationCity(a.city)).slice(0, 6),
+    [items],
+  );
+  const positionBars = useMemo(
+    () => countApplicationsBy(items, (a) => normalizeApplicationPosition(a.position_name)).slice(0, 6),
+    [items],
+  );
+  const channelBars = useMemo(() => countApplicationsBy(items, (a) => a.channel?.trim()).slice(0, 6), [items]);
 
   // 环形图分段
   const donut = useMemo(() => {
@@ -82,7 +82,8 @@ export default function Overview() {
     const cityMap: Record<string, number> = {};
     const chMap: Record<string, number> = {};
     items.forEach(a => {
-      if (a.city) cityMap[a.city] = (cityMap[a.city] ?? 0) + 1;
+      const city = normalizeApplicationCity(a.city);
+      if (city) cityMap[city] = (cityMap[city] ?? 0) + 1;
       if (a.channel) chMap[a.channel] = (chMap[a.channel] ?? 0) + 1;
     });
     const topCities = Object.entries(cityMap).sort((a,b)=>b[1]-a[1]).slice(0,5).map(([k,v])=>`${k}(${v})`).join('、');

@@ -1,9 +1,41 @@
 import type { Application, ApplicationStatus, Interview } from '../types';
+import { PREFECTURE_BY_NAME } from '../data/prefectureCities';
 import { APPLICATION_STATUSES, APPLICATION_STATUS_FLOW } from './applicationStatus';
 
 export const INTERVIEW_STATUSES: readonly ApplicationStatus[] = ['AI面', 'HR面', '一面', '二面'];
 
 const normalize = (value: string | null) => (value ?? '').trim().toLocaleLowerCase();
+
+const cleanLabel = (value: string | null | undefined) => (value ?? '').normalize('NFKC').trim().replace(/\s+/g, ' ');
+
+/** Use the official administrative name for a known city while preserving non-city labels. */
+export function normalizeApplicationCity(value: string | null | undefined) {
+  const label = cleanLabel(value);
+  if (!label) return '';
+  const compact = label.replace(/\s/g, '');
+  const shortName = compact.endsWith('市') ? compact.slice(0, -1) : compact;
+  const city = PREFECTURE_BY_NAME[shortName];
+  return city && (compact === city.name || compact === city.officialName) ? city.officialName : label;
+}
+
+/** Collapse known aliases without changing unrelated position names. */
+export function normalizeApplicationPosition(value: string | null | undefined) {
+  const label = cleanLabel(value);
+  if (!label) return '';
+  const aliasKey = label.replace(/\s/g, '').toLocaleLowerCase();
+  if (aliasKey === 'ie工程师' || aliasKey === '工业工程师') return 'IE工程师';
+  return label;
+}
+
+export function countApplicationsBy<T>(items: T[], key: (item: T) => string | null | undefined) {
+  const counts = new Map<string, number>();
+  for (const item of items) {
+    const label = key(item);
+    if (!label) continue;
+    counts.set(label, (counts.get(label) ?? 0) + 1);
+  }
+  return Array.from(counts.entries()).sort((a, b) => b[1] - a[1]);
+}
 
 export function summarizeApplications(applications: Application[]) {
   const counts = Object.fromEntries(APPLICATION_STATUSES.map(status => [status, 0])) as Record<ApplicationStatus, number>;
