@@ -11,14 +11,19 @@ export async function streamAIChat({
   maxTokens = 4096,
   onToken,
   timeoutMs = 120_000,
+  signal,
 }: {
   config: ActiveConfig;
   messages: AIMessage[];
   maxTokens?: number;
   onToken?: (fullText: string) => void;
   timeoutMs?: number;
+  signal?: AbortSignal;
 }) {
   const controller = new AbortController();
+  const cancel = () => controller.abort();
+  signal?.addEventListener('abort', cancel, { once: true });
+  if (signal?.aborted) controller.abort();
   const timeout = setTimeout(() => controller.abort(), timeoutMs);
   let reader: ReadableStreamDefaultReader<Uint8Array> | undefined;
   try {
@@ -82,10 +87,12 @@ export async function streamAIChat({
     if (!fullText.trim()) throw new Error('AI 没有生成内容，请重试');
     return fullText.trim();
   } catch (error) {
+    if (signal?.aborted) throw new DOMException('已停止回复', 'AbortError');
     if (controller.signal.aborted) throw Object.assign(new Error('AI 分析超时，请稍后重试或切换 AI 服务商。'), { cause: error });
     throw error;
   } finally {
     clearTimeout(timeout);
+    signal?.removeEventListener('abort', cancel);
     void reader?.cancel().catch(() => {});
     reader?.releaseLock();
   }

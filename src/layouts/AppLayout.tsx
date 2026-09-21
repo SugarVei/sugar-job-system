@@ -6,6 +6,7 @@ import { useProfile } from '../hooks/useProfile';
 import { MOBILE_MORE_NAV, MOBILE_PRIMARY_NAV, NAV_ITEMS, greetFor } from '../components/navConfig';
 import ThemeSwitcher from '../components/ThemeSwitcher';
 import ApiKeySettings from '../components/ApiKeySettingsGuide';
+import PetAnnouncement from '../components/web-pet/PetAnnouncement';
 import {
   SugarMark,
   IconSearch,
@@ -354,6 +355,7 @@ export default function AppLayout({ children }: { children: ReactNode }) {
           </div>
 
           {/* 内容区（可滚动） */}
+          <PetAnnouncement />
           <div
             className="scrolly px-4 lg:px-[34px] pb-24 lg:pb-[34px]"
             style={{ flex: 1, minHeight: 0, overflowY: headerChrome?.contentScroll === false ? 'hidden' : 'auto', overscrollBehaviorY: 'contain', paddingTop: 8 }}

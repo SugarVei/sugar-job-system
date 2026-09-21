@@ -18,6 +18,7 @@ import Interviews from './pages/Interviews';
 import Offers from './pages/Offers';
 import Mailbox from './pages/Mailbox';
 import ResumeAssistant from './pages/ResumeAssistant';
+import WebPetCompanion from './components/web-pet/WebPetCompanion';
 
 const CapitalMap = lazy(() => import('./pages/CapitalMap'));
 
@@ -56,7 +57,7 @@ function Gate() {
   if (loading) return <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#7a7468', fontSize: 15 }}>加载中…</div>;
   if (!session || passwordRecovery) return <Login passwordRecovery={passwordRecovery} />;
   return <>
-    <AppShellProvider><ApiKeysProvider><AppLayout><CurrentPage /></AppLayout></ApiKeysProvider></AppShellProvider>
+    <AppShellProvider><ApiKeysProvider key={session.user.id}><AppLayout><CurrentPage /></AppLayout><WebPetCompanion /></ApiKeysProvider></AppShellProvider>
     {showAiNotice && <AiNoticeModal onClose={() => setShowAiNotice(false)} />}
   </>;
 }
