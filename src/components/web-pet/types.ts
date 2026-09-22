@@ -13,9 +13,10 @@ export interface PetSnapshot {
   ball: boolean;
   reducedMotion: boolean;
   direction: 1 | -1;
+  turning: boolean;
   fps: number;
 }
 /** A future GLB renderer receives the same state and facing contract as the sprite. */
-export interface PetCharacterProps { state: PetState; direction: 1 | -1; paused?: boolean }
+export interface PetCharacterProps { state: PetState; direction: 1 | -1; paused?: boolean; turning?: boolean }
 export type PetRenderer = ComponentType<PetCharacterProps>;
 export type PetAction = 'pet' | 'play' | 'sleep' | 'hide' | 'show' | 'menu' | 'closeMenu';

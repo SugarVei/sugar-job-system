@@ -1,6 +1,7 @@
 import type { Point } from '../types';
 
 export interface Bounds { left: number; top: number; right: number; bottom: number }
+export const PET_TURN_MS = 360;
 export const clamp = (value: number, min: number, max: number) => Math.max(min, Math.min(Math.max(min, max), value));
 export const distance = (a: Point, b: Point) => Math.hypot(a.x - b.x, a.y - b.y);
 export const random = (min: number, max: number) => min + Math.random() * (max - min);
@@ -43,6 +44,15 @@ export class MovementEngine {
   velocity: Point = { x: 0, y: 0 };
   target: Point | null = null;
   direction: 1 | -1 = 1;
+  private turnRemaining = 0;
+  get turning() { return this.turnRemaining > 0; }
+  face(direction: 1 | -1) {
+    if (direction === this.direction) return;
+    this.direction = direction;
+    this.velocity = { x: 0, y: 0 };
+    this.turnRemaining = PET_TURN_MS / 1000;
+  }
+  advanceTurn(dt: number) { this.turnRemaining = Math.max(0, this.turnRemaining - dt); }
   stop() { this.target = null; this.velocity = { x: 0, y: 0 }; }
   step(dt: number, speed: number, bounds: Bounds) {
     if (!this.target) return false;
@@ -50,14 +60,26 @@ export class MovementEngine {
     const dx = this.target.x - this.position.x;
     const dy = this.target.y - this.position.y;
     const length = Math.hypot(dx, dy);
+    // Finish the visual turn in place before taking even the first step backwards.
+    // Clear old momentum so the newly faced pet never slides the wrong way.
+    const facing = Math.abs(dx) > .01 ? (dx > 0 ? 1 : -1) : this.direction;
+    if (facing !== this.direction) {
+      this.face(facing);
+      return false;
+    }
+    if (this.turnRemaining > 0) {
+      this.advanceTurn(dt);
+      return false;
+    }
     if (length < 3) { this.position = { ...this.target }; this.stop(); return true; }
     // Exponential velocity smoothing gives acceleration; distance taper gives arrival ease-out.
     const effectiveSpeed = Math.min(speed, length * 2.6);
     const blend = 1 - Math.exp(-5.5 * dt);
     this.velocity.x += ((dx / length) * effectiveSpeed - this.velocity.x) * blend;
     this.velocity.y += ((dy / length) * effectiveSpeed - this.velocity.y) * blend;
-    this.position = clampPoint({ x: this.position.x + this.velocity.x * dt, y: this.position.y + this.velocity.y * dt }, bounds);
-    if (Math.abs(this.velocity.x) > 5) this.direction = this.velocity.x > 0 ? 1 : -1;
+    // Never overshoot a waypoint, including when a moving ball changes destination.
+    const advance = (delta: number, velocity: number) => Math.sign(delta) * Math.min(Math.abs(delta), Math.max(0, velocity * Math.sign(delta)) * dt);
+    this.position = clampPoint({ x: this.position.x + advance(dx, this.velocity.x), y: this.position.y + advance(dy, this.velocity.y) }, bounds);
     return false;
   }
 }

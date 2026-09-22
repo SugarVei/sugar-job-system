@@ -1,0 +1,56 @@
+[
+  {
+    "id": "walk",
+    "fps": 24,
+    "frames": 71,
+    "duration": 2.9583333333333335,
+    "sourceStart": 0.4167,
+    "seamError": 951.37,
+    "bytes": 635902
+  },
+  {
+    "id": "hello",
+    "fps": 24,
+    "frames": 66,
+    "duration": 2.75,
+    "sourceStart": 4.3917,
+    "seamError": 318.44,
+    "bytes": 569060
+  },
+  {
+    "id": "curious",
+    "fps": 24,
+    "frames": 124,
+    "duration": 5.166666666666667,
+    "sourceStart": 10.2667,
+    "seamError": 1098.0,
+    "bytes": 981631
+  },
+  {
+    "id": "sit",
+    "fps": 24,
+    "frames": 97,
+    "duration": 4.041666666666667,
+    "sourceStart": 20.725,
+    "seamError": 1414.0,
+    "bytes": 575812
+  },
+  {
+    "id": "sleep",
+    "fps": 24,
+    "frames": 50,
+    "duration": 2.0833333333333335,
+    "sourceStart": 27.2667,
+    "seamError": 86.04,
+    "bytes": 195906
+  },
+  {
+    "id": "play",
+    "fps": 24,
+    "frames": 152,
+    "duration": 6.333333333333333,
+    "sourceStart": 33.725,
+    "seamError": 2623.62,
+    "bytes": 1139314
+  }
+]

@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import ElephantVideo from './ElephantVideo';
 import { elephantClips } from './elephantAnimations';
+import { PET_TURN_MS } from './core/movementEngine';
 import type { PetCharacterProps, PetState } from './types';
 
 // The interactive ball is owned by PetController; do not add the video's second ball.
@@ -10,7 +11,7 @@ const clipsByState: Record<PetState, number> = {
   tired: 3, sleep: 4, stretch: 1, playing: 0, sitting: 3, peek: 2, startled: 1,
 };
 
-export default function ElephantPet({ state, direction, paused = false }: PetCharacterProps) {
+export default function ElephantPet({ state, direction, paused = false, turning = false }: PetCharacterProps) {
   const [reducedMotion, setReducedMotion] = useState(() => matchMedia('(prefers-reduced-motion: reduce)').matches);
   useEffect(() => {
     const media = matchMedia('(prefers-reduced-motion: reduce)');
@@ -20,6 +21,6 @@ export default function ElephantPet({ state, direction, paused = false }: PetCha
   }, []);
   const speed = ['run', 'chasing', 'runAway', 'playing'].includes(state) ? 1.25 : 1;
   return <div className="pet-elephant" data-character="elephant" data-pose-state={state}>
-    <ElephantVideo clip={elephantClips[clipsByState[state]]} direction={direction} paused={paused || reducedMotion} speed={speed} />
+    <ElephantVideo clip={elephantClips[clipsByState[state]]} direction={-direction} paused={paused || reducedMotion || turning} speed={speed} turnDuration={PET_TURN_MS} />
   </div>;
 }

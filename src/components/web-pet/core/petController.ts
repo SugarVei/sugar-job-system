@@ -16,7 +16,7 @@ function readStored(): { stats: PetStats; hidden: boolean } {
   } catch { return { stats: { ...DEFAULT_STATS }, hidden: false }; }
 }
 
-export const initialSnapshot = (): PetSnapshot => ({ state: 'idle', ...readStored(), menu: false, bubble: '', hearts: 0, ball: false, reducedMotion: false, direction: 1, fps: 0 });
+export const initialSnapshot = (): PetSnapshot => ({ state: 'idle', ...readStored(), menu: false, bubble: '', hearts: 0, ball: false, reducedMotion: false, direction: 1, turning: false, fps: 0 });
 
 /** DOM writes happen here in rAF; React only sees state transitions and slow stat updates. */
 export class PetController {
@@ -328,7 +328,7 @@ export class PetController {
         const target = clampPoint({ x: this.mouse.x - this.width / 2, y: this.mouse.y - this.height / 2 }, this.bounds);
         if (this.free(target)) this.movement.target = target;
       } else if (dist < C.curiousDistance && PRIORITY[state] < 2) {
-        this.enter('curious', 2000); this.movement.direction = this.mouse.x > center.x ? 1 : -1;
+        this.enter('curious', 2000); this.movement.face(this.mouse.x > center.x ? 1 : -1);
       }
     }
     if (now > this.nextEvent && PRIORITY[this.machine.state] === 0) {
@@ -358,6 +358,7 @@ export class PetController {
     this.fpsCount++; if (now - this.fpsTime > 1000) { this.fps = this.fpsCount; this.fpsCount = 0; this.fpsTime = now; }
     if (!this.snapshot.hidden) {
       if (now - this.lastThink > 140) { this.scan(now); this.think(now); this.lastThink = now; }
+      if (!moving.has(this.machine.state)) this.movement.advanceTurn(dt);
       if (this.snapshot.ball) {
         if (!this.ballHeld && !this.snapshot.reducedMotion) {
           const next = { x: this.ballPosition.x + this.ballVelocity.x * dt, y: this.ballPosition.y + this.ballVelocity.y * dt };
@@ -406,7 +407,11 @@ export class PetController {
     const { x, y } = this.movement.position;
     this.node.style.transform = `translate3d(${x.toFixed(1)}px, ${y.toFixed(1)}px, 0)`;
     this.node.style.setProperty('--pet-facing', `${this.movement.direction}`);
-    if (this.snapshot.direction !== this.movement.direction) { this.snapshot.direction = this.movement.direction; this.emit(); }
+    this.node.dataset.direction = String(this.movement.direction);
+    this.node.dataset.turning = String(this.movement.turning);
+    if (this.snapshot.direction !== this.movement.direction || this.snapshot.turning !== this.movement.turning) {
+      this.snapshot.direction = this.movement.direction; this.snapshot.turning = this.movement.turning; this.emit();
+    }
     this.node.dataset.side = x > innerWidth / 2 ? 'right' : 'left';
     this.node.dataset.menuBelow = y < 330 ? 'true' : 'false';
     const menuHeight = Math.min(325, innerHeight - 135);

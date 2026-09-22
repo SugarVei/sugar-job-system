@@ -63,7 +63,7 @@ export default function WebPet({ renderer: Character = ElephantPet, onChat }: { 
           if (e.key === 'ContextMenu' || (e.shiftKey && e.key === 'F10')) { e.preventDefault(); action('menu'); }
         }}
         onContextMenu={e => { e.preventDefault(); action('menu'); }}>
-          <Character state={snapshot.state} direction={snapshot.direction} paused={snapshot.hidden || covered} />
+          <Character state={snapshot.state} direction={snapshot.direction} turning={snapshot.turning} paused={snapshot.hidden || covered} />
         <span className="pet-head-zone" onPointerEnter={() => controller.current?.headHover(true)} onPointerLeave={() => controller.current?.headHover(false)} />
       </button>
       <button ref={menuButton} className="pet-menu-toggle" type="button" aria-label="打开大象宝宝菜单" aria-haspopup="menu" aria-expanded={snapshot.menu} onClick={() => action('menu')}>···</button>
