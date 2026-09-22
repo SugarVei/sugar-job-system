@@ -1,0 +1,122 @@
+[
+  {
+    "id": "walk",
+    "fps": 60,
+    "sourceFps": 24,
+    "interpolation": "bidirectional-optical-flow",
+    "loop": true,
+    "frames": 178,
+    "duration": 2.966666666666667,
+    "sourceStart": 0.4167,
+    "seamError": 951.37,
+    "bytes": 1185343
+  },
+  {
+    "id": "hello",
+    "fps": 60,
+    "sourceFps": 24,
+    "interpolation": "bidirectional-optical-flow",
+    "loop": true,
+    "frames": 165,
+    "duration": 2.75,
+    "sourceStart": 4.3917,
+    "seamError": 318.44,
+    "bytes": 1020326
+  },
+  {
+    "id": "curious",
+    "fps": 60,
+    "sourceFps": 24,
+    "interpolation": "bidirectional-optical-flow",
+    "loop": true,
+    "frames": 310,
+    "duration": 5.166666666666667,
+    "sourceStart": 10.2667,
+    "seamError": 1098.0,
+    "bytes": 1784094
+  },
+  {
+    "id": "sit",
+    "fps": 60,
+    "sourceFps": 24,
+    "interpolation": "bidirectional-optical-flow",
+    "loop": true,
+    "frames": 215,
+    "duration": 3.5833333333333335,
+    "sourceStart": 21.175,
+    "seamError": 611.58,
+    "bytes": 875632
+  },
+  {
+    "id": "sleep",
+    "fps": 60,
+    "sourceFps": 24,
+    "interpolation": "bidirectional-optical-flow",
+    "loop": true,
+    "frames": 125,
+    "duration": 2.0833333333333335,
+    "sourceStart": 27.2667,
+    "seamError": 86.04,
+    "bytes": 283770
+  },
+  {
+    "id": "play",
+    "fps": 60,
+    "sourceFps": 24,
+    "interpolation": "bidirectional-optical-flow",
+    "loop": true,
+    "frames": 380,
+    "duration": 6.333333333333333,
+    "sourceStart": 33.725,
+    "seamError": 2623.62,
+    "bytes": 2118740
+  },
+  {
+    "id": "sit-down",
+    "fps": 60,
+    "sourceFps": 24,
+    "interpolation": "bidirectional-optical-flow",
+    "loop": false,
+    "frames": 108,
+    "duration": 1.8,
+    "sourceStart": 19.05,
+    "seamError": 0,
+    "bytes": 628308
+  },
+  {
+    "id": "lie-down",
+    "fps": 60,
+    "sourceFps": 24,
+    "interpolation": "bidirectional-optical-flow",
+    "loop": false,
+    "frames": 148,
+    "duration": 2.466666666666667,
+    "sourceStart": 24.75,
+    "seamError": 0,
+    "bytes": 740905
+  },
+  {
+    "id": "wake-up",
+    "fps": 60,
+    "sourceFps": 24,
+    "interpolation": "bidirectional-optical-flow",
+    "loop": false,
+    "frames": 70,
+    "duration": 1.1666666666666667,
+    "sourceStart": 29.4,
+    "seamError": 0,
+    "bytes": 434780
+  },
+  {
+    "id": "stand-up",
+    "fps": 60,
+    "sourceFps": 24,
+    "interpolation": "bidirectional-optical-flow",
+    "loop": false,
+    "frames": 70,
+    "duration": 1.1666666666666667,
+    "sourceStart": 32.05,
+    "seamError": 0,
+    "bytes": 299539
+  }
+]

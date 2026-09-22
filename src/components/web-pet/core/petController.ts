@@ -375,23 +375,31 @@ export class PetController {
         }
       }
       if (!this.held && !this.snapshot.menu && !this.snapshot.reducedMotion && moving.has(this.machine.state)) {
-        const previous = { ...this.movement.position };
-        const card = this.destinationCard;
-        const state = this.machine.state;
-        const arrived = this.movement.step(dt, state === 'falling' ? 280 : ['run', 'runAway'].includes(state) ? C.runSpeed : ['chasing', 'playing'].includes(state) ? C.chaseSpeed : state === 'crawl' ? 48 : C.moveSpeed, this.bounds);
-        // Stop before covering an interactive control; dragging remains under user control.
-        if (this.free(previous) && !this.free(this.movement.position)) { this.movement.position = previous; this.movement.stop(); if (state !== 'playing') this.resume(); }
-        if (arrived && this.route.length) {
-          this.movement.target = this.route.shift() ?? null;
-        } else if (arrived && card?.isConnected) {
-          if (card.matches('a, button')) {
-            this.say('这个按钮是做什么的呀？'); this.enter('curious', 2200, true);
-          } else {
-            this.cardAnimation?.cancel();
-            this.cardAnimation = card.animate([{ transform: 'rotate(0) scale(1)' }, { transform: 'rotate(1deg) scale(1.01)' }, { transform: 'rotate(0) scale(1)' }], { duration: 420, easing: 'ease-in-out' });
-            this.say('哎呀，它动了！'); this.enter('startled', 1200, true);
-          }
-        } else if (arrived && !['playing', 'chasing'].includes(state)) this.machine.until = now;
+        // Wait for the elephant to stand before moving. Turning must still advance
+        // here because the character pauses its gait until that turn finishes.
+        const preparingGait = this.node.querySelector<HTMLElement>('[data-motion-ready]')?.dataset.motionReady === 'false';
+        if (preparingGait && this.machine.state !== 'falling') {
+          this.movement.advanceTurn(dt);
+          if (Number.isFinite(this.machine.until)) this.machine.until += dt * 1000;
+        } else {
+          const previous = { ...this.movement.position };
+          const card = this.destinationCard;
+          const state = this.machine.state;
+          const arrived = this.movement.step(dt, state === 'falling' ? 280 : ['run', 'runAway'].includes(state) ? C.runSpeed : ['chasing', 'playing'].includes(state) ? C.chaseSpeed : state === 'crawl' ? 48 : C.moveSpeed, this.bounds);
+          // Stop before covering an interactive control; dragging remains under user control.
+          if (this.free(previous) && !this.free(this.movement.position)) { this.movement.position = previous; this.movement.stop(); if (state !== 'playing') this.resume(); }
+          if (arrived && this.route.length) {
+            this.movement.target = this.route.shift() ?? null;
+          } else if (arrived && card?.isConnected) {
+            if (card.matches('a, button')) {
+              this.say('这个按钮是做什么的呀？'); this.enter('curious', 2200, true);
+            } else {
+              this.cardAnimation?.cancel();
+              this.cardAnimation = card.animate([{ transform: 'rotate(0) scale(1)' }, { transform: 'rotate(1deg) scale(1.01)' }, { transform: 'rotate(0) scale(1)' }], { duration: 420, easing: 'ease-in-out' });
+              this.say('哎呀，它动了！'); this.enter('startled', 1200, true);
+            }
+          } else if (arrived && !['playing', 'chasing'].includes(state)) this.machine.until = now;
+        }
       }
       if (now - this.lastStats > 5000) {
         this.stats({ energy: this.machine.state === 'sleep' ? 3 : moving.has(this.machine.state) ? -.5 : -.1 });

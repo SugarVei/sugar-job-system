@@ -1,8 +1,9 @@
 """Offline video preparation: python build-elephant-clips.py INPUT OUTPUT_DIRECTORY.
 
 Requires ffmpeg, numpy and opencv-python-headless only on the asset-build machine.
-Keeps source timing at 24 fps and removes the black matte before browser playback.
-No frame reversal, runtime segmentation, or runtime segment seeking is needed.
+Interpolates the 24 fps source to 60 fps with motion-compensated in-between frames.
+Preserves real sit/lie/wake/stand transitions and removes the black matte offline.
+All footage runs forward, including transitions and walk loops.
 """
 from pathlib import Path
 import json
@@ -14,8 +15,43 @@ import numpy as np
 
 source, output = Path(sys.argv[1]), Path(sys.argv[2])
 output.mkdir(parents=True, exist_ok=True)
-fps, width, height = 24, 480, 360
+source_fps, fps, width, height = 24, 60, 480, 360
 cv2.setNumThreads(2)
+grid = np.stack(np.meshgrid(np.arange(width), np.arange(height)), axis=-1).astype(np.float32)
+flow_engine = cv2.DISOpticalFlow_create(cv2.DISOPTICAL_FLOW_PRESET_MEDIUM)
+
+
+def flows(a, b):
+    gray_a, gray_b = (cv2.cvtColor(frame, cv2.COLOR_RGB2GRAY) for frame in (a, b))
+    return flow_engine.calc(gray_a, gray_b, None), flow_engine.calc(gray_b, gray_a, None)
+
+
+def interpolate(a, b, weight, flow):
+    # Invert each forward displacement field before warping to the intermediate pose.
+    # This moves contours instead of merely duplicating or dissolving source frames.
+    warped = []
+    for frame, field, fraction in ((a, flow[0], weight), (b, flow[1], 1 - weight)):
+        mapping = grid.copy()
+        for _ in range(3):
+            sampled = cv2.remap(field, mapping, None, cv2.INTER_LINEAR, borderMode=cv2.BORDER_REPLICATE)
+            mapping = grid - fraction * sampled
+        warped.append(cv2.remap(frame, mapping, None, cv2.INTER_LINEAR, borderMode=cv2.BORDER_CONSTANT))
+    return cv2.addWeighted(warped[0], 1 - weight, warped[1], weight, 0)
+
+
+def to_sixty(frames, loop):
+    count = round((len(frames) if loop else len(frames) - 1) * fps / source_fps)
+    cached_pair, flow = -1, None
+    for index in range(count):
+        position = index * source_fps / fps
+        before, weight = int(position), position % 1
+        a, b = frames[before], frames[(before + 1) % len(frames)]
+        if weight < 1e-6:
+            yield matte(a)
+        else:
+            if before != cached_pair:
+                flow, cached_pair = flows(a, b), before
+            yield matte(interpolate(a, b, weight, flow))
 
 
 def matte(rgb):
@@ -36,11 +72,13 @@ def matte(rgb):
 
 
 clips = [('walk', .125, 3.9), ('hello', 4.1, 7.8), ('curious', 10.1, 15.8),
-         ('sit', 20.1, 24.8), ('sleep', 27.1, 29.8), ('play', 33.1, 40.8)]
+         ('sit', 20.8, 24.8), ('sleep', 27.1, 29.5), ('play', 33.1, 40.8),
+         ('sit-down', 19.05, 20.85), ('lie-down', 24.75, 27.25),
+         ('wake-up', 29.4, 30.6), ('stand-up', 32.05, 33.25)]
 manifest = []
 for name, start, end in clips:
     decoder = subprocess.Popen(['ffmpeg', '-hide_banner', '-loglevel', 'error', '-ss', str(start), '-i', str(source),
-        '-t', str(end - start), '-vf', f'crop=960:720:160:0,scale={width}:{height}:flags=lanczos,fps={fps}',
+        '-t', str(end - start), '-vf', f'crop=960:720:160:0,scale={width}:{height}:flags=lanczos,fps={source_fps}',
         '-f', 'rawvideo', '-pix_fmt', 'rgb24', 'pipe:1'], stdout=subprocess.PIPE)
     frames = []
     while True:
@@ -50,35 +88,38 @@ for name, start, end in clips:
         assert len(raw) == width * height * 3
         frames.append(np.frombuffer(raw, np.uint8).reshape(height, width, 3).copy())
     assert decoder.wait() == 0
-    # Choose matching poses near the ends, then overlap a short forward-only tail.
-    signatures = [cv2.resize(frame, (96, 72)).astype(np.float32) for frame in frames]
-    pairs = [(float(np.mean((signatures[a] - signatures[b]) ** 2)), a, b)
-             for a in range(min(12, len(frames) // 5))
-             for b in range(max(a + fps, len(frames) - 18), len(frames))]
-    error, first, last = min(pairs)
-    selected = [matte(frame) for frame in frames[first:last]]
-    blend = 4
-    # Blend premultiplied colors so transparent edges never acquire a colored halo.
-    for i in range(blend):
-        a = selected[-blend + i].astype(np.float32) / 255
-        b = selected[i].astype(np.float32) / 255
-        weight = (i + 1) / (blend + 1)
-        alpha = a[:, :, 3:4] * (1 - weight) + b[:, :, 3:4] * weight
-        color = (a[:, :, :3] * a[:, :, 3:4] * (1 - weight) + b[:, :, :3] * b[:, :, 3:4] * weight) / np.maximum(alpha, 1e-6)
-        selected[-blend + i] = np.uint8(np.clip(np.concatenate([color, alpha], axis=2) * 255, 0, 255))
-    selected = selected[blend:]
+    loop = '-' not in name
+    error, first, last, blend = 0, 0, len(frames), 0
+    if loop:
+        signatures = [cv2.resize(frame, (96, 72)).astype(np.float32) for frame in frames]
+        pairs = [(float(np.mean((signatures[a] - signatures[b]) ** 2)), a, b)
+                 for a in range(min(12, len(frames) // 5))
+                 for b in range(max(a + source_fps, len(frames) - 18), len(frames))]
+        error, first, last = min(pairs)
+        selected = frames[first:last]
+        blend = 4
+        for i in range(blend):
+            a, b = selected[-blend + i], selected[i]
+            weight = (i + 1) / (blend + 1)
+            selected[-blend + i] = interpolate(a, b, weight, flows(a, b))
+        frames = selected[blend:]
+    count, first_frame = 0, None
     destination = output / f'{name}.webm'
     encoder = subprocess.Popen(['ffmpeg', '-hide_banner', '-loglevel', 'error', '-y', '-f', 'rawvideo', '-pix_fmt', 'rgba',
         '-s', f'{width}x{height}', '-r', str(fps), '-i', 'pipe:0', '-an', '-c:v', 'libvpx-vp9', '-pix_fmt', 'yuva420p',
         '-b:v', '0', '-crf', '25', '-deadline', 'good', '-cpu-used', '4', '-row-mt', '1', '-g', str(fps), str(destination)], stdin=subprocess.PIPE)
-    for frame in selected:
+    for frame in to_sixty(frames, loop):
+        if first_frame is None:
+            first_frame = frame
+        count += 1
         encoder.stdin.write(frame.tobytes())
     encoder.stdin.close()
     assert encoder.wait() == 0
     poster = output / f'{name}.png'
-    cv2.imencode('.png', cv2.cvtColor(selected[0], cv2.COLOR_RGBA2BGRA))[1].tofile(poster)
-    entry = dict(id=name, fps=fps, frames=len(selected), duration=len(selected) / fps,
-                 sourceStart=round(start + (first + blend) / fps, 4), seamError=round(error, 2), bytes=destination.stat().st_size)
+    cv2.imencode('.png', cv2.cvtColor(first_frame, cv2.COLOR_RGBA2BGRA))[1].tofile(poster)
+    entry = dict(id=name, fps=fps, sourceFps=source_fps, interpolation='bidirectional-optical-flow', loop=loop,
+                 frames=count, duration=count / fps, sourceStart=round(start + (first + blend) / source_fps, 4),
+                 seamError=round(error, 2), bytes=destination.stat().st_size)
     manifest.append(entry)
     print(json.dumps(entry), flush=True)
 (output / 'manifest.json').write_text(json.dumps(manifest, indent=2) + '\n', encoding='utf-8')

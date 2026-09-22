@@ -1,84 +1,36 @@
 import { useEffect, useRef, useState } from 'react';
 import type { ElephantClip } from './elephantAnimations';
+import { ElephantPlayback, type PlaybackState } from './elephantPlayback';
 import './ElephantVideo.css';
 
-/** Pre-keyed transparent video: the browser decodes the original forward 24 fps. */
+/** Offline optical-flow interpolation, native transparent 60 fps playback. */
 export default function ElephantVideo({ clip, paused = false, speed = 1, direction = 1, turnDuration = 0 }: {
   clip: ElephantClip; paused?: boolean; speed?: number; direction?: number; turnDuration?: number;
 }) {
   const first = useRef<HTMLVideoElement>(null);
   const second = useRef<HTMLVideoElement>(null);
-  const active = useRef<HTMLVideoElement | null>(null);
-  const options = useRef({ paused, speed });
-  const [status, setStatus] = useState('loading');
+  const player = useRef<ElephantPlayback | null>(null);
+  const [playback, setPlayback] = useState<PlaybackState>({ status: 'loading', asset: null, transitioning: false });
   useEffect(() => {
-    options.current = { paused, speed };
-    const source = active.current;
-    if (!source) return;
-    source.playbackRate = speed;
-    if (paused || document.hidden) source.pause();
-    else void source.play().catch(error => { if (error.name !== 'AbortError') setStatus('blocked'); });
-  }, [paused, speed]);
-
-  useEffect(() => {
-    const previous = active.current;
-    const source = previous === first.current ? second.current! : first.current!;
-    let disposed = false;
-    const show = () => {
-      if (disposed) return;
-      source.style.opacity = '1';
-      source.dataset.ready = 'true';
-      active.current = source;
-      if (previous && previous !== source) { previous.style.opacity = '0'; previous.pause(); }
-      setStatus('ready');
-      source.playbackRate = options.current.speed;
-      if (!options.current.paused && !document.hidden) {
-        void source.play().catch(error => { if (!disposed && error.name !== 'AbortError') setStatus('blocked'); });
-      }
-    };
-    const fail = () => {
-      if (disposed) return;
-      source.style.opacity = '0'; source.pause();
-      if (previous) { previous.style.opacity = '0'; previous.pause(); }
-      active.current = null;
-      setStatus('error');
-    };
-    source.addEventListener('loadeddata', show);
-    source.addEventListener('error', fail);
-    source.style.opacity = '0';
-    source.dataset.ready = 'false';
-    source.src = `/pet/elephant-v2/${clip.id}.webm`;
-    source.load();
-    return () => {
-      disposed = true;
-      source.removeEventListener('loadeddata', show);
-      source.removeEventListener('error', fail);
-    };
-  }, [clip.id]);
-
-  useEffect(() => {
-    const a = first.current!, b = second.current!;
-    const visibility = () => {
-      if (document.hidden || options.current.paused) { a.pause(); b.pause(); }
-      else void active.current?.play().catch(error => { if (error.name !== 'AbortError') setStatus('blocked'); });
-    };
-    document.addEventListener('visibilitychange', visibility);
-    return () => { a.pause(); b.pause(); document.removeEventListener('visibilitychange', visibility); };
+    const instance = new ElephantPlayback([first.current!, second.current!], setPlayback);
+    player.current = instance;
+    return () => { instance.dispose(); player.current = null; };
   }, []);
+  useEffect(() => { player.current?.configure(paused, speed); }, [paused, speed]);
+  useEffect(() => { player.current?.request(clip.id); }, [clip.id]);
 
-  const retry = () => {
-    if (status === 'blocked' && !options.current.paused) {
-      void active.current?.play().then(() => setStatus('ready')).catch(() => setStatus('blocked'));
-    }
-  };
-  return <div className="elephant-video" data-clip={clip.id} data-renderer="native-alpha-video" data-ready={status === 'ready'} onClick={retry}>
+  const visible = playback.asset !== null;
+  const motionReady = clip.id !== 'walk' || (playback.asset === 'walk' && !playback.transitioning) || playback.status === 'error';
+  return <div className="elephant-video" data-clip={clip.id} data-active-clip={playback.asset}
+    data-renderer="native-alpha-video-60" data-fps="60" data-ready={visible}
+    data-transitioning={playback.transitioning} data-motion-ready={motionReady} onClick={() => player.current?.retry()}>
     <div className="elephant-facing" style={{ transform: `perspective(600px) rotateY(${direction < 0 ? 180 : 0}deg)`, transitionDuration: `${turnDuration}ms` }}>
-      <img className="elephant-poster" src={`/pet/elephant-v2/${clip.id}.png`} alt={`大象宝宝：${clip.name}`} draggable={false} style={{ opacity: status === 'ready' || status === 'blocked' ? 0 : 1 }} />
-      <video ref={first} className="elephant-deck" muted playsInline loop preload="auto" aria-label={`大象宝宝：${clip.name}`} />
-      <video ref={second} className="elephant-deck" muted playsInline loop preload="auto" aria-hidden="true" />
+      <img className="elephant-poster" src={`/pet/elephant-v3/${clip.id}.png`} alt={`大象宝宝：${clip.name}`} draggable={false} style={{ opacity: visible ? 0 : 1 }} />
+      <video ref={first} className="elephant-deck" muted playsInline preload="auto" aria-label={`大象宝宝：${clip.name}`} />
+      <video ref={second} className="elephant-deck" muted playsInline preload="auto" aria-hidden="true" />
     </div>
-    {status === 'loading' && <span className="video-message">大象宝宝正在赶来…</span>}
-    {status === 'error' && <span className="video-message">小象正在休息，刷新可重试动画</span>}
-    {status === 'blocked' && <span className="video-message">点击动画或按下播放按钮</span>}
+    {playback.status === 'loading' && <span className="video-message">大象宝宝正在赶来…</span>}
+    {playback.status === 'error' && <span className="video-message">小象正在休息，刷新可重试动画</span>}
+    {playback.status === 'blocked' && <span className="video-message">点击动画或按下播放按钮</span>}
   </div>;
 }
