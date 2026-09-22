@@ -58,7 +58,7 @@ export default function PetChatDialog({ config, loadingConfig, onClose, onSettin
     if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first?.focus(); }
   }}>
     <div className="pet-chat-panel">
-      <header className="pet-chat-header"><div className="pet-chat-avatar"><img src="/pet/baby.png" alt="穿蓝色小熊衣服的小糖豆" /></div><div><small>A LITTLE COMPANY</small><h2 id="pet-chat-title">和小糖豆聊聊</h2><p>一点可爱，一点陪伴。</p></div><button className="pet-chat-close" onClick={onClose} aria-label="关闭聊天">×</button></header>
+      <header className="pet-chat-header"><div className="pet-chat-avatar"><img src="/pet/elephant-poster.png" alt="大象宝宝小糖豆" /></div><div><small>A LITTLE COMPANY</small><h2 id="pet-chat-title">和小糖豆聊聊</h2><p>大耳朵听你说，小鼻子陪着你。</p></div><button className="pet-chat-close" onClick={onClose} aria-label="关闭聊天">×</button></header>
       <div className="pet-chat-transcript" ref={transcript} role="log" aria-label="聊天记录" aria-live="polite" aria-busy={busy}>
         <div className="pet-chat-message assistant"><span>小糖豆 · AI</span><p>{PET_CHAT_GREETING}</p></div>
         {messages.map((message, i) => <div key={i} className={`pet-chat-message ${message.role}`}><span>{message.role === 'user' ? '你' : '小糖豆 · AI'}</span><p>{message.content}</p></div>)}

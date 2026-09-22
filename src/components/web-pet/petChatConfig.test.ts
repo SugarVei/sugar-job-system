@@ -21,6 +21,8 @@ test('chat sends only a bounded explicit conversation and fixed companion prompt
   assert.equal(result[result.length - 1].content.length, 2000);
   assert.equal(result.filter(m => m.role === 'system').length, 1);
   assert.match(result[0].content, /温柔、可爱、治愈/);
+  assert.match(result[0].content, /大象宝宝/);
+  assert.doesNotMatch(result[0].content, /小熊连体衣|可爱萌娃/);
 });
 test('caller can cancel streaming and receives AbortError rather than timeout', async t => {
   const cancel = new AbortController();

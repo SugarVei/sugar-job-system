@@ -16,8 +16,8 @@ export default function PetAnnouncement() {
   }, []);
   if (!active || dismissed) return null;
   return <aside className="pet-announcement" aria-label="网站公告" data-expires-at={PET_ANNOUNCEMENT.endsAt}>
-    <span className="pet-announcement-icon" aria-hidden="true">☁</span>
-    <div><strong>给你添了一位小伙伴：小糖豆来啦！</strong><p>我加入了一只宠物陪你。可以摸摸头、一起玩，也可以和它聊聊天。接入自己的 AI API 后，就能收获可爱、温柔又治愈的回应。</p><small>点击宠物旁的 ··· → 和我聊聊 · AI 未接入也能陪玩 · 本公告展示 2 天</small></div>
+    <span className="pet-announcement-icon" aria-hidden="true">🐘</span>
+    <div><strong>小糖豆换新模样啦：大象宝宝来陪你！</strong><p>灰灰的小身子、大耳朵和会打招呼的小鼻子。可以摸摸头、一起玩球，也可以继续和它聊聊天。接入自己的 AI API 后，让小糖豆用大耳朵听听你的小心事。</p><small>点击小象旁的 ··· → 和我聊聊 · AI 未接入也能陪玩 · 本公告展示 2 天</small></div>
     <button className="pet-chat-primary" onClick={() => window.dispatchEvent(new Event(OPEN_PET_CHAT_EVENT))}>认识小糖豆 ↗</button>
     <button className="pet-announcement-close" aria-label="关闭宠物公告" onClick={() => { setDismissed(true); try { localStorage.setItem(storageKey, '1'); } catch { /* Session dismissal still works. */ } }}>×</button>
   </aside>;

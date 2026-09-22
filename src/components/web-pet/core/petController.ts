@@ -196,7 +196,7 @@ export class PetController {
     let seen = false;
     try { seen = localStorage.getItem(C.introKey) === '1'; } catch { /* optional */ }
     if (!seen && !this.snapshot.hidden && !this.snapshot.reducedMotion) {
-      this.say('Hi 👋 我来陪你啦', 5200);
+      this.say('Hi 🐘 小鼻子来报到啦', 5200);
       this.enter('intro', 3200, true);
     } else this.resume();
     this.paint();
@@ -251,7 +251,7 @@ export class PetController {
     } else if (this.taps.length >= 3) {
       this.say('轻轻一点嘛～'); this.enter('annoyed', 1300, true);
     } else {
-      this.stats({ mood: 2, affection: 1 }); this.say('嘿嘿，好开心！');
+      this.stats({ mood: 2, affection: 1 }); this.say('甩甩小鼻子，好开心！');
       this.enter('happy', 1800, true); this.snapshot.hearts++; this.emit();
     }
     this.save();
@@ -278,7 +278,7 @@ export class PetController {
         this.snapshot.hidden = false;
         this.ballPosition = this.clampBall({ x: this.movement.position.x - 160, y: this.movement.position.y + this.height - 18 });
         this.ballVelocity = { x: 0, y: 0 }; this.snapshot.ball = true;
-        this.say('把小球丢给我吧！'); this.enter('playing', 25000, true); break;
+        this.say('把球丢过来，小鼻子准备好啦！'); this.enter('playing', 25000, true); break;
     }
     this.emit(); this.save();
     if (wasHidden && !this.snapshot.hidden && !this.covered) { this.lastFrame = performance.now(); this.frame = requestAnimationFrame(this.tick); }
