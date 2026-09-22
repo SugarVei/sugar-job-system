@@ -7,6 +7,7 @@ All footage runs forward, including transitions and walk loops.
 """
 from pathlib import Path
 import json
+import base64
 import subprocess
 import sys
 
@@ -76,6 +77,7 @@ clips = [('walk', .125, 3.9), ('hello', 4.1, 7.8), ('curious', 10.1, 15.8),
          ('sit-down', 19.05, 20.85), ('lie-down', 24.75, 27.25),
          ('wake-up', 29.4, 30.6), ('stand-up', 32.05, 33.25)]
 manifest = []
+pose_samples = {}
 for name, start, end in clips:
     decoder = subprocess.Popen(['ffmpeg', '-hide_banner', '-loglevel', 'error', '-ss', str(start), '-i', str(source),
         '-t', str(end - start), '-vf', f'crop=960:720:160:0,scale={width}:{height}:flags=lanczos,fps={source_fps}',
@@ -104,6 +106,7 @@ for name, start, end in clips:
             selected[-blend + i] = interpolate(a, b, weight, flows(a, b))
         frames = selected[blend:]
     count, first_frame = 0, None
+    loop_head, samples = [], []
     destination = output / f'{name}.webm'
     encoder = subprocess.Popen(['ffmpeg', '-hide_banner', '-loglevel', 'error', '-y', '-f', 'rawvideo', '-pix_fmt', 'rgba',
         '-s', f'{width}x{height}', '-r', str(fps), '-i', 'pipe:0', '-an', '-c:v', 'libvpx-vp9', '-pix_fmt', 'yuva420p',
@@ -111,15 +114,39 @@ for name, start, end in clips:
     for frame in to_sixty(frames, loop):
         if first_frame is None:
             first_frame = frame
+        if loop and count < 18:
+            loop_head.append(frame)
+        if loop and count % 8 == 0:
+            # Match entry poses cheaply in the player; compare over black like RGBA video.
+            rgb = frame[:, :, :3].astype(np.float32) * (frame[:, :, 3:4] / 255)
+            small = cv2.resize(rgb, (12, 9), interpolation=cv2.INTER_AREA)
+            luma = np.uint8((small[:, :, 0] + 2 * small[:, :, 1] + small[:, :, 2]) / 4)
+            samples.append(dict(time=round(count / fps, 4), pixels=base64.b64encode(luma.tobytes()).decode()))
         count += 1
+        encoder.stdin.write(frame.tobytes())
+    # A second decoder can start while this matching head continues playing in the tail.
+    # This preserves motion during browser seek/startup latency at every loop boundary.
+    for frame in loop_head:
         encoder.stdin.write(frame.tobytes())
     encoder.stdin.close()
     assert encoder.wait() == 0
     poster = output / f'{name}.png'
     cv2.imencode('.png', cv2.cvtColor(first_frame, cv2.COLOR_RGBA2BGRA))[1].tofile(poster)
+    if loop:
+        pose_samples[name] = [sample for sample in samples if sample['time'] < count / fps - .4]
+    compact = output / 'compact'
+    compact.mkdir(exist_ok=True)
+    subprocess.run(['ffmpeg', '-hide_banner', '-loglevel', 'error', '-y', '-c:v', 'libvpx-vp9', '-i', str(destination),
+        # Rescaling YUVA can lift transparent black to alpha=1. Restore only the
+        # extreme alpha values so the compact version has no rectangular residue.
+        '-vf', "scale=240:180:flags=lanczos,format=rgba,lut=a='if(lt(val,4),0,if(gt(val,251),255,val))'",
+        '-an', '-c:v', 'libvpx-vp9', '-pix_fmt', 'yuva420p', '-b:v', '0',
+        '-crf', '25', '-deadline', 'good', '-cpu-used', '4', '-row-mt', '1', '-g', str(fps), str(compact / destination.name)], check=True)
     entry = dict(id=name, fps=fps, sourceFps=source_fps, interpolation='bidirectional-optical-flow', loop=loop,
-                 frames=count, duration=count / fps, sourceStart=round(start + (first + blend) / source_fps, 4),
+                 frames=count + len(loop_head), duration=(count + len(loop_head)) / fps, loopDuration=count / fps,
+                 loopTail=len(loop_head) / fps, sourceStart=round(start + (first + blend) / source_fps, 4),
                  seamError=round(error, 2), bytes=destination.stat().st_size)
     manifest.append(entry)
     print(json.dumps(entry), flush=True)
 (output / 'manifest.json').write_text(json.dumps(manifest, indent=2) + '\n', encoding='utf-8')
+(output / 'pose-samples.json').write_text(json.dumps(pose_samples, separators=(',', ':')) + '\n', encoding='utf-8')

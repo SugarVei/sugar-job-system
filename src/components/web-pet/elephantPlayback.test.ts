@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { nextElephantAsset, type ElephantAsset, type ElephantAction } from './elephantPlayback';
+import { chooseElephantEntryPose } from './elephantPoseMatching';
 
 function route(from: ElephantAsset, to: ElephantAction) {
   const result: ElephantAsset[] = [];
@@ -24,4 +25,12 @@ test('rapid input replans from the landing pose of the transition already playin
 test('all action pairs reach the latest request without looping through transitions', () => {
   const actions: ElephantAction[] = ['walk', 'hello', 'curious', 'sit', 'sleep', 'play'];
   for (const from of actions) for (const to of actions) assert.ok(route(from, to).length <= 3);
+});
+
+test('entry pose matching selects the closer silhouette instead of resetting to frame zero', () => {
+  assert.equal(chooseElephantEntryPose([30, 70, 140], [
+    { time: 0, pixels: [120, 150, 20] }, { time: .4, pixels: [32, 65, 139] }, { time: .8, pixels: [90, 20, 70] },
+  ]), .4);
+  assert.equal(chooseElephantEntryPose([30, 70, 140], []), 0);
+  assert.equal(chooseElephantEntryPose([30, 70, 140], [{ time: 0, pixels: [31, 69, 139] }, { time: 1, pixels: [31, 69, 141] }]), 0);
 });

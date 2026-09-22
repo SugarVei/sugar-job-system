@@ -1,6 +1,7 @@
 .elephant-video { width: 100%; position: relative; line-height: 0; }
-.elephant-facing { position: relative; width: 100%; aspect-ratio: 4 / 3; transform-origin: 50% 72%; transition: transform 0ms cubic-bezier(.4,0,.2,1); }
-.elephant-deck { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; opacity: 0; }
+.elephant-facing { position: relative; isolation: isolate; width: 100%; aspect-ratio: 4 / 3; transform-origin: 50% 72%; transition: transform 0ms cubic-bezier(.4,0,.2,1); }
+/* Add premultiplied opacity inside an isolated group: a blend must not make the body translucent. */
+.elephant-deck { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; opacity: 0; mix-blend-mode: plus-lighter; will-change: opacity; }
 .elephant-poster { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; pointer-events: none; }
 .elephant-video .video-message { position: absolute; left: 10%; right: 10%; top: 40%; font-size: 12px; line-height: 1.6; text-align: center; }
 .pet-elephant { width: 100%; height: 100%; transform-origin: 50% 85%; }

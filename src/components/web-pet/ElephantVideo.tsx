@@ -22,10 +22,10 @@ export default function ElephantVideo({ clip, paused = false, speed = 1, directi
   const visible = playback.asset !== null;
   const motionReady = clip.id !== 'walk' || (playback.asset === 'walk' && !playback.transitioning) || playback.status === 'error';
   return <div className="elephant-video" data-clip={clip.id} data-active-clip={playback.asset}
-    data-renderer="native-alpha-video-60" data-fps="60" data-ready={visible}
+    data-renderer="native-alpha-video-60-seamless" data-fps="60" data-ready={visible}
     data-transitioning={playback.transitioning} data-motion-ready={motionReady} onClick={() => player.current?.retry()}>
     <div className="elephant-facing" style={{ transform: `perspective(600px) rotateY(${direction < 0 ? 180 : 0}deg)`, transitionDuration: `${turnDuration}ms` }}>
-      <img className="elephant-poster" src={`/pet/elephant-v3/${clip.id}.png`} alt={`大象宝宝：${clip.name}`} draggable={false} style={{ opacity: visible ? 0 : 1 }} />
+      <img className="elephant-poster" src={`/pet/elephant-v4/${clip.id}.png`} alt={`大象宝宝：${clip.name}`} draggable={false} style={{ opacity: visible ? 0 : 1 }} />
       <video ref={first} className="elephant-deck" muted playsInline preload="auto" aria-label={`大象宝宝：${clip.name}`} />
       <video ref={second} className="elephant-deck" muted playsInline preload="auto" aria-hidden="true" />
     </div>
