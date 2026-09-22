@@ -61,8 +61,8 @@ export class ElephantPlayback {
   private sync = () => {
     const stopped = this.paused || document.hidden;
     for (const video of this.decks) {
-      // Keep posture changes at their authored speed; running only accelerates the gait.
-      video.playbackRate = video.dataset.asset === 'walk' ? this.speed : 1;
+      // Keep posture changes at their authored speed; the preview speed still applies to loops.
+      video.playbackRate = video.dataset.asset?.includes('-') ? 1 : this.speed;
       if (stopped) video.pause();
       else if (!video.ended && (video === this.active?.video || (this.fading && video.dataset.visible === 'true'))) this.play(video);
     }
