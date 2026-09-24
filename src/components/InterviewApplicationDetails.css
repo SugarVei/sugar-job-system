@@ -1,0 +1,38 @@
+.interview-application-details { display:grid; gap:16px; color:#2b2925; }
+.interview-application-summary,.interview-application-records,.interview-application-card { border:1px solid #e8e2d6; border-radius:17px; padding:17px 19px; background:#fffdf8; }
+.interview-application-summary { background:#f3f8ef; border-color:#dce9d5; }
+.interview-application-eyebrow { color:#62835c; font-size:11px; font-weight:750; letter-spacing:.05em; margin-bottom:6px; }
+.interview-application-details h3 { margin:0; font-size:17px; font-weight:750; line-height:1.45; }
+.interview-application-summary h3 span { display:inline-block; margin-left:9px; padding:3px 8px; border-radius:7px; background:#e0ebd9; color:#426343; font-size:12px; vertical-align:middle; }
+.interview-application-facts { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:12px 18px; margin-top:15px; }
+.interview-application-field { min-width:0; display:flex; flex-direction:column; gap:3px; overflow-wrap:anywhere; }
+.interview-application-field span { color:#8a8478; font-size:11px; }
+.interview-application-field strong { color:#423f38; font-size:13px; font-weight:600; }
+.interview-application-note { margin:14px 0 0; padding:11px 13px; border-radius:10px; background:#f7f3eb; color:#5d584d; font-size:12.5px; line-height:1.7; white-space:pre-wrap; overflow-wrap:anywhere; }
+.interview-application-summary .interview-application-note { background:#eaf2e5; }
+.interview-application-section-head { display:flex; align-items:center; justify-content:space-between; gap:12px; }
+.interview-application-section-head button { border:1px solid #ddd5c8; border-radius:9px; background:#fff; padding:7px 10px; color:#5c554a; font-size:12px; cursor:pointer; white-space:nowrap; }
+.interview-application-hint { margin:10px 0 0; color:#817a6e; font-size:12px; line-height:1.6; }
+.interview-application-error { margin:10px 0 0; padding:9px 11px; background:#fbe0d8; color:#a23d24; border-radius:9px; font-size:12px; }
+.interview-application-candidates,.interview-application-roles { display:grid; grid-template-columns:repeat(auto-fit,minmax(180px,1fr)); gap:8px; margin-top:11px; }
+.interview-application-candidates button,.interview-application-roles button { text-align:left; border:1px solid #e8e0d2; background:#faf8f3; border-radius:11px; padding:10px 12px; cursor:pointer; display:flex; flex-direction:column; gap:3px; min-width:0; }
+.interview-application-candidates button:hover,.interview-application-roles button:hover { border-color:#96b48c; }
+.interview-application-candidates small,.interview-application-roles span { color:#827b6e; font-size:11px; }
+.interview-application-roles button.is-selected { background:#eef6e9; border-color:#91b187; }
+.interview-application-roles button:disabled { opacity:.55; cursor:wait; }
+.interview-application-roles strong { font-size:12.5px; overflow-wrap:anywhere; }
+.interview-application-search { margin-top:14px; padding-top:13px; border-top:1px solid #eee9df; }
+.interview-application-search label { display:block; margin-bottom:6px; font-size:12px; font-weight:650; }
+.interview-application-search input { width:100%; border:1px solid #e4ddcf; background:#fff; border-radius:9px; padding:9px 11px; outline:none; font-size:13px; }
+.interview-application-search input:focus { border-color:#91b187; }
+.interview-application-card-head { display:flex; justify-content:space-between; align-items:flex-start; flex-wrap:wrap; gap:8px; }
+.interview-application-card-head span { padding:4px 9px; border-radius:7px; font-size:11px; font-weight:750; }
+.interview-application-progress { display:grid; grid-template-columns:repeat(8,minmax(0,1fr)); gap:4px; margin-top:20px; }
+.interview-application-progress>div { display:flex; flex-direction:column; align-items:center; gap:5px; min-width:0; text-align:center; }
+.interview-application-progress>div span { width:23px; height:23px; border-radius:50%; display:grid; place-items:center; font-size:11px; font-weight:700; }
+.interview-application-progress small { font-size:10px; white-space:nowrap; }
+.interview-application-link { display:inline-block; margin-top:14px; color:#376c45; font-size:12.5px; font-weight:700; }
+.interview-application-jd { margin-top:14px; color:#615b51; font-size:12.5px; }
+.interview-application-jd summary { cursor:pointer; font-weight:700; }
+.interview-application-jd p { margin:8px 0 0; white-space:pre-wrap; overflow-wrap:anywhere; line-height:1.7; }
+@media(max-width:520px) { .interview-application-summary,.interview-application-records,.interview-application-card { padding:14px; } .interview-application-facts { grid-template-columns:1fr; } .interview-application-progress { overflow-x:auto; grid-template-columns:repeat(8,minmax(39px,1fr)); padding-bottom:4px; } }

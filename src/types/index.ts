@@ -104,6 +104,7 @@ export interface ResumeFile {
 export interface Interview {
   id: string;
   user_id: string;
+  application_id?: string | null;
   company_name: string;
   position_name: string | null;
   interview_time: string | null;

@@ -200,6 +200,19 @@ create table if not exists public.interviews (
 );
 create index if not exists interviews_user_id_idx on public.interviews (user_id);
 
+-- 面试可关联当前用户的一条投递记录；删除投递时保留面试。
+create unique index if not exists applications_id_user_id_uidx on public.applications (id, user_id);
+alter table public.interviews add column if not exists application_id uuid;
+do $$
+begin
+  if not exists (select 1 from pg_constraint where conname = 'interviews_application_owner_fk' and conrelid = 'public.interviews'::regclass) then
+    alter table public.interviews add constraint interviews_application_owner_fk
+      foreign key (application_id, user_id) references public.applications (id, user_id)
+      on delete set null (application_id);
+  end if;
+end $$;
+create index if not exists interviews_application_id_idx on public.interviews (application_id);
+
 -- updated_at triggers
 drop trigger if exists trg_applications_updated on public.applications;
 create trigger trg_applications_updated before update on public.applications

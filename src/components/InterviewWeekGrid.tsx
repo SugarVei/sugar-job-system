@@ -9,8 +9,8 @@ const WEEKDAYS = ['周一', '周二', '周三', '周四', '周五', '周六', '�
 const time = (date: Date) => date.toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit', hour12: false });
 const hourLabel = (hour: number) => `${String(hour).padStart(2, '0')}:00`;
 
-export default function InterviewWeekGrid({ days, entries, onEdit, onCreate, onDay }: {
-  days: Date[]; entries: Entry[][]; onEdit: (ev: Interview) => void;
+export default function InterviewWeekGrid({ days, entries, onOpen, onCreate, onDay }: {
+  days: Date[]; entries: Entry[][]; onOpen: (ev: Interview) => void;
   onCreate: (date: Date) => void; onDay: (date: Date) => void;
 }) {
   const [expanded, setExpanded] = useState<{ dayIndex?: number; hour?: number; outside?: boolean } | null>(null);
@@ -37,7 +37,7 @@ export default function InterviewWeekGrid({ days, entries, onEdit, onCreate, onD
             return <div className="interview-slot" key={day.toISOString()} data-slot={`${index}-${hour}`} onDoubleClick={e => {
               if (e.target === e.currentTarget) onCreate(new Date(day.getFullYear(), day.getMonth(), day.getDate(), hour));
             }}>
-              {events.map(({ ev, date }) => <button type="button" key={ev.id} onClick={() => onEdit(ev)} className={`interview-slot-event tone-${index % 4}${events.length > 1 ? ' is-compact' : ''}`} title={`${ev.company_name} · ${time(date)} · ${ev.round || '面试'}`}>
+              {events.map(({ ev, date }) => <button type="button" key={ev.id} onClick={() => onOpen(ev)} className={`interview-slot-event tone-${index % 4}${events.length > 1 ? ' is-compact' : ''}`} title={`${ev.company_name} · ${time(date)} · ${ev.round || '面试'}`}>
                 <strong>{ev.company_name}</strong><span>{time(date)} · {ev.round || '面试'}</span>
               </button>)}
             </div>;
@@ -48,7 +48,7 @@ export default function InterviewWeekGrid({ days, entries, onEdit, onCreate, onD
     </section>
     <Modal open={expanded !== null} title={title} onClose={() => setExpanded(null)}>
       <div className="interview-slot-details">
-        {[...expandedEntries].sort((a, b) => a.date.getTime() - b.date.getTime()).map(({ ev, date }) => <button type="button" key={ev.id} onClick={() => { setExpanded(null); onEdit(ev); }}>
+        {[...expandedEntries].sort((a, b) => a.date.getTime() - b.date.getTime()).map(({ ev, date }) => <button type="button" key={ev.id} onClick={() => { setExpanded(null); onOpen(ev); }}>
           <strong>{ev.company_name}</strong><span>{expanded?.outside ? `${date.getMonth() + 1}/${date.getDate()} ` : ''}{time(date)} · {ev.round || '面试'}{ev.position_name ? ` · ${ev.position_name}` : ''}</span>
         </button>)}
       </div>

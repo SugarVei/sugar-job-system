@@ -1,14 +1,16 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import type { Interview, InterviewType, NewRecord } from '../types';
+import type { Application, Interview, InterviewType, NewRecord } from '../types';
 import { useCollection } from '../hooks/useCollection';
 import { useAppShell } from '../contexts/AppShellContext';
 import { useTheme } from '../contexts/ThemeContext';
 import Modal from '../components/Modal';
 import { Field, TextInput, TextArea, Select, PrimaryButton, GhostButton, FormError } from '../components/Field';
-import { IconEdit, IconTrash, IconPlus } from '../components/icons';
+import { IconEye, IconTrash, IconPlus } from '../components/icons';
 import { CARD } from '../lib/appHelpers';
 import EmptyState from '../components/EmptyState';
 import InterviewWeekGrid from '../components/InterviewWeekGrid';
+import InterviewApplicationDetails from '../components/InterviewApplicationDetails';
+import { interviewCompanyKey } from '../lib/interviewApplicationMatch';
 import { IMPORTED_EXPERIENCE_ARTICLES } from '../data/interviewExperienceData';
 
 const TYPES: InterviewType[] = ['电话', '视频', '现场'];
@@ -302,10 +304,14 @@ export default function Interviews() {
     column: 'interview_time',
     ascending: true,
   });
+  const { items: applications, loading: applicationsLoading, error: applicationsError } = useCollection<Application>('applications');
   const { registerAdd, query, interviewDateFilter, setInterviewDateFilter, setHeaderChrome } = useAppShell();
   const { theme } = useTheme();
   const [weekStart, setWeekStart] = useState(() => startOfWeek(new Date()));
   const [modalOpen, setModalOpen] = useState(false);
+  const [selectedInterviewId, setSelectedInterviewId] = useState<string | null>(null);
+  const [linkError, setLinkError] = useState('');
+  const [linking, setLinking] = useState(false);
   const [editing, setEditing] = useState<Interview | null>(null);
   const [form, setForm] = useState<NewRecord<Interview>>(empty);
   const [saving, setSaving] = useState(false);
@@ -314,6 +320,7 @@ export default function Interviews() {
   const [activeModule, setActiveModule] = useState<'calendar' | 'experience'>('calendar');
   const [desktopCalendar, setDesktopCalendar] = useState(() => window.innerWidth >= 768);
   const companyRef = useRef<HTMLInputElement>(null);
+  const selectedInterview = items.find(item => item.id === selectedInterviewId) ?? null;
 
   useEffect(() => {
     registerAdd(() => openCreate());
@@ -393,6 +400,7 @@ export default function Interviews() {
   };
 
   const openEdit = (ev: Interview) => {
+    setSelectedInterviewId(null);
     setEditing(ev);
     setForm({
       company_name: ev.company_name,
@@ -406,6 +414,24 @@ export default function Interviews() {
     setModalOpen(true);
   };
 
+  const openDetails = (ev: Interview) => {
+    setLinkError('');
+    setSelectedInterviewId(ev.id);
+  };
+
+  const linkApplication = async (ev: Interview, application: Application) => {
+    if (ev.application_id === application.id) return;
+    setLinkError('');
+    setLinking(true);
+    try {
+      await update(ev.id, { application_id: application.id });
+    } catch (error) {
+      setLinkError(`关联失败：${error instanceof Error ? error.message : String(error)}`);
+    } finally {
+      setLinking(false);
+    }
+  };
+
   const save = async () => {
     if (!form.company_name.trim()) {
       setFormError('「公司名称」为必填项，请补全后再保存。');
@@ -416,10 +442,16 @@ export default function Interviews() {
     setFormError('');
     setSaving(true);
     try {
-      const payload = {
+      const payload: NewRecord<Interview> = {
         ...form,
         interview_time: form.interview_time ? new Date(form.interview_time).toISOString() : null,
       };
+      if (editing?.application_id) {
+        const linked = applications.find(application => application.id === editing.application_id);
+        const companyChanged = interviewCompanyKey(editing.company_name) !== interviewCompanyKey(form.company_name);
+        const roleChanged = form.position_name?.trim() && form.position_name.trim() !== editing.position_name?.trim();
+        if (companyChanged || (roleChanged && linked?.position_name !== form.position_name?.trim())) payload.application_id = null;
+      }
       if (editing) await update(editing.id, payload);
       else await create(payload);
       setModalOpen(false);
@@ -490,7 +522,7 @@ export default function Interviews() {
                   <button
                     key={ev.id}
                     type="button"
-                    onClick={() => { setInterviewDateFilter(null); openEdit(ev); }}
+                    onClick={() => { setInterviewDateFilter(null); openDetails(ev); }}
                     className="btn-press"
                     style={{
                       display: 'flex',
@@ -513,7 +545,7 @@ export default function Interviews() {
                         {ev.interview_type ? ` · ${ev.interview_type}` : ''}
                       </div>
                     </div>
-                    <span style={{ fontSize: 12, fontWeight: 700, color: col.ac }}>编辑</span>
+                    <span style={{ fontSize: 12, fontWeight: 700, color: col.ac }}>查看详情</span>
                   </button>
                 );
               })}
@@ -530,7 +562,7 @@ export default function Interviews() {
       ) : (
         <>
           <div className="interview-desktop-grid">
-            <InterviewWeekGrid days={weekDays} entries={eventsByDay} onCreate={openCreate} onEdit={openEdit} onDay={day => setInterviewDateFilter(toDateKey(day))} />
+            <InterviewWeekGrid days={weekDays} entries={eventsByDay} onCreate={openCreate} onOpen={openDetails} onDay={day => setInterviewDateFilter(toDateKey(day))} />
           </div>
 
           {/* 移动端列表 */}
@@ -556,15 +588,15 @@ export default function Interviews() {
                       }}
                     >
                       <div style={{ minWidth: 0 }}>
-                        <div style={{ fontWeight: 700, color: col.ac }}>{ev.company_name}</div>
+                        <button type="button" onClick={() => openDetails(ev)} style={{ display: 'block', border: 0, padding: 0, background: 'transparent', fontWeight: 700, color: col.ac, textAlign: 'left', cursor: 'pointer' }}>{ev.company_name}</button>
                         <div style={{ fontSize: 12, color: col.sub, marginTop: 3 }}>
                           {fmtMD(date)} {date.toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit', hour12: false })}
                           {ev.position_name ? ` · ${ev.position_name}` : ''}
                         </div>
                       </div>
                       <div className="flex gap-1 flex-none">
-                        <button type="button" aria-label="编辑" className="btn-press" onClick={() => openEdit(ev)} style={iconBtn}>
-                          <IconEdit size={14} />
+                        <button type="button" aria-label="查看详情" className="btn-press" onClick={() => openDetails(ev)} style={iconBtn}>
+                          <IconEye size={14} />
                         </button>
                         <button type="button" aria-label="删除" className="btn-press" onClick={() => void del(ev)} style={iconBtn}>
                           <IconTrash size={14} />
@@ -578,6 +610,19 @@ export default function Interviews() {
           </div>
         </>
       )}
+
+      <InterviewApplicationDetails
+        key={selectedInterviewId ?? 'closed'}
+        interview={selectedInterview}
+        applications={applications}
+        loading={applicationsLoading}
+        applicationsError={applicationsError}
+        linkError={linkError}
+        linking={linking}
+        onClose={() => setSelectedInterviewId(null)}
+        onEdit={openEdit}
+        onLink={linkApplication}
+      />
 
       <Modal
         open={modalOpen}
