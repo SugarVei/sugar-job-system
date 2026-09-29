@@ -3,7 +3,7 @@ import type { PetState } from './types';
 export const DEBUG_PET = false;
 export const PET_CONFIG = {
   desktopHeight: 140, mobileHeight: 96, aspect: 4 / 3,
-  minIdleTime: 2000, maxIdleTime: 7000,
+  minIdleTime: 5000, maxIdleTime: 12000,
   moveSpeed: 82, runSpeed: 175, chaseSpeed: 150,
   curiousDistance: 185, chaseDistance: 310, mouseSpeedThreshold: 480,
   sleepTimeout: 45000, headPetTime: 1000,

@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { nextElephantAsset, type ElephantAsset, type ElephantAction } from './elephantPlayback';
-import { chooseElephantEntryPose } from './elephantPoseMatching';
+import { nextElephantAsset, canMatchElephantEntry, elephantBlendDuration, type ElephantAsset, type ElephantAction } from './elephantPlayback';
+import { chooseElephantEntryPose, chooseElephantExitTime } from './elephantPoseMatching';
 
 function route(from: ElephantAsset, to: ElephantAction) {
   const result: ElephantAsset[] = [];
@@ -33,4 +33,22 @@ test('entry pose matching selects the closer silhouette instead of resetting to 
   ]), .4);
   assert.equal(chooseElephantEntryPose([30, 70, 140], []), 0);
   assert.equal(chooseElephantEntryPose([30, 70, 140], [{ time: 0, pixels: [31, 69, 139] }, { time: 1, pixels: [31, 69, 141] }]), 0);
+});
+
+test('deliberate gestures and posture transitions retain their opening frames', () => {
+  for (const clip of ['hello', 'play', 'sit-down', 'wake-up', 'stand-up', 'lie-down'] as ElephantAsset[]) assert.equal(canMatchElephantEntry(clip), false);
+  assert.equal(canMatchElephantEntry('walk'), true);
+});
+
+test('fast loops finish blending before the outgoing matching tail ends', () => {
+  assert.ok(elephantBlendDuration(true, false, 1.4, .2) < .2 / 1.4 * 1000);
+  assert.ok(elephantBlendDuration(true, false, 1.4, .3) < elephantBlendDuration(true, false, .7, .3));
+});
+
+test('pose handoff waits briefly for a better outgoing pose, never a distant frame', () => {
+  const samples = [{time:1,pixels:[200,180]}, {time:1.2,pixels:[20,40]}, {time:2,pixels:[20,40]}];
+  assert.equal(chooseElephantExitTime(1,4,[20,40],samples),1.2);
+  assert.equal(chooseElephantExitTime(1.3,4,[20,40],samples),1.3);
+  assert.equal(chooseElephantExitTime(1,4,[],samples),1);
+  assert.equal(chooseElephantExitTime(1,1.4,[20,40],samples),1);
 });

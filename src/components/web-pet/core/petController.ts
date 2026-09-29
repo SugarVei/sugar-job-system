@@ -357,6 +357,15 @@ export class PetController {
     const dt = Math.min(.05, Math.max(0, (now - (this.lastFrame || now)) / 1000)); this.lastFrame = now;
     this.fpsCount++; if (now - this.fpsTime > 1000) { this.fps = this.fpsCount; this.fpsCount = 0; this.fpsTime = now; }
     if (!this.snapshot.hidden) {
+      // Rest/gesture time starts after the elephant actually reaches that pose.
+      // Otherwise a short sit can expire while the sit-down footage is still playing.
+      if (!moving.has(this.machine.state) && this.machine.state !== 'dragged') {
+        const video = this.node.querySelector<HTMLElement>('.elephant-video');
+        const waitingForPose = video && !['error', 'blocked'].includes(video.dataset.playbackStatus ?? '')
+          && (video.dataset.ready === 'false' || video.dataset.transitioning === 'true'
+          || video.dataset.activeClip !== video.dataset.clip);
+        if (waitingForPose && Number.isFinite(this.machine.until)) this.machine.until += dt * 1000;
+      }
       if (now - this.lastThink > 140) { this.scan(now); this.think(now); this.lastThink = now; }
       if (!moving.has(this.machine.state)) this.movement.advanceTurn(dt);
       if (this.snapshot.ball) {

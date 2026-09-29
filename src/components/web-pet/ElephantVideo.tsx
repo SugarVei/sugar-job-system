@@ -4,8 +4,9 @@ import { ElephantPlayback, type PlaybackState } from './elephantPlayback';
 import './ElephantVideo.css';
 
 /** Offline optical-flow interpolation, native transparent 60 fps playback. */
-export default function ElephantVideo({ clip, paused = false, speed = 1, direction = 1, turnDuration = 0 }: {
+export default function ElephantVideo({ clip, paused = false, speed = 1, direction = 1, turnDuration = 0, onPlayback }: {
   clip: ElephantClip; paused?: boolean; speed?: number; direction?: number; turnDuration?: number;
+  onPlayback?: (state: PlaybackState) => void;
 }) {
   const first = useRef<HTMLVideoElement>(null);
   const second = useRef<HTMLVideoElement>(null);
@@ -18,11 +19,13 @@ export default function ElephantVideo({ clip, paused = false, speed = 1, directi
   }, []);
   useEffect(() => { player.current?.configure(paused, speed); }, [paused, speed]);
   useEffect(() => { player.current?.request(clip.id); }, [clip.id]);
+  useEffect(() => { onPlayback?.(playback); }, [playback, onPlayback]);
 
   const visible = playback.asset !== null;
   const motionReady = clip.id !== 'walk' || (playback.asset === 'walk' && !playback.transitioning) || playback.status === 'error';
   return <div className="elephant-video" data-clip={clip.id} data-active-clip={playback.asset}
-    data-renderer="native-alpha-video-60-seamless" data-fps="60" data-ready={visible}
+    data-renderer="original-elephant-smooth-handoff-v2" data-fps="60" data-ready={visible}
+    data-playback-status={playback.status}
     data-transitioning={playback.transitioning} data-motion-ready={motionReady} onClick={() => player.current?.retry()}>
     <div className="elephant-facing" style={{ transform: `perspective(600px) rotateY(${direction < 0 ? 180 : 0}deg)`, transitionDuration: `${turnDuration}ms` }}>
       <img className="elephant-poster" src={`/pet/elephant-v4/${clip.id}.png`} alt={`大象宝宝：${clip.name}`} draggable={false} style={{ opacity: visible ? 0 : 1 }} />

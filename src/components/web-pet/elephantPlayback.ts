@@ -1,11 +1,17 @@
 import type { ElephantClip } from './elephantAnimations';
-import { chooseElephantEntryPose, loadElephantPoses, type PoseSample } from './elephantPoseMatching';
+import { chooseElephantEntryPose, chooseElephantExitTime, loadElephantPoses, type PoseSample } from './elephantPoseMatching';
 
 export type ElephantAction = ElephantClip['id'];
 export type ElephantAsset = ElephantAction | 'sit-down' | 'lie-down' | 'wake-up' | 'stand-up';
 export type PlaybackState = { status: 'loading' | 'ready' | 'blocked' | 'error'; asset: ElephantAsset | null; transitioning: boolean };
 const ROOT = '/pet/elephant-v4/';
 const LOOP_TAIL = .3;
+/** Preserve the start of deliberate gestures; only match repetitive resting/gait footage. */
+export const canMatchElephantEntry = (asset: ElephantAsset) => ['walk', 'curious', 'sit', 'sleep'].includes(asset);
+export function elephantBlendDuration(repeat: boolean, transition: boolean, rate: number, remaining: number) {
+  const duration = repeat ? 120 / rate : transition ? 160 : 180;
+  return Math.max(40, Math.min(duration, remaining * 1000 / rate - 20));
+}
 export const isElephantTransition = (asset: ElephantAsset) => asset.includes('-');
 const posture = (asset: ElephantAsset) => asset === 'sleep' || asset === 'lie-down' ? 'lying'
   : ['sit', 'sit-down', 'wake-up'].includes(asset) ? 'sitting' : 'standing';
@@ -25,7 +31,7 @@ export class ElephantPlayback {
   private desired: ElephantAction = 'curious';
   private active: { video: HTMLVideoElement; asset: ElephantAsset } | null = null;
   private staged: { video: HTMLVideoElement; asset: ElephantAsset; repeat: boolean; matched: boolean;
-    ready: boolean; events: AbortController; timeout: ReturnType<typeof setTimeout> } | null = null;
+    ready: boolean; exitTime?: number; events: AbortController; timeout: ReturnType<typeof setTimeout> } | null = null;
   private animations: Animation[] = [];
   private fading = false;
   private loopHandoff = false;
@@ -71,7 +77,10 @@ export class ElephantPlayback {
     this.sync();
     if (this.active && matchMedia('(prefers-reduced-motion: reduce)').matches) this.pump();
   }
-  retry() { if (this.status === 'blocked') { this.status = 'ready'; this.sync(); this.emit(); } }
+  retry() {
+    if (this.status === 'blocked') { this.status = 'ready'; this.sync(); this.emit(); }
+    else if (this.status === 'error') { this.status = this.active ? 'ready' : 'loading'; this.clearStaged(); this.pump(); this.emit(); }
+  }
   private emit() {
     if (!this.disposed) this.report({ status: this.status, asset: this.active?.asset ?? null,
       transitioning: (this.fading && !this.loopHandoff) || Boolean(this.active && isElephantTransition(this.active.asset)) });
@@ -87,13 +96,14 @@ export class ElephantPlayback {
     for (const video of this.decks) video.playbackRate = video.dataset.asset?.includes('-') ? 1 : this.actualSpeed;
   }
   private sync = () => {
-    const stopped = this.paused || document.hidden;
+    const stopped = this.paused || document.hidden || matchMedia('(prefers-reduced-motion: reduce)').matches;
     this.applyRates();
     for (const video of this.decks) {
       if (stopped) video.pause();
       else if (!video.ended && (video === this.active?.video || (this.fading && video.dataset.visible === 'true'))) this.play(video);
     }
     for (const animation of this.animations) { if (stopped) animation.pause(); else animation.play(); }
+    if (!stopped) this.show();
   };
   private cancelWatch() {
     if (this.videoFrame) this.watchVideo?.cancelVideoFrameCallback(this.videoFrame);
@@ -145,42 +155,69 @@ export class ElephantPlayback {
     const pixels = (video.parentElement?.getBoundingClientRect().width ?? 480) * devicePixelRatio;
     const compact = pixels > 0 && pixels <= 240;
     video.dataset.resolution = compact ? '240' : '480';
-    video.src = `${ROOT}${compact ? 'compact/' : ''}${asset}.webm`; video.load();
+    const source = `${ROOT}${compact ? 'compact/' : ''}${asset}.webm`;
+    // Reuse the warm decoder for loops. Reloading an identical src discards decoded frames.
+    if (video.getAttribute('src') === source && video.readyState >= 2) {
+      if (video.currentTime > .001) video.currentTime = 0;
+      else ready();
+    } else { video.src = source; video.load(); }
   }
-  private entryTime(asset: ElephantAsset) {
-    const samples = this.poses[asset];
-    if (!samples || !this.active || this.active.video.readyState < 2) return 0;
+  private signature(video: HTMLVideoElement): number[] {
+    if (video.readyState < 2) return [];
     try {
       const canvas = document.createElement('canvas'); canvas.width = 12; canvas.height = 9;
       const context = canvas.getContext('2d', { willReadFrequently: true })!;
       context.fillStyle = '#000'; context.fillRect(0, 0, 12, 9);
-      context.drawImage(this.active.video, 0, 0, 12, 9);
+      context.drawImage(video, 0, 0, 12, 9);
       const rgba = context.getImageData(0, 0, 12, 9).data;
-      const current = Array.from({ length: 108 }, (_, i) => (rgba[i * 4] + 2 * rgba[i * 4 + 1] + rgba[i * 4 + 2]) / 4);
-      return chooseElephantEntryPose(current, samples);
-    } catch { return 0; }
+      return Array.from({ length: 108 }, (_, i) => (rgba[i * 4] + 2 * rgba[i * 4 + 1] + rgba[i * 4 + 2]) / 4);
+    } catch { return []; }
+  }
+  private entryTime(asset: ElephantAsset) {
+    const samples = this.poses[asset]?.filter(sample => sample.time <= 1);
+    return samples && this.active ? chooseElephantEntryPose(this.signature(this.active.video), samples) : 0;
   }
   private show() {
     if (!this.staged?.ready || this.fading || this.disposed) return;
     const reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
+    if (this.active && (this.paused || document.hidden) && !reduced) return;
     if (this.active && !reduced) {
       const outgoing = this.active.video;
       if (this.staged.repeat && (this.paused || document.hidden || outgoing.currentTime < outgoing.duration - LOOP_TAIL)) return;
       if (isElephantTransition(this.active.asset) && !outgoing.ended && outgoing.currentTime < outgoing.duration - .18) return;
+      // A short greeting should finish its gesture even if the behavior timer has
+      // already returned to idle. Keep a new request queued rather than cutting it off.
+      if (this.active.asset === 'hello' && !this.staged.repeat && outgoing.currentTime < outgoing.duration - LOOP_TAIL - .12) return;
     }
     if (!this.staged.matched) {
       this.staged.matched = true;
-      if (!this.staged.repeat && !isElephantTransition(this.staged.asset) && !reduced) {
+      if (this.staged.repeat && this.active && !reduced) {
+        // Catch up to the matching head already playing in the outgoing clip's tail.
+        const offset = Math.max(0, this.active.video.currentTime - (this.active.video.duration - LOOP_TAIL));
+        if (offset > .035 && offset < LOOP_TAIL - .06) {
+          this.staged.ready = false; this.staged.video.currentTime = offset; return;
+        }
+      }
+      if (!this.staged.repeat && canMatchElephantEntry(this.staged.asset) && !reduced) {
         const time = this.entryTime(this.staged.asset);
         this.staged.video.dataset.entryTime = String(time);
         if (time > .02) { this.staged.ready = false; this.staged.video.currentTime = time; return; }
       }
     }
+    if (this.active && !this.staged.repeat && !reduced && !isElephantTransition(this.active.asset)) {
+      if (this.staged.exitTime === undefined) {
+        this.staged.exitTime = chooseElephantExitTime(this.active.video.currentTime, this.active.video.duration,
+          this.signature(this.staged.video), this.poses[this.active.asset] ?? []);
+      }
+      if (this.active.video.currentTime < this.staged.exitTime) return;
+    }
     const previous = this.active;
     const { video, asset, repeat } = this.staged;
     this.clearStaged();
     this.active = { video, asset }; this.status = 'ready'; video.dataset.visible = 'true';
-    const duration = !previous || reduced ? 0 : repeat ? 160 : isElephantTransition(asset) || isElephantTransition(previous.asset) ? 180 : 240;
+    const duration = !previous || reduced ? 0 : elephantBlendDuration(repeat,
+      isElephantTransition(asset) || isElephantTransition(previous.asset), previous.video.playbackRate,
+      Math.max(.08, previous.video.duration - previous.video.currentTime));
     if (!duration) {
       video.style.opacity = '1';
       if (previous) { previous.video.style.opacity = '0'; previous.video.dataset.visible = 'false'; previous.video.pause(); }

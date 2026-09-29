@@ -1,5 +1,20 @@
 export type PoseSample = { time: number; pixels: readonly number[] };
 
+/** Wait at most 350 ms for a nearby compatible pose instead of cutting mid-step. */
+export function chooseElephantExitTime(currentTime: number, duration: number, target: readonly number[], samples: readonly PoseSample[]) {
+  const candidates = samples.filter(sample => sample.time >= currentTime && sample.time <= Math.min(currentTime + .35, duration - .3));
+  if (!target.length || candidates.length < 2) return currentTime;
+  const distance = (sample: PoseSample) => sample.pixels.length === target.length
+    ? sample.pixels.reduce((sum, pixel, i) => sum + (pixel - target[i]) ** 2, 0) : Infinity;
+  const first = distance(candidates[0]);
+  let score = first, time = currentTime;
+  for (const sample of candidates) {
+    const candidate = distance(sample);
+    if (candidate < score) { score = candidate; time = sample.time; }
+  }
+  return score < first * .8 ? time : currentTime;
+}
+
 /** A small luminance signature is sufficient for matching body/trunk silhouettes. */
 export function chooseElephantEntryPose(current: readonly number[], samples: readonly PoseSample[]) {
   const distance = (sample: PoseSample) => sample.pixels.length === current.length
