@@ -1,4 +1,4 @@
-import { useMemo, useState, type CSSProperties, type KeyboardEvent } from 'react';
+import { useMemo, useRef, useState, type CSSProperties, type KeyboardEvent } from 'react';
 import { type HotCompany } from '../data/hotCompanies';
 import StandardCatalogImporter from '../components/StandardCatalogImporter';
 import {
@@ -27,6 +27,7 @@ import { recentCatalogUpdateDates } from '../lib/standardCompanyImport';
 
 const ALL = ALL_GROUP_NAME;
 const ALL_RECRUITMENT_STATUSES = 'all';
+const COMPANY_PAGE_SIZE = 48;
 const AUDIT_OVERRIDE_AFTER = Date.parse('2026-08-12T07:00:00Z');
 
 const RECRUITMENT_STATUS_META = {
@@ -100,6 +101,8 @@ export default function HotCompanies() {
   const [activeUpdateDate, setActiveUpdateDate] = useState<string | null>(null);
   const [activeRecruitmentStatus, setActiveRecruitmentStatus] = useState<RecruitmentStatusKey | typeof ALL_RECRUITMENT_STATUSES>(ALL_RECRUITMENT_STATUSES);
   const [pageSearch, setPageSearch] = useState('');
+  const [pageIndex, setPageIndex] = useState(0);
+  const resultsStartRef = useRef<HTMLDivElement>(null);
   const [aiPrompt, setAiPrompt] = useState('');
   const [aiLoading, setAiLoading] = useState(false);
   const [aiError, setAiError] = useState('');
@@ -177,6 +180,30 @@ export default function HotCompanies() {
       }))
       .filter((group) => group.companies.length > 0);
   }, [activeCompanyType, activeIndustry, activeRecruitmentStatus, selectedUpdateDate, allGroups, pageSearch, recruitmentStatusByCompany]);
+
+  const matchingCompanyCount = useMemo(
+    () => groups.reduce((count, group) => count + group.companies.length, 0),
+    [groups],
+  );
+  const pageCount = Math.max(1, Math.ceil(matchingCompanyCount / COMPANY_PAGE_SIZE));
+  const currentPage = Math.min(pageIndex, pageCount - 1);
+  const pagedGroups = useMemo(() => {
+    const pageStart = currentPage * COMPANY_PAGE_SIZE;
+    const pageEnd = pageStart + COMPANY_PAGE_SIZE;
+    let groupStart = 0;
+    return groups.flatMap((group) => {
+      const start = groupStart;
+      groupStart += group.companies.length;
+      const sliceStart = Math.max(0, pageStart - start);
+      const sliceEnd = Math.min(group.companies.length, pageEnd - start);
+      if (sliceStart >= sliceEnd) return [];
+      return [{ ...group, totalCount: group.companies.length, companies: group.companies.slice(sliceStart, sliceEnd) }];
+    });
+  }, [currentPage, groups]);
+  const changePage = (nextPage: number) => {
+    setPageIndex(nextPage);
+    resultsStartRef.current?.scrollIntoView({ block: 'start' });
+  };
 
   const recruitmentStatusFilters = useMemo(() => {
     const counts = new Map<RecruitmentStatusKey, number>();
@@ -355,7 +382,7 @@ export default function HotCompanies() {
           {activeRecruitmentStatus !== ALL_RECRUITMENT_STATUSES && (
             <button
               type="button"
-              onClick={() => setActiveRecruitmentStatus(ALL_RECRUITMENT_STATUSES)}
+              onClick={() => { setActiveRecruitmentStatus(ALL_RECRUITMENT_STATUSES); setPageIndex(0); }}
               className="btn-press"
               style={{ ...secondaryButton, height: 34, background: '#faf7f0' }}
             >
@@ -372,6 +399,7 @@ export default function HotCompanies() {
                 type="button"
                 onClick={() => {
                   setActiveRecruitmentStatus(active ? ALL_RECRUITMENT_STATUSES : status.key);
+                  setPageIndex(0);
                   if (!active) {
                     setActiveCompanyType(ALL);
                     setActiveIndustry(ALL);
@@ -514,9 +542,9 @@ export default function HotCompanies() {
       </section>
 
       <section style={{ ...CARD, padding: 16, borderRadius: 20 }}>
-        <FilterRow label="添加时间顺序" options={updateDateOptions} value={selectedUpdateDate} onChange={setActiveUpdateDate} singleLine />
-        <FilterRow label="企业性质" options={companyTypeOptions} value={activeCompanyType} onChange={setActiveCompanyType} />
-        <FilterRow label="行业分类" options={industryOptions} value={activeIndustry} onChange={setActiveIndustry} />
+        <FilterRow label="添加时间顺序" options={updateDateOptions} value={selectedUpdateDate} onChange={(value) => { setActiveUpdateDate(value); setPageIndex(0); }} singleLine />
+        <FilterRow label="企业性质" options={companyTypeOptions} value={activeCompanyType} onChange={(value) => { setActiveCompanyType(value); setPageIndex(0); }} />
+        <FilterRow label="行业分类" options={industryOptions} value={activeIndustry} onChange={(value) => { setActiveIndustry(value); setPageIndex(0); }} />
       </section>
 
       {/* 页面内公司名搜索 */}
@@ -539,7 +567,7 @@ export default function HotCompanies() {
             <IconSearch size={17} color="#a39d90" />
             <input
               value={pageSearch}
-              onChange={(e) => setPageSearch(e.target.value)}
+              onChange={(e) => { setPageSearch(e.target.value); setPageIndex(0); }}
               placeholder="搜索公司名称（支持已添加与精选列表）…"
               aria-label="搜索公司名称"
               style={{ border: 'none', background: 'none', outline: 'none', fontSize: 14, width: '100%', color: '#1b1a17' }}
@@ -547,7 +575,7 @@ export default function HotCompanies() {
             {pageSearch && (
               <button
                 type="button"
-                onClick={() => setPageSearch('')}
+                onClick={() => { setPageSearch(''); setPageIndex(0); }}
                 className="btn-press"
                 style={{ border: 'none', background: 'none', color: '#9a9488', fontSize: 12, fontWeight: 700, cursor: 'pointer' }}
               >
@@ -557,7 +585,7 @@ export default function HotCompanies() {
           </div>
           <div style={{ fontSize: 12.5, color: '#9a9488' }}>
             {pageSearch
-              ? `匹配 ${groups.reduce((n, g) => n + g.companies.length, 0)} 家`
+              ? `匹配 ${matchingCompanyCount} 家`
               : `已添加 ${importedCompanies.length} 家 · 可删除`}
           </div>
         </div>
@@ -568,6 +596,12 @@ export default function HotCompanies() {
         )}
       </div>
 
+      {matchingCompanyCount > 0 && (
+        <div ref={resultsStartRef}>
+          <CompanyResultsPagination count={matchingCompanyCount} page={currentPage} pageCount={pageCount} onPageChange={changePage} />
+        </div>
+      )}
+
       {groups.length === 0 ? (
         <div style={{ ...CARD, padding: 26, color: '#8a8478', fontSize: 14 }}>
           {pageSearch
@@ -575,12 +609,12 @@ export default function HotCompanies() {
             : '没有匹配的公司。'}
         </div>
       ) : (
-        groups.map((group) => (
+        pagedGroups.map((group) => (
           <section key={group.name} style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 9 }}>
               <span style={{ width: 8, height: 8, borderRadius: 999, background: group.dot, flex: 'none' }} />
               <span style={{ fontSize: 13.5, fontWeight: 700, color: '#4a463e' }}>{group.name}</span>
-              <span style={{ fontSize: 12, color: '#9a9488' }}>{group.companies.length} 家</span>
+              <span style={{ fontSize: 12, color: '#9a9488' }}>{group.totalCount} 家{group.totalCount !== group.companies.length ? ` · 本页 ${group.companies.length} 家` : ''}</span>
               {group.name === AI_GROUP_NAME && (
                 <span style={{ fontSize: 11.5, color: '#a08cb5', fontWeight: 600 }}>可删除</span>
               )}
@@ -607,7 +641,36 @@ export default function HotCompanies() {
           </section>
         ))
       )}
+      {pageCount > 1 && (
+        <div className="pb-40 lg:pb-0">
+          <CompanyResultsPagination count={matchingCompanyCount} page={currentPage} pageCount={pageCount} onPageChange={changePage} />
+        </div>
+      )}
     </div>
+  );
+}
+
+function CompanyResultsPagination({ count, page, pageCount, onPageChange }: {
+  count: number;
+  page: number;
+  pageCount: number;
+  onPageChange: (page: number) => void;
+}) {
+  const first = page * COMPANY_PAGE_SIZE + 1;
+  const last = Math.min(count, (page + 1) * COMPANY_PAGE_SIZE);
+  return (
+    <nav aria-label="公司结果分页" style={{ ...CARD, padding: '12px 16px', borderRadius: 18, display: 'flex', alignItems: 'center', justifyContent: 'flex-start', gap: 16, flexWrap: 'wrap' }}>
+      <span style={{ fontSize: 13, color: '#625d54' }}>共 {count} 家 · 显示 {first}–{last} 家</span>
+      {pageCount > 1 && (
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+          <button type="button" onClick={() => onPageChange(page - 1)} disabled={page === 0} style={{ ...secondaryButton, height: 34, opacity: page === 0 ? 0.5 : 1 }}>上一页</button>
+          <select aria-label="选择结果页" value={page} onChange={(event) => onPageChange(Number(event.target.value))} style={{ height: 34, padding: '0 8px', border: '1px solid #e0d8c9', borderRadius: 10, background: '#fffdf8', color: '#4a463e', fontSize: 13 }}>
+            {Array.from({ length: pageCount }, (_, index) => <option key={index} value={index}>第 {index + 1} / {pageCount} 页</option>)}
+          </select>
+          <button type="button" onClick={() => onPageChange(page + 1)} disabled={page === pageCount - 1} style={{ ...secondaryButton, height: 34, opacity: page === pageCount - 1 ? 0.5 : 1 }}>下一页</button>
+        </div>
+      )}
+    </nav>
   );
 }
 
