@@ -23,6 +23,12 @@ import WelcomeNoticeModal from './components/WelcomeNoticeModal';
 
 const CommunityTown = lazy(() => import('./pages/CommunityTown'));
 
+function PageCompanion() {
+  const { screen } = useAppShell();
+  // The interactive world owns the viewport; suspend the floating video pet here.
+  return screen === 'capitalMap' ? null : <WebPetCompanion />;
+}
+
 function CurrentPage() {
   const { screen } = useAppShell();
   switch (screen) {
@@ -58,7 +64,7 @@ function Gate() {
   if (loading) return <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#7a7468', fontSize: 15 }}>加载中…</div>;
   if (!session || passwordRecovery) return <Login passwordRecovery={passwordRecovery} />;
   return <>
-    <AppShellProvider><ApiKeysProvider key={session.user.id}><AppLayout><CurrentPage /></AppLayout><WebPetCompanion /></ApiKeysProvider></AppShellProvider>
+    <AppShellProvider><ApiKeysProvider key={session.user.id}><AppLayout><CurrentPage /></AppLayout><PageCompanion /></ApiKeysProvider></AppShellProvider>
     {showWelcomeNotice && <WelcomeNoticeModal onClose={() => setShowWelcomeNotice(false)} />}
   </>;
 }

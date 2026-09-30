@@ -27,7 +27,16 @@ export function createIslandEnvironment(){
   const g=new T.Group(),labels=new T.Group(),obstacles:Obstacle[]=[];
   // Broad shallow-water steps form a soft, all-around shoreline without imported textures.
   const sea=rounded(4000,4000,10,'#168b99',-1.15);g.add(sea);
-  for(let i=18;i>=1;i--)g.add(rounded(166+i*1.4,166+i*1.4,10+i*.6,'#a8d8cf',-.9+(19-i)*.015,.035));
+  // One shoreline texture replaces 18 overlapping full-island transparent surfaces.
+  const shoreCanvas=document.createElement('canvas');shoreCanvas.width=512;shoreCanvas.height=512;
+  const ctx=shoreCanvas.getContext('2d')!,pixels=ctx.createImageData(512,512);
+  for(let y=0;y<512;y++)for(let x=0;x<512;x++){
+    const qx=Math.abs((x/511-.5)*216)-76,qz=Math.abs((y/511-.5)*216)-76;
+    const distance=Math.hypot(Math.max(qx,0),Math.max(qz,0))+Math.min(Math.max(qx,qz),0)-7,index=(y*512+x)*4;
+    pixels.data[index]=168;pixels.data[index+1]=216;pixels.data[index+2]=207;pixels.data[index+3]=Math.round(122*Math.pow(1-T.MathUtils.clamp(distance/16,0,1),1.4));
+  }
+  ctx.putImageData(pixels,0,0);const shoreTexture=new T.CanvasTexture(shoreCanvas);shoreTexture.colorSpace=T.SRGBColorSpace;
+  const shore=new T.Mesh(new T.PlaneGeometry(216,216),new T.MeshBasicMaterial({map:shoreTexture,transparent:true,depthWrite:false}));shore.rotation.x=-Math.PI/2;shore.position.y=-.8;g.add(shore);
   g.add(rounded(166,166,7,'#eee1c3',-.34));g.add(rounded(157,157,4,'#f2eddc',-.16));
   box(g,145,.12,145,0,-.08,0,'#c9d0be');
   // 40 m blocks, separated by 6 m streets. A promenade encircles the entire island.

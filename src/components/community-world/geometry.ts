@@ -1,6 +1,7 @@
 import * as T from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 export const materialCache = new Map<string, T.MeshStandardMaterial>();
+export const vertexMaterial = new T.MeshStandardMaterial({vertexColors:true,roughness:.88});
 export function material(color: string) {
   let m = materialCache.get(color);
   if (!m) { m = new T.MeshStandardMaterial({ color, roughness: .88 }); materialCache.set(color, m); }
@@ -28,7 +29,12 @@ export function mergeStatic(g: T.Group) {
   const groups = new Map<T.Material, T.BufferGeometry[]>();
   g.traverse(o => { if (o instanceof T.Mesh && !Array.isArray(o.material)) {
     const geometry = (o.geometry.index ? o.geometry.toNonIndexed() : o.geometry.clone()).applyMatrix4(new T.Matrix4().multiplyMatrices(inverse,o.matrixWorld));
-    const list = groups.get(o.material) || []; list.push(geometry); groups.set(o.material,list); o.geometry.dispose();
+    let mat=o.material;
+    if(mat instanceof T.MeshStandardMaterial&&!mat.map&&!mat.transparent){
+      if(!geometry.getAttribute('color')){const count=geometry.getAttribute('position').count,colors=new Float32Array(count*3);for(let i=0;i<count;i++)mat.color.toArray(colors,i*3);geometry.setAttribute('color',new T.BufferAttribute(colors,3));}
+      mat=vertexMaterial;
+    }
+    const list = groups.get(mat) || []; list.push(geometry); groups.set(mat,list); o.geometry.dispose();
   }});
   g.clear();
   groups.forEach((geometries, mat) => { const geom=mergeGeometries(geometries,false); geometries.forEach(geo=>geo.dispose()); if(geom) { const m=new T.Mesh(geom,mat); m.castShadow=true;m.receiveShadow=true;g.add(m); }});

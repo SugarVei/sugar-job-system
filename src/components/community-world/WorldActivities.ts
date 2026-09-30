@@ -2,6 +2,8 @@ import * as T from 'three';
 import { box, cylinder, material, mergeStatic } from './geometry';
 import { FLIGHT_ALTITUDE, reserveSeat, seaMovementAllowed, flightPositionAllowed, taxiRoute } from './activityRules';
 
+import type { PlayerFrame, SharedSeat } from './networkTypes';
+
 export type ActivityKind='wheel'|'swing'|'slide'|'football'|'badminton'|'basketball'|'taxi'|'yacht'|'plane';
 export const ACTIVITIES:{id:ActivityKind;name:string;description:string}[]=[
   {id:'wheel',name:'摩天轮',description:'乘坐观景 · 可切换第一人称'},
@@ -28,6 +30,18 @@ function planeMesh(){const g=new T.Group();box(g,1.5,1.2,7,0,0,0,'#efe9d9');box(
 
 export class WorldActivities {
   readonly root=new T.Group();
+  private multiplayer=false;
+  private clockOffset=0;
+  setClockOffset(offset:number){this.clockOffset=offset;}
+  private localSeat=1;
+  private remoteFrames=new Map<string,{frame:PlayerFrame;at:number}>();
+  setMultiplayer(value:boolean){this.multiplayer=value;}
+  assignSeat(seat:number){this.localSeat=seat;}
+  setSeats(seats:SharedSeat[],userId:string,sessionId:string){this.taxis.forEach((t,i)=>{t.passengers=seats.filter(s=>s.resource===`taxi-${i}`).map(s=>s.user_id===userId&&s.session_id===sessionId?'local-player':s.session_id);});for(const key of this.remoteFrames.keys())if(!seats.some(s=>s.resource===key)){this.remoteFrames.delete(key);if(key==='yacht'&&this.mode!=='yacht'){this.yacht.position.set(8,-.35,102);this.yacht.rotation.y=0;}}}
+  messageToUser(message:string){this.notify(message);}
+  sharedFrame(){const mesh=this.mode==='yacht'?this.yacht:this.mode==='plane'?this.planes[0]:null;return {mode:this.mode,vehicle:mesh?[mesh.position.x,mesh.position.y,mesh.position.z,mesh.rotation.y]:this.mode==='swing'?[0,this.swingAngle,0,0]:undefined,props:this.mode&&['football','badminton','basketball','swing'].includes(this.mode)?[this.ball.position.toArray(),this.shuttle.position.toArray(),this.basketball.position.toArray()]:undefined};}
+  receiveShared(frame:PlayerFrame){if(frame.mode)this.remoteFrames.set(frame.mode,{frame,at:performance.now()});}
+
   private targets=new Map<ActivityKind,T.Object3D[]>();
   private wheel=new T.Group();private cabins:T.Group[]=[];private swing=new T.Group();
   private wheelAngle=Math.PI;private swingAngle=0;private swingPower=.5;
@@ -58,6 +72,9 @@ export class WorldActivities {
     for(let i=0;i<2;i++){const plane=planeMesh();this.planes.push(plane);this.register('plane',plane);}
     const dock=new T.Group();cylinder(dock,.8,.05,0,.07,93,'#d1bd8b');marker(dock,'游艇码头 · F',0,4,93);this.register('yacht',dock);
     const terminal=new T.Group();cylinder(terminal,2.7,.09,73,.06,-65,'#c7d4bb');box(terminal,2,2,.15,73,1.1,-67,'#adbea2');marker(terminal,'观光登机点 · F',73,4.2,-65);this.register('plane',terminal);
+    // Merge fixed pieces without flattening animated pivots, cabins, sprites or hit targets.
+    const fixedBatch=(group:T.Group)=>{const fixed=new T.Group();for(const child of [...group.children])if(child instanceof T.Mesh)fixed.add(child);if(fixed.children.length){mergeStatic(fixed);group.add(fixed);}};
+    for(const group of [wheelBase,this.wheel,this.swing,frame,slide,dock,terminal,this.racket,this.aiRacket])fixedBatch(group);
     // Static shadows are cached by the scene; moving props must not leave frozen shadows behind.
     this.root.traverse(o=>{if(o instanceof T.Mesh)o.castShadow=false;});
   }
@@ -78,7 +95,7 @@ export class WorldActivities {
       const seats=reserveSeat(t.passengers,'local-player');if(!seats){this.notify('这辆车已经满员，最多 4 位乘客。');return false;}t.passengers=seats;this.taxiIndex=index;
     }else if(player.position.distanceTo(entrances[kind])>10){this.notify('先靠近设施，或从“玩乐出行”选择前往。');return false;}
     this.mode=kind;this.elapsed=0;this.score=0;this.attempts=0;this.shot=0;this.rallyLive=false;this.heading=0;this.speed=0;
-    if(kind==='wheel')this.wheelAngle=Math.PI;
+    if(kind==='wheel'&&!this.multiplayer)this.wheelAngle=Math.PI;
     if(kind==='football'){player.position.set(-11,.2,-46);this.ball.position.set(-8,.5,-46);this.ballVelocity.set(0,0,0);player.rotation.y=Math.PI/2;}
     if(kind==='badminton')player.position.copy(entrances.badminton);
     if(kind==='basketball')player.position.copy(entrances.basketball);
@@ -106,17 +123,17 @@ export class WorldActivities {
   }
   private meter(){return(this.time*.62)%1;}
   update(dt:number,player:T.Object3D,input:{x:number;z:number}){
-    this.time+=dt;this.elapsed+=dt;
-    this.wheelAngle+=dt*.17;this.wheel.rotation.z=-this.wheelAngle;
+    this.time=this.multiplayer?(Date.now()+this.clockOffset)/1000-1700000000:this.time+dt;this.elapsed+=dt;
+    this.wheelAngle=this.multiplayer?this.time*.17:this.wheelAngle+dt*.17;this.wheel.rotation.z=-this.wheelAngle;
     this.cabins.forEach((c,i)=>{const a=this.wheelAngle+i*Math.PI/4;c.position.set(Math.sin(a)*5,7+Math.cos(a)*5,0);});
     this.swingPower=Math.max(.35,this.swingPower-dt*.015);this.swingAngle=Math.sin(this.time*1.6)*this.swingPower;this.swing.rotation.x=this.swingAngle;
-    this.taxis.forEach(t=>{t.distance+=dt*6;const p=taxiRoute(t.distance,t.extent);t.mesh.position.set(p.x,0,p.z);t.mesh.rotation.y=p.yaw;});
+    this.taxis.forEach((t,i)=>{t.distance=this.multiplayer?this.time*6+(i<3?i*184:(i-3)*92):t.distance+dt*6;const p=taxiRoute(t.distance,t.extent);t.mesh.position.set(p.x,0,p.z);t.mesh.rotation.y=p.yaw;});
     this.boats.forEach((b,i)=>{const a=this.time*.05+i*2,center=[[-125,0],[125,-70],[0,150]][i],p=new T.Vector3(center[0]+Math.sin(a)*18,-.4,center[1]+Math.cos(a)*18);if(p.distanceTo(this.yacht.position)>9){b.position.copy(p);b.rotation.y=a+Math.PI/2;}});
-    this.planes.forEach((p,i)=>{if(i===0&&this.mode==='plane')return;const a=this.time*.06+i*Math.PI;p.position.set(Math.sin(a)*140,FLIGHT_ALTITUDE,Math.cos(a)*140);p.rotation.y=a+Math.PI/2;});
-    if(this.mode==='wheel'){const a=this.wheelAngle;player.position.set(-7+Math.sin(a)*5,7+Math.cos(a)*5-.95,44);player.rotation.y=0;}
+    this.planes.forEach((p,i)=>{if(i===0&&(this.mode==='plane'||this.remoteFrames.has('plane')))return;const a=this.time*.06+i*Math.PI;p.position.set(Math.sin(a)*140,FLIGHT_ALTITUDE,Math.cos(a)*140);p.rotation.y=a+Math.PI/2;});
+    if(this.mode==='wheel'){const a=this.wheelAngle+(this.multiplayer?(this.localSeat-1)*Math.PI/4:0);player.position.set(-7+Math.sin(a)*5,7+Math.cos(a)*5-.95,44);player.rotation.y=0;}
     if(this.mode==='swing'){player.position.set(8.3,3.6-3.5*Math.cos(this.swingAngle),39-3.5*Math.sin(this.swingAngle));player.rotation.x=this.swingAngle;}
     if(this.mode==='slide'){const t=this.elapsed;player.rotation.y=0;if(t<2){player.position.set(13-t*1.5,.2+t*1.1,53);}else{const u=Math.min(1,(t-2)/2.3);player.position.set(10,2.4-u*2.2,53+u*6);}if(t>4.5){this.exit(player);this.notify('滑到底啦，再来一次？');}}
-    if(this.mode==='taxi'){const t=this.taxis[this.taxiIndex],seat=Math.max(0,t.passengers.indexOf('local-player')),offsets=[[-.52,.55],[.52,.55],[-.52,-.65],[.52,-.65]],p=new T.Vector3(offsets[seat][0],.85,offsets[seat][1]).applyAxisAngle(new T.Vector3(0,1,0),t.mesh.rotation.y).add(t.mesh.position);player.position.copy(p);player.rotation.y=t.mesh.rotation.y;}
+    if(this.mode==='taxi'){const t=this.taxis[this.taxiIndex],seat=this.multiplayer?this.localSeat-1:Math.max(0,t.passengers.indexOf('local-player')),offsets=[[-.52,.55],[.52,.55],[-.52,-.65],[.52,-.65]],p=new T.Vector3(offsets[seat][0],.85,offsets[seat][1]).applyAxisAngle(new T.Vector3(0,1,0),t.mesh.rotation.y).add(t.mesh.position);player.position.copy(p);player.rotation.y=t.mesh.rotation.y;}
     if(this.mode==='yacht'||this.mode==='plane'){
       const flying=this.mode==='plane',max=flying?25:14,min=flying?6:-4;
       this.speed=T.MathUtils.clamp(this.speed-input.z*dt*(flying?8:6),min,max);
@@ -128,6 +145,7 @@ export class WorldActivities {
       mesh.position.y=flying?FLIGHT_ALTITUDE:-.35;mesh.rotation.y=this.heading;
       player.position.copy(mesh.position).add(new T.Vector3(0,flying?.9:.55,flying?1.1:1.5).applyAxisAngle(new T.Vector3(0,1,0),this.heading));player.rotation.y=this.heading;
     }
+    for(const [mode,remote] of this.remoteFrames){if(mode===this.mode||performance.now()-remote.at>15000)continue;const f=remote.frame,mesh=mode==='yacht'?this.yacht:mode==='plane'?this.planes[0]:null;if(mesh&&f.vehicle){mesh.position.lerp(new T.Vector3(f.vehicle[0],f.vehicle[1],f.vehicle[2]),1-Math.exp(-dt*14));mesh.rotation.y=f.vehicle[3];}if(mode==='swing'&&f.vehicle){this.swingAngle=f.vehicle[1];this.swing.rotation.x=this.swingAngle;}if(f.props)for(const [index,prop] of [this.ball,this.shuttle,this.basketball].entries())if(f.props[index])prop.position.lerp(new T.Vector3(...f.props[index] as [number,number,number]),1-Math.exp(-dt*14));}
     if(this.mode==='football'){
       const vx=input.x*dt*6,vz=input.z*dt*6;player.position.x=T.MathUtils.clamp(player.position.x+vx,-16,16);player.position.z=T.MathUtils.clamp(player.position.z+vz,-58,-34);if(vx||vz)player.rotation.y=Math.atan2(vx,vz);
       if(this.ballVelocity.length()<1&&player.position.distanceTo(this.ball.position)<1.7&&(vx||vz)){this.ball.position.x=player.position.x+Math.sin(player.rotation.y)*1.2;this.ball.position.z=player.position.z+Math.cos(player.rotation.y)*1.2;}
