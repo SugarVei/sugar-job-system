@@ -9,17 +9,19 @@
     "build": "tsc -p tsconfig.json --noEmit && vite build",
     "preview": "vite preview",
     "lint": "eslint .",
-    "test": "node --experimental-strip-types --import ./scripts/register-ts-ext.mjs --test src/lib/standardCompanyImport.test.ts src/lib/standardCompanyCatalog.test.ts src/lib/standardCompanyWorkbook.test.ts src/lib/standardCatalogAdmin.test.ts src/data/hotCompanyHq.test.ts src/lib/jobAssistAI.test.ts src/lib/applicationsOverview.test.ts src/lib/interviewApplicationMatch.test.ts"
+    "test": "node --experimental-strip-types --import ./scripts/register-ts-ext.mjs --test src/lib/standardCompanyImport.test.ts src/lib/standardCompanyCatalog.test.ts src/lib/standardCompanyWorkbook.test.ts src/lib/standardCatalogAdmin.test.ts src/data/hotCompanyHq.test.ts src/lib/jobAssistAI.test.ts src/lib/applicationsOverview.test.ts src/lib/interviewApplicationMatch.test.ts src/components/community-world/walkableGround.test.ts"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.45.4",
     "echarts": "^6.1.0",
     "imapflow": "^1.6.6",
     "jszip": "^3.10.1",
+    "lucide-react": "^1.49.0",
     "pdf-parse": "^1.1.4",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
     "tesseract.js": "^7.0.0",
+    "three": "^0.186.1",
     "xlsx-js-style": "^1.2.0"
   },
   "devDependencies": {
@@ -27,6 +29,7 @@
     "@types/node": "^26.1.1",
     "@types/react": "^18.3.5",
     "@types/react-dom": "^18.3.0",
+    "@types/three": "^0.186.0",
     "@vitejs/plugin-react": "^4.3.1",
     "autoprefixer": "^10.4.20",
     "eslint": "^10.6.0",

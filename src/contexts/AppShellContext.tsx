@@ -40,7 +40,7 @@ export function AppShellProvider({ children }: { children: ReactNode }) {
   const navigate = useCallback((next: ScreenKey, opts?: NavigateOptions) => { setQuery(opts?.query ?? ''); setApplicationsFilter(next === 'applications' ? opts?.applicationsFilter ?? 'all' : 'all'); setInterviewDateFilter(next === 'interviews' ? opts?.interviewDate ?? null : null); setScreenState(next); }, []);
 
   useEffect(() => {
-    const applyHash = () => { const [screenPath, tab] = window.location.hash.replace(/^#\/?/, '').split('/'); if (screenPath === 'interview-reviews') setScreen('resumeAssistant'); if (screenPath === 'resume-assistant') { setScreen('resumeAssistant'); if (['overview', 'profile', 'settings', 'runs'].includes(tab)) setAssistantTab(tab as ResumeAssistantTab); } };
+    const applyHash = () => { const [screenPath, tab] = window.location.hash.replace(/^#\/?/, '').split('/'); if (screenPath === 'community-world') setScreen('capitalMap'); if (screenPath === 'interview-reviews') setScreen('resumeAssistant'); if (screenPath === 'resume-assistant') { setScreen('resumeAssistant'); if (['overview', 'profile', 'settings', 'runs'].includes(tab)) setAssistantTab(tab as ResumeAssistantTab); } };
     applyHash(); window.addEventListener('hashchange', applyHash); return () => window.removeEventListener('hashchange', applyHash);
   }, [setScreen]);
   const setAssistantTabWithHash = useCallback((tab: ResumeAssistantTab) => { setAssistantTab(tab); if (window.location.hash !== `#/resume-assistant/${tab}`) window.history.replaceState(null, '', `#/resume-assistant/${tab}`); }, []);

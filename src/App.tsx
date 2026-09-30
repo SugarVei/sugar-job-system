@@ -21,7 +21,7 @@ import ResumeAssistant from './pages/ResumeAssistant';
 import WebPetCompanion from './components/web-pet/WebPetCompanion';
 import WelcomeNoticeModal from './components/WelcomeNoticeModal';
 
-const CapitalMap = lazy(() => import('./pages/CapitalMap'));
+const CommunityTown = lazy(() => import('./pages/CommunityTown'));
 
 function CurrentPage() {
   const { screen } = useAppShell();
@@ -29,7 +29,7 @@ function CurrentPage() {
     case 'dashboard': return <Dashboard />;
     case 'overview': return <Overview />;
     case 'applications': return <Applications />;
-    case 'capitalMap': return <Suspense fallback={<div style={{ color: '#8a8478', fontSize: 14, padding: 12 }}>正在打开地图校招…</div>}><CapitalMap /></Suspense>;
+    case 'capitalMap': return <Suspense fallback={<div style={{ color: '#8a8478', fontSize: 14, padding: 12 }}>正在打开求职小镇…</div>}><CommunityTown /></Suspense>;
     case 'companies': return <Companies />;
     case 'referralCodes': return <ReferralCodes />;
     case 'hotCompanies': return <HotCompanies />;
