@@ -8,10 +8,10 @@ import {
   IconInterviews,
   IconApplications,
   IconTrophy,
-  IconChevronRight,
 } from '../components/icons';
-import { initialOf, avatarColor, CARD, statusTag } from '../lib/appHelpers';
+import { CARD, statusTag } from '../lib/appHelpers';
 import ActionQueueOrbit from '../components/dashboard/ActionQueueOrbit';
+import RecentInterviewFolder from '../components/dashboard/RecentInterviewFolder';
 
 function priorityRank(priority: ApplicationPriority | null | undefined) {
   return priority === 'urgent' ? 4 : priority === 'high' ? 3 : priority === 'normal' ? 2 : 1;
@@ -54,7 +54,7 @@ function urgencyScore(app: Application, now: Date) {
 
 export default function Dashboard() {
   const { items: apps } = useCollection<Application>('applications');
-  const { items: interviews } = useCollection<Interview>('interviews', {
+  const { items: interviews, loading: interviewsLoading, error: interviewsError, refresh: refreshInterviews } = useCollection<Interview>('interviews', {
     column: 'interview_time',
     ascending: true,
   });
@@ -313,67 +313,17 @@ export default function Dashboard() {
           </div>
         </div>
 
-        <div style={{ ...CARD, padding: 22 }}>
-          <div className="flex items-center justify-between" style={{ marginBottom: 16 }}>
-            <div style={{ fontFamily: 'Poppins', fontSize: 17, fontWeight: 600 }}>近期面试</div>
-            <button onClick={() => navigate('interviews')} className="btn-press" style={{ display: 'flex', alignItems: 'center', gap: 5, background: 'none', border: 'none', fontSize: 13, fontWeight: 600, color: theme.accent, cursor: 'pointer' }}>
-              查看全部 <IconChevronRight size={14} />
-            </button>
-          </div>
-          <div className="flex flex-col">
-            {upcoming.length === 0 ? (
-              <div style={{ fontSize: 13.5, color: '#8a8478', padding: '20px 0' }}>
-                暂无安排。
-                <button
-                  type="button"
-                  onClick={() => navigate('interviews')}
-                  className="btn-press"
-                  style={{ marginLeft: 6, background: 'none', border: 'none', color: theme.accent, fontWeight: 700, cursor: 'pointer', fontSize: 13.5 }}
-                >
-                  去面试日历添加 →
-                </button>
-              </div>
-            ) : (
-              upcoming.map((iv) => {
-                const col = avatarColor(iv.company_name);
-                const d = new Date(iv.interview_time!);
-                return (
-                  <button
-                    key={iv.id}
-                    type="button"
-                    onClick={() => navigate('interviews', { query: iv.company_name, interviewDate: toDateKey(d) })}
-                    className="btn-press"
-                    style={{
-                      display: 'grid',
-                      gridTemplateColumns: 'auto 1fr auto',
-                      alignItems: 'center',
-                      gap: 14,
-                      padding: '12px 6px',
-                      border: 'none',
-                      borderBottom: '1px solid #f0ebe0',
-                      background: 'none',
-                      width: '100%',
-                      textAlign: 'left',
-                      cursor: 'pointer',
-                    }}
-                  >
-                    <div style={{ width: 42, height: 42, borderRadius: 13, background: col.bg, color: col.fg, display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700, fontFamily: 'Poppins', fontSize: 16 }}>
-                      {initialOf(iv.company_name)}
-                    </div>
-                    <div style={{ minWidth: 0 }}>
-                      <div style={{ fontWeight: 600, fontSize: 14.5, color: '#1b1a17' }}>{iv.company_name} · {iv.round || '面试'}</div>
-                      <div style={{ fontSize: 12.5, color: '#8a8478', marginTop: 2 }}>
-                        {iv.position_name ? `${iv.position_name} · ` : ''}
-                        {d.toLocaleString('zh-CN', { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit', hour12: false })}
-                      </div>
-                    </div>
-                    <span style={{ background: '#fbeec2', color: '#7a5a12', fontSize: 12, fontWeight: 600, padding: '5px 11px', borderRadius: 999, whiteSpace: 'nowrap' }}>{iv.interview_type || '面试'}</span>
-                  </button>
-                );
-              })
-            )}
-          </div>
-        </div>
+        <RecentInterviewFolder
+          interviews={upcoming}
+          loading={interviewsLoading}
+          error={interviewsError}
+          onRetry={refreshInterviews}
+          onViewAll={() => navigate('interviews')}
+          onViewCalendar={(iv) => navigate('interviews', {
+            query: iv.company_name,
+            interviewDate: iv.interview_time ? toDateKey(new Date(iv.interview_time)) : null,
+          })}
+        />
       </div>
     </div>
   );
