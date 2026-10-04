@@ -8,6 +8,7 @@ import { isWalkableGround, WALK_GRID_LIMIT } from './walkableGround';
 import { WorldActivities, type ActivityKind, type ActivityStatus } from './WorldActivities';
 import { createIslandEnvironment } from './islandEnvironment';
 import { CAMERA_PRESETS, DEFAULT_AZIMUTH, MIN_ELEVATION, MAX_ELEVATION, clampElevation, elevationForZoom, shortestAngleDelta, type CameraViewState } from './cameraView';
+import { worldPixelRatio, type WorldRenderQuality } from './renderQuality';
 
 import type { PlayerFrame, SharedSeat } from './networkTypes';
 
@@ -24,10 +25,10 @@ function textPlane(g: T.Group, title: string, sub: string, color: string, empty:
   ctx.textAlign='left';ctx.fillStyle=empty?'#7a8372':'#263f31';ctx.font='600 60px "Microsoft YaHei",sans-serif';ctx.fillText(title,190,120,785);
   ctx.fillStyle='#839082';ctx.font='26px "Microsoft YaHei",sans-serif';ctx.fillText(sub,194,173,760);
   ctx.font='17px sans-serif';ctx.fillText(empty?'A LITTLE SPACE FOR YOUR BIG DREAMS':'SUGAR NEIGHBORHOOD  /  MAKE YOURSELF AT HOME',194,220);
-  const column=index%10,row=Math.floor(index/10);
-  (atlas.image as HTMLCanvasElement).getContext('2d')!.drawImage(c,column*256,row*80,256,80);atlas.needsUpdate=true;
+  const column=index%10,row=Math.floor(index/10),atlasCanvas=atlas.image as HTMLCanvasElement,cellWidth=atlasCanvas.width/10,cellHeight=atlasCanvas.height/10,padding=cellWidth>=512?2:1;
+  atlasCanvas.getContext('2d')!.drawImage(c,column*cellWidth,row*cellHeight,cellWidth,cellHeight);atlas.needsUpdate=true;
   const geometry=new T.PlaneGeometry(6.3,1.57),uv=geometry.attributes.uv;
-  for(let i=0;i<uv.count;i++)uv.setXY(i,(column*256+1+uv.getX(i)*254)/2560,1-(row*80+1+(1-uv.getY(i))*78)/800);
+  for(let i=0;i<uv.count;i++)uv.setXY(i,(column*cellWidth+padding+uv.getX(i)*(cellWidth-padding*2))/atlasCanvas.width,1-(row*cellHeight+padding+(1-uv.getY(i))*(cellHeight-padding*2))/atlasCanvas.height);
   const plane=new T.Mesh(geometry,mat);plane.position.set(0,1.39,-2.92);g.add(plane);
 }
 function artwork(g:T.Group,x:number,y:number,z:number,color:string) {
@@ -101,6 +102,8 @@ export class WorldScene {
   private renderSamples:number[]=[];
   private sampleTime=0;
   private qualityRatio=1;
+  private renderQuality:WorldRenderQuality='adaptive';
+  private highDetail=false;
   private lastActivity='';
   setNetwork(network:Network|null){if(this.activities.active||this.entryPending)this.exitActivity();this.network=network;this.activities.setMultiplayer(!!network);}
   setClockOffset(offset:number){this.activities.setClockOffset(offset);}
@@ -129,7 +132,7 @@ export class WorldScene {
     finally{this.entryPending=false;}
   }
 
-  private activities=new WorldActivities();
+  private activities:WorldActivities;
   private activityStamp=0;
   private cameraMode:'pan'|'rotate'='pan';
   private autoTilt=true;
@@ -179,13 +182,23 @@ export class WorldScene {
   private night=false;
   private sun=new T.DirectionalLight('#fff4df',2.5);
   private ambient=new T.HemisphereLight('#fffcf0','#b2b2a4',2.4);
-  constructor(private host:HTMLElement,private callbacks:Callbacks) {
+  constructor(private host:HTMLElement,private callbacks:Callbacks,quality:WorldRenderQuality='adaptive',enhancedDetails=quality!=='adaptive') {
+    this.renderQuality=quality;this.highDetail=enhancedDetails;this.activities=new WorldActivities(this.highDetail);
     this.atlas.colorSpace=T.SRGBColorSpace;this.atlas.generateMipmaps=false;this.atlas.minFilter=T.LinearFilter;this.labelMaterial.userData.sharedAtlas=true;
     this.scene.background=new T.Color('#168b99');
-    this.renderer=new T.WebGLRenderer({antialias:true,alpha:false,powerPreference:'high-performance'});
+    // The enhanced view uses a high-resolution drawing buffer. Avoid adding
+    // a second multisample buffer on top of 4K, especially on integrated GPUs.
+    this.renderer=new T.WebGLRenderer({antialias:!this.highDetail,alpha:false,powerPreference:'high-performance'});
+    if(this.highDetail){
+      const atlasCanvas=this.atlas.image as HTMLCanvasElement;
+      const cellWidth=this.renderer.capabilities.maxTextureSize>=5120?512:256;
+      atlasCanvas.width=cellWidth*10;atlasCanvas.height=cellWidth/3.2*10;
+      this.atlas.generateMipmaps=true;this.atlas.minFilter=T.LinearMipmapLinearFilter;this.atlas.anisotropy=Math.min(8,this.renderer.capabilities.getMaxAnisotropy());
+      this.ambient.intensity=1.9;
+    }
     this.qualityRatio=Math.min(devicePixelRatio,1);this.renderer.setPixelRatio(this.qualityRatio);
     this.renderer.shadowMap.enabled=true;this.renderer.shadowMap.type=T.PCFShadowMap;this.renderer.shadowMap.autoUpdate=false;
-    this.renderer.toneMapping=T.ACESFilmicToneMapping;this.renderer.toneMappingExposure=1.1;
+    this.renderer.toneMapping=T.ACESFilmicToneMapping;this.renderer.toneMappingExposure=this.highDetail?1.03:1.1;
     const canvas=this.renderer.domElement;canvas.tabIndex=0;canvas.setAttribute('aria-label','求职小镇三维地图：拖动平移，右键左右旋转、上下调整高度，滚轮缩放，点击房间查看，WASD 移动人物');
     host.appendChild(canvas);
     this.camera.position.set(130,160,180);this.camera.zoom=.15;this.controls=new OrbitControls(this.camera,canvas);
@@ -198,18 +211,30 @@ export class WorldScene {
     this.scene.add(this.ambient);this.sun.position.set(-100,180,95);this.sun.castShadow=true;this.sun.shadow.mapSize.set(1024,1024);
     Object.assign(this.sun.shadow.camera,{left:-120,right:120,top:120,bottom:-120,near:.5,far:400});this.sun.shadow.normalBias=.035;this.sun.shadow.bias=-.0003;this.sun.shadow.radius=3;this.scene.add(this.sun);
     this.createEnvironment();this.scene.add(this.activities.root);
+    if(this.highDetail){
+      const anisotropy=Math.min(8,this.renderer.capabilities.getMaxAnisotropy());
+      this.scene.traverse(object=>{if(object instanceof T.Mesh||object instanceof T.Sprite){const materials=Array.isArray(object.material)?object.material:[object.material];for(const material of materials){if('map' in material&&material.map instanceof T.Texture)material.map.anisotropy=anisotropy;}}});
+      this.sun.shadow.normalBias=.06;this.sun.shadow.radius=2;
+    }
     this.player.position.set(0,.2,-2);this.player.scale.setScalar(1.25);this.scene.add(this.player);this.scene.add(this.staticBatch);
     const ring=new T.Mesh(new T.RingGeometry(.56,.72,32),new T.MeshBasicMaterial({color:'#cedd9b',side:T.DoubleSide}));ring.rotation.x=-Math.PI/2;ring.position.y=.03;this.player.add(ring);
     this.player.traverse(o=>{if(o instanceof T.Mesh)o.castShadow=false;});
     const outline=new T.Mesh(new T.BoxGeometry(6.95,.045,6.35),new T.MeshBasicMaterial({color:'#779876'}));outline.position.y=.06;this.selection.add(outline);this.selection.visible=false;this.scene.add(this.selection);
     canvas.addEventListener('pointerdown',this.onDown,true);canvas.addEventListener('pointermove',this.onMove);canvas.addEventListener('pointerup',this.onUp);canvas.addEventListener('pointercancel',this.onCancel);
     canvas.addEventListener('keydown',this.onKeyDown);canvas.addEventListener('keyup',this.onKeyUp);canvas.addEventListener('blur',this.onBlur);canvas.addEventListener('webglcontextlost',this.onContextLost);
-    this.observer=new ResizeObserver(this.resize);this.observer.observe(host);this.resize();this.overview();this.frame=requestAnimationFrame(this.animate);
+    this.observer=new ResizeObserver(this.resize);this.observer.observe(host);this.setRenderQuality(quality);this.overview();this.frame=requestAnimationFrame(this.animate);
   }
   private createEnvironment() {
     const environment=createIslandEnvironment();this.scene.add(environment.group);environment.group.updateMatrixWorld(true);environment.group.traverse(o=>{o.matrixAutoUpdate=false;});this.board=environment.board;this.scene.add(this.board);this.obstacles=environment.obstacles;
   }
   setCameraMode(mode:'pan'|'rotate'){this.cameraMode=mode;this.controls.mouseButtons.LEFT=mode==='pan'?T.MOUSE.PAN:T.MOUSE.ROTATE;this.controls.touches.ONE=mode==='pan'?T.TOUCH.PAN:T.TOUCH.ROTATE;}
+  setRenderQuality(quality:WorldRenderQuality){
+    this.renderQuality=quality;this.sampleTime=performance.now();
+    if(quality==='adaptive')this.qualityRatio=Math.min(devicePixelRatio,1);
+    const shadowSize=Math.min(quality==='ultra'?4096:quality==='high'?2048:1024,this.renderer.capabilities.maxTextureSize);
+    if(this.sun.shadow.mapSize.x!==shadowSize){this.sun.shadow.map?.dispose();this.sun.shadow.map=null;this.sun.shadow.mapSize.set(shadowSize,shadowSize);this.renderer.shadowMap.needsUpdate=true;}
+    this.resize();
+  }
   private overviewZoom(){return Math.max(this.controls.minZoom,Math.min(.155,this.host.clientWidth/this.host.clientHeight*.09));}
   private elevation(){return 90-T.MathUtils.radToDeg(this.controls.getPolarAngle());}
   private emitCameraView(){this.callbacks.cameraView({elevation:Math.round(this.angleTween?.elevation??this.elevation()),autoTilt:this.autoTilt});}
@@ -312,7 +337,7 @@ export class WorldScene {
   wave() {this.waveUntil=performance.now()+2200;this.dirty=180;}
   jump() {if(this.activities.active)return;if(!this.jumpStart)this.jumpStart=performance.now();this.dirty=90;}
   setTouch(x:number,z:number) {this.walkPath=[];this.touchVector={x,z};}
-  setNight(night:boolean) {this.night=night;this.ambient.intensity=night?.85:2.4;this.sun.intensity=night?1.25:2.5;this.sun.color.set(night?'#bacbff':'#fff4df');this.scene.background=new T.Color(this.firstPerson?'#d6e6dd':night?'#295e69':'#168b99');this.renderer.toneMappingExposure=night?.8:1.1;this.dirty=5;}
+  setNight(night:boolean) {this.night=night;this.ambient.intensity=night?.85:this.highDetail?1.9:2.4;this.sun.intensity=night?1.25:2.5;this.sun.color.set(night?'#bacbff':'#fff4df');this.scene.background=new T.Color(this.firstPerson?'#d6e6dd':night?'#295e69':'#168b99');this.renderer.toneMappingExposure=night?.8:this.highDetail?1.03:1.1;this.dirty=5;}
   private onCameraChange=()=>{
     const polar=this.controls.getPolarAngle();
     // OrbitControls changes its focus-plane behavior below 20 degrees. Use
@@ -325,6 +350,8 @@ export class WorldScene {
   private onControlEnd=()=>{this.controllingCamera=false;};
   private resize=()=>{
     const w=this.host.clientWidth,h=this.host.clientHeight;if(!w||!h)return;
+    if(this.renderQuality!=='adaptive')this.qualityRatio=worldPixelRatio(this.renderQuality,w,h,devicePixelRatio,this.renderer.capabilities.maxTextureSize);
+    this.renderer.setPixelRatio(this.qualityRatio);
     const half=h<500?11.5:13;this.camera.left=-half*w/h;this.camera.right=half*w/h;this.camera.top=half;this.camera.bottom=-half;this.camera.updateProjectionMatrix();this.firstCamera.aspect=w/h;this.firstCamera.updateProjectionMatrix();this.renderer.setSize(w,h);this.dirty=20;
   };
   private ray(e:PointerEvent) {const r=this.renderer.domElement.getBoundingClientRect();this.raycaster.setFromCamera(new T.Vector2((e.clientX-r.left)/r.width*2-1,-(e.clientY-r.top)/r.height*2+1),this.activeCamera());}
@@ -411,10 +438,10 @@ export class WorldScene {
     if(time-this.cameraViewStamp>100){this.cameraViewStamp=time;this.emitCameraView();}
     if(this.firstPerson){this.firstCamera.position.set(this.player.position.x,this.player.position.y+2.05,this.player.position.z);this.firstCamera.lookAt(this.firstCamera.position.clone().add(new T.Vector3(Math.sin(this.firstYaw)*Math.cos(this.firstPitch),Math.sin(this.firstPitch),Math.cos(this.firstYaw)*Math.cos(this.firstPitch))));}
     if(this.dirty>0){const start=performance.now();this.renderer.render(this.scene,this.activeCamera());this.renderSamples.push(performance.now()-start);if(this.renderSamples.length>120)this.renderSamples.shift();this.dirty--;}
-    if(time-this.sampleTime>5000&&this.frameSamples.length>60){this.sampleTime=time;const avg=this.frameSamples.reduce((a,b)=>a+b,0)/this.frameSamples.length;if(avg>28&&this.qualityRatio>.7){this.qualityRatio=Math.max(.7,this.qualityRatio-.15);this.renderer.setPixelRatio(this.qualityRatio);this.resize();}}
+    if(this.renderQuality==='adaptive'&&time-this.sampleTime>5000&&this.frameSamples.length>60){this.sampleTime=time;const avg=this.frameSamples.reduce((a,b)=>a+b,0)/this.frameSamples.length;if(avg>28&&this.qualityRatio>.7){this.qualityRatio=Math.max(.7,this.qualityRatio-.15);this.renderer.setPixelRatio(this.qualityRatio);this.resize();}}
 
   };
-  diagnostics() {return { peers:this.peers.size,peerPositions:Array.from(this.peers.values()).map(p=>({id:p.frame.id,x:p.mesh.position.x,y:p.mesh.position.y,z:p.mesh.position.z})),fps:this.frameSamples.length?Math.round(1000/(this.frameSamples.reduce((a,b)=>a+b,0)/this.frameSamples.length)):0,renderMs:this.renderSamples.length?this.renderSamples.reduce((a,b)=>a+b,0)/this.renderSamples.length:0,pixelRatio:this.qualityRatio,rooms:this.rooms.length,drawCalls:this.renderer.info.render.calls,triangles:this.renderer.info.render.triangles,geometries:this.renderer.info.memory.geometries,textures:this.renderer.info.memory.textures,player:{x:this.player.position.x,y:this.player.position.y,z:this.player.position.z},cameraTarget:this.controls.target.toArray(),cameraPosition:this.camera.position.toArray(),elevation:this.elevation(),azimuth:this.controls.getAzimuthalAngle(),autoTilt:this.autoTilt,cameraAnimating:!!(this.targetTween||this.angleTween),cameraMode:this.cameraMode,activities:this.activities.diagnostics(),firstPerson:this.firstPerson,yaw:this.firstYaw,pitch:this.firstPitch,pathLength:this.walkPath.length,landmarks:LANDMARKS.map(l=>l.id),night:this.night,zoom:this.camera.zoom,editing:this.editRoom };}
+  diagnostics() {return { peers:this.peers.size,peerPositions:Array.from(this.peers.values()).map(p=>({id:p.frame.id,x:p.mesh.position.x,y:p.mesh.position.y,z:p.mesh.position.z})),fps:this.frameSamples.length?Math.round(1000/(this.frameSamples.reduce((a,b)=>a+b,0)/this.frameSamples.length)):0,renderMs:this.renderSamples.length?this.renderSamples.reduce((a,b)=>a+b,0)/this.renderSamples.length:0,pixelRatio:this.qualityRatio,renderQuality:this.renderQuality,renderSize:[this.renderer.domElement.width,this.renderer.domElement.height],labelAtlas:[this.atlas.image.width,this.atlas.image.height],shadowSize:this.sun.shadow.mapSize.x,rooms:this.rooms.length,drawCalls:this.renderer.info.render.calls,triangles:this.renderer.info.render.triangles,geometries:this.renderer.info.memory.geometries,textures:this.renderer.info.memory.textures,player:{x:this.player.position.x,y:this.player.position.y,z:this.player.position.z},cameraTarget:this.controls.target.toArray(),cameraPosition:this.camera.position.toArray(),elevation:this.elevation(),azimuth:this.controls.getAzimuthalAngle(),autoTilt:this.autoTilt,cameraAnimating:!!(this.targetTween||this.angleTween),cameraMode:this.cameraMode,activities:this.activities.diagnostics(),firstPerson:this.firstPerson,yaw:this.firstYaw,pitch:this.firstPitch,pathLength:this.walkPath.length,landmarks:LANDMARKS.map(l=>l.id),night:this.night,zoom:this.camera.zoom,editing:this.editRoom };}
   dispose() {
     this.exitActivity();this.disposed=true;cancelAnimationFrame(this.frame);this.observer.disconnect();this.controls.dispose();
     const c=this.renderer.domElement;c.removeEventListener('pointerdown',this.onDown,true);c.removeEventListener('pointermove',this.onMove);c.removeEventListener('pointerup',this.onUp);c.removeEventListener('pointercancel',this.onCancel);c.removeEventListener('keydown',this.onKeyDown);c.removeEventListener('keyup',this.onKeyUp);c.removeEventListener('blur',this.onBlur);c.removeEventListener('webglcontextlost',this.onContextLost);

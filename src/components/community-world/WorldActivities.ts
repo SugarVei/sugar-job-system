@@ -20,9 +20,9 @@ export type ActivityStatus={mode:ActivityKind|null;name:string;hint:string;nearb
 export const EMPTY_ACTIVITY:ActivityStatus={mode:null,name:'自由探索',hint:'靠近设施或出租车，按 F 互动',nearby:'',action:'',score:0,attempts:0,speed:0,meter:0,seats:0,message:''};
 type Taxi={mesh:T.Group;distance:number;extent:number;passengers:string[]};
 const entrances:Record<ActivityKind,T.Vector3>={wheel:new T.Vector3(-7,.2,49),swing:new T.Vector3(10,.2,43),slide:new T.Vector3(13,.2,53),football:new T.Vector3(-11,.2,-46),badminton:new T.Vector3(54,.2,11),basketball:new T.Vector3(52,.2,-10),taxi:new T.Vector3(19,.2,23),yacht:new T.Vector3(0,.2,93),plane:new T.Vector3(73,.2,-65)};
-function marker(g:T.Group,text:string,x:number,y:number,z:number,color='#456c58'){
-  const c=document.createElement('canvas');c.width=512;c.height=128;const ctx=c.getContext('2d')!;ctx.fillStyle='#faf6e7';ctx.fillRect(0,0,512,128);ctx.fillStyle=color;ctx.textAlign='center';ctx.font='bold 44px "Microsoft YaHei"';ctx.fillText(text,256,80,485);
-  const texture=new T.CanvasTexture(c);texture.colorSpace=T.SRGBColorSpace;const sprite=new T.Sprite(new T.SpriteMaterial({map:texture,depthTest:true}));sprite.position.set(x,y,z);sprite.scale.set(7,1.75,1);g.add(sprite);
+function marker(g:T.Group,text:string,x:number,y:number,z:number,color='#456c58',scale=1){
+  const c=document.createElement('canvas');c.width=512*scale;c.height=128*scale;const ctx=c.getContext('2d')!;ctx.scale(scale,scale);ctx.fillStyle='#faf6e7';ctx.fillRect(0,0,512,128);ctx.fillStyle=color;ctx.textAlign='center';ctx.font='bold 44px "Microsoft YaHei"';ctx.fillText(text,256,80,485);
+  const texture=new T.CanvasTexture(c);texture.colorSpace=T.SRGBColorSpace;const sprite=new T.Sprite(new T.SpriteMaterial({map:texture,depthTest:true,toneMapped:scale===1}));sprite.position.set(x,y,z);sprite.scale.set(7,1.75,1);g.add(sprite);
 }
 function taxiMesh(){const g=new T.Group();box(g,2.2,.8,4.1,0,.85,0,'#e2be64');box(g,1.9,.82,2.25,0,1.6,-.15,'#edce7d');box(g,1.7,.54,.06,0,1.68,1,'#a4cbd0');box(g,1.7,.54,.06,0,1.68,-1.29,'#a4cbd0');for(const x of [-.97,.97])box(g,.035,.53,1.94,x,1.68,-.15,'#a4cbd0');box(g,.9,.3,.45,0,2.16,0,'#fdf5da');for(const x of [-1.06,1.06])for(const z of [-1.25,1.25]){const w=cylinder(g,.4,.22,x,.47,z,'#495550');w.rotation.z=Math.PI/2;}for(const x of [-.72,.72])box(g,.45,.2,.05,x,.96,2.07,'#fff1b2');mergeStatic(g);return g;}
 function boatMesh(small=false){const g=new T.Group();box(g,small?2.1:3.5,.65,small?4:7,0,0,0,'#f4eddb');box(g,small?1.8:3,.18,small?3.7:6.6,0,.42,0,'#cfb991');if(small){box(g,.1,5,.1,0,2.6,0,'#c2b397');const sail=new T.Mesh(new T.ConeGeometry(1.4,3.4,3),material('#eadfbe'));sail.scale.z=.05;sail.position.set(.55,3,0);g.add(sail);}else{box(g,2.1,1,2.8,0,.98,-.6,'#f4f1e6');box(g,1.85,.6,.08,0,1.26,.85,'#92bdc2');box(g,2.25,.14,2.9,0,1.6,-.6,'#dfcba5');for(const x of [-1.4,1.4])box(g,.06,.6,5.6,x,.75,0,'#e8ecdf');}mergeStatic(g);return g;}
@@ -53,15 +53,16 @@ export class WorldActivities {
   private ballVelocity=new T.Vector3();private elapsed=0;private time=0;private shot=0;private shotHit=false;
   private mode:ActivityKind|null=null;private taxiIndex=0;private speed=0;private heading=0;
   private score=0;private attempts=0;private rally=0;private rallyLive=false;private message='';private messageUntil=0;
-  constructor(){
+  constructor(highDetail=false){
+    const addMarker=(g:T.Group,text:string,x:number,y:number,z:number)=>marker(g,text,x,y,z,'#456c58',highDetail?2:1);
     const wheelBase=new T.Group();wheelBase.position.set(-7,0,44);
     for(const x of [-4,4]){const leg=box(wheelBase,.3,7,.35,x/2,3.5,0,'#c7b18e');leg.rotation.z=x<0?-.5:.5;}
     const rim=new T.Mesh(new T.TorusGeometry(5,.13,6,48),material('#d6b891'));this.wheel.add(rim);
     for(let i=0;i<8;i++){const a=i*Math.PI/4;const spoke=box(this.wheel,.1,5,.1,Math.sin(a)*2.5,Math.cos(a)*2.5,0,'#ded0ae');spoke.rotation.z=-a;const cabin=new T.Group();box(cabin,1.6,.5,1.4,0,-.5,0,['#b9cba7','#c4b8cc','#d9bba1'][i%3]);box(cabin,1.75,.12,1.5,0,1.4,0,'#eee4c9');box(cabin,1.45,.1,1.1,0,-.15,0,'#ded1b9');for(const dx of [-.7,.7])box(cabin,.06,1.7,.06,dx,.5,0,'#9d9e8d');mergeStatic(cabin);this.cabins.push(cabin);wheelBase.add(cabin);}
-    this.wheel.position.y=7;wheelBase.add(this.wheel);this.register('wheel',wheelBase);marker(wheelBase,'摩天轮 · F',0,14,0);
+    this.wheel.position.y=7;wheelBase.add(this.wheel);this.register('wheel',wheelBase);addMarker(wheelBase,'摩天轮 · F',0,14,0);
     const frame=new T.Group();frame.position.set(10,0,39);for(const x of [-3.5,3.5])for(const z of [-1,1]){const pole=box(frame,.15,3.7,.15,x,1.8,z,'#a99a78');pole.rotation.x=z*.28;}box(frame,7.3,.18,.18,0,3.6,0,'#b5a17e');
-    this.swing.position.set(-1.7,3.6,0);for(const dx of [-.48,.48])box(this.swing,.035,2.7,.035,dx,-1.35,0,'#788e7f');box(this.swing,1.3,.16,.8,0,-2.7,0,'#d3b49d');frame.add(this.swing);for(const dx of [-.48,.48])box(frame,.035,2.7,.035,1.7+dx,2.25,0,'#788e7f');box(frame,1.3,.16,.8,1.7,.9,0,'#d3b49d');this.register('swing',frame);marker(frame,'秋千 · F',0,5.5,0);
-    const slide=new T.Group();slide.position.set(10,0,53);box(slide,2.5,.2,2.3,0,2.4,0,'#d1bb9e');for(const x of [-1,1])for(const z of [-.8,.8])box(slide,.12,2.4,.12,x,1.2,z,'#a2b19a');const ramp=box(slide,1.5,.12,5.5,0,1.35,3.5,'#acc5b5');ramp.rotation.x=.43;for(const x of [-.8,.8]){const rail=box(slide,.1,.42,5.5,x,1.6,3.5,'#d6c5a1');rail.rotation.x=.43;}for(let i=0;i<6;i++)box(slide,1.6,.13,.38,2.5-i*.3,.25+i*.43,0,'#d4c4a1');this.register('slide',slide);marker(slide,'滑滑梯 · F',0,5,0);
+    this.swing.position.set(-1.7,3.6,0);for(const dx of [-.48,.48])box(this.swing,.035,2.7,.035,dx,-1.35,0,'#788e7f');box(this.swing,1.3,.16,.8,0,-2.7,0,'#d3b49d');frame.add(this.swing);for(const dx of [-.48,.48])box(frame,.035,2.7,.035,1.7+dx,2.25,0,'#788e7f');box(frame,1.3,.16,.8,1.7,.9,0,'#d3b49d');this.register('swing',frame);addMarker(frame,'秋千 · F',0,5.5,0);
+    const slide=new T.Group();slide.position.set(10,0,53);box(slide,2.5,.2,2.3,0,2.4,0,'#d1bb9e');for(const x of [-1,1])for(const z of [-.8,.8])box(slide,.12,2.4,.12,x,1.2,z,'#a2b19a');const ramp=box(slide,1.5,.12,5.5,0,1.35,3.5,'#acc5b5');ramp.rotation.x=.43;for(const x of [-.8,.8]){const rail=box(slide,.1,.42,5.5,x,1.6,3.5,'#d6c5a1');rail.rotation.x=.43;}for(let i=0;i<6;i++)box(slide,1.6,.13,.38,2.5-i*.3,.25+i*.43,0,'#d4c4a1');this.register('slide',slide);addMarker(slide,'滑滑梯 · F',0,5,0);
     this.ball.position.set(-8,.5,-46);this.register('football',this.ball);
     this.shuttle.position.set(46,2,11);this.register('badminton',this.shuttle);
     for(const r of [this.racket,this.aiRacket]){const rim=new T.Mesh(new T.TorusGeometry(.42,.035,5,16),material('#d9b57d'));r.add(rim);box(r,.055,.65,.06,0,-.7,0,'#7b8f76');this.root.add(r);}this.racket.position.set(54,1.6,11);this.aiRacket.position.set(38,1.6,11);
@@ -70,8 +71,8 @@ export class WorldActivities {
     this.yacht.position.set(8,-.35,102);this.register('yacht',this.yacht);
     for(let i=0;i<3;i++){const boat=boatMesh(true);this.boats.push(boat);this.root.add(boat);}
     for(let i=0;i<2;i++){const plane=planeMesh();this.planes.push(plane);this.register('plane',plane);}
-    const dock=new T.Group();cylinder(dock,.8,.05,0,.07,93,'#d1bd8b');marker(dock,'游艇码头 · F',0,4,93);this.register('yacht',dock);
-    const terminal=new T.Group();cylinder(terminal,2.7,.09,73,.06,-65,'#c7d4bb');box(terminal,2,2,.15,73,1.1,-67,'#adbea2');marker(terminal,'观光登机点 · F',73,4.2,-65);this.register('plane',terminal);
+    const dock=new T.Group();cylinder(dock,.8,.05,0,.07,93,'#d1bd8b');addMarker(dock,'游艇码头 · F',0,4,93);this.register('yacht',dock);
+    const terminal=new T.Group();cylinder(terminal,2.7,.09,73,.06,-65,'#c7d4bb');box(terminal,2,2,.15,73,1.1,-67,'#adbea2');addMarker(terminal,'观光登机点 · F',73,4.2,-65);this.register('plane',terminal);
     // Merge fixed pieces without flattening animated pivots, cabins, sprites or hit targets.
     const fixedBatch=(group:T.Group)=>{const fixed=new T.Group();for(const child of [...group.children])if(child instanceof T.Mesh)fixed.add(child);if(fixed.children.length){mergeStatic(fixed);group.add(fixed);}};
     for(const group of [wheelBase,this.wheel,this.swing,frame,slide,dock,terminal,this.racket,this.aiRacket])fixedBatch(group);

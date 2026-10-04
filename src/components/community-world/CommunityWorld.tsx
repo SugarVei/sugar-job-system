@@ -4,6 +4,7 @@ import { COLORS, FLOORS, FURNITURE, DISTRICTS, LANDMARKS, createRooms, loadWorld
 import { WorldScene } from './WorldScene';
 import './CommunityWorld.css';
 import CameraViewControls from './CameraViewControls';
+import type { WorldRenderQuality } from './renderQuality';
 import { CAMERA_PRESETS, type CameraViewState } from './cameraView';
 import { useWorldSync } from './useWorldSync';
 import WorldBoard from './WorldBoard';
@@ -14,7 +15,9 @@ declare global { interface Window { __sugarWorld?: { diagnostics: () => ReturnTy
 const itemIcons = { plant: Flower2, sofa: Sofa, shelf: BookOpen, lamp: LampFloor, rug: Square, art: Frame };
 type Panel = 'room' | 'directory' | 'edit' | null;
 
-export default function CommunityWorld() {
+export default function CommunityWorld({visualQuality='adaptive',enhancedDetails=false}:{visualQuality?:WorldRenderQuality;enhancedDetails?:boolean}) {
+  const initialQuality=useRef(visualQuality);
+  const initialDetails=useRef(enhancedDetails);
   const initial=useMemo(()=>loadWorld(),[]),seeds=useMemo(()=>createRooms(),[]);
   const emptyRooms=useMemo(()=>seeds.map(r=>({...r,occupied:false,mine:false,owner:'',name:'留一间给未来的你',tags:[],bio:'',furniture:[]})),[seeds]);
   const [localRoom,setSaved]=useState<Room|null>(initial.room),[draft,setDraft]=useState<Room|null>(null);
@@ -42,10 +45,11 @@ export default function CommunityWorld() {
   useEffect(()=>{
     if(!host.current)return;
     let instance:WorldScene|null=null;
-    try {instance=new WorldScene(host.current,{select:id=>callbacks.current.select(id),move:(id,x,z)=>callbacks.current.move(id,x,z),board:()=>callbacks.current.board(),view:setFirstPerson,cameraView:state=>setCameraView(old=>old.elevation===state.elevation&&old.autoTilt===state.autoTilt?old:state),activity:status=>setActivity(old=>JSON.stringify(old)===JSON.stringify(status)?old:status),ready:()=>setReady(true),error:setError});scene.current=instance;window.__sugarWorld={diagnostics:()=>instance!.diagnostics()};}
+    try {instance=new WorldScene(host.current,{select:id=>callbacks.current.select(id),move:(id,x,z)=>callbacks.current.move(id,x,z),board:()=>callbacks.current.board(),view:setFirstPerson,cameraView:state=>setCameraView(old=>old.elevation===state.elevation&&old.autoTilt===state.autoTilt?old:state),activity:status=>setActivity(old=>JSON.stringify(old)===JSON.stringify(status)?old:status),ready:()=>setReady(true),error:setError},initialQuality.current,initialDetails.current);scene.current=instance;window.__sugarWorld={diagnostics:()=>instance!.diagnostics()};}
     catch {setError('当前浏览器无法启动三维画面。请使用支持 WebGL 的 Chrome 或 Edge，并开启图形加速。');}
     return()=>{instance?.dispose();scene.current=null;delete window.__sugarWorld;};
   },[]);
+  useEffect(()=>{scene.current?.setRenderQuality(visualQuality);},[visualQuality]);
   useEffect(()=>{scene.current?.setRooms(rooms);},[rooms]);
   useEffect(()=>{scene.current?.edit(draft?.id||null);},[draft?.id]);
   useEffect(()=>{if(!toast)return;const timer=window.setTimeout(()=>setToast(''),4200);return()=>clearTimeout(timer);},[toast]);

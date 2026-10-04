@@ -6,7 +6,7 @@ export default defineConfig({
   plugins: [react()],
   build: {
     rollupOptions: {
-      input: { app: 'index.html', world: 'world-preview.html' },
+      input: { app: 'index.html', world: 'world-preview.html', entrance: 'entrance-preview.html', town: 'town-preview.html' },
     },
   },
   server: {
