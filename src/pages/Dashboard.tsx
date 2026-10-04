@@ -84,15 +84,6 @@ export default function Dashboard() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [apps, interviews]);
 
-  const upcoming = useMemo(() => {
-    return [...interviews]
-      .filter((iv) => iv.interview_time)
-      .sort((a, b) => new Date(a.interview_time!).getTime() - new Date(b.interview_time!).getTime())
-      .filter((iv) => new Date(iv.interview_time!).getTime() >= now.getTime() - 86400000)
-      .slice(0, 5);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [interviews]);
-
   const activeApps = useMemo(
     () =>
       apps
@@ -314,15 +305,18 @@ export default function Dashboard() {
         </div>
 
         <RecentInterviewFolder
-          interviews={upcoming}
+          interviews={interviews}
           loading={interviewsLoading}
           error={interviewsError}
           onRetry={refreshInterviews}
           onViewAll={() => navigate('interviews')}
-          onViewCalendar={(iv) => navigate('interviews', {
-            query: iv.company_name,
-            interviewDate: iv.interview_time ? toDateKey(new Date(iv.interview_time)) : null,
-          })}
+          onViewCalendar={(iv) => {
+            const date = iv.interview_time ? new Date(iv.interview_time) : null;
+            navigate('interviews', {
+              query: iv.company_name,
+              interviewDate: date && Number.isFinite(date.getTime()) ? toDateKey(date) : null,
+            });
+          }}
         />
       </div>
     </div>

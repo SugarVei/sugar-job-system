@@ -1,8 +1,9 @@
-import { useId, useLayoutEffect, useRef, useState, type CSSProperties } from 'react';
+import { useEffect, useId, useLayoutEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
 import { createPortal } from 'react-dom';
-import { ArrowLeft, CalendarDays, ChevronDown, ChevronRight, MousePointer2, X } from 'lucide-react';
+import { ArrowLeft, CalendarDays, ChevronDown, ChevronLeft, ChevronRight, MousePointer2, X } from 'lucide-react';
 import type { Interview } from '../../types';
 import { initialOf } from '../../lib/appHelpers';
+import { groupInterviewsByTime } from '../../lib/interviewSummary';
 import './RecentInterviewFolder.css';
 
 const PALETTES = [
@@ -44,11 +45,34 @@ interface Props { interviews: Interview[]; onViewAll: () => void; onViewCalendar
 export default function RecentInterviewFolder({ interviews, onViewAll, onViewCalendar, loading, error, onRetry }: Props) {
   const [expanded, setExpanded] = useState(false);
   const [selection, setSelection] = useState<Selection | null>(null);
+  const [view, setView] = useState<{ mode: 'past' | 'upcoming'; page: number }>({ mode: 'upcoming', page: 0 });
+  const [now, setNow] = useState(Date.now);
   const stageRef = useRef<HTMLDivElement>(null);
   const cardsId = useId();
-  const visible = interviews.slice(0, 5);
+  const groups = useMemo(() => groupInterviewsByTime(interviews, now), [interviews, now]);
+  const summary = groups[view.mode];
+  const pageCount = Math.max(1, Math.ceil(summary.length / 5));
+  const pageIndex = Math.min(view.page, pageCount - 1);
+  const visible = summary.slice(pageIndex * 5, pageIndex * 5 + 5);
+  const isPast = view.mode === 'past';
+  const folderLabel = isPast ? '以往面试' : '未面试';
   const hasCards = visible.length > 0;
   const isOpen = hasCards && expanded;
+
+  useEffect(() => {
+    const refreshTime = () => setNow(Date.now());
+    const nextTime = groups.upcoming.map((iv) => interviewDate(iv.interview_time)?.getTime() ?? Infinity)
+      .find((time) => Number.isFinite(time)) ?? Infinity;
+    const timer = window.setTimeout(refreshTime, Math.max(1, Math.min(60_000, nextTime - now + 1)));
+    window.addEventListener('focus', refreshTime);
+    return () => { window.clearTimeout(timer); window.removeEventListener('focus', refreshTime); };
+  }, [groups.upcoming, now]);
+
+  const changeMode = (mode: 'past' | 'upcoming') => {
+    setView({ mode, page: 0 });
+    setSelection(null);
+    setNow(Date.now());
+  };
 
   useLayoutEffect(() => {
     const stage = stageRef.current;
@@ -74,6 +98,11 @@ export default function RecentInterviewFolder({ interviews, onViewAll, onViewCal
         <button type="button" className="rif-link" onClick={onViewAll}>查看全部 <ChevronRight size={14} /></button>
       </header>
       <p className="rif-intro">把每一次机会，认真收藏。</p>
+      <div className="rif-summary-options" role="group" aria-label="面试汇总筛选">
+        <button type="button" aria-pressed={isPast} onClick={() => changeMode('past')}>以往面试汇总 <span>{groups.past.length}</span></button>
+        <button type="button" aria-pressed={!isPast} onClick={() => changeMode('upcoming')}>未面试汇总 <span>{groups.upcoming.length}</span></button>
+      </div>
+      <p className="rif-summary-rule">按面试时间划分 · 时间待定计入未面试</p>
       <div ref={stageRef} className={`rif-stage${isOpen ? ' rif-open' : ''}${!hasCards ? ' rif-empty' : ''}`} aria-busy={loading}>
         <div className="rif-scene">
           <div className="rif-shadow" /><div className="rif-back" />
@@ -93,30 +122,35 @@ export default function RecentInterviewFolder({ interviews, onViewAll, onViewCal
                   <span className="rif-divider" />
                   <span className="rif-date"><CalendarDays size={13} />{shortTime(interviewDate(iv.interview_time))}</span>
                   <span className="rif-mode">{iv.interview_type || '方式待确认'}</span>
-                  <span className="rif-index">{String(index + 1).padStart(2, '0')}</span>
+                  <span className="rif-index">{String(pageIndex * 5 + index + 1).padStart(2, '0')}</span>
                 </button>
               );
             })}
           </div>
-          {!hasCards && <p className="rif-empty-hint">{loading ? '正在整理面试安排…' : error ? '面试安排暂时未能加载' : '新的机会，会在这里等你。'}</p>}
+          {!hasCards && <p className="rif-empty-hint">{loading ? '正在整理面试安排…' : error ? '面试安排暂时未能加载' : isPast ? '暂时没有以往面试记录' : '新的机会，会在这里等你。'}</p>}
           <button type="button" className="rif-front" disabled={loading}
             aria-label={hasCards ? isOpen ? '收起面试文件夹' : '展开面试文件夹' : '去面试日历添加'}
             aria-expanded={isOpen} aria-controls={cardsId}
             onClick={() => hasCards ? setExpanded((value) => !value) : onViewAll()}>
-            <span className="rif-folder-label"><CalendarDays size={22} />我的面试</span>
-            <span className="rif-folder-meta">{String(visible.length).padStart(2, '0')} INTERVIEWS</span>
+            <span className="rif-folder-label"><CalendarDays size={22} />{folderLabel}</span>
+            <span className="rif-folder-meta">{String(summary.length).padStart(2, '0')} INTERVIEWS</span>
             <span className="rif-seal"><ChevronDown size={17} /></span>
           </button>
         </div>
       </div>
       <div className="rif-caption">
-        <p className="rif-caption-title">{hasCards ? '下一站，新的可能' : '给下一次机会，留一个位置'}</p>
+        <p className="rif-caption-title">{isPast ? '每一次经历，都值得收藏' : hasCards ? '下一站，新的可能' : '给下一次机会，留一个位置'}</p>
         <p className="rif-caption-desc" aria-live="polite">
           {loading ? '正在加载面试安排…' : error ? <button type="button" className="rif-link" onClick={onRetry}>加载失败，点击重试</button> : hasCards
-            ? isOpen ? '选择一张卡片，展开这次机会的全部细节' : `点击文件夹，展开 ${visible.length} 场近期面试`
-            : <>暂无安排。<button type="button" className="rif-link" onClick={onViewAll}>去面试日历添加 <ChevronRight size={13} /></button></>}
+            ? isOpen ? '选择一张卡片，查看面试详情' : `共 ${summary.length} 场${folderLabel}，点击展开${pageCount > 1 ? '本页面试' : '卡片'}`
+            : <>{isPast ? '暂无以往面试。' : '暂无未面试安排。'}<button type="button" className="rif-link" onClick={onViewAll}>去面试日历添加 <ChevronRight size={13} /></button></>}
         </p>
       </div>
+      {hasCards && <nav className="rif-pagination" aria-label="面试卡片分页">
+        <button type="button" aria-label="上一页面试" disabled={pageIndex === 0} onClick={() => { setView({ ...view, page: pageIndex - 1 }); setSelection(null); }}><ChevronLeft size={15} />上一页</button>
+        <span aria-live="polite">{pageIndex * 5 + 1}–{pageIndex * 5 + visible.length} / 共 {summary.length} 场<span className="rif-page-count">第 {pageIndex + 1} / {pageCount} 页</span></span>
+        <button type="button" aria-label="下一页面试" disabled={pageIndex === pageCount - 1} onClick={() => { setView({ ...view, page: pageIndex + 1 }); setSelection(null); }}>下一页<ChevronRight size={15} /></button>
+      </nav>}
       {hasCards && <div className="rif-bottom"><span><MousePointer2 size={14} /><span className="rif-desktop-hint">展开文件夹 · 悬停选卡 · 点击放大</span><span className="rif-touch-hint">点击文件夹展开 · 轻点卡片放大</span></span><button type="button" onClick={() => setExpanded((value) => !value)}>{isOpen ? '收起卡片' : '展开卡片'}</button></div>}
       {selection && visible.some((iv) => iv.id === selection.interview.id) && <InterviewDetail selection={selection} onClose={() => setSelection(null)} onViewCalendar={onViewCalendar} />}
     </section>
