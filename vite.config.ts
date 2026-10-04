@@ -6,7 +6,8 @@ export default defineConfig({
   plugins: [react()],
   build: {
     rollupOptions: {
-      input: { app: 'index.html', world: 'world-preview.html', entrance: 'entrance-preview.html', town: 'town-preview.html' },
+      // Local preview HTML files remain available in dev, outside the release build.
+      input: { app: 'index.html' },
     },
   },
   server: {

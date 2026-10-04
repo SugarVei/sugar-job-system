@@ -9,6 +9,7 @@ import { WorldActivities, type ActivityKind, type ActivityStatus } from './World
 import { createIslandEnvironment } from './islandEnvironment';
 import { CAMERA_PRESETS, DEFAULT_AZIMUTH, MIN_ELEVATION, MAX_ELEVATION, clampElevation, elevationForZoom, shortestAngleDelta, type CameraViewState } from './cameraView';
 import { worldPixelRatio, type WorldRenderQuality } from './renderQuality';
+import { RenderCadence } from './renderCadence';
 
 import type { PlayerFrame, SharedSeat } from './networkTypes';
 
@@ -167,7 +168,7 @@ export class WorldScene {
   private ground=new T.Plane(new T.Vector3(0,1,0),-.2);
   private keys=new Set<string>();
   private frame=0;
-  private lastTime=0;
+  private cadence=new RenderCadence();
   private dirty=40;
   private disposed=false;
   private observer:ResizeObserver;
@@ -313,13 +314,14 @@ export class WorldScene {
     this.rooms=rooms;if(batchChanged)this.rebatch();this.renderer.shadowMap.needsUpdate=true;this.dirty=30;this.callbacks.ready();
   }
   private rebatch() {
-    // One draw per material across the district, with the editable room kept separate for dragging.
+    // Batch each five-room row independently so close views skip distant rows.
+    // The editable room stays separate for dragging and ray picking.
     this.staticBatch.traverse(o=>{if(o instanceof T.Mesh)o.geometry.dispose();});this.staticBatch.clear();
     const districts=new Map<string,Map<T.Material,T.BufferGeometry[]>>();
     this.groups.forEach((root,id)=>{
       this.scene.remove(root);root.updateMatrixWorld(true);
       if(id===this.editRoom){this.scene.add(root);return;}
-      const byMaterial=districts.get(id[0])||new Map<T.Material,T.BufferGeometry[]>();districts.set(id[0],byMaterial);
+      const row=id.slice(0,3),byMaterial=districts.get(row)||new Map<T.Material,T.BufferGeometry[]>();districts.set(row,byMaterial);
       root.traverse(o=>{if(o instanceof T.Mesh&&!Array.isArray(o.material)){
         const geometry=(o.geometry.index?o.geometry.toNonIndexed():o.geometry.clone()).applyMatrix4(o.matrixWorld);const list=byMaterial.get(o.material)||[];list.push(geometry);byMaterial.set(o.material,list);
       }});
@@ -406,7 +408,7 @@ export class WorldScene {
     });
   }
   private animate=(time:number)=>{
-    if(this.disposed)return;this.frame=requestAnimationFrame(this.animate);const elapsed=time-this.lastTime;if(elapsed<1000/65)return;const dt=Math.min(elapsed/1000,.06);this.lastTime=time;if(elapsed<250){this.frameSamples.push(elapsed);if(this.frameSamples.length>120)this.frameSamples.shift();}
+    if(this.disposed)return;this.frame=requestAnimationFrame(this.animate);const elapsed=this.cadence.accept(time);if(elapsed===null)return;const dt=Math.min(elapsed/1000,.06);if(elapsed>0&&elapsed<250){this.frameSamples.push(elapsed);if(this.frameSamples.length>120)this.frameSamples.shift();}
     if(document.hidden)return;
     if(!this.firstPerson)this.controls.update();
     let dx=(this.keys.has('KeyD')||this.keys.has('ArrowRight')?1:0)-(this.keys.has('KeyA')||this.keys.has('ArrowLeft')?1:0)+this.touchVector.x;
@@ -441,10 +443,10 @@ export class WorldScene {
     if(this.renderQuality==='adaptive'&&time-this.sampleTime>5000&&this.frameSamples.length>60){this.sampleTime=time;const avg=this.frameSamples.reduce((a,b)=>a+b,0)/this.frameSamples.length;if(avg>28&&this.qualityRatio>.7){this.qualityRatio=Math.max(.7,this.qualityRatio-.15);this.renderer.setPixelRatio(this.qualityRatio);this.resize();}}
 
   };
-  diagnostics() {return { peers:this.peers.size,peerPositions:Array.from(this.peers.values()).map(p=>({id:p.frame.id,x:p.mesh.position.x,y:p.mesh.position.y,z:p.mesh.position.z})),fps:this.frameSamples.length?Math.round(1000/(this.frameSamples.reduce((a,b)=>a+b,0)/this.frameSamples.length)):0,renderMs:this.renderSamples.length?this.renderSamples.reduce((a,b)=>a+b,0)/this.renderSamples.length:0,pixelRatio:this.qualityRatio,renderQuality:this.renderQuality,renderSize:[this.renderer.domElement.width,this.renderer.domElement.height],labelAtlas:[this.atlas.image.width,this.atlas.image.height],shadowSize:this.sun.shadow.mapSize.x,rooms:this.rooms.length,drawCalls:this.renderer.info.render.calls,triangles:this.renderer.info.render.triangles,geometries:this.renderer.info.memory.geometries,textures:this.renderer.info.memory.textures,player:{x:this.player.position.x,y:this.player.position.y,z:this.player.position.z},cameraTarget:this.controls.target.toArray(),cameraPosition:this.camera.position.toArray(),elevation:this.elevation(),azimuth:this.controls.getAzimuthalAngle(),autoTilt:this.autoTilt,cameraAnimating:!!(this.targetTween||this.angleTween),cameraMode:this.cameraMode,activities:this.activities.diagnostics(),firstPerson:this.firstPerson,yaw:this.firstYaw,pitch:this.firstPitch,pathLength:this.walkPath.length,landmarks:LANDMARKS.map(l=>l.id),night:this.night,zoom:this.camera.zoom,editing:this.editRoom };}
+  diagnostics() {return { renderedFrames:this.renderer.info.render.frame, peers:this.peers.size,peerPositions:Array.from(this.peers.values()).map(p=>({id:p.frame.id,x:p.mesh.position.x,y:p.mesh.position.y,z:p.mesh.position.z})),fps:this.frameSamples.length?Math.round(1000/(this.frameSamples.reduce((a,b)=>a+b,0)/this.frameSamples.length)):0,renderMs:this.renderSamples.length?this.renderSamples.reduce((a,b)=>a+b,0)/this.renderSamples.length:0,pixelRatio:this.qualityRatio,renderQuality:this.renderQuality,renderSize:[this.renderer.domElement.width,this.renderer.domElement.height],labelAtlas:[this.atlas.image.width,this.atlas.image.height],shadowSize:this.sun.shadow.mapSize.x,rooms:this.rooms.length,drawCalls:this.renderer.info.render.calls,triangles:this.renderer.info.render.triangles,geometries:this.renderer.info.memory.geometries,textures:this.renderer.info.memory.textures,player:{x:this.player.position.x,y:this.player.position.y,z:this.player.position.z},cameraTarget:this.controls.target.toArray(),cameraPosition:this.camera.position.toArray(),elevation:this.elevation(),azimuth:this.controls.getAzimuthalAngle(),autoTilt:this.autoTilt,cameraAnimating:!!(this.targetTween||this.angleTween),cameraMode:this.cameraMode,activities:this.activities.diagnostics(),firstPerson:this.firstPerson,yaw:this.firstYaw,pitch:this.firstPitch,pathLength:this.walkPath.length,landmarks:LANDMARKS.map(l=>l.id),night:this.night,zoom:this.camera.zoom,editing:this.editRoom };}
   dispose() {
     this.exitActivity();this.disposed=true;cancelAnimationFrame(this.frame);this.observer.disconnect();this.controls.dispose();
     const c=this.renderer.domElement;c.removeEventListener('pointerdown',this.onDown,true);c.removeEventListener('pointermove',this.onMove);c.removeEventListener('pointerup',this.onUp);c.removeEventListener('pointercancel',this.onCancel);c.removeEventListener('keydown',this.onKeyDown);c.removeEventListener('keyup',this.onKeyUp);c.removeEventListener('blur',this.onBlur);c.removeEventListener('webglcontextlost',this.onContextLost);
-    this.groups.forEach(g=>{this.scene.remove(g);disposeGroup(g);});disposeGroup(this.scene);this.scene.traverse(o=>{if(o instanceof T.Sprite){o.material.map?.dispose();o.material.dispose();}if(o instanceof T.Mesh){const mats=Array.isArray(o.material)?o.material:[o.material];mats.forEach(m=>{if(m!==vertexMaterial&&!Array.from(materialCache.values()).includes(m as T.MeshStandardMaterial))m.dispose();});}});this.atlas.dispose();this.labelMaterial.dispose();this.renderer.dispose();c.remove();
+    this.groups.forEach(g=>{this.scene.remove(g);disposeGroup(g);});disposeGroup(this.scene);this.scene.traverse(o=>{if(o instanceof T.Sprite){o.material.map?.dispose();o.material.dispose();}if(o instanceof T.Mesh){const mats=Array.isArray(o.material)?o.material:[o.material];mats.forEach(m=>{if(m!==vertexMaterial&&!Array.from(materialCache.values()).includes(m as T.MeshLambertMaterial))m.dispose();});}});this.atlas.dispose();this.labelMaterial.dispose();this.renderer.dispose();c.remove();
   }
 }

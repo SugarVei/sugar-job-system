@@ -1,0 +1,17 @@
+.standalone-town{position:fixed;inset:0;width:100%;height:100dvh;overflow:hidden;background:#168b99;font-family:Inter,"Microsoft YaHei","PingFang SC",sans-serif}.standalone-town,.standalone-town *{box-sizing:border-box}.standalone-town :is(button,a,select){-webkit-tap-highlight-color:transparent}.standalone-town button{cursor:pointer}
+.standalone-town>.community-world{width:100%;height:100%;min-height:0;border:0;border-radius:0}
+.town-session-bar{position:absolute;top:12px;left:22px;right:20px;z-index:20;display:flex;align-items:center;justify-content:space-between;pointer-events:none}
+.town-session-bar>*{pointer-events:auto}
+.town-back,.town-quality{display:flex;align-items:center;gap:7px;height:32px;border:1px solid #d5ddc79e;border-radius:24px;background:#f5f8e9e8;color:#425f4b;font-size:11px;text-decoration:none;padding:0 12px}
+.town-back:hover{background:#fffef0}
+.town-quality{padding-right:6px;gap:7px}
+.town-quality select{font-family:inherit;font-size:11px;font-weight:600;line-height:1.4;color:#425f4b;border:0;border-radius:18px;background:transparent;padding:5px 7px;cursor:pointer}
+.town-quality select:focus-visible,.town-back:focus-visible{outline:2px solid #476d49;outline-offset:3px}
+.standalone-town .world-topbar{top:60px}
+.standalone-town .world-main-actions{top:116px}
+.standalone-town .world-street-label{top:117px}
+.standalone-town .island-destinations{top:168px}
+.standalone-town .world-panel,.standalone-town .world-forum{top:170px}
+.standalone-town .world-camera-controls>button[aria-label="沉浸模式"]{display:none}
+@media(max-width:1150px){.standalone-town .world-main-actions{top:110px}.standalone-town .world-street-label{top:108px}.standalone-town .island-destinations{top:157px}}
+@media(max-width:600px){.town-session-bar{left:12px;right:12px;top:10px}.town-back,.town-quality{height:30px;font-size:10px;padding-left:10px}.town-quality select{font-size:11px}.standalone-town .world-topbar{top:52px}.standalone-town .world-main-actions{top:98px!important}.standalone-town .island-destinations{top:147px!important}.standalone-town .world-panel,.standalone-town .world-panel:has(.world-editor),.standalone-town .world-forum{top:auto}.standalone-town .world-view-settings{bottom:14px}.standalone-town .world-local-note{bottom:7px}}

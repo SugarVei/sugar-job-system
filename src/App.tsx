@@ -22,6 +22,11 @@ import WebPetCompanion from './components/web-pet/WebPetCompanion';
 import WelcomeNoticeModal from './components/WelcomeNoticeModal';
 
 const CommunityTown = lazy(() => import('./pages/CommunityTown'));
+const StandaloneTown = lazy(() => import('./components/community-world/StandaloneTown'));
+
+function isTownExploreRoute() {
+  return window.location.hash.replace(/^#\/?/, '').replace(/\/$/, '') === 'community-world/explore';
+}
 
 function PageCompanion() {
   const { screen } = useAppShell();
@@ -52,6 +57,14 @@ function Gate() {
   const initialized = useRef(false);
   const previousSession = useRef(session);
   const [showWelcomeNotice, setShowWelcomeNotice] = useState(false);
+  const [exploringTown, setExploringTown] = useState(isTownExploreRoute);
+
+  useEffect(() => {
+    const updateRoute = () => setExploringTown(isTownExploreRoute());
+    updateRoute();
+    window.addEventListener('hashchange', updateRoute);
+    return () => window.removeEventListener('hashchange', updateRoute);
+  }, []);
 
   useEffect(() => {
     if (loading) return;
@@ -61,11 +74,13 @@ function Gate() {
     previousSession.current = session;
   }, [loading, session]);
 
-  if (loading) return <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#7a7468', fontSize: 15 }}>加载中…</div>;
-  if (!session || passwordRecovery) return <Login passwordRecovery={passwordRecovery} />;
+  if (loading) return <><LiquidBackground /><div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#7a7468', fontSize: 15 }}>加载中…</div></>;
+  if (!session || passwordRecovery) return <><LiquidBackground /><Login passwordRecovery={passwordRecovery} /></>;
+  if (exploringTown) return <Suspense fallback={<div style={{ minHeight: '100dvh', display: 'grid', placeItems: 'center', background: '#d9e7d8', color: '#425f4b' }}>正在进入求职小镇…</div>}><StandaloneTown key={session.user.id}/></Suspense>;
   return <>
+    <LiquidBackground />
     <AppShellProvider><ApiKeysProvider key={session.user.id}><AppLayout><CurrentPage /></AppLayout><PageCompanion /></ApiKeysProvider></AppShellProvider>
     {showWelcomeNotice && <WelcomeNoticeModal onClose={() => setShowWelcomeNotice(false)} />}
   </>;
 }
-export default function App() { return <ThemeProvider><ToastProvider><LiquidBackground /><AuthProvider><Gate /></AuthProvider></ToastProvider></ThemeProvider>; }
+export default function App() { return <ThemeProvider><ToastProvider><AuthProvider><Gate /></AuthProvider></ToastProvider></ThemeProvider>; }

@@ -1,6 +1,7 @@
 import * as T from 'three';
 import { box, cylinder, leaf, mergeStatic, material } from './geometry';
 import { DISTRICTS, WORLD } from './data';
+import { mergeSpatialStatic } from './spatialBatch';
 
 export type Obstacle={x:number;z:number;w:number;d:number};
 function rounded(w:number,d:number,r:number,color:string,y:number,opacity=1){
@@ -9,7 +10,7 @@ function rounded(w:number,d:number,r:number,color:string,y:number,opacity=1){
   const m=new T.Mesh(new T.ShapeGeometry(s),new T.MeshBasicMaterial({color,transparent:opacity<1,opacity,depthWrite:opacity===1,side:T.DoubleSide}));m.rotation.x=-Math.PI/2;m.position.y=y;m.receiveShadow=true;return m;
 }
 function tree(g:T.Group,x:number,z:number,color='#a6b986',size=1){cylinder(g,.15*size,1.9*size,x,.95*size,z,'#ae9871');leaf(g,x,2.9*size,z,1.3*size,color);leaf(g,x+.6*size,2.5*size,z-.4*size,.9*size,'#bac998');}
-function bench(g:T.Group,x:number,z:number,angle=0){const b=new T.Group();box(b,2.4,.17,.8,0,.72,0,'#ccb58d');box(b,2.4,.7,.13,0,1.05,-.37,'#d8c5a1');for(const dx of [-.8,.8])box(b,.12,.7,.6,dx,.34,0,'#788776');b.position.set(x,0,z);b.rotation.y=angle;g.add(b);}
+function bench(g:T.Group,x:number,z:number,angle=0){const b=new T.Group();box(b,2.4,.17,.8,0,.72,0,'#ccb58d');box(b,2.4,.7,.13,0,1.05,-.37,'#d8c5a1');for(const dx of [-.8,.8])box(b,.12,.7,.6,dx,.34,0,'#788776');b.position.set(x,0,z);b.rotation.y=angle;mergeStatic(b);g.add(b);}
 function lamp(g:T.Group,x:number,z:number){box(g,.12,3.6,.12,x,1.8,z,'#778a76');box(g,.55,.6,.55,x,3.78,z,'#f4dfac');box(g,.7,.13,.7,x,4.15,z,'#6e856f');}
 function sign(g:T.Group,text:string,x:number,z:number,w=17){const c=document.createElement('canvas');c.width=1024;c.height=150;const ctx=c.getContext('2d')!;ctx.fillStyle='#f4efdc';ctx.fillRect(0,0,1024,150);ctx.fillStyle='#657e67';ctx.textAlign='center';ctx.font='600 58px "Microsoft YaHei",sans-serif';ctx.fillText(text,512,96,970);const texture=new T.CanvasTexture(c);texture.colorSpace=T.SRGBColorSpace;const m=new T.Mesh(new T.PlaneGeometry(w,w*150/1024),new T.MeshBasicMaterial({map:texture,toneMapped:false}));m.rotation.x=-Math.PI/2;m.position.set(x,.075,z);g.add(m);}
 function court(g:T.Group,x:number,z:number,w:number,d:number,type:'football'|'basketball'|'badminton'){
@@ -90,5 +91,10 @@ export function createIslandEnvironment(){
   tree(g,-15,59,'#b4c49b');tree(g,15,59,'#bbcda1');sign(labels,'微光游乐场',0,65,17);
   // Two small sea piers complete the reclaimed-island silhouette.
   for(const side of [-1,1]){box(g,3,.23,12,0,-.14,side*87,'#d1bb94');for(let i=0;i<20;i++)box(g,3,.025,.04,0,-.008,side*(81.5+i*.55),'#a59271');box(g,8,.23,2.5,0,-.14,side*93,'#d1bb94');}
-  mergeStatic(g);g.add(labels);return {group:g,board,obstacles};
+  // Separate nearby props so the camera can cull them without removing
+  // offscreen shadow casters from the light's independent visibility pass.
+  // The former island-wide merge enabled both flags for every matte surface.
+  // Keep that appearance on leaves, roofs and hoops when splitting the batch.
+  g.traverse(object=>{if(object instanceof T.Mesh&&object.material instanceof T.MeshLambertMaterial&&!object.material.transparent){object.castShadow=true;object.receiveShadow=true;}});
+  mergeSpatialStatic(g,mergeStatic);g.add(labels);return {group:g,board,obstacles};
 }

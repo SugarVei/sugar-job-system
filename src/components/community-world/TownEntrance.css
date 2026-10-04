@@ -1,0 +1,16 @@
+.town-entrance{position:relative;isolation:isolate;flex:1;min-height:460px;overflow:hidden;border:1px solid #ffffffbd;border-radius:26px;clip-path:inset(0 round 26px);background:#d9e7d8;box-shadow:0 8px 32px #506d4910}
+.town-entrance-landscape{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;transform:scale(1.035);filter:saturate(.65)}
+.town-entrance-glass{position:absolute;inset:0;background:linear-gradient(135deg,#edf3e6b5,#f1f4e6a3 50%,#dce9debd);backdrop-filter:blur(15px);-webkit-backdrop-filter:blur(15px);box-shadow:inset 0 1px 0 #ffffffcf}
+.town-entrance-content{position:relative;min-height:100%;padding:64px 24px 108px;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;color:#354a3c}
+.town-entrance-symbol{width:76px;height:76px;display:grid;place-items:center;margin-bottom:28px;border:1px solid #ffffffb3;border-radius:24px;background:#f8fbef57;color:#57745d;box-shadow:0 8px 32px #46684808,inset 0 1px 0 #ffffffb0}
+.town-entrance h2{margin:0;font-size:clamp(30px,3vw,48px);font-weight:550;line-height:1.52;letter-spacing:2px;text-wrap:balance}
+.town-entrance-content>p{margin:20px 0 32px;font-size:14px;line-height:2;color:#687c6c;letter-spacing:1px}
+.town-enter-button{display:flex;align-items:center;justify-content:center;gap:34px;min-width:260px;min-height:62px;padding:16px 25px;border:1px solid #ffffffed;border-radius:18px;background:#f6f9eceb;color:#3e5b44;text-decoration:none;font-size:16px;font-weight:600;letter-spacing:1px;box-shadow:0 10px 28px #53714c16,inset 0 1px 0 #fff;transition:background .2s,transform .2s,box-shadow .2s}
+.town-enter-button:hover{background:#fffef4;transform:translateY(-2px);box-shadow:0 12px 30px #45664024}
+.town-enter-button:active{transform:translateY(0)}
+.town-entry-note{margin-top:17px;font-size:11px;letter-spacing:1px;color:#6e8273}
+.town-entrance-footer{position:absolute;bottom:0;left:36px;right:36px;padding:21px 0 24px;border-top:1px solid #ffffff67;display:flex;align-items:center;justify-content:space-between;font-size:11px;letter-spacing:1px;color:#637969}
+.town-entrance-footer span:last-child{display:flex;align-items:center;gap:7px}
+@media(max-width:800px){.town-entrance{min-height:420px;border-radius:23px;clip-path:inset(0 round 23px)}.town-entrance-content{padding:42px 20px 102px}.town-entrance-symbol{width:64px;height:64px;margin-bottom:24px;border-radius:21px}.town-entrance h2{font-size:29px;letter-spacing:1px}.town-entrance-content>p{font-size:12px;letter-spacing:.4px;margin:18px 0 28px}.town-enter-button{min-width:240px;min-height:58px;font-size:15px;gap:25px}.town-entrance-footer{left:22px;right:22px;font-size:9px;letter-spacing:0;gap:10px}.town-entry-note{font-size:10px;letter-spacing:.4px}}
+@media(max-height:650px){.town-entrance{min-height:0}.town-entrance-content{padding-top:20px;padding-bottom:80px}.town-entrance-symbol{width:48px;height:48px;margin-bottom:12px}.town-entrance-symbol svg{width:28px}.town-entrance h2{font-size:28px}.town-entrance-content>p{margin:12px 0 18px}.town-enter-button{min-height:50px}.town-entry-note{margin-top:10px}}
+@media(prefers-reduced-motion:reduce){.town-enter-button{transition:none}.town-enter-button:hover{transform:none}}

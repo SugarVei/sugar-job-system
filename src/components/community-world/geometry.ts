@@ -1,10 +1,12 @@
 import * as T from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
-export const materialCache = new Map<string, T.MeshStandardMaterial>();
-export const vertexMaterial = new T.MeshStandardMaterial({vertexColors:true,roughness:.88});
+export const materialCache = new Map<string, T.MeshLambertMaterial>();
+// Matte pastel props do not need the per-pixel specular BRDF used by PBR.
+// Keep real diffuse light and filtered shadows, including day/night changes.
+export const vertexMaterial = new T.MeshLambertMaterial({vertexColors:true});
 export function material(color: string) {
   let m = materialCache.get(color);
-  if (!m) { m = new T.MeshStandardMaterial({ color, roughness: .88 }); materialCache.set(color, m); }
+  if (!m) { m = new T.MeshLambertMaterial({ color }); materialCache.set(color, m); }
   return m;
 }
 export function box(g: T.Group, w: number, h: number, d: number, x: number, y: number, z: number, color: string) {
@@ -30,7 +32,7 @@ export function mergeStatic(g: T.Group) {
   g.traverse(o => { if (o instanceof T.Mesh && !Array.isArray(o.material)) {
     const geometry = (o.geometry.index ? o.geometry.toNonIndexed() : o.geometry.clone()).applyMatrix4(new T.Matrix4().multiplyMatrices(inverse,o.matrixWorld));
     let mat=o.material;
-    if(mat instanceof T.MeshStandardMaterial&&!mat.map&&!mat.transparent){
+    if(mat instanceof T.MeshLambertMaterial&&!mat.map&&!mat.transparent){
       if(!geometry.getAttribute('color')){const count=geometry.getAttribute('position').count,colors=new Float32Array(count*3);for(let i=0;i<count;i++)mat.color.toArray(colors,i*3);geometry.setAttribute('color',new T.BufferAttribute(colors,3));}
       mat=vertexMaterial;
     }
