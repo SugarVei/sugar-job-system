@@ -7,11 +7,12 @@ import { findWalkPath } from './walkPath';
 import { isWalkableGround, WALK_GRID_LIMIT } from './walkableGround';
 import { WorldActivities, type ActivityKind, type ActivityStatus } from './WorldActivities';
 import { createIslandEnvironment } from './islandEnvironment';
+import { CAMERA_PRESETS, DEFAULT_AZIMUTH, MIN_ELEVATION, MAX_ELEVATION, clampElevation, elevationForZoom, shortestAngleDelta, type CameraViewState } from './cameraView';
 
 import type { PlayerFrame, SharedSeat } from './networkTypes';
 
 type Network = { acquire: (resource:string)=>Promise<number>; release:()=>void };
-type Callbacks = { select: (id: string) => void; move: (id: string, x: number, z: number) => void; ready: () => void; error: (message: string) => void; board: () => void; view: (first: boolean) => void; activity: (status:ActivityStatus) => void };
+type Callbacks = { select: (id: string) => void; move: (id: string, x: number, z: number) => void; ready: () => void; error: (message: string) => void; board: () => void; view: (first: boolean) => void; activity: (status:ActivityStatus) => void; cameraView: (state:CameraViewState) => void };
 function textPlane(g: T.Group, title: string, sub: string, color: string, empty: boolean, atlas: T.CanvasTexture, mat: T.MeshBasicMaterial, index: number) {
   const c=document.createElement('canvas'); c.width=1024;c.height=280;
   const ctx=c.getContext('2d')!;
@@ -131,6 +132,15 @@ export class WorldScene {
   private activities=new WorldActivities();
   private activityStamp=0;
   private cameraMode:'pan'|'rotate'='pan';
+  private autoTilt=true;
+  private angleTween:{elevation:number;azimuth?:number}|null=null;
+  private applyingCamera=false;
+  private controllingCamera=false;
+  private previousPolar=0;
+  private previousZoom=.15;
+  private cameraViewStamp=0;
+  private activePointers=new Set<number>();
+  private gestureMoved=false;
   private renderer:T.WebGLRenderer;
   private camera=new T.OrthographicCamera(-20,20,14,-14,.1,800);
   private controls:OrbitControls;
@@ -176,14 +186,15 @@ export class WorldScene {
     this.qualityRatio=Math.min(devicePixelRatio,1);this.renderer.setPixelRatio(this.qualityRatio);
     this.renderer.shadowMap.enabled=true;this.renderer.shadowMap.type=T.PCFShadowMap;this.renderer.shadowMap.autoUpdate=false;
     this.renderer.toneMapping=T.ACESFilmicToneMapping;this.renderer.toneMappingExposure=1.1;
-    const canvas=this.renderer.domElement;canvas.tabIndex=0;canvas.setAttribute('aria-label','求职小镇三维地图：拖动浏览、滚轮缩放，点击房间查看，WASD 移动人物');
+    const canvas=this.renderer.domElement;canvas.tabIndex=0;canvas.setAttribute('aria-label','求职小镇三维地图：拖动平移，右键左右旋转、上下调整高度，滚轮缩放，点击房间查看，WASD 移动人物');
     host.appendChild(canvas);
     this.camera.position.set(130,160,180);this.camera.zoom=.15;this.controls=new OrbitControls(this.camera,canvas);
     this.controls.target.set(0,0,0);this.controls.enableDamping=true;this.controls.dampingFactor=.14;
-    this.controls.minZoom=.045;this.controls.maxZoom=2.4;this.controls.minPolarAngle=.3;this.controls.maxPolarAngle=1.18;
+    this.controls.minZoom=.045;this.controls.maxZoom=2.4;this.controls.minPolarAngle=T.MathUtils.degToRad(90-MAX_ELEVATION);this.controls.maxPolarAngle=T.MathUtils.degToRad(90-MIN_ELEVATION);this.controls.rotateSpeed=.65;
     this.controls.mouseButtons={LEFT:T.MOUSE.PAN,MIDDLE:T.MOUSE.DOLLY,RIGHT:T.MOUSE.ROTATE};
-    this.controls.touches={ONE:T.TOUCH.PAN,TWO:T.TOUCH.DOLLY_ROTATE};this.controls.screenSpacePanning=false;this.controls.zoomToCursor=true;
-    this.controls.addEventListener('change',this.onCameraChange);this.controls.addEventListener('start',this.onControlStart);
+    this.controls.touches={ONE:T.TOUCH.PAN,TWO:T.TOUCH.DOLLY_PAN};this.controls.screenSpacePanning=false;this.controls.zoomToCursor=true;
+    this.previousPolar=this.controls.getPolarAngle();
+    this.controls.addEventListener('change',this.onCameraChange);this.controls.addEventListener('start',this.onControlStart);this.controls.addEventListener('end',this.onControlEnd);
     this.scene.add(this.ambient);this.sun.position.set(-100,180,95);this.sun.castShadow=true;this.sun.shadow.mapSize.set(1024,1024);
     Object.assign(this.sun.shadow.camera,{left:-120,right:120,top:120,bottom:-120,near:.5,far:400});this.sun.shadow.normalBias=.035;this.sun.shadow.bias=-.0003;this.sun.shadow.radius=3;this.scene.add(this.sun);
     this.createEnvironment();this.scene.add(this.activities.root);
@@ -191,7 +202,7 @@ export class WorldScene {
     const ring=new T.Mesh(new T.RingGeometry(.56,.72,32),new T.MeshBasicMaterial({color:'#cedd9b',side:T.DoubleSide}));ring.rotation.x=-Math.PI/2;ring.position.y=.03;this.player.add(ring);
     this.player.traverse(o=>{if(o instanceof T.Mesh)o.castShadow=false;});
     const outline=new T.Mesh(new T.BoxGeometry(6.95,.045,6.35),new T.MeshBasicMaterial({color:'#779876'}));outline.position.y=.06;this.selection.add(outline);this.selection.visible=false;this.scene.add(this.selection);
-    canvas.addEventListener('pointerdown',this.onDown);canvas.addEventListener('pointermove',this.onMove);canvas.addEventListener('pointerup',this.onUp);canvas.addEventListener('pointercancel',this.onCancel);
+    canvas.addEventListener('pointerdown',this.onDown,true);canvas.addEventListener('pointermove',this.onMove);canvas.addEventListener('pointerup',this.onUp);canvas.addEventListener('pointercancel',this.onCancel);
     canvas.addEventListener('keydown',this.onKeyDown);canvas.addEventListener('keyup',this.onKeyUp);canvas.addEventListener('blur',this.onBlur);canvas.addEventListener('webglcontextlost',this.onContextLost);
     this.observer=new ResizeObserver(this.resize);this.observer.observe(host);this.resize();this.overview();this.frame=requestAnimationFrame(this.animate);
   }
@@ -199,6 +210,36 @@ export class WorldScene {
     const environment=createIslandEnvironment();this.scene.add(environment.group);environment.group.updateMatrixWorld(true);environment.group.traverse(o=>{o.matrixAutoUpdate=false;});this.board=environment.board;this.scene.add(this.board);this.obstacles=environment.obstacles;
   }
   setCameraMode(mode:'pan'|'rotate'){this.cameraMode=mode;this.controls.mouseButtons.LEFT=mode==='pan'?T.MOUSE.PAN:T.MOUSE.ROTATE;this.controls.touches.ONE=mode==='pan'?T.TOUCH.PAN:T.TOUCH.ROTATE;}
+  private overviewZoom(){return Math.max(this.controls.minZoom,Math.min(.155,this.host.clientWidth/this.host.clientHeight*.09));}
+  private elevation(){return 90-T.MathUtils.radToDeg(this.controls.getPolarAngle());}
+  private emitCameraView(){this.callbacks.cameraView({elevation:Math.round(this.angleTween?.elevation??this.elevation()),autoTilt:this.autoTilt});}
+  private stopCameraMotion(){
+    // Flush OrbitControls inertia before starting a preset or reset animation.
+    this.applyingCamera=true;this.controls.enableDamping=false;this.controls.update();this.controls.enableDamping=true;this.applyingCamera=false;
+    this.targetTween=null;this.angleTween=null;this.follow=false;
+  }
+  setElevation(elevation:number){
+    if(this.firstPerson||!Number.isFinite(elevation))return;
+    this.stopCameraMotion();this.autoTilt=false;this.angleTween={elevation:clampElevation(elevation)};this.emitCameraView();this.dirty=30;
+  }
+  setCameraPreset(preset:keyof typeof CAMERA_PRESETS){this.setElevation(CAMERA_PRESETS[preset]);}
+  setAutoTilt(enabled:boolean){
+    if(this.firstPerson)return;
+    this.autoTilt=enabled;this.angleTween=enabled?{elevation:elevationForZoom(this.camera.zoom,this.overviewZoom())}:null;this.emitCameraView();this.dirty=30;
+  }
+  private updateCameraAngle(dt:number){
+    const zoomChanged=Math.abs(this.camera.zoom-this.previousZoom)>1e-7;
+    if(zoomChanged&&this.autoTilt)this.angleTween={...this.angleTween,elevation:elevationForZoom(this.camera.zoom,this.overviewZoom())};
+    this.previousZoom=this.camera.zoom;
+    if(!this.angleTween)return;
+    const target=this.angleTween,offset=this.camera.position.clone().sub(this.controls.target),spherical=new T.Spherical().setFromVector3(offset);
+    const phi=T.MathUtils.degToRad(90-target.elevation),thetaDelta=target.azimuth===undefined?0:shortestAngleDelta(spherical.theta,target.azimuth);
+    const alpha=1-Math.exp(-dt*12),settled=Math.abs(phi-spherical.phi)<.0002&&Math.abs(thetaDelta)<.0002;
+    spherical.phi=settled?phi:T.MathUtils.lerp(spherical.phi,phi,alpha);spherical.theta+=thetaDelta*(settled?1:alpha);
+    this.camera.position.copy(this.controls.target).add(offset.setFromSpherical(spherical));
+    this.applyingCamera=true;this.controls.update();this.applyingCamera=false;this.dirty=5;
+    if(settled)this.angleTween=null;
+  }
   goToActivity(kind:ActivityKind){if(this.editRoom)return;this.exitActivity();this.activities.goTo(kind,this.player);this.walkPath=[];this.followPlayer();this.emitActivity();}
   interact(){if(this.editRoom)return;this.walkPath=[];this.jumpStart=0;if(this.activities.active){this.exitActivity();return;}const nearby=this.activities.nearest(this.player.position);if(nearby)void this.enterActivity(nearby.kind,nearby.taxi);else{this.activities.messageToUser('附近没有可互动的项目，请先前往。');this.emitActivity();}}
   activityAction(){this.activities.action(this.player);this.emitActivity();this.renderer.domElement.focus({preventScroll:true});}
@@ -207,7 +248,7 @@ export class WorldScene {
   private afterActivity(){this.keys.clear();this.touchVector={x:0,z:0};this.player.rotation.x=0;if(this.activities.active){this.follow=true;if(!this.firstPerson)this.targetTween={to:this.player.position.clone(),zoom:.7};this.firstYaw=["taxi","yacht","plane"].includes(this.activities.currentMode||"")?this.activities.vehicleHeading:this.player.rotation.y;}else this.followPlayer();this.emitActivity();this.renderer.domElement.focus({preventScroll:true});}
   setFirstPerson(value:boolean) {
     if(value&&this.editRoom)return;
-    this.firstPerson=value;this.controls.enabled=!value;this.player.visible=!value;this.targetTween=null;this.walkPath=[];this.keys.clear();
+    this.stopCameraMotion();this.firstPerson=value;this.controls.enabled=!value;this.player.visible=!value;this.walkPath=[];this.keys.clear();
     if(value){this.firstYaw=this.player.rotation.y;this.firstPitch=0;this.scene.background=new T.Color('#d6e6dd');}
     else this.scene.background=new T.Color(this.night?'#295e69':'#168b99');
     this.callbacks.view(value);this.dirty=30;this.renderer.domElement.focus({preventScroll:true});
@@ -261,33 +302,44 @@ export class WorldScene {
     districts.forEach(byMaterial=>byMaterial.forEach((geometries,mat)=>{const merged=mergeGeometries(geometries,false);geometries.forEach(g=>g.dispose());if(merged){const mesh=new T.Mesh(merged,mat);mesh.castShadow=!(mat instanceof T.MeshBasicMaterial);mesh.receiveShadow=true;mesh.updateMatrix();mesh.matrixAutoUpdate=false;this.staticBatch.add(mesh);}}));
   }
   select(id:string|null) {const r=this.rooms.find(x=>x.id===id);this.selection.visible=!!r;if(r)this.selection.position.set(r.x,0,r.z);this.dirty=3;}
-  edit(id:string|null) {if(id)this.exitActivity();this.editRoom=id;this.host.classList.toggle('world-editing',!!id);this.rebatch();this.renderer.shadowMap.needsUpdate=true;this.dirty=10;}
+  edit(id:string|null) {if(id){this.exitActivity();this.focus(id);}this.editRoom=id;this.host.classList.toggle('world-editing',!!id);this.rebatch();this.renderer.shadowMap.needsUpdate=true;this.dirty=10;}
   focus(id:string) {if(this.firstPerson)this.setFirstPerson(false);const r=this.rooms.find(x=>x.id===id);if(!r)return;this.follow=false;const angle=Math.atan2(this.camera.position.x-this.controls.target.x,this.camera.position.z-this.controls.target.z);const shift=this.host.clientWidth<600?0:3;const to=new T.Vector3(r.x+Math.cos(angle)*shift,0,r.z-Math.sin(angle)*shift);if(this.host.clientWidth<600){to.x+=Math.sin(angle)*7.2;to.z+=Math.cos(angle)*7.2;}this.targetTween={to,zoom:this.host.clientWidth<600?1.02:1.6};this.select(id);this.dirty=60;}
-  overview() {if(this.firstPerson)this.setFirstPerson(false);this.follow=false;this.targetTween={to:new T.Vector3(),zoom:Math.min(.155,this.host.clientWidth/this.host.clientHeight*.09)};this.dirty=60;}
+  overview() {if(this.firstPerson)this.setFirstPerson(false);this.stopCameraMotion();this.autoTilt=true;this.targetTween={to:new T.Vector3(),zoom:this.overviewZoom()};this.angleTween={elevation:CAMERA_PRESETS.oblique,azimuth:DEFAULT_AZIMUTH};this.dirty=60;}
   home() {this.overview();}
-  zoom(direction:number) {this.targetTween=null;this.camera.zoom=T.MathUtils.clamp(this.camera.zoom*(direction>0?1.2:1/1.2),.045,2.4);this.camera.updateProjectionMatrix();this.dirty=20;}
-  rotate() {const offset=this.camera.position.clone().sub(this.controls.target);offset.applyAxisAngle(new T.Vector3(0,1,0),Math.PI/2);this.camera.position.copy(this.controls.target).add(offset);this.controls.update();this.dirty=30;}
+  zoom(direction:number) {if(this.firstPerson)return;const zoom=this.targetTween?.zoom??this.camera.zoom;this.targetTween={to:this.controls.target.clone(),zoom:T.MathUtils.clamp(zoom*(direction>0?1.2:1/1.2),this.controls.minZoom,this.controls.maxZoom)};this.follow=false;this.dirty=30;}
+  rotate(direction=1) {if(this.firstPerson)return;const azimuth=this.angleTween?.azimuth??this.controls.getAzimuthalAngle();this.stopCameraMotion();this.angleTween={elevation:this.elevation(),azimuth:azimuth+direction*Math.PI/4};this.dirty=30;}
   followPlayer() {if(this.firstPerson){this.renderer.domElement.focus();return;}this.follow=true;this.targetTween={to:this.player.position.clone().setY(0),zoom:1.4};this.dirty=60;this.renderer.domElement.focus({preventScroll:true});}
   wave() {this.waveUntil=performance.now()+2200;this.dirty=180;}
   jump() {if(this.activities.active)return;if(!this.jumpStart)this.jumpStart=performance.now();this.dirty=90;}
   setTouch(x:number,z:number) {this.walkPath=[];this.touchVector={x,z};}
   setNight(night:boolean) {this.night=night;this.ambient.intensity=night?.85:2.4;this.sun.intensity=night?1.25:2.5;this.sun.color.set(night?'#bacbff':'#fff4df');this.scene.background=new T.Color(this.firstPerson?'#d6e6dd':night?'#295e69':'#168b99');this.renderer.toneMappingExposure=night?.8:1.1;this.dirty=5;}
-  private onCameraChange=()=>{this.dirty=12;};
-  private onControlStart=()=>{this.targetTween=null;this.follow=false;};
+  private onCameraChange=()=>{
+    const polar=this.controls.getPolarAngle();
+    // OrbitControls changes its focus-plane behavior below 20 degrees. Use
+    // center zoom there to keep a manually chosen low angle stable.
+    this.controls.zoomToCursor=polar<=T.MathUtils.degToRad(70);
+    if(this.controllingCamera&&!this.applyingCamera&&Math.abs(this.camera.zoom-this.previousZoom)<1e-7&&Math.abs(polar-this.previousPolar)>.0001){this.autoTilt=false;this.angleTween=null;}
+    this.previousPolar=polar;this.dirty=12;
+  };
+  private onControlStart=()=>{this.targetTween=null;this.angleTween=null;this.follow=false;this.controllingCamera=true;};
+  private onControlEnd=()=>{this.controllingCamera=false;};
   private resize=()=>{
     const w=this.host.clientWidth,h=this.host.clientHeight;if(!w||!h)return;
     const half=h<500?11.5:13;this.camera.left=-half*w/h;this.camera.right=half*w/h;this.camera.top=half;this.camera.bottom=-half;this.camera.updateProjectionMatrix();this.firstCamera.aspect=w/h;this.firstCamera.updateProjectionMatrix();this.renderer.setSize(w,h);this.dirty=20;
   };
   private ray(e:PointerEvent) {const r=this.renderer.domElement.getBoundingClientRect();this.raycaster.setFromCamera(new T.Vector2((e.clientX-r.left)/r.width*2-1,-(e.clientY-r.top)/r.height*2+1),this.activeCamera());}
   private onDown=(e:PointerEvent)=>{
-    this.down={x:e.clientX,y:e.clientY};this.lastPointer={...this.down};this.looking=true;if(e.button!==0)return;
+    if(!this.activePointers.size){this.gestureMoved=false;this.down={x:e.clientX,y:e.clientY};}
+    this.activePointers.add(e.pointerId);if(this.activePointers.size>1)this.gestureMoved=true;
+    this.lastPointer={x:e.clientX,y:e.clientY};this.looking=true;if(e.button!==0)return;
     if(this.firstPerson)this.renderer.domElement.setPointerCapture(e.pointerId);
     this.ray(e);
-    if(this.editRoom){const room=this.rooms.find(r=>r.id===this.editRoom)!;const g=this.groups.get(room.id)!;
+    if(this.editRoom&&this.cameraMode==='pan'&&!e.ctrlKey&&!e.metaKey&&!e.shiftKey&&this.activePointers.size===1){const room=this.rooms.find(r=>r.id===this.editRoom)!;const g=this.groups.get(room.id)!;
       const hits=this.raycaster.intersectObject(g,true);for(const hit of hits.slice(0,1)){let o:T.Object3D|null=hit.object;while(o&&o!==g){if(o.userData.furnitureId){const p=new T.Vector3();this.raycaster.ray.intersectPlane(this.ground,p);this.dragging={object:o,room,id:o.userData.furnitureId,pointer:e.pointerId,offset:p.sub(new T.Vector3(room.x+o.position.x,.2,room.z+o.position.z))};this.controls.enabled=false;this.renderer.domElement.setPointerCapture(e.pointerId);return;}o=o.parent;}}
     }
   };
   private onMove=(e:PointerEvent)=>{
+    if(this.activePointers.has(e.pointerId)&&Math.hypot(e.clientX-this.down.x,e.clientY-this.down.y)>6)this.gestureMoved=true;
     if(this.firstPerson&&this.looking){this.firstYaw-=(e.clientX-this.lastPointer.x)*.006;this.firstPitch=T.MathUtils.clamp(this.firstPitch-(e.clientY-this.lastPointer.y)*.006,-1.1,1.1);this.lastPointer={x:e.clientX,y:e.clientY};this.dirty=5;return;}
     if(!this.dragging)return;this.ray(e);const point=new T.Vector3();if(!this.raycaster.ray.intersectPlane(this.ground,point))return;
     const {object,room,offset}=this.dragging;point.sub(offset);
@@ -295,9 +347,10 @@ export class WorldScene {
     this.dirty=3;this.renderer.shadowMap.needsUpdate=true;
   };
   private onUp=(e:PointerEvent)=>{
+    this.activePointers.delete(e.pointerId);
     this.looking=false;
     if(this.dragging){const {id,object}=this.dragging;this.callbacks.move(id,object.position.x,object.position.z);this.dragging=null;this.controls.enabled=!this.firstPerson;return;}
-    if(e.button!==0||Math.hypot(e.clientX-this.down.x,e.clientY-this.down.y)>6)return;
+    if(e.button!==0||this.gestureMoved||Math.hypot(e.clientX-this.down.x,e.clientY-this.down.y)>6)return;
     this.ray(e);
     const boardHit=this.raycaster.intersectObject(this.board,true)[0];
     const hit=this.raycaster.intersectObjects(Array.from(this.groups.values()),true)[0];
@@ -308,10 +361,10 @@ export class WorldScene {
     if(hit){let o:T.Object3D|null=hit.object;while(o){if(o.userData.roomId){this.callbacks.select(o.userData.roomId);return;}o=o.parent;}}
     const target=new T.Vector3();if(this.raycaster.ray.intersectPlane(this.ground,target))this.planWalk(target);
   };
-  private onCancel=()=>{this.looking=false;if(this.dragging){const {id,object}=this.dragging;this.callbacks.move(id,object.position.x,object.position.z);}this.dragging=null;this.controls.enabled=!this.firstPerson;this.touchVector={x:0,z:0};};
+  private onCancel=(e:PointerEvent)=>{this.activePointers.delete(e.pointerId);this.gestureMoved=true;this.controllingCamera=false;this.looking=false;if(this.dragging){const {id,object}=this.dragging;this.callbacks.move(id,object.position.x,object.position.z);}this.dragging=null;this.controls.enabled=!this.firstPerson;this.touchVector={x:0,z:0};};
   private onKeyDown=(e:KeyboardEvent)=>{if(e.code==='KeyF'){e.preventDefault();if(!e.repeat)this.interact();return;}if(e.code==='Space'&&this.activities.active){e.preventDefault();if(!e.repeat)this.activityAction();return;}if(['KeyW','KeyA','KeyS','KeyD','ArrowUp','ArrowDown','ArrowLeft','ArrowRight','Space'].includes(e.code)){e.preventDefault();this.walkPath=[];this.keys.add(e.code);if(e.code==='Space')this.jump();this.follow=true;}};
   private onKeyUp=(e:KeyboardEvent)=>{this.keys.delete(e.code);};
-  private onBlur=()=>{this.keys.clear();this.touchVector={x:0,z:0};this.looking=false;};
+  private onBlur=()=>{this.keys.clear();this.touchVector={x:0,z:0};this.looking=false;this.activePointers.clear();this.controllingCamera=false;};
   private onContextLost=(e:Event)=>{e.preventDefault();this.callbacks.error('三维画面已暂停，请刷新页面恢复。已保存的房间会保留。');};
   private blocked(x:number,z:number) {
     if(!isWalkableGround(x,z))return true;
@@ -352,17 +405,19 @@ export class WorldScene {
     this.player.getObjectByName('rightArm')!.rotation.z=time<this.waveUntil?-2.2+Math.sin(time*.016)*.3:0;
     if(time<this.waveUntil)this.dirty=3;
     if(this.jumpStart){const t=(time-this.jumpStart)/700;this.player.position.y=.2+Math.sin(Math.min(t,1)*Math.PI)*1.2;if(t>=1){this.jumpStart=0;this.player.position.y=.2;}this.dirty=3;}
-    if(this.targetTween){const before=this.controls.target.clone();this.controls.target.lerp(this.targetTween.to,.12);this.camera.position.add(this.controls.target.clone().sub(before));this.camera.zoom=T.MathUtils.lerp(this.camera.zoom,this.targetTween.zoom,.12);this.camera.updateProjectionMatrix();this.dirty=5;if(this.controls.target.distanceTo(this.targetTween.to)<.03&&Math.abs(this.camera.zoom-this.targetTween.zoom)<.01)this.targetTween=null;}
+    if(this.targetTween){const before=this.controls.target.clone(),target=this.targetTween,alpha=1-Math.exp(-dt*12);this.controls.target.lerp(target.to,alpha);this.camera.zoom=T.MathUtils.lerp(this.camera.zoom,target.zoom,alpha);if(this.controls.target.distanceTo(target.to)<.005&&Math.abs(this.camera.zoom-target.zoom)<.0001){this.controls.target.copy(target.to);this.camera.zoom=target.zoom;this.targetTween=null;}this.camera.position.add(this.controls.target.clone().sub(before));this.camera.updateProjectionMatrix();this.dirty=5;}
     else if(!this.firstPerson&&this.follow&&(moving||playing)){const to=this.player.position.clone(),delta=to.sub(this.controls.target).multiplyScalar(.08);this.controls.target.add(delta);this.camera.position.add(delta);}
+    if(!this.firstPerson)this.updateCameraAngle(dt);
+    if(time-this.cameraViewStamp>100){this.cameraViewStamp=time;this.emitCameraView();}
     if(this.firstPerson){this.firstCamera.position.set(this.player.position.x,this.player.position.y+2.05,this.player.position.z);this.firstCamera.lookAt(this.firstCamera.position.clone().add(new T.Vector3(Math.sin(this.firstYaw)*Math.cos(this.firstPitch),Math.sin(this.firstPitch),Math.cos(this.firstYaw)*Math.cos(this.firstPitch))));}
     if(this.dirty>0){const start=performance.now();this.renderer.render(this.scene,this.activeCamera());this.renderSamples.push(performance.now()-start);if(this.renderSamples.length>120)this.renderSamples.shift();this.dirty--;}
     if(time-this.sampleTime>5000&&this.frameSamples.length>60){this.sampleTime=time;const avg=this.frameSamples.reduce((a,b)=>a+b,0)/this.frameSamples.length;if(avg>28&&this.qualityRatio>.7){this.qualityRatio=Math.max(.7,this.qualityRatio-.15);this.renderer.setPixelRatio(this.qualityRatio);this.resize();}}
 
   };
-  diagnostics() {return { peers:this.peers.size,peerPositions:Array.from(this.peers.values()).map(p=>({id:p.frame.id,x:p.mesh.position.x,y:p.mesh.position.y,z:p.mesh.position.z})),fps:this.frameSamples.length?Math.round(1000/(this.frameSamples.reduce((a,b)=>a+b,0)/this.frameSamples.length)):0,renderMs:this.renderSamples.length?this.renderSamples.reduce((a,b)=>a+b,0)/this.renderSamples.length:0,pixelRatio:this.qualityRatio,rooms:this.rooms.length,drawCalls:this.renderer.info.render.calls,triangles:this.renderer.info.render.triangles,geometries:this.renderer.info.memory.geometries,textures:this.renderer.info.memory.textures,player:{x:this.player.position.x,y:this.player.position.y,z:this.player.position.z},cameraTarget:this.controls.target.toArray(),cameraMode:this.cameraMode,activities:this.activities.diagnostics(),firstPerson:this.firstPerson,yaw:this.firstYaw,pitch:this.firstPitch,pathLength:this.walkPath.length,landmarks:LANDMARKS.map(l=>l.id),night:this.night,zoom:this.camera.zoom,editing:this.editRoom };}
+  diagnostics() {return { peers:this.peers.size,peerPositions:Array.from(this.peers.values()).map(p=>({id:p.frame.id,x:p.mesh.position.x,y:p.mesh.position.y,z:p.mesh.position.z})),fps:this.frameSamples.length?Math.round(1000/(this.frameSamples.reduce((a,b)=>a+b,0)/this.frameSamples.length)):0,renderMs:this.renderSamples.length?this.renderSamples.reduce((a,b)=>a+b,0)/this.renderSamples.length:0,pixelRatio:this.qualityRatio,rooms:this.rooms.length,drawCalls:this.renderer.info.render.calls,triangles:this.renderer.info.render.triangles,geometries:this.renderer.info.memory.geometries,textures:this.renderer.info.memory.textures,player:{x:this.player.position.x,y:this.player.position.y,z:this.player.position.z},cameraTarget:this.controls.target.toArray(),cameraPosition:this.camera.position.toArray(),elevation:this.elevation(),azimuth:this.controls.getAzimuthalAngle(),autoTilt:this.autoTilt,cameraAnimating:!!(this.targetTween||this.angleTween),cameraMode:this.cameraMode,activities:this.activities.diagnostics(),firstPerson:this.firstPerson,yaw:this.firstYaw,pitch:this.firstPitch,pathLength:this.walkPath.length,landmarks:LANDMARKS.map(l=>l.id),night:this.night,zoom:this.camera.zoom,editing:this.editRoom };}
   dispose() {
     this.exitActivity();this.disposed=true;cancelAnimationFrame(this.frame);this.observer.disconnect();this.controls.dispose();
-    const c=this.renderer.domElement;c.removeEventListener('pointerdown',this.onDown);c.removeEventListener('pointermove',this.onMove);c.removeEventListener('pointerup',this.onUp);c.removeEventListener('pointercancel',this.onCancel);c.removeEventListener('keydown',this.onKeyDown);c.removeEventListener('keyup',this.onKeyUp);c.removeEventListener('blur',this.onBlur);c.removeEventListener('webglcontextlost',this.onContextLost);
+    const c=this.renderer.domElement;c.removeEventListener('pointerdown',this.onDown,true);c.removeEventListener('pointermove',this.onMove);c.removeEventListener('pointerup',this.onUp);c.removeEventListener('pointercancel',this.onCancel);c.removeEventListener('keydown',this.onKeyDown);c.removeEventListener('keyup',this.onKeyUp);c.removeEventListener('blur',this.onBlur);c.removeEventListener('webglcontextlost',this.onContextLost);
     this.groups.forEach(g=>{this.scene.remove(g);disposeGroup(g);});disposeGroup(this.scene);this.scene.traverse(o=>{if(o instanceof T.Sprite){o.material.map?.dispose();o.material.dispose();}if(o instanceof T.Mesh){const mats=Array.isArray(o.material)?o.material:[o.material];mats.forEach(m=>{if(m!==vertexMaterial&&!Array.from(materialCache.values()).includes(m as T.MeshStandardMaterial))m.dispose();});}});this.atlas.dispose();this.labelMaterial.dispose();this.renderer.dispose();c.remove();
   }
 }
