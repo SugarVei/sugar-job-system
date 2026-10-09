@@ -1,0 +1,12 @@
+.avatar-feature-announcement { flex-wrap: wrap; }
+
+@media (min-width: 1024px) {
+  .avatar-feature-announcement { margin-right: 34px !important; margin-left: 34px !important; }
+}
+
+@media (max-width: 520px) {
+  .avatar-feature-announcement { gap: 10px !important; padding: 12px 38px 12px 12px !important; }
+  .avatar-feature-announcement > span { width: 32px !important; height: 32px !important; }
+  .avatar-feature-announcement > div { min-width: calc(100% - 50px) !important; }
+  .avatar-feature-announcement > button:first-of-type { margin-left: 42px; }
+}

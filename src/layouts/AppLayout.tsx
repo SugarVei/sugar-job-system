@@ -1,4 +1,4 @@
-import { useRef, useState, type ReactNode } from 'react';
+import { useEffect, useState, type ReactNode } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { useTheme } from '../contexts/ThemeContext';
 import { useAppShell } from '../contexts/AppShellContext';
@@ -7,6 +7,8 @@ import { MOBILE_MORE_NAV, MOBILE_PRIMARY_NAV, NAV_ITEMS, greetFor } from '../com
 import ThemeSwitcher from '../components/ThemeSwitcher';
 import ApiKeySettings from '../components/ApiKeySettingsGuide';
 import PetAnnouncement from '../components/web-pet/PetAnnouncement';
+import AvatarFeatureAnnouncement from '../components/AvatarFeatureAnnouncement';
+import AvatarPicker, { OPEN_AVATAR_PICKER_EVENT } from '../components/AvatarPicker';
 import {
   SugarMark,
   IconSearch,
@@ -27,23 +29,21 @@ export default function AppLayout({ children }: { children: ReactNode }) {
   const { theme } = useTheme();
   const { screen, setScreen, query, setQuery, triggerAdd, headerChrome } = useAppShell();
   const { name, avatar, updateName, updateAvatar } = useProfile();
-  const fileRef = useRef<HTMLInputElement>(null);
   const [mobileMoreOpen, setMobileMoreOpen] = useState(false);
+  const [avatarPickerOpen, setAvatarPickerOpen] = useState(false);
 
   const greet = greetFor(screen, name);
   const moreActive = MOBILE_MORE_NAV.some((item) => item.key === screen);
 
+  useEffect(() => {
+    const openAvatarPicker = () => setAvatarPickerOpen(true);
+    window.addEventListener(OPEN_AVATAR_PICKER_EVENT, openAvatarPicker);
+    return () => window.removeEventListener(OPEN_AVATAR_PICKER_EVENT, openAvatarPicker);
+  }, []);
+
   const go = (key: ScreenKey) => {
     setScreen(key);
     setMobileMoreOpen(false);
-  };
-
-  const onAvatarChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    const reader = new FileReader();
-    reader.onload = () => updateAvatar(reader.result as string);
-    reader.readAsDataURL(file);
   };
 
   // 头像圆形展示
@@ -141,8 +141,13 @@ export default function AppLayout({ children }: { children: ReactNode }) {
               flex: 'none',
             }}
           >
-            <label title="点击更换头像" style={{ position: 'relative', cursor: 'pointer', width: 48, height: 48, flex: 'none' }}>
-              <input ref={fileRef} type="file" accept="image/*" onChange={onAvatarChange} style={{ display: 'none' }} />
+            <button
+              type="button"
+              title="点击更换头像"
+              aria-label="更换头像"
+              onClick={() => setAvatarPickerOpen(true)}
+              style={{ position: 'relative', cursor: 'pointer', width: 48, height: 48, flex: 'none', padding: 0, border: 0, borderRadius: '50%', background: 'transparent' }}
+            >
               {avatarBox(48)}
               <span
                 style={{
@@ -161,7 +166,7 @@ export default function AppLayout({ children }: { children: ReactNode }) {
               >
                 <IconCamera size={10} color="#1b1a17" />
               </span>
-            </label>
+            </button>
             <div style={{ minWidth: 0, flex: 1 }}>
               <div style={{ fontSize: 11, color: '#9a9488', margin: '0 0 2px 6px' }}>个人账号</div>
               <input
@@ -356,6 +361,7 @@ export default function AppLayout({ children }: { children: ReactNode }) {
 
           {/* 内容区（可滚动） */}
           <PetAnnouncement />
+          <AvatarFeatureAnnouncement />
           <div
             className="scrolly px-4 lg:px-[34px] pb-24 lg:pb-[34px]"
             style={{ flex: 1, minHeight: 0, overflowY: headerChrome?.contentScroll === false ? 'hidden' : 'auto', overscrollBehaviorY: 'contain', paddingTop: 8 }}
@@ -504,6 +510,11 @@ export default function AppLayout({ children }: { children: ReactNode }) {
           <span style={{ fontSize: 10, fontWeight: 600 }}>更多</span>
         </button>
       </nav>
+      <AvatarPicker
+        open={avatarPickerOpen}
+        onClose={() => setAvatarPickerOpen(false)}
+        onSave={updateAvatar}
+      />
     </div>
   );
 }
