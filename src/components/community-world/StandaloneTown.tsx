@@ -23,7 +23,7 @@ export default function StandaloneTown({ returnHref = '/#/community-world', stor
     setQuality(next);
     try { localStorage.setItem(storageKey, next); } catch { /* Optional preference. */ }
   };
-  return <main className="standalone-town" data-release="community-town-standalone-4k-v1">
+  return <main className="standalone-town" data-release="community-town-room-design-v2">
     <nav className="town-session-bar" aria-label="小镇页面设置">
       <a href={returnHref} className="town-back"><ArrowLeft size={15}/>返回入口</a>
       <label className="town-quality"><Monitor size={15}/><span>清晰度</span><select aria-label="画面清晰度" value={quality} onChange={event => changeQuality(event.target.value as WorldRenderQuality)}><option value="ultra">4K 超清</option><option value="high">高清</option><option value="adaptive">流畅</option></select></label>

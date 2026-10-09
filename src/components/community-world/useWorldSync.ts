@@ -1,7 +1,8 @@
+import { decodeFurniture } from './roomLayout';
 import { useEffect, useRef, useState, type RefObject } from 'react';
 import type { User } from '@supabase/supabase-js';
 import { supabase, isSupabaseConfigured } from '../../lib/supabase';
-import { COLORS, FLOORS, FURNITURE, createRooms, type Room, type Furniture } from './data';
+import { COLORS, FLOORS, ROOM_STYLES, createRooms, type Room } from './data';
 import type { WorldScene } from './WorldScene';
 import { validPlayerFrame, type PlayerFrame, type SharedSeat } from './networkTypes';
 
@@ -11,8 +12,8 @@ export function decodeRoom(row:RoomRow,userId:string):Room|null {
   const base=createRooms().find(r=>r.id===row.id);if(!base)return null;
   const d=row.data;
   const text=(v:unknown,n:number)=>typeof v==='string'?v.slice(0,n):'';
-  const furniture=Array.isArray(d.furniture)?d.furniture.filter((f):f is Furniture=>!!f&&typeof f==='object'&&FURNITURE.some(k=>k.kind===f.kind)&&typeof f.id==='string'&&[f.x,f.z,f.rotation].every(Number.isFinite)).slice(0,12).map(f=>({...f,id:f.id.slice(0,64),x:Math.max(-2.4,Math.min(2.4,f.x)),z:Math.max(-2.1,Math.min(2.35,f.z))})):[];
-  return {...base,name:text(d.name,18)||'邻居的房间',owner:text(d.owner,24)||'岛上邻居',bio:text(d.bio,180),tags:Array.isArray(d.tags)?d.tags.filter(t=>typeof t==='string').slice(0,4).map(t=>t.slice(0,12)):[],color:COLORS.includes(String(d.color))?String(d.color):COLORS[0],floor:FLOORS.includes(String(d.floor))?String(d.floor):FLOORS[0],furniture,occupied:true,mine:row.user_id===userId};
+  const furniture=decodeFurniture(d.furniture,d.designVersion);
+  return {...base,name:text(d.name,18)||'邻居的房间',owner:text(d.owner,24)||'岛上邻居',bio:text(d.bio,180),tags:Array.isArray(d.tags)?d.tags.filter(t=>typeof t==='string').slice(0,4).map(t=>t.slice(0,12)):[],color:COLORS.includes(String(d.color))?String(d.color):COLORS[0],floor:FLOORS.includes(String(d.floor))?String(d.floor):FLOORS[0],style:ROOM_STYLES.some(s=>s.id===d.style)?String(d.style):'oak',designVersion:2,furniture,occupied:true,mine:row.user_id===userId};
 }
 
 export function useWorldSync(scene:RefObject<WorldScene|null>) {
@@ -96,7 +97,7 @@ export function useWorldSync(scene:RefObject<WorldScene|null>) {
   },[user?.id,scene]);
   const saveRoom=async(room:Room)=>{
     if(!user||!connected)throw Error('请等待多人社区连接成功后再保存。');
-    const {error}=await supabase.from('community_rooms').upsert({id:room.id,user_id:user.id,data:{name:room.name,owner:publicName(user),bio:room.bio,tags:room.tags,color:room.color,floor:room.floor,furniture:room.furniture},updated_at:new Date().toISOString()},{onConflict:'id'});
+    const {error}=await supabase.from('community_rooms').upsert({id:room.id,user_id:user.id,data:{name:room.name,owner:publicName(user),bio:room.bio,tags:room.tags,color:room.color,floor:room.floor,style:room.style,designVersion:2,furniture:room.furniture},updated_at:new Date().toISOString()},{onConflict:'id'});
     if(error)throw Error(error.code==='23505'||error.code==='42501'?'这间房已被领取，或你已经拥有另一间房间。请刷新房间列表。':'保存失败，修改仍在编辑器中，请重试。');
     await refreshRef.current();
   };
