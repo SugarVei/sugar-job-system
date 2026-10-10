@@ -4,52 +4,61 @@ import Modal from './Modal';
 import './InterviewWeekGrid.css';
 
 type Entry = { ev: Interview; date: Date };
-const SLOTS = [8, 10, 12, 14, 16, 18, 20];
+const HOURS = Array.from({ length: 14 }, (_, index) => index + 8);
 const WEEKDAYS = ['周一', '周二', '周三', '周四', '周五', '周六', '周日'];
 const time = (date: Date) => date.toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit', hour12: false });
 const hourLabel = (hour: number) => `${String(hour).padStart(2, '0')}:00`;
+const offsetHours = -new Date().getTimezoneOffset() / 60;
+const timezone = `GMT${offsetHours >= 0 ? '+' : ''}${offsetHours}`;
 
 export default function InterviewWeekGrid({ days, entries, onOpen, onCreate, onDay }: {
   days: Date[]; entries: Entry[][]; onOpen: (ev: Interview) => void;
   onCreate: (date: Date) => void; onDay: (date: Date) => void;
 }) {
-  const [expanded, setExpanded] = useState<{ dayIndex?: number; hour?: number; outside?: boolean } | null>(null);
+  const [outsideOpen, setOutsideOpen] = useState(false);
   const today = new Date().toDateString();
   const outside = entries.flat().filter(({ date }) => date.getHours() < 8 || date.getHours() >= 22);
   const slotEntries = (day: number, hour: number) => entries[day]
-    .filter(({ date }) => date.getHours() >= hour && date.getHours() < hour + 2)
+    .filter(({ date }) => date.getHours() === hour)
     .sort((a, b) => a.date.getTime() - b.date.getTime());
-  const expandedEntries = expanded?.outside ? outside : expanded ? slotEntries(expanded.dayIndex!, expanded.hour!) : [];
-  const title = expanded?.outside ? '其他时间的面试' : expanded ? `${days[expanded.dayIndex!].getMonth() + 1}/${days[expanded.dayIndex!].getDate()} · ${hourLabel(expanded.hour!)}–${hourLabel(expanded.hour! + 2)}` : '';
+
   return <>
     <section className="interview-week" aria-label="面试周日历">
       <div className="interview-week-head">
-        <span>时间段</span>
-        {days.map((day, index) => <button type="button" key={day.toISOString()} onClick={() => onDay(day)} className={day.toDateString() === today ? 'is-today' : ''}>
-          <strong>{WEEKDAYS[index]}</strong><small>{day.getMonth() + 1}/{day.getDate()}</small>
+        <div className="interview-timezone"><span>时间</span><strong>{timezone}</strong></div>
+        {days.map((day, index) => <button type="button" key={day.toDateString()} onClick={() => onDay(day)} className={`interview-day-chip${day.toDateString() === today ? ' is-today' : ''}`} aria-label={`查看${day.getMonth() + 1}月${day.getDate()}日面试`}>
+          <span>{WEEKDAYS[index]}</span><strong>{day.getDate()}</strong>
         </button>)}
       </div>
-      <div className="interview-week-body">
-        {SLOTS.map(hour => <div className="interview-slot-row" key={hour}>
-          <div className="interview-slot-label"><span>{hourLabel(hour)}</span><span>– {hourLabel(hour + 2)}</span></div>
-          {days.map((day, index) => {
-            const events = slotEntries(index, hour);
-            return <div className="interview-slot" key={day.toISOString()} data-slot={`${index}-${hour}`} onDoubleClick={e => {
-              if (e.target === e.currentTarget) onCreate(new Date(day.getFullYear(), day.getMonth(), day.getDate(), hour));
-            }}>
-              {events.map(({ ev, date }) => <button type="button" key={ev.id} onClick={() => onOpen(ev)} className={`interview-slot-event tone-${index % 4}${events.length > 1 ? ' is-compact' : ''}`} title={`${ev.company_name} · ${time(date)} · ${ev.round || '面试'}`}>
-                <strong>{ev.company_name}</strong><span>{time(date)} · {ev.round || '面试'}</span>
-              </button>)}
-            </div>;
-          })}
-        </div>)}
+      <div className="interview-week-scroll">
+        {HOURS.map(hour => {
+          const busiest = Math.max(...days.map((_, index) => slotEntries(index, hour).length));
+          return <div className="interview-hour-row" key={hour} style={{ minHeight: Math.max(112, busiest * 54 + 10) }}>
+            <div className="interview-hour-label">{hourLabel(hour)}</div>
+            {days.map((day, index) => {
+              const events = slotEntries(index, hour);
+              return <div className="interview-hour-cell" key={day.toDateString()} onDoubleClick={event => {
+                if (event.target === event.currentTarget) onCreate(new Date(day.getFullYear(), day.getMonth(), day.getDate(), hour));
+              }} title="双击空白处新增面试">
+                {events.map(({ ev, date }, eventIndex) => <button type="button" key={ev.id} onClick={() => onOpen(ev)} className={`interview-event-card tone-${(index + eventIndex) % 5}${events.length > 1 ? ' is-compact' : ''}`} title={`${ev.company_name} · ${time(date)} · ${ev.round || '面试'}`}>
+                  <span className="interview-event-avatar" aria-hidden="true">{ev.company_name.trim().slice(0, 1) || '面'}</span>
+                  <span className="interview-event-copy">
+                    <strong>{ev.company_name}</strong>
+                    <span>{ev.position_name || ev.round || '面试'}</span>
+                    <small>{time(date)} · {ev.round || ev.interview_type || '面试'}</small>
+                  </span>
+                </button>)}
+              </div>;
+            })}
+          </div>;
+        })}
       </div>
-      {outside.length > 0 && <button className="interview-outside" type="button" onClick={() => setExpanded({ outside: true })}>08:00 前 / 22:00 后另有 {outside.length} 场面试 · 点击查看</button>}
+      {outside.length > 0 && <button className="interview-outside" type="button" onClick={() => setOutsideOpen(true)}>08:00 前 / 22:00 后另有 {outside.length} 场面试 · 点击查看</button>}
     </section>
-    <Modal open={expanded !== null} title={title} onClose={() => setExpanded(null)}>
+    <Modal open={outsideOpen} title="其他时间的面试" onClose={() => setOutsideOpen(false)}>
       <div className="interview-slot-details">
-        {[...expandedEntries].sort((a, b) => a.date.getTime() - b.date.getTime()).map(({ ev, date }) => <button type="button" key={ev.id} onClick={() => { setExpanded(null); onOpen(ev); }}>
-          <strong>{ev.company_name}</strong><span>{expanded?.outside ? `${date.getMonth() + 1}/${date.getDate()} ` : ''}{time(date)} · {ev.round || '面试'}{ev.position_name ? ` · ${ev.position_name}` : ''}</span>
+        {[...outside].sort((a, b) => a.date.getTime() - b.date.getTime()).map(({ ev, date }) => <button type="button" key={ev.id} onClick={() => { setOutsideOpen(false); onOpen(ev); }}>
+          <strong>{ev.company_name}</strong><span>{date.getMonth() + 1}/{date.getDate()} {time(date)} · {ev.round || '面试'}{ev.position_name ? ` · ${ev.position_name}` : ''}</span>
         </button>)}
       </div>
     </Modal>

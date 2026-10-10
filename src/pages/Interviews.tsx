@@ -5,10 +5,11 @@ import { useAppShell } from '../contexts/AppShellContext';
 import { useTheme } from '../contexts/ThemeContext';
 import Modal from '../components/Modal';
 import { Field, TextInput, TextArea, Select, PrimaryButton, GhostButton, FormError } from '../components/Field';
-import { IconEye, IconTrash, IconPlus } from '../components/icons';
+import { IconEye, IconTrash } from '../components/icons';
 import { CARD } from '../lib/appHelpers';
 import EmptyState from '../components/EmptyState';
 import InterviewWeekGrid from '../components/InterviewWeekGrid';
+import InterviewCalendarSidebar from '../components/InterviewCalendarSidebar';
 import InterviewApplicationDetails from '../components/InterviewApplicationDetails';
 import { interviewCompanyKey } from '../lib/interviewApplicationMatch';
 import { IMPORTED_EXPERIENCE_ARTICLES } from '../data/interviewExperienceData';
@@ -308,6 +309,9 @@ export default function Interviews() {
   const { registerAdd, query, interviewDateFilter, setInterviewDateFilter, setHeaderChrome } = useAppShell();
   const { theme } = useTheme();
   const [weekStart, setWeekStart] = useState(() => startOfWeek(new Date()));
+  const [selectedCalendarDay, setSelectedCalendarDay] = useState(() => new Date());
+  const [calendarMonth, setCalendarMonth] = useState(() => new Date(new Date().getFullYear(), new Date().getMonth(), 1));
+  const [activeInterviewTypes, setActiveInterviewTypes] = useState<InterviewType[]>(TYPES);
   const [modalOpen, setModalOpen] = useState(false);
   const [selectedInterviewId, setSelectedInterviewId] = useState<string | null>(null);
   const [linkError, setLinkError] = useState('');
@@ -346,8 +350,12 @@ export default function Interviews() {
   useEffect(() => {
     if (!interviewDateFilter) return;
     const d = parseDateKey(interviewDateFilter);
-    if (d) setWeekStart(startOfWeek(d));
+    if (d) { setWeekStart(startOfWeek(d)); setSelectedCalendarDay(d); }
   }, [interviewDateFilter]);
+
+  useEffect(() => {
+    setCalendarMonth(new Date(weekStart.getFullYear(), weekStart.getMonth(), 1));
+  }, [weekStart]);
 
   const weekDays = useMemo(() => Array.from({ length: 7 }, (_, i) => addDays(weekStart, i)), [weekStart]);
   const weekEnd = addDays(weekStart, 6);
@@ -365,12 +373,28 @@ export default function Interviews() {
         if (!hit) return;
       }
       const dt = new Date(ev.interview_time);
+      if (!activeInterviewTypes.includes(ev.interview_type ?? '视频')) return;
       for (let i = 0; i < 7; i++) {
         if (sameDay(dt, weekDays[i])) cols[i].push({ ev, date: dt });
       }
     });
     return cols;
-  }, [items, weekDays, query]);
+  }, [items, weekDays, query, activeInterviewTypes]);
+
+  const navigateWeek = (offset: number) => {
+    const next = offset === 0 ? startOfWeek(new Date()) : addDays(weekStart, offset * 7);
+    setWeekStart(next);
+    setSelectedCalendarDay(offset === 0 ? new Date() : next);
+  };
+
+  const selectCalendarDay = (day: Date) => {
+    setWeekStart(startOfWeek(day));
+    setSelectedCalendarDay(day);
+  };
+
+  const toggleInterviewType = (type: InterviewType) => {
+    setActiveInterviewTypes(current => current.includes(type) ? current.filter(item => item !== type) : [...current, type]);
+  };
 
   const dayList = useMemo(() => {
     if (!focusDay) return null;
@@ -472,28 +496,6 @@ export default function Interviews() {
   return (
     <div className="interview-calendar-page flex flex-col gap-[12px] animate-rise" style={activeModule === 'experience' ? { height: '100%', minHeight: 0, overflow: 'hidden' } : undefined}>
       {activeModule === 'experience' ? <ExperienceShare /> : <>
-      <div className="flex items-center justify-between flex-wrap gap-3" style={{ ...CARD, borderRadius: 18, padding: '14px 18px' }}>
-        <div style={{ fontFamily: 'Poppins', fontSize: 15, fontWeight: 600 }}>
-          {weekStart.getFullYear()}/{fmtMD(weekStart)} - {fmtMD(weekEnd)}
-        </div>
-        <div className="flex gap-2 flex-wrap">
-          <GhostButton style={{ height: 38 }} onClick={() => setWeekStart(addDays(weekStart, -7))}>
-            ‹ 上一周
-          </GhostButton>
-          <PrimaryButton style={{ height: 38, padding: '0 16px' }} onClick={() => setWeekStart(startOfWeek(new Date()))}>
-            本周
-          </PrimaryButton>
-          <GhostButton style={{ height: 38 }} onClick={() => setWeekStart(addDays(weekStart, 7))}>
-            下一周 ›
-          </GhostButton>
-          <PrimaryButton accent={theme.accent} style={{ height: 38 }} onClick={() => openCreate()}>
-            <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
-              <IconPlus size={15} /> 新增
-            </span>
-          </PrimaryButton>
-        </div>
-      </div>
-
       {focusDay && (
         <Modal open title="当天面试安排" onClose={() => setInterviewDateFilter(null)}>
         <div style={{ ...CARD, padding: '14px 18px', borderRadius: 18, border: '1px solid #d8e8d2', background: '#f4faf1' }}>
@@ -561,8 +563,33 @@ export default function Interviews() {
         <EmptyState text="加载中…" />
       ) : (
         <>
-          <div className="interview-desktop-grid">
-            <InterviewWeekGrid days={weekDays} entries={eventsByDay} onCreate={openCreate} onOpen={openDetails} onDay={day => setInterviewDateFilter(toDateKey(day))} />
+          <div className="interview-board">
+            <InterviewCalendarSidebar
+              month={calendarMonth}
+              weekStart={weekStart}
+              selectedDay={selectedCalendarDay}
+              interviews={items}
+              visibleCount={eventsByDay.flat().length}
+              activeTypes={activeInterviewTypes}
+              onMonthChange={offset => setCalendarMonth(current => new Date(current.getFullYear(), current.getMonth() + offset, 1))}
+              onSelectDay={selectCalendarDay}
+              onToggleType={toggleInterviewType}
+              onCreate={() => openCreate()}
+            />
+            <section className="interview-schedule" aria-label="本周面试日程">
+              <div className="interview-schedule-toolbar">
+                <div className="interview-schedule-title">
+                  <h2>{weekStart.getFullYear()} 年 {weekStart.getMonth() + 1} 月</h2>
+                  <span className="interview-schedule-range">{fmtMD(weekStart)} – {fmtMD(weekEnd)}</span>
+                </div>
+                <div className="interview-schedule-nav">
+                  <button type="button" aria-label="上一周" onClick={() => navigateWeek(-1)}>‹</button>
+                  <button type="button" onClick={() => navigateWeek(0)}>今天</button>
+                  <button type="button" aria-label="下一周" onClick={() => navigateWeek(1)}>›</button>
+                </div>
+              </div>
+              <InterviewWeekGrid days={weekDays} entries={eventsByDay} onCreate={openCreate} onOpen={openDetails} onDay={day => setInterviewDateFilter(toDateKey(day))} />
+            </section>
           </div>
 
           {/* 移动端列表 */}
