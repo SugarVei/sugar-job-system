@@ -1,0 +1,44 @@
+.app-fullscreen-root{padding:0}
+.app-fullscreen-surface{border-radius:0;box-shadow:none}
+.app-sidebar{width:64px;flex:none;flex-direction:column;padding:16px 10px 12px;border-right:1px solid rgba(120,105,80,.1);min-height:0;overflow:hidden;height:100%;transition:width .26s cubic-bezier(.22,.8,.26,1)}
+.app-sidebar.expanded{width:248px;padding:17px 13px 12px}
+.app-sidebar-top{display:flex;align-items:center;flex-direction:column;gap:10px;padding-bottom:13px;flex:none}
+.app-sidebar-brand{width:44px;height:36px;border:0;padding:0 9px;background:transparent;display:flex;align-items:center;gap:10px;text-align:left;cursor:pointer}
+.app-sidebar-brand>span{display:none;white-space:nowrap;font-family:Poppins,sans-serif;font-weight:600;font-size:17px}
+.app-sidebar-brand small{display:block;margin-top:1px;font-family:'DM Sans',sans-serif;font-size:11px;font-weight:400;color:#9a9488}
+.app-sidebar-toggle{width:42px;height:35px;border:0;background:transparent;color:#8b847b;border-radius:9px;display:flex;align-items:center;justify-content:center;cursor:pointer}
+.app-sidebar-toggle:hover{background:rgba(120,105,80,.07)}
+.app-sidebar-nav{flex:1;min-height:0;display:flex;flex-direction:column;gap:5px;overflow-y:auto;overflow-x:hidden;scrollbar-width:none}
+.app-sidebar-nav::-webkit-scrollbar{display:none}
+.app-sidebar-nav-button{width:42px;min-height:41px;flex:none;padding:0;display:flex;align-items:center;justify-content:center;gap:11px;font-size:13.5px;font-weight:600;border:0;border-radius:10px;background:transparent;color:#6b665c;cursor:pointer;white-space:nowrap;text-align:left}
+.app-sidebar-nav-button>span{display:none}
+.app-sidebar-nav-button.active{background:#1b1a17;color:#f4f1ea}
+.app-sidebar-nav-button:hover:not(.active){background:rgba(120,105,80,.07)}
+.app-sidebar-nav-button svg{flex:none}
+.app-sidebar-bottom{flex:none;display:flex;flex-direction:column;align-items:center;gap:4px;border-top:1px solid rgba(120,105,80,.12);padding-top:11px;margin-top:13px}
+.app-sidebar-account-button{width:44px;height:55px;display:flex;align-items:center;justify-content:center;gap:10px;border:0;background:transparent;border-radius:10px;text-align:left;padding:0;margin-top:2px;cursor:pointer}
+.app-sidebar-account-button:hover{background:rgba(120,105,80,.07)}
+.app-sidebar-avatar{height:34px;width:34px;flex:none;display:flex;align-items:center;justify-content:center;border-radius:50%;overflow:hidden;border:2px solid #fffdf8;background:#ece4d6;color:#a89e8a;box-shadow:0 3px 8px rgba(60,50,35,.1)}
+.app-sidebar-avatar img{height:100%;width:100%;object-fit:cover}
+.app-sidebar-account-name,.app-sidebar-account-chevron{display:none}
+.app-sidebar-account-name{min-width:0}
+.app-sidebar-account-name strong{display:block;font-size:14px;font-weight:600;max-width:136px;overflow:hidden;text-overflow:ellipsis}
+.app-sidebar-account-name small{display:block;font-size:10px;font-weight:400;color:#9a9488;margin-top:3px}
+.app-sidebar.expanded .app-sidebar-top{flex-direction:row;gap:0;padding-bottom:22px}
+.app-sidebar.expanded .app-sidebar-brand{width:auto;flex:1;height:42px;padding:0 6px}
+.app-sidebar.expanded .app-sidebar-brand>span,.app-sidebar.expanded .app-sidebar-nav-button>span,.app-sidebar.expanded .app-sidebar-account-name,.app-sidebar.expanded .app-sidebar-account-chevron{display:block}
+.app-sidebar.expanded .app-sidebar-toggle{width:30px;height:33px}
+.app-sidebar.expanded .app-sidebar-nav-button{width:100%;justify-content:flex-start;padding:0 13px}
+.app-sidebar.expanded .app-sidebar-bottom{align-items:stretch}
+.app-sidebar.expanded .app-sidebar-account-button{width:100%;justify-content:flex-start;padding:0 8px}
+.app-sidebar-account-chevron{color:#9a9488;margin-left:auto}
+.app-sidebar-tooltip{position:fixed;z-index:160;background:#1b1a17;color:#fffdf8;padding:8px 12px;border-radius:9px;box-shadow:0 5px 18px rgba(27,26,23,.16);font-size:12px;line-height:1.4;transform:translateY(-50%);pointer-events:none;white-space:nowrap}
+.app-sidebar-account-dismiss{position:fixed;inset:0;z-index:130;border:0;background:transparent}
+.app-sidebar-account-menu{position:fixed;bottom:18px;z-index:131;width:270px;border:1px solid #e4ddcf;border-radius:17px;padding:20px;background:#fffdf8;box-shadow:0 12px 34px rgba(60,50,35,.17);display:flex;flex-direction:column;gap:13px}
+.app-sidebar-account-menu>strong{font-size:14px}
+.app-sidebar-account-menu label{display:flex;flex-direction:column;gap:7px;font-size:11px;color:#9a9488}
+.app-sidebar-account-menu input{border:1px solid #e4ddcf;background:#faf7f0;border-radius:9px;padding:9px 11px;color:#1b1a17;font-size:13px;min-width:0}
+.app-sidebar-account-menu button{border:0;background:transparent;border-radius:8px;padding:9px 8px;display:flex;align-items:center;gap:9px;color:#6b665c;font-size:13px;cursor:pointer;text-align:left}
+.app-sidebar-account-menu button:hover{background:#f5f0e7}
+.app-sidebar button:focus-visible,.app-sidebar-account-menu button:focus-visible{outline:2px solid #9a9488;outline-offset:2px}
+@media(prefers-reduced-motion:reduce){.app-sidebar{transition:none}}

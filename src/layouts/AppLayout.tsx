@@ -3,9 +3,9 @@ import { useAuth } from '../contexts/AuthContext';
 import { useTheme } from '../contexts/ThemeContext';
 import { useAppShell } from '../contexts/AppShellContext';
 import { useProfile } from '../hooks/useProfile';
-import { MOBILE_MORE_NAV, MOBILE_PRIMARY_NAV, NAV_ITEMS, greetFor } from '../components/navConfig';
+import { MOBILE_MORE_NAV, MOBILE_PRIMARY_NAV, greetFor } from '../components/navConfig';
 import ThemeSwitcher from '../components/ThemeSwitcher';
-import ApiKeySettings from '../components/ApiKeySettingsGuide';
+import AppSidebar from '../components/AppSidebar';
 import PetAnnouncement from '../components/web-pet/PetAnnouncement';
 import AvatarFeatureAnnouncement from '../components/AvatarFeatureAnnouncement';
 import AvatarPicker, { OPEN_AVATAR_PICKER_EVENT } from '../components/AvatarPicker';
@@ -14,8 +14,6 @@ import {
   IconSearch,
   IconPlus,
   IconLogout,
-  IconUser,
-  IconCamera,
   IconMore,
   IconClose,
 } from '../components/icons';
@@ -46,33 +44,6 @@ export default function AppLayout({ children }: { children: ReactNode }) {
     setMobileMoreOpen(false);
   };
 
-  // 头像圆形展示
-  const avatarBox = (sizePx: number) => (
-    <div
-      style={{
-        width: sizePx,
-        height: sizePx,
-        borderRadius: '50%',
-        border: '3px solid #fffdf8',
-        boxShadow: '0 6px 16px rgba(60,50,35,.14)',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        background: avatar ? '#fffdf8' : 'linear-gradient(135deg,#ece4d6,#dcd2c0)',
-        overflow: 'hidden',
-      }}
-    >
-      {avatar && (
-        <img
-          src={avatar}
-          alt="用户头像"
-          style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
-        />
-      )}
-      {!avatar && <IconUser size={Math.round(sizePx * 0.48)} color="#a89e8a" />}
-    </div>
-  );
-
   return (
     <div
       style={{
@@ -86,17 +57,16 @@ export default function AppLayout({ children }: { children: ReactNode }) {
         color: '#1b1a17',
         overflow: 'hidden',
       }}
-      className="p-3 sm:p-4 lg:p-[26px]"
+      className="app-fullscreen-root"
     >
       <div
-        className="rounded-[22px] lg:rounded-[34px]"
+        className="app-fullscreen-surface"
         style={{
           flex: 1,
           minWidth: 0,
           background: 'rgba(250,246,240,0.66)',
           backdropFilter: 'blur(34px) saturate(1.15)',
           WebkitBackdropFilter: 'blur(34px) saturate(1.15)',
-          boxShadow: '0 30px 80px rgba(120,40,70,.18)',
           display: 'flex',
           overflow: 'hidden',
           height: '100%',
@@ -104,161 +74,15 @@ export default function AppLayout({ children }: { children: ReactNode }) {
           minHeight: 0,
         }}
       >
-        {/* ===== 桌面侧边栏（≥ lg 显示） ===== */}
-        <aside
-          className="hidden lg:flex"
-          style={{
-            width: 248,
-            height: '100%',
-            maxHeight: '100%',
-            flex: 'none',
-            flexDirection: 'column',
-            padding: '14px 14px 0',
-            borderRight: '1px solid rgba(120,105,80,.1)',
-            overflow: 'hidden',
-            minHeight: 0,
-          }}
-        >
-          {/* 品牌 */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '2px 8px 6px', flex: 'none' }}>
-            <div style={brandMark}>
-              <SugarMark size={24} />
-            </div>
-            <div>
-              <div style={{ fontFamily: 'Poppins', fontWeight: 600, fontSize: 17, lineHeight: 1.1 }}>Sugar</div>
-              <div style={{ fontSize: 11, color: '#9a9488', marginTop: 2 }}>行动优先 · 求职系统</div>
-            </div>
-          </div>
-
-          {/* 个人资料卡 */}
-          <div
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: 10,
-              padding: '6px 6px 10px',
-              borderBottom: '1px solid rgba(120,105,80,.12)',
-              flex: 'none',
-            }}
-          >
-            <button
-              type="button"
-              title="点击更换头像"
-              aria-label="更换头像"
-              onClick={() => setAvatarPickerOpen(true)}
-              style={{ position: 'relative', cursor: 'pointer', width: 48, height: 48, flex: 'none', padding: 0, border: 0, borderRadius: '50%', background: 'transparent' }}
-            >
-              {avatarBox(48)}
-              <span
-                style={{
-                  position: 'absolute',
-                  right: -2,
-                  bottom: -2,
-                  width: 20,
-                  height: 20,
-                  borderRadius: '50%',
-                  background: '#f4c84a',
-                  border: '2px solid #f3efe7',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                }}
-              >
-                <IconCamera size={10} color="#1b1a17" />
-              </span>
-            </button>
-            <div style={{ minWidth: 0, flex: 1 }}>
-              <div style={{ fontSize: 11, color: '#9a9488', margin: '0 0 2px 6px' }}>个人账号</div>
-              <input
-                className="nameedit"
-                value={name}
-                onChange={(e) => updateName(e.target.value)}
-                placeholder="你的名字"
-                aria-label="编辑昵称"
-                title="点击编辑昵称"
-                style={{
-                  width: '100%',
-                  border: '1px solid transparent',
-                  background: 'rgba(255,253,248,.42)',
-                  outline: 'none',
-                  fontSize: 15,
-                  fontWeight: 600,
-                  color: '#1b1a17',
-                  borderRadius: 10,
-                  padding: '5px 7px',
-                  cursor: 'text',
-                  transition: 'background .15s, border-color .15s, box-shadow .15s',
-                }}
-              />
-            </div>
-          </div>
-
-          {/* 导航：纵向均分填满，无分组标题、无空白、无滚轮 */}
-          <nav
-            className="sidebar-nav"
-            style={{
-              display: 'flex',
-              flexDirection: 'column',
-              gap: 4,
-              flex: 1,
-              minHeight: 0,
-              overflow: 'hidden',
-              padding: '10px 0 8px',
-              justifyContent: 'space-between',
-            }}
-          >
-            {NAV_ITEMS.map(({ key, label, Icon }) => {
-              const active = screen === key;
-              return (
-                <button
-                  key={key}
-                  onClick={() => go(key)}
-                  className={`nav-item ${active ? 'nav-item--active' : ''}`}
-                  style={{
-                    background: active ? '#1b1a17' : 'transparent',
-                    color: active ? '#f4f1ea' : '#6b665c',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: 10,
-                    minHeight: 34,
-                    padding: '0 12px',
-                    border: 'none',
-                    borderRadius: 11,
-                    fontSize: 13.5,
-                    fontWeight: 600,
-                    cursor: 'pointer',
-                    textAlign: 'left',
-                    whiteSpace: 'nowrap',
-                    flex: '1 1 0',
-                    width: '100%',
-                  }}
-                >
-                  <span style={{ width: 18, height: 18, display: 'flex', alignItems: 'center', justifyContent: 'center', flex: 'none' }}>
-                    <Icon size={16} />
-                  </span>
-                  {label}
-                </button>
-              );
-            })}
-          </nav>
-
-          <div
-            style={{
-              flex: 'none',
-              borderTop: '1px solid rgba(120,105,80,.12)',
-              padding: '12px 0 16px',
-              display: 'grid',
-              gap: 8,
-              background: 'transparent',
-            }}
-          >
-            <ApiKeySettings />
-            <button onClick={() => signOut()} className="btn-press sidebar-logout" style={logoutBtn}>
-              <IconLogout size={17} />
-              退出登录
-            </button>
-          </div>
-        </aside>
+        <AppSidebar
+          screen={screen}
+          onNavigate={go}
+          name={name}
+          avatar={avatar}
+          onUpdateName={updateName}
+          onAvatar={() => setAvatarPickerOpen(true)}
+          onLogout={signOut}
+        />
 
         {/* ===== 主区 ===== */}
         <main style={{ flex: 1, minWidth: 0, minHeight: 0, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
@@ -526,24 +350,6 @@ const brandMark: React.CSSProperties = {
   alignItems: 'center',
   justifyContent: 'center',
   flex: 'none',
-};
-
-const logoutBtn: React.CSSProperties = {
-  display: 'flex',
-  alignItems: 'center',
-  gap: 10,
-  width: '100%',
-  height: 46,
-  padding: '0 14px',
-  border: '1px solid #e0d8c9',
-  background: '#fffdf8',
-  borderRadius: 14,
-  fontSize: 14,
-  fontWeight: 600,
-  color: '#4a463e',
-  cursor: 'pointer',
-  marginTop: 0,
-  whiteSpace: 'nowrap',
 };
 
 const addBtn: React.CSSProperties = {
