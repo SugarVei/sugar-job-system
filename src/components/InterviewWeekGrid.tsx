@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import type { Interview } from '../types';
 import Modal from './Modal';
 import './InterviewWeekGrid.css';
@@ -11,11 +11,22 @@ const hourLabel = (hour: number) => `${String(hour).padStart(2, '0')}:00`;
 const offsetHours = -new Date().getTimezoneOffset() / 60;
 const timezone = `GMT${offsetHours >= 0 ? '+' : ''}${offsetHours}`;
 
-export default function InterviewWeekGrid({ days, entries, onOpen, onCreate, onDay }: {
+export default function InterviewWeekGrid({ days, entries, onOpen, onCreate, onDay, onMove, movingId }: {
   days: Date[]; entries: Entry[][]; onOpen: (ev: Interview) => void;
   onCreate: (date: Date) => void; onDay: (date: Date) => void;
+  onMove: (ev: Interview, day: Date, hour: number) => void; movingId: string | null;
 }) {
   const [outsideOpen, setOutsideOpen] = useState(false);
+  const [draggingId, setDraggingId] = useState<string | null>(null);
+  const [targetSlot, setTargetSlot] = useState<string | null>(null);
+  const suppressClickUntil = useRef(0);
+  const draggingInterview = useRef<Interview | null>(null);
+  const clearDrag = () => {
+    draggingInterview.current = null;
+    setDraggingId(null);
+    setTargetSlot(null);
+    suppressClickUntil.current = Date.now() + 300;
+  };
   const today = new Date().toDateString();
   const outside = entries.flat().filter(({ date }) => date.getHours() < 8 || date.getHours() >= 21);
   const slotEntries = (day: number, hour: number) => entries[day]
@@ -36,10 +47,41 @@ export default function InterviewWeekGrid({ days, entries, onOpen, onCreate, onD
             <div className="interview-hour-label">{hourLabel(hour)}</div>
             {days.map((day, index) => {
               const events = slotEntries(index, hour);
-              return <div className="interview-hour-cell" key={day.toDateString()} style={{ gridTemplateColumns: `repeat(${Math.max(1, events.length)}, minmax(0, 1fr))` }} onDoubleClick={event => {
-                if (event.target === event.currentTarget) onCreate(new Date(day.getFullYear(), day.getMonth(), day.getDate(), hour));
-              }} title="双击空白处新增面试">
-                {events.map(({ ev, date }, eventIndex) => <button type="button" key={ev.id} onClick={() => onOpen(ev)} className={`interview-event-card tone-${(index + eventIndex) % 5}${events.length > 1 ? ' is-compact' : ''}`} title={`${ev.company_name} · ${time(date)} · ${ev.round || '面试'}`} aria-label={`${ev.company_name}，${time(date)}，${ev.round || '面试'}，查看详情`}>
+              const slotKey = `${index}-${hour}`;
+              return <div className={`interview-hour-cell${targetSlot === slotKey ? ' is-drop-target' : ''}`} key={day.toDateString()} style={{ gridTemplateColumns: `repeat(${Math.max(1, events.length)}, minmax(0, 1fr))` }}
+                onDragOver={event => {
+                  if (!draggingInterview.current) return;
+                  event.preventDefault();
+                  event.dataTransfer.dropEffect = 'move';
+                  if (targetSlot !== slotKey) setTargetSlot(slotKey);
+                }}
+                onDragLeave={event => {
+                  if (!event.currentTarget.contains(event.relatedTarget as Node)) setTargetSlot(current => current === slotKey ? null : current);
+                }}
+                onDrop={event => {
+                  event.preventDefault();
+                  const interview = draggingInterview.current;
+                  clearDrag();
+                  if (interview) onMove(interview, day, hour);
+                }}
+                onDoubleClick={event => {
+                  if (event.target === event.currentTarget) onCreate(new Date(day.getFullYear(), day.getMonth(), day.getDate(), hour));
+                }} title="双击空白处新增面试">
+                {events.map(({ ev, date }, eventIndex) => <button type="button" key={ev.id}
+                  disabled={movingId === ev.id}
+                  draggable={!movingId}
+                  onDragStart={event => {
+                    if (movingId) { event.preventDefault(); return; }
+                    draggingInterview.current = ev;
+                    setDraggingId(ev.id);
+                    event.dataTransfer.effectAllowed = 'move';
+                    event.dataTransfer.setData('text/plain', ev.id);
+                  }}
+                  onDragEnd={clearDrag}
+                  onClick={() => { if (Date.now() >= suppressClickUntil.current) onOpen(ev); }}
+                  className={`interview-event-card tone-${(index + eventIndex) % 5}${events.length > 1 ? ' is-compact' : ''}${draggingId === ev.id ? ' is-dragging' : ''}${movingId === ev.id ? ' is-saving' : ''}`}
+                  title={`${ev.company_name} · ${time(date)} · 拖动改期，单击查看详情`}
+                  aria-label={`${ev.company_name}，${time(date)}，${ev.round || '面试'}，拖动改期，单击查看详情`}>
                   <span className="interview-event-avatar" aria-hidden="true">{ev.company_name.trim().slice(0, 1) || '面'}</span>
                   <span className="interview-event-copy">
                     <strong>{ev.company_name}</strong>

@@ -12,6 +12,7 @@ import InterviewWeekGrid from '../components/InterviewWeekGrid';
 import InterviewCalendarSidebar from '../components/InterviewCalendarSidebar';
 import InterviewApplicationDetails from '../components/InterviewApplicationDetails';
 import { interviewCompanyKey } from '../lib/interviewApplicationMatch';
+import { moveInterviewToHour } from '../lib/interviewCalendar';
 import { IMPORTED_EXPERIENCE_ARTICLES } from '../data/interviewExperienceData';
 
 const TYPES: InterviewType[] = ['电话', '视频', '现场'];
@@ -320,6 +321,9 @@ export default function Interviews() {
   const [form, setForm] = useState<NewRecord<Interview>>(empty);
   const [saving, setSaving] = useState(false);
   const [formError, setFormError] = useState('');
+  const [moving, setMoving] = useState<{ id: string; time: string } | null>(null);
+  const [moveFeedback, setMoveFeedback] = useState<{ text: string; error: boolean } | null>(null);
+  const moveFeedbackTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [scrollSig, setScrollSig] = useState(0);
   const [activeModule, setActiveModule] = useState<'calendar' | 'experience'>('calendar');
   const [desktopCalendar, setDesktopCalendar] = useState(() => window.innerWidth >= 768);
@@ -335,6 +339,10 @@ export default function Interviews() {
     const updateLayout = () => setDesktopCalendar(window.innerWidth >= 768);
     window.addEventListener('resize', updateLayout);
     return () => window.removeEventListener('resize', updateLayout);
+  }, []);
+
+  useEffect(() => () => {
+    if (moveFeedbackTimer.current) clearTimeout(moveFeedbackTimer.current);
   }, []);
 
   useEffect(() => {
@@ -364,7 +372,8 @@ export default function Interviews() {
   const eventsByDay = useMemo(() => {
     const cols: { ev: Interview; date: Date }[][] = Array.from({ length: 7 }, () => []);
     items.forEach((ev) => {
-      if (!ev.interview_time) return;
+      const interviewTime = moving?.id === ev.id ? moving.time : ev.interview_time;
+      if (!interviewTime) return;
       if (query) {
         const q = query.toLowerCase();
         const hit = [ev.company_name, ev.position_name, ev.round, ev.notes]
@@ -372,14 +381,14 @@ export default function Interviews() {
           .some((v) => (v as string).toLowerCase().includes(q));
         if (!hit) return;
       }
-      const dt = new Date(ev.interview_time);
+      const dt = new Date(interviewTime);
       if (!activeInterviewTypes.includes(ev.interview_type ?? '视频')) return;
       for (let i = 0; i < 7; i++) {
         if (sameDay(dt, weekDays[i])) cols[i].push({ ev, date: dt });
       }
     });
     return cols;
-  }, [items, weekDays, query, activeInterviewTypes]);
+  }, [items, moving, weekDays, query, activeInterviewTypes]);
 
   const navigateWeek = (offset: number) => {
     const next = offset === 0 ? startOfWeek(new Date()) : addDays(weekStart, offset * 7);
@@ -441,6 +450,32 @@ export default function Interviews() {
   const openDetails = (ev: Interview) => {
     setLinkError('');
     setSelectedInterviewId(ev.id);
+  };
+
+  const moveInterview = async (ev: Interview, day: Date, hour: number) => {
+    if (moving || !ev.interview_time) return;
+    let nextTime: string;
+    try {
+      nextTime = moveInterviewToHour(ev.interview_time, day, hour);
+    } catch (error) {
+      setMoveFeedback({ text: error instanceof Error ? error.message : String(error), error: true });
+      return;
+    }
+    if (new Date(nextTime).getTime() === new Date(ev.interview_time).getTime()) return;
+
+    if (moveFeedbackTimer.current) clearTimeout(moveFeedbackTimer.current);
+    setMoveFeedback(null);
+    setMoving({ id: ev.id, time: nextTime });
+    try {
+      await update(ev.id, { interview_time: nextTime });
+      const next = new Date(nextTime);
+      setMoveFeedback({ text: `已改期至 ${next.getMonth() + 1}月${next.getDate()}日 ${toLocalInput(nextTime).slice(11, 16)}`, error: false });
+    } catch (error) {
+      setMoveFeedback({ text: `改期失败：${error instanceof Error ? error.message : String(error)}`, error: true });
+    } finally {
+      setMoving(null);
+      moveFeedbackTimer.current = setTimeout(() => setMoveFeedback(null), 5000);
+    }
   };
 
   const linkApplication = async (ev: Interview, application: Application) => {
@@ -588,7 +623,8 @@ export default function Interviews() {
                   <button type="button" aria-label="下一周" onClick={() => navigateWeek(1)}>›</button>
                 </div>
               </div>
-              <InterviewWeekGrid days={weekDays} entries={eventsByDay} onCreate={openCreate} onOpen={openDetails} onDay={day => setInterviewDateFilter(toDateKey(day))} />
+              <InterviewWeekGrid days={weekDays} entries={eventsByDay} onCreate={openCreate} onOpen={openDetails} onDay={day => setInterviewDateFilter(toDateKey(day))} onMove={(ev, day, hour) => { void moveInterview(ev, day, hour); }} movingId={moving?.id ?? null} />
+              {moveFeedback && <div className={`interview-move-feedback${moveFeedback.error ? ' is-error' : ''}`} role={moveFeedback.error ? 'alert' : 'status'}>{moveFeedback.text}</div>}
             </section>
           </div>
 
