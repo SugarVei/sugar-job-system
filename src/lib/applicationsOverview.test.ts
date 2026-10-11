@@ -8,6 +8,7 @@ import {
   normalizeApplicationPosition,
   relatedInterviews,
   summarizeApplications,
+  weeklyApplicationTrend,
 } from './applicationsOverview';
 
 function application(status: ApplicationStatus, company = '示例科技', role = '产品运营'): Application {
@@ -16,6 +17,32 @@ function application(status: ApplicationStatus, company = '示例科技', role =
 function interview(id: string, time: string | null, company = '示例科技', role: string | null = '产品运营'): Interview {
   return { id, company_name: company, position_name: role, interview_time: time } as Interview;
 }
+
+test('周趋势按投递日期计数，排除待投递、缺失日期、区间外日期并保留状态筛选', () => {
+  const rows = [
+    { ...application('已投递'), apply_date: '2026-10-05' },
+    { ...application('一面'), apply_date: '2026-10-05' },
+    { ...application('待投递'), apply_date: '2026-10-05' },
+    { ...application('Offer'), apply_date: '2026-10-11' },
+    { ...application('已投递'), apply_date: '2026-10-04' },
+    { ...application('已投递'), apply_date: null },
+  ];
+  const now = new Date(2026, 9, 11);
+  assert.deepEqual(weeklyApplicationTrend(rows, now).map(day => day.count), [2, 0, 0, 0, 0, 0, 1]);
+  assert.equal(weeklyApplicationTrend(rows, now, false, '一面')[0].count, 1);
+  assert.equal(weeklyApplicationTrend(rows, now, true)[6].count, 1);
+  assert.ok(weeklyApplicationTrend(rows, now, false, '待投递').every(day => day.count === 0));
+});
+
+test('周一跨年仍生成正确周日期，未到来的日期不显示为已发生的投递', () => {
+  const rows = [{ ...application('已投递'), apply_date: '2027-01-01' }];
+  const days = weeklyApplicationTrend(rows, new Date(2026, 11, 28));
+  assert.equal(days[0].key, '2026-12-28');
+  assert.equal(days[6].key, '2027-01-03');
+  assert.deepEqual(days.map(day => day.future), [false, true, true, true, true, true, true]);
+  assert.equal(days[4].count, 0);
+  assert.ok(weeklyApplicationTrend([], new Date(2026, 11, 28), true).every(day => !day.future && day.count === 0));
+});
 
 test('统计覆盖全部状态：不把待投递当累计投递、不重复累计漏斗阶段', () => {
   const summary = summarizeApplications(APPLICATION_STATUSES.map(status => application(status)));

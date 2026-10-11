@@ -33,7 +33,7 @@ function PageCompanion() {
   const { screen } = useAppShell();
   const [compact, setCompact] = useState(() => window.matchMedia('(max-width: 767px)').matches);
   useEffect(() => { const media = window.matchMedia('(max-width: 767px)'); const update = () => setCompact(media.matches); media.addEventListener('change', update); return () => media.removeEventListener('change', update); }, []);
-  return screen === 'capitalMap' || (compact && ['applications', 'resumes', 'mailbox', 'interviews'].includes(screen)) ? null : <WebPetCompanion />;
+  return screen === 'capitalMap' || (compact && ['overview', 'applications', 'resumes', 'mailbox', 'interviews'].includes(screen)) ? null : <WebPetCompanion />;
 }
 
 function CurrentPage() {

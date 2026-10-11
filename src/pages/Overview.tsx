@@ -5,6 +5,7 @@ import { useAppShell } from '../contexts/AppShellContext';
 import { STATUS_OPTIONS, statusTag, CARD } from '../lib/appHelpers';
 import EmptyState from '../components/EmptyState';
 import AIChatDialog from '../components/AIChatDialog';
+import OverviewTrendCard from '../components/OverviewTrendCard';
 import { useApiKeys } from '../contexts/ApiKeysContext';
 import { PROVIDERS } from '../lib/providers';
 import { APPLICATION_STATUS_COLORS } from '../lib/applicationStatus';
@@ -236,7 +237,7 @@ Offer 转化率：${items.length > 0 ? Math.round((byStatus['Offer']/items.lengt
         )}
       </div>
 
-      {/* 渠道分布 + 按状态查看列表 */}
+      {/* 渠道分布 + 真实投递曲线，状态筛选继续展示对应列表 */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-[22px]">
         <div style={{ ...CARD, padding: 24 }}>
           <div style={{ fontFamily: 'Poppins', fontSize: 17, fontWeight: 600, marginBottom: 18 }}>投递渠道</div>
@@ -259,54 +260,53 @@ Offer 转化率：${items.length > 0 ? Math.round((byStatus['Offer']/items.lengt
           )}
         </div>
 
-        <div style={{ ...CARD, padding: 24 }}>
-          <div className="flex items-center justify-between" style={{ marginBottom: 16 }}>
-            <div style={{ fontFamily: 'Poppins', fontSize: 17, fontWeight: 600 }}>
-              {activeStatus ? `「${activeStatus}」的投递` : '按状态查看'}
-            </div>
-            {activeStatus && (
-              <div className="flex items-center gap-2">
-                <button
-                  onClick={() => navigate('applications', { applicationsFilter: activeStatus })}
-                  className="btn-press"
-                  style={{ background: '#1b1a17', color: '#f4f1ea', border: 'none', borderRadius: 10, fontSize: 12.5, fontWeight: 700, padding: '6px 12px', cursor: 'pointer' }}
-                >
-                  打开投递记录
-                </button>
-                <button onClick={() => setActiveStatus(null)} className="btn-press" style={{ background: 'none', border: 'none', fontSize: 13, color: '#8a8478', cursor: 'pointer' }}>
-                  清除
-                </button>
-              </div>
-            )}
-          </div>
-          {!activeStatus ? (
-            <div style={{ fontSize: 13.5, color: '#8a8478' }}>点击左侧状态图例，可在此查看该状态下的投递列表。</div>
-          ) : listForStatus.length === 0 ? (
-            <div style={{ fontSize: 13.5, color: '#8a8478' }}>该状态暂无投递。</div>
-          ) : (
-            <div className="flex flex-col gap-2">
-              {listForStatus.map((a) => {
-                const tag = statusTag(a.status);
-                return (
-                  <div
-                    key={a.id}
-                    onClick={() => navigate('applications', { query: a.company_name, applicationsFilter: a.status })}
-                    className="flex items-center justify-between"
-                    style={{ border: '1px solid #f0ebe0', borderRadius: 13, padding: '11px 14px', cursor: 'pointer' }}
+        <OverviewTrendCard applications={items} activeStatus={activeStatus}>
+          {activeStatus && (
+            <div className="overview-trend-status">
+              <div className="overview-trend-status-head">
+                <h3>「{activeStatus}」全部记录 · {listForStatus.length} 条</h3>
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => navigate('applications', { applicationsFilter: activeStatus })}
+                    className="btn-press"
+                    style={{ background: '#1b1a17', color: '#f4f1ea', border: 'none', borderRadius: 10, fontSize: 12.5, fontWeight: 700, padding: '6px 12px', cursor: 'pointer' }}
                   >
-                    <div style={{ minWidth: 0 }}>
-                      <div style={{ fontSize: 14, fontWeight: 600, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                        {a.company_name} · {a.position_name}
-                      </div>
-                      <div style={{ fontSize: 12, color: '#8a8478', marginTop: 2 }}>{[a.city, a.channel].filter(Boolean).join(' · ') || '—'}</div>
-                    </div>
-                    <span style={{ background: tag.bg, color: tag.fg, fontSize: 12, fontWeight: 600, padding: '4px 10px', borderRadius: 999, flex: 'none' }}>{a.status}</span>
-                  </div>
-                );
-              })}
+                    打开投递记录
+                  </button>
+                  <button onClick={() => setActiveStatus(null)} className="btn-press" style={{ background: 'none', border: 'none', fontSize: 13, color: '#8a8478', cursor: 'pointer' }}>
+                    清除
+                  </button>
+                </div>
+              </div>
+              {listForStatus.length === 0 ? (
+                <div style={{ fontSize: 13.5, color: '#8a8478' }}>该状态暂无投递。</div>
+              ) : (
+                <div className="flex flex-col gap-2">
+                  {listForStatus.map((a) => {
+                    const tag = statusTag(a.status);
+                    return (
+                      <button
+                        type="button"
+                        key={a.id}
+                        onClick={() => navigate('applications', { query: a.company_name, applicationsFilter: a.status })}
+                        className="flex items-center justify-between"
+                        style={{ background: 'transparent', textAlign: 'left', gap: 10, border: '1px solid #e9dbce', borderRadius: 13, padding: '11px 14px', cursor: 'pointer' }}
+                      >
+                        <div style={{ minWidth: 0 }}>
+                          <div style={{ fontSize: 14, fontWeight: 600, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                            {a.company_name} · {a.position_name}
+                          </div>
+                          <div style={{ fontSize: 12, color: '#8a8478', marginTop: 2 }}>{[a.city, a.channel].filter(Boolean).join(' · ') || '—'}</div>
+                        </div>
+                        <span style={{ background: tag.bg, color: tag.fg, fontSize: 12, fontWeight: 600, padding: '4px 10px', borderRadius: 999, flex: 'none' }}>{a.status}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
             </div>
           )}
-        </div>
+        </OverviewTrendCard>
       </div>
 
       {/* DeepSeek 余额 */}
