@@ -44,3 +44,8 @@ html[data-sugar-theme=custom] .applications-overview{--ao-surface:var(--sugar-su
 html[data-sugar-theme=custom] .field-input:focus{border-color:var(--sugar-accent)!important;box-shadow:0 0 0 3px var(--sugar-accent-soft)}
 
 html[data-sugar-theme=custom] .action-queue-add{background:var(--sugar-accent);color:var(--sugar-on-accent);box-shadow:none}
+
+html[data-sugar-theme=custom] .dw-root{--dw-ink:var(--sugar-ink);--dw-muted:var(--sugar-muted)}
+html[data-sugar-theme=custom] .dw-updates-card{--dw-surface:var(--sugar-card-3-bg);--dw-line:var(--sugar-card-3-border);--dw-accent:var(--sugar-card-3-fg);--dw-tint:var(--sugar-accent-soft)}
+html[data-sugar-theme=custom] .dw-primary{background:var(--sugar-accent);color:var(--sugar-on-accent)}
+html[data-sugar-theme=custom] .dw-primary:hover{filter:brightness(.94)}

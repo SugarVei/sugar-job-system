@@ -3,14 +3,14 @@ import { useMemo } from 'react';
 import type { Application, ApplicationPriority, Interview } from '../types';
 import { useCollection } from '../hooks/useCollection';
 import { useAppShell } from '../contexts/AppShellContext';
-import { useTheme } from '../contexts/ThemeContext';
 import {
   IconArrowRight,
   IconInterviews,
   IconApplications,
   IconTrophy,
 } from '../components/icons';
-import { CARD, statusTag } from '../lib/appHelpers';
+import { CARD } from '../lib/appHelpers';
+import DashboardWorkspaceCards from '../components/dashboard/DashboardWorkspaceCards';
 import ActionQueueOrbit from '../components/dashboard/ActionQueueOrbit';
 import RecentInterviewFolder from '../components/dashboard/RecentInterviewFolder';
 
@@ -22,13 +22,6 @@ function timeValue(value: string | null) {
   if (!value) return Number.POSITIVE_INFINITY;
   const t = new Date(value).getTime();
   return Number.isNaN(t) ? Number.POSITIVE_INFINITY : t;
-}
-
-function formatDateTime(value: string | null) {
-  if (!value) return '';
-  const d = new Date(value);
-  if (Number.isNaN(d.getTime())) return value;
-  return d.toLocaleString('zh-CN', { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit', hour12: false });
 }
 
 function isClosedStatus(status: string) {
@@ -54,13 +47,12 @@ function urgencyScore(app: Application, now: Date) {
 }
 
 export default function Dashboard() {
-  const { items: apps } = useCollection<Application>('applications');
+  const { items: apps, loading: appsLoading, error: appsError, refresh: refreshApps } = useCollection<Application>('applications');
   const { items: interviews, loading: interviewsLoading, error: interviewsError, refresh: refreshInterviews } = useCollection<Interview>('interviews', {
     column: 'interview_time',
     ascending: true,
   });
   const { navigate, triggerAdd } = useAppShell();
-  const { theme } = useTheme();
 
   const now = new Date();
 
@@ -68,7 +60,6 @@ export default function Dashboard() {
     const total = apps.length;
     const offers = apps.filter((a) => a.status === 'Offer').length;
     const inProgress = apps.filter((a) => !isClosedStatus(a.status)).length;
-    const followUps = apps.filter((a) => a.status === '待跟进').length;
 
     const weekStart = new Date(now);
     weekStart.setHours(0, 0, 0, 0);
@@ -81,7 +72,7 @@ export default function Dashboard() {
       return t >= weekStart && t < weekEnd;
     }).length;
 
-    return { total, offers, inProgress, followUps, weekInterviews };
+    return { total, offers, inProgress, weekInterviews };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [apps, interviews]);
 
@@ -94,30 +85,7 @@ export default function Dashboard() {
     [apps],
   );
 
-  const todoApps = useMemo(() => {
-    const start = new Date(now);
-    start.setHours(0, 0, 0, 0);
-    const tomorrow = new Date(start);
-    tomorrow.setDate(tomorrow.getDate() + 1);
-    const threeDays = new Date(now);
-    threeDays.setDate(threeDays.getDate() + 3);
-
-    return apps
-      .filter((app) => {
-        if (isClosedStatus(app.status)) return false;
-        const next = timeValue(app.next_action_at);
-        const deadline = timeValue(app.deadline_at);
-        return next < tomorrow.getTime() || deadline <= threeDays.getTime();
-      })
-      .sort((a, b) => urgencyScore(b, now) - urgencyScore(a, now))
-      .slice(0, 6);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [apps]);
-
   const monthDays = useMemo(() => buildMonth(now, interviews), [interviews]); // eslint-disable-line react-hooks/exhaustive-deps
-
-  const goalTarget = 30;
-  const goalPct = Math.min(100, Math.round((stats.total / goalTarget) * 100));
 
   const handleViewDetail = (app: Application) => {
     navigate('applications', { query: app.company_name });
@@ -241,73 +209,8 @@ export default function Dashboard() {
         />
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-[1fr_1.7fr] gap-[22px]">
-        <div className="flex flex-col gap-[18px]">
-          <div style={{ ...CARD, ...paletteCardStyle(2), padding: 22 }}>
-            <div className="flex items-center justify-between gap-3">
-              <div>
-                <div style={{ fontFamily: 'Poppins', fontSize: 16, fontWeight: 600 }}>投递进度</div>
-                <div style={{ fontSize: 13, color: 'var(--sugar-muted, #8a8478)', marginTop: 3 }}>本季目标 {goalTarget} 份</div>
-              </div>
-              <div style={{ position: 'relative', width: 96, height: 96, flex: 'none' }}>
-                <div style={{ position: 'absolute', inset: 0, borderRadius: '50%', background: `conic-gradient(${theme.accent} 0% ${goalPct}%, #ece4d6 ${goalPct}% 100%)` }} />
-                <div style={{ position: 'absolute', inset: 10, borderRadius: '50%', background: 'var(--sugar-surface, #fffdf8)', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
-                  <div style={{ fontFamily: 'Poppins', fontSize: 22, fontWeight: 700, lineHeight: 1 }}>{stats.total}</div>
-                  <div style={{ fontSize: 10.5, color: 'var(--sugar-muted, #8a8478)' }}>/ {goalTarget}</div>
-                </div>
-              </div>
-            </div>
-          </div>
-          <button
-            type="button"
-            onClick={() => navigate('applications', { applicationsFilter: '待跟进' })}
-            className="btn-press"
-            style={{ background: 'var(--sugar-primary, #1b1a17)', borderRadius: 22, padding: 22, color: '#f3efe7', textAlign: 'left', border: 'none', cursor: 'pointer' }}
-          >
-            <div style={{ fontSize: 13, color: 'var(--sugar-on-accent, #bdb6a5)' }}>待跟进 · 点击处理</div>
-            <div className="flex items-baseline gap-[6px]" style={{ margin: '6px 0 14px' }}>
-              <span style={{ fontFamily: 'Poppins', fontSize: 32, fontWeight: 700 }}>{stats.followUps}</span>
-              <span style={{ fontSize: 13, color: 'var(--sugar-on-accent, #bdb6a5)' }}>条需要处理</span>
-            </div>
-            <div style={{ height: 10, borderRadius: 999, background: 'rgba(255,255,255,.12)', overflow: 'hidden' }}>
-              <div style={{ height: '100%', width: `${stats.total ? Math.round((stats.followUps / stats.total) * 100) : 0}%`, borderRadius: 999, background: 'linear-gradient(90deg,#f4c84a,#f0613f)' }} />
-            </div>
-          </button>
-          <div style={{ ...CARD, ...paletteCardStyle(3), padding: 22 }}>
-            <div style={{ fontFamily: 'Poppins', fontSize: 16, fontWeight: 600 }}>今日待办 / 临近截止</div>
-            <div style={{ fontSize: 12.5, color: 'var(--sugar-muted, #8a8478)', margin: '3px 0 14px' }}>下一步到期或 3 天内截止</div>
-            {todoApps.length === 0 ? (
-              <div style={{ fontSize: 13, color: 'var(--sugar-muted, #a39d90)', padding: '8px 0' }}>暂无临近事项。把下一步动作和时间填进投递记录，这里会自动汇总。</div>
-            ) : (
-              <div className="flex flex-col gap-2">
-                {todoApps.map((app) => {
-                  const tag = statusTag(app.status);
-                  const deadlineTime = timeValue(app.deadline_at);
-                  const overdue = Math.min(deadlineTime, timeValue(app.next_action_at)) < now.getTime();
-                  return (
-                    <button
-                      key={app.id}
-                      onClick={() => handleViewDetail(app)}
-                      className="btn-press"
-                      style={{ border: '1px solid #f0ebe0', background: overdue ? '#fff3ee' : '#faf7f0', borderRadius: 13, padding: 12, textAlign: 'left', cursor: 'pointer' }}
-                    >
-                      <div className="flex items-center justify-between gap-2">
-                        <strong style={{ fontSize: 13.5, color: '#1b1a17' }}>{app.company_name}</strong>
-                        <span style={{ background: tag.bg, color: tag.fg, fontSize: 11, fontWeight: 700, padding: '3px 8px', borderRadius: 999 }}>{app.status}</span>
-                      </div>
-                      <div style={{ fontSize: 12, color: '#6b665c', marginTop: 4 }}>{app.position_name}</div>
-                      <div style={{ fontSize: 11.5, color: overdue ? '#a23d24' : '#8a8478', marginTop: 6, lineHeight: 1.5 }}>
-                        {app.next_action && <>下一步：{app.next_action}<br /></>}
-                        {app.next_action_at && <>时间：{formatDateTime(app.next_action_at)}<br /></>}
-                        {app.deadline_at && <>截止：{formatDateTime(app.deadline_at)}</>}
-                      </div>
-                    </button>
-                  );
-                })}
-              </div>
-            )}
-          </div>
-        </div>
+      <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,.95fr)_minmax(0,1.35fr)] gap-[22px] items-start">
+        <DashboardWorkspaceCards applications={apps} interviews={interviews} loading={appsLoading || interviewsLoading} error={appsError || interviewsError} onRetry={() => { void refreshApps(); void refreshInterviews(); }} />
 
         <RecentInterviewFolder
           interviews={interviews}
