@@ -125,15 +125,18 @@ export function useResumeFiles() {
   const userId = user?.id;
   const [files, setFiles] = useState<ResumeFile[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   const fetchAll = useCallback(async () => {
     if (!userId || !isSupabaseConfigured) {
       setFiles([]);
+      setError(null);
       setLoading(false);
       return;
     }
 
     setLoading(true);
+    setError(null);
     try {
       const { data, error } = await supabase
         .from('resume_files')
@@ -141,7 +144,11 @@ export function useResumeFiles() {
         .eq('user_id', userId)
         .order('created_at', { ascending: false });
 
-      if (!error) setFiles((data ?? []) as ResumeFile[]);
+      if (error) throw error;
+      setFiles((data ?? []) as ResumeFile[]);
+    } catch (cause) {
+      setFiles([]);
+      setError(readableSupabaseError(cause));
     } finally {
       setLoading(false);
     }
@@ -245,5 +252,5 @@ export function useResumeFiles() {
     [saveAIContent],
   );
 
-  return { files, loading, refresh: fetchAll, upload, getDownloadUrl, remove, saveAIContent, saveAIScript };
+  return { files, loading, error, refresh: fetchAll, upload, getDownloadUrl, remove, saveAIContent, saveAIScript };
 }
