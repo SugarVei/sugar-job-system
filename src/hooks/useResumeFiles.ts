@@ -202,13 +202,14 @@ export function useResumeFiles() {
   }, []);
 
   const saveAIContent = useCallback(
-    async (resumeId: string, fileName: string, kind: ResumeFileKind, content: string) => {
+    async (resumeId: string, fileName: string, kind: ResumeFileKind, content: string, requestId?: string) => {
       if (!user) throw new Error('未登录');
       if (!isSupabaseConfigured) throw new Error('Supabase 尚未配置');
 
       const { data, error } = await supabase
         .from('resume_files')
         .insert({
+          ...(requestId ? { id: requestId } : {}),
           user_id: user.id,
           resume_id: resumeId,
           file_name: fileName,
@@ -221,16 +222,25 @@ export function useResumeFiles() {
         .select()
         .single();
 
-      if (error) throw new Error(readableSupabaseError(error));
-      setFiles((prev) => [data as ResumeFile, ...prev]);
+      if (error) {
+        if (requestId) {
+          const { data: existing } = await supabase.from('resume_files').select('*').eq('id', requestId).eq('user_id', user.id).maybeSingle();
+          if (existing && existing.resume_id === resumeId && existing.content === content) {
+            setFiles(prev => [existing as ResumeFile, ...prev.filter(f => f.id !== requestId)]);
+            return existing as ResumeFile;
+          }
+        }
+        throw new Error(readableSupabaseError(error));
+      }
+      setFiles((prev) => [data as ResumeFile, ...prev.filter(f => f.id !== data.id)]);
       return data as ResumeFile;
     },
     [user],
   );
 
   const saveAIScript = useCallback(
-    (resumeId: string, resumeName: string, content: string) => (
-      saveAIContent(resumeId, `${resumeName}-面试稿件`, 'script', content)
+    (resumeId: string, resumeName: string, content: string, requestId?: string) => (
+      saveAIContent(resumeId, `${resumeName}-面试稿件`, 'script', content, requestId)
     ),
     [saveAIContent],
   );

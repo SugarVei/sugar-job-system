@@ -82,6 +82,7 @@ export default function Modal({
       }}
     >
       <div
+        role="dialog" aria-modal="true" aria-label={title}
         className={panelClassName}
         onClick={(e) => e.stopPropagation()}
         style={{

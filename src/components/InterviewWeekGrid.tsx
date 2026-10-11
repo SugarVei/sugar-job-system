@@ -1,3 +1,4 @@
+import { moveInterviewToHour } from '../lib/interviewCalendar';
 import { useRef, useState } from 'react';
 import type { Interview } from '../types';
 import Modal from './Modal';
@@ -27,6 +28,7 @@ export default function InterviewWeekGrid({ days, entries, onOpen, onCreate, onD
     setTargetSlot(null);
     suppressClickUntil.current = Date.now() + 300;
   };
+  const dragged = entries.flat().find(entry => entry.ev.id === draggingId)?.ev;
   const today = new Date().toDateString();
   const outside = entries.flat().filter(({ date }) => date.getHours() < 8 || date.getHours() >= 21);
   const slotEntries = (day: number, hour: number) => entries[day]
@@ -67,6 +69,7 @@ export default function InterviewWeekGrid({ days, entries, onOpen, onCreate, onD
                 onDoubleClick={event => {
                   if (event.target === event.currentTarget) onCreate(new Date(day.getFullYear(), day.getMonth(), day.getDate(), hour));
                 }} title="双击空白处新增面试">
+                {targetSlot === slotKey && dragged?.interview_time && <span className="interview-drop-label">移至 {time(new Date(moveInterviewToHour(dragged.interview_time!, day, hour)))}</span>}
                 {events.map(({ ev, date }, eventIndex) => <button type="button" key={ev.id}
                   disabled={movingId === ev.id}
                   draggable={!movingId}

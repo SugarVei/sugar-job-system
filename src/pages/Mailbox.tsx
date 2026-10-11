@@ -1,5 +1,8 @@
-import { useEffect, useMemo, useState } from 'react';
-import type { MailboxAccount, MailboxMessage, MailboxProvider, NewMailboxAccount } from '../types';
+import MailInterviewDraft from '../components/MailInterviewDraft';
+import { useAuth } from '../contexts/AuthContext';
+import { mailIdentity, mailSourceMarker, parseMailDate } from '../lib/mailInterview';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import type { Application, Interview, MailboxAccount, MailboxMessage, MailboxProvider, NewMailboxAccount } from '../types';
 import { useCollection } from '../hooks/useCollection';
 import { useAppShell } from '../contexts/AppShellContext';
 import { useTheme } from '../contexts/ThemeContext';
@@ -149,13 +152,17 @@ function mailSummary(message: MailboxMessage) {
             ? '线上面试'
             : '查看邮件正文';
   const positionMatch = raw.match(/([\u4e00-\u9fa5A-Za-z0-9+.#-]{2,24}(?:实习生|工程师|分析师|设计师|产品经理|管培生|专员))/);
+  const parsedDate = parseMailDate(raw, message.date);
   const date = dateMatch ? `${Number(dateMatch[2])}月${Number(dateMatch[3])}日` : '查看邮件';
   const time = timeMatch ? `${timeMatch[1].padStart(2, '0')}:${timeMatch[2]}` : '';
-  return { interviewTime: `${date}${time ? ` ${time}` : ''}`, form, position: positionMatch?.[1] || '查看邮件主题' };
+  return { interviewTime: parsedDate ? `${Number(parsedDate.slice(5, 7))}月${Number(parsedDate.slice(8, 10))}日 ${parsedDate.slice(11, 16)}` : `${date}${time ? ` ${time}` : ''}`, form, position: positionMatch?.[1] || '查看邮件主题' };
 }
 
 export default function Mailbox() {
   const db = useCollection<MailboxAccount>('mailbox_accounts');
+  const { user } = useAuth();
+  const interviewDb = useCollection<Interview>('interviews');
+  const applicationDb = useCollection<Application>('applications');
   const { registerAdd, navigate } = useAppShell();
   const { theme } = useTheme();
   const toast = useToast();
@@ -185,7 +192,28 @@ export default function Mailbox() {
   const [addingNew, setAddingNew] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [unreadFirst, setUnreadFirst] = useState(false);
-  const [processed, setProcessed] = useState<Set<number>>(() => new Set());
+  const activeMailbox = useRef<string | null>(null);
+  const mailRequest = useRef(0), detailRequest = useRef(0);
+  const [processed, setProcessed] = useState<Record<string, boolean>>({});
+  const [draftId, setDraftId] = useState<string | null>(null);
+  const storageKey = user && account ? `sugar.mail.processed.v2:${user.id}:${account.id}` : null;
+  useEffect(() => {
+    activeMailbox.current = account?.id ?? null;
+    mailRequest.current++; detailRequest.current++;
+    setMessages([]); setSelected(null); setLoadingMail(false); setDetailLoading(false);
+    setDraftId(null);
+    try { const stored = storageKey ? JSON.parse(localStorage.getItem(storageKey) || '{}') : {}; setProcessed(stored && typeof stored === 'object' ? stored : {}); }
+    catch { setProcessed({}); }
+  }, [storageKey, account?.id]);
+  const writeProcessed = (message: MailboxMessage, value: boolean) => {
+    let previous = processed;
+    try { if (storageKey) previous = JSON.parse(localStorage.getItem(storageKey) || '{}'); } catch { /* retain session values */ }
+    const next = { ...previous, [mailIdentity(message)]: value };
+    if (activeMailbox.current === account?.id) setProcessed(next);
+    try { if (storageKey) localStorage.setItem(storageKey, JSON.stringify(next)); }
+    catch { toast.info('浏览器无法保存处理标记，本次会话内仍然有效'); }
+  };
+  const linkedInterview = (message: MailboxMessage) => account ? interviewDb.items.find(i => i.notes?.includes(mailSourceMarker(account.id, message))) : undefined;
 
   const providerMeta = PROVIDERS.find((p) => p.id === provider) ?? PROVIDERS[0];
 
@@ -280,6 +308,7 @@ export default function Mailbox() {
       setMailError('请先保存邮箱与授权码。');
       return;
     }
+    const requestId = ++mailRequest.current; detailRequest.current++;
     setLoadingMail(true);
     setMailError('');
     setSelected(null);
@@ -302,6 +331,7 @@ export default function Mailbox() {
         unseen?: number;
         total?: number;
       };
+      if (requestId !== mailRequest.current) return;
       if (!res.ok || data.error) throw new Error((data.error as string) || '拉取失败');
       const nextMessages = data.messages ?? [];
       setMessages(nextMessages);
@@ -309,17 +339,20 @@ export default function Mailbox() {
       setUnseen(data.unseen ?? 0);
       setTotal(data.total ?? 0);
       if (acc) await db.update(acc.id, { last_synced_at: new Date().toISOString() });
-      toast.success(`已同步 ${data.messages?.length ?? 0} 封最近邮件`);
+      if (requestId === mailRequest.current) toast.success(`已同步 ${data.messages?.length ?? 0} 封最近邮件`);
     } catch (err) {
+      if (requestId !== mailRequest.current) return;
       setMailError(err instanceof Error ? err.message : String(err));
       toast.error('同步邮件失败');
     } finally {
-      setLoadingMail(false);
+      if (requestId === mailRequest.current) setLoadingMail(false);
     }
   };
 
   const openDetail = async (msg: MailboxMessage) => {
+    const requestId = ++detailRequest.current;
     setSelected({ ...msg });
+    if (window.matchMedia('(max-width: 767px)').matches) requestAnimationFrame(() => document.getElementById('sugar-mail-detail')?.scrollIntoView({ block: 'start', behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'instant' : 'smooth' }));
     setDetailLoading(true);
     try {
       const e = (account?.email || email).trim();
@@ -337,12 +370,13 @@ export default function Mailbox() {
         }),
       });
       const data = await readApiJson(res) as { error?: string; message?: MailboxMessage };
+      if (requestId !== detailRequest.current) return;
       if (!res.ok || data.error) throw new Error((data.error as string) || '读取失败');
       if (data.message) setSelected(data.message);
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : '读取正文失败');
+      if (requestId === detailRequest.current) toast.error(err instanceof Error ? err.message : '读取正文失败');
     } finally {
-      setDetailLoading(false);
+      if (requestId === detailRequest.current) setDetailLoading(false);
     }
   };
 
@@ -373,21 +407,19 @@ export default function Mailbox() {
 
   const selectedMeta = selected ? senderMeta(selected) : null;
   const selectedSummary = selected ? mailSummary(selected) : null;
-  const selectedProcessed = selected ? processed.has(selected.uid) : false;
+  const selectedProcessed = selected ? !!processed[mailIdentity(selected)] : false;
 
-  const toggleProcessed = () => {
-    if (!selected) return;
-    setProcessed((current) => {
-      const next = new Set(current);
-      if (next.has(selected.uid)) next.delete(selected.uid);
-      else next.add(selected.uid);
-      return next;
-    });
+  const toggleProcessed = () => { if (selected) writeProcessed(selected, !selectedProcessed); };
+  const selectedInterview = selected ? linkedInterview(selected) : undefined;
+  const openLinked = (interview: Interview) => {
+    const date = interview.interview_time ? new Date(interview.interview_time) : null;
+    const dateKey = date ? `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}` : null;
+    navigate('interviews', { query: interview.company_name, interviewDate: dateKey });
   };
-
   const addToInterviewCalendar = () => {
-    toast.info('已进入面试日历，请确认时间后新增安排');
-    navigate('interviews');
+    if (!selected || !account) return;
+    if (selectedInterview) { openLinked(selectedInterview); return; }
+    setDraftId(mailIdentity(selected));
   };
 
   return (
@@ -402,7 +434,7 @@ export default function Mailbox() {
             </div>
             <div style={{ minWidth: 0 }}>
               <div className="flex items-center gap-3 flex-wrap">
-                <strong style={{ fontFamily: 'Poppins', fontSize: 16.5 }}>{account ? `${PROVIDERS.find((p) => p.id === account.provider)?.short || '邮箱'} · ${account.email.split('@')[0]}` : '尚未绑定邮箱'}</strong>
+                <strong style={{ fontFamily: 'Geist', fontSize: 16.5 }}>{account ? `${PROVIDERS.find((p) => p.id === account.provider)?.short || '邮箱'} · ${account.email.split('@')[0]}` : '尚未绑定邮箱'}</strong>
                 {account && <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, color: '#2f7a45', fontSize: 12.5, fontWeight: 700 }}><span style={{ width: 8, height: 8, borderRadius: 99, background: '#2f9b50' }} />已连接</span>}
                 {account && <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, color: '#9a9488', fontSize: 12 }}><IconClock size={14} />{account.last_synced_at ? `同步于 ${new Date(account.last_synced_at).toLocaleString('zh-CN')}` : '尚未同步'}</span>}
               </div>
@@ -467,7 +499,7 @@ export default function Mailbox() {
       {mailError && <FormError message={mailError} />}
 
       <div className="grid grid-cols-1 lg:grid-cols-[minmax(330px,0.42fr)_minmax(430px,0.58fr)] gap-3" style={{ minHeight: 535 }}>
-        <section
+        <section className="sugar-mail-list"
           style={{
             ...CARD,
             padding: 0,
@@ -503,7 +535,7 @@ export default function Mailbox() {
                 const hot = interviewHint(m);
                 const active = selected?.uid === m.uid;
                 const meta = senderMeta(m);
-                const isProcessed = processed.has(m.uid);
+                const isProcessed = !!processed[mailIdentity(m)];
                 return (
                   <button
                     key={m.uid}
@@ -570,7 +602,7 @@ export default function Mailbox() {
           </div>
         </section>
 
-        <aside
+        <aside id="sugar-mail-detail"
           style={{
             ...CARD,
             padding: 0,
@@ -601,13 +633,16 @@ export default function Mailbox() {
                   <div style={{ textAlign: 'right', flex: 'none' }}><span style={{ display: 'inline-block', fontSize: 10.5, fontWeight: 800, padding: '3px 8px', borderRadius: 999, background: selectedProcessed ? '#e7eee2' : '#fbeec2', color: selectedProcessed ? '#477051' : '#7a5a12' }}>{selectedProcessed ? '已处理' : '待处理'}</span><div style={{ fontSize: 11, color: '#9a9488', marginTop: 6 }}>{formatMailDate(selected.date)}</div></div>
                 </div>
                 <h2 style={{ margin: '14px 0 0', fontSize: 19, fontWeight: 800, lineHeight: 1.35, color: '#1b1a17' }}>{selected.subject}</h2>
+                {interviewDb.error && <FormError message={`面试记录读取失败，请刷新后重试：${interviewDb.error}`} />}
                 {selected.hasAttachment && <div style={{ marginTop: 6, color: '#89631c', fontSize: 11.5 }}>含附件（请到原邮箱网页端下载）</div>}
                 <div className="grid grid-cols-1 sm:grid-cols-[repeat(3,minmax(0,1fr))_auto] gap-0" style={{ marginTop: 16, padding: '14px 14px', border: '1px solid #e8e0d2', borderRadius: 14, background: '#faf7f0' }}>
                   <SummaryCell icon={<IconInterviews size={16} />} label="面试时间" value={selectedSummary?.interviewTime || '查看邮件'} />
                   <SummaryCell icon={<IconMail size={16} />} label="面试形式" value={selectedSummary?.form || '查看邮件正文'} />
                   <SummaryCell icon={<IconSettings size={16} />} label="岗位" value={selectedSummary?.position || '查看邮件主题'} />
-                  <div className="flex flex-col justify-center gap-2" style={{ paddingLeft: 12 }}><button type="button" className="btn-press" onClick={addToInterviewCalendar} style={{ height: 38, padding: '0 14px', border: 0, borderRadius: 10, background: '#1b1a17', color: '#fffdf8', fontSize: 12.5, fontWeight: 700, whiteSpace: 'nowrap', cursor: 'pointer' }}><span className="flex items-center gap-2"><IconInterviews size={15} />添加到面试日历</span></button><button type="button" className="btn-press" onClick={toggleProcessed} style={{ height: 36, padding: '0 14px', border: '1px solid #d9d0c1', borderRadius: 10, background: '#fffdf8', color: '#4a463e', fontSize: 12.5, fontWeight: 700, whiteSpace: 'nowrap', cursor: 'pointer' }}><span className="flex items-center gap-2"><IconCheck size={15} />{selectedProcessed ? '取消已处理' : '标记已处理'}</span></button></div>
+                  <div className="flex flex-col justify-center gap-2" style={{ paddingLeft: 12 }}><button type="button" className="btn-press" onClick={addToInterviewCalendar} disabled={interviewDb.loading || !!interviewDb.error} style={{ height: 38, padding: '0 14px', border: 0, borderRadius: 10, background: '#1b1a17', color: '#fffdf8', fontSize: 12.5, fontWeight: 700, whiteSpace: 'nowrap', cursor: 'pointer' }}><span className="flex items-center gap-2"><IconInterviews size={15} />{selectedInterview ? '查看已加入的面试' : '添加到面试日历'}</span></button><button type="button" className="btn-press" onClick={toggleProcessed} style={{ height: 36, padding: '0 14px', border: '1px solid #d9d0c1', borderRadius: 10, background: '#fffdf8', color: '#4a463e', fontSize: 12.5, fontWeight: 700, whiteSpace: 'nowrap', cursor: 'pointer' }}><span className="flex items-center gap-2"><IconCheck size={15} />{selectedProcessed ? '取消已处理' : '标记已处理'}</span></button></div>
                 </div>
+                {account && draftId === mailIdentity(selected) && !selectedInterview && <MailInterviewDraft key={`${account.id}:${draftId}`} message={selected} accountId={account.id} applications={applicationDb.items} create={interviewDb.create} onCancel={() => setDraftId(null)} onCreated={interview => { writeProcessed(selected, true); if (activeMailbox.current === account.id) setDraftId(null); toast.success('面试已加入日历，邮件已标记处理', { action: { label: '查看日历', onClick: () => openLinked(interview) } }); }} />}
+
               </div>
               <div style={{ flex: 1, overflowY: 'auto', padding: '2px 4px 16px', background: '#fffdf8' }}>
                 <div

@@ -1,3 +1,5 @@
+import { useResumeTask } from '../contexts/ResumeTaskContext';
+import { useToast } from '../components/Toast';
 import { lazy, Suspense, useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import type { DragEvent } from 'react';
@@ -326,33 +328,34 @@ function ResumeCard({
   const [expandedScripts, setExpandedScripts] = useState<Set<string>>(new Set());
   const [jobAssistOpen, setJobAssistOpen] = useState(false);
 
-  // AI 生成状态
   const [aiOpen, setAiOpen] = useState(false);
-  // 'select' = 选择简历文件（多份时）; 'working' = 提取+生成中; 'done' = 完成
-  const [aiStep, setAiStep] = useState<'select' | 'working' | 'done'>('select');
-  const [aiProgress, setAiProgress] = useState('');
-  const [aiStreamText, setAiStreamText] = useState('');
-  const [aiSelectedId, setAiSelectedId] = useState<string | null>(null);
-  const [aiFileName, setAiFileName] = useState('');  // 上传简历文件名（不含扩展名）
-
-  // 已上传的简历文件（非 AI 生成）
+  const aiModalRef = useRef<HTMLDivElement>(null);
+  const { task, patch, lock, unlock, signal } = useResumeTask(resume.id);
+  const toast = useToast();
+  const aiStep = task.step, aiProgress = task.progress, aiStreamText = task.text, aiSelectedId = task.selectedId, aiFileName = task.fileName;
+  const setAiStep = (step: typeof task.step) => patch({ step });
+  const setAiProgress = (progress: string) => patch({ progress });
+  const setAiStreamText = (text: string) => patch({ text });
+  const setAiSelectedId = (selectedId: string | null) => patch({ selectedId });
   const uploadedResumes = files.filter((f) => f.kind === 'resume' && f.source !== 'ai' && f.file_path);
-
-  const closeAiModal = () => {
-    setAiOpen(false);
-    setAiStep('select');
-    setAiStreamText('');
-    setAiProgress('');
-    setAiSelectedId(null);
-    setAiFileName('');
-  };
+  const closeAiModal = () => setAiOpen(false);
 
   useEffect(() => {
     if (!aiOpen) return;
-    document.body.style.overflow = 'hidden';
-    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') closeAiModal(); };
+    const previous = document.activeElement as HTMLElement | null;
+    const overflow = document.body.style.overflow; document.body.style.overflow = 'hidden';
+    aiModalRef.current?.querySelector<HTMLButtonElement>('button')?.focus();
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') { e.preventDefault(); closeAiModal(); }
+      if (e.key === 'Tab' && aiModalRef.current?.contains(document.activeElement)) {
+        const nodes = Array.from(aiModalRef.current.querySelectorAll<HTMLElement>('button:not([disabled]),input:not([disabled])'));
+        const first = nodes[0], last = nodes[nodes.length - 1];
+        if (e.shiftKey && document.activeElement === first) { e.preventDefault(); last?.focus(); }
+        else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first?.focus(); }
+      }
+    };
     document.addEventListener('keydown', onKey);
-    return () => { document.removeEventListener('keydown', onKey); document.body.style.overflow = ''; };
+    return () => { document.removeEventListener('keydown', onKey); document.body.style.overflow = overflow; if (previous?.isConnected) previous.focus(); };
   }, [aiOpen]);
 
   const handleFiles = async (kind: ResumeFileKind, list: FileList | null) => {
@@ -388,43 +391,42 @@ function ResumeCard({
 
   const startGeneration = async (fileId?: string) => {
     const targetId = fileId ?? aiSelectedId ?? uploadedResumes[0]?.id;
-    const targetFile = uploadedResumes.find((f) => f.id === targetId);
-    if (!targetFile) return;
+    const targetFile = uploadedResumes.find(f => f.id === targetId);
+    if (!targetFile) { patch({ step: 'error', error: '原简历文件已不可用，请重新上传', phase: 'read' }); return; }
     const aiConfig = requireActiveConfig('AI 生成面试稿件');
-    if (!aiConfig) return;
-
-    setAiStep('working');
-    setAiProgress('📄 正在读取简历文件…');
-    setAiStreamText('');
-
+    if (!aiConfig || !lock()) return;
+    const taskSignal = signal();
+    const saveId = crypto.randomUUID();
+    const scriptName = targetFile.file_name.replace(/\.[^.]+$/, '');
+    patch({ step: 'working', phase: 'read', progress: '正在读取简历', text: '', selectedId: targetFile.id, fileName: scriptName, error: '', saveId });
+    let phase: typeof task.phase = 'read';
     try {
       const resumeText = await extractResumeText(targetFile, fileApi.getDownloadUrl);
+      taskSignal?.throwIfAborted();
       if (!resumeText.trim()) throw new Error('简历内容为空，无法生成稿件');
-
-      setAiProgress('🤖 AI 正在生成面试稿件…');
-
-      const fullText = await streamAIChat({
-        config: aiConfig,
-        messages: [
-          { role: 'system', content: RESUME_INTERVIEW_SCRIPT_PROMPT },
-          { role: 'user', content: `以下是我的简历内容：\n\n${resumeText}` },
-        ],
-        maxTokens: 8192,
-        onToken: setAiStreamText,
-      });
-
-      if (fullText) {
-        // 用上传文件名（去扩展名）作为稿件名，避免 resume_name 为空的问题
-        const scriptName = targetFile.file_name.replace(/\.[^.]+$/, '');
-        setAiFileName(scriptName);
-        await fileApi.saveAIScript(resume.id, scriptName, fullText);
-        setAiStep('done');
-        setAiProgress('');
-      }
-    } catch (e) {
-      alert('生成失败：' + errorText(e));
-      closeAiModal();
-    }
+      phase = 'generate'; patch({ phase, progress: '正在生成面试稿件' });
+      const fullText = await streamAIChat({ config: aiConfig, signal: taskSignal, messages: [
+        { role: 'system', content: RESUME_INTERVIEW_SCRIPT_PROMPT },
+        { role: 'user', content: `以下是我的简历内容：\n\n${resumeText}` },
+      ], maxTokens: 8192, onToken: text => { if (!taskSignal?.aborted) patch({ text }); } });
+      taskSignal?.throwIfAborted();
+      if (!fullText.trim()) throw new Error('AI 未返回稿件内容，可重新生成');
+      phase = 'save'; patch({ phase, text: fullText, progress: '正在保存稿件' });
+      await fileApi.saveAIScript(resume.id, scriptName, fullText, saveId);
+      if (!taskSignal?.aborted) { patch({ step: 'done', progress: '稿件已保存' }); toast.success(`${resume.resume_name} · 面试稿件已保存`); }
+    } catch (error) {
+      if (!taskSignal?.aborted) patch({ step: 'error', phase, progress: phase === 'save' ? '保存失败，稿件已保留' : '生成未完成，已有正文已保留', error: errorText(error) });
+    } finally { unlock(); }
+  };
+  const retrySave = async () => {
+    if (!aiStreamText.trim() || !lock()) return;
+    const taskSignal = signal();
+    patch({ step: 'working', phase: 'save', progress: '正在保存稿件', error: '' });
+    try {
+      await fileApi.saveAIScript(resume.id, aiFileName, aiStreamText, task.saveId);
+      if (!taskSignal?.aborted) { patch({ step: 'done', progress: '稿件已保存' }); toast.success('稿件已保存，无需再次生成'); }
+    } catch (error) { if (!taskSignal?.aborted) patch({ step: 'error', progress: '保存失败，稿件已保留', error: errorText(error) }); }
+    finally { unlock(); }
   };
 
   const handleDownloadDocx = async () => {
@@ -446,7 +448,7 @@ function ResumeCard({
     <div className="card-hover" style={{ ...CARD, padding: 24 }}>
       <div className="flex items-start justify-between gap-3">
         <div>
-          <h3 style={{ fontFamily: 'Poppins', fontSize: 18, fontWeight: 600, margin: '0 0 10px' }}>{resume.resume_name}</h3>
+          <h3 style={{ fontFamily: 'Geist', fontSize: 18, fontWeight: 600, margin: '0 0 10px' }}>{resume.resume_name}</h3>
           <div className="flex gap-2 flex-wrap">
             {resume.target_position && (
               <span style={{ background: '#ece4d6', color: '#5d584d', fontSize: 12, fontWeight: 600, padding: '4px 11px', borderRadius: 999 }}>
@@ -462,7 +464,7 @@ function ResumeCard({
           <button onClick={onEdit} aria-label="编辑" className="btn-press" style={miniBtn}>
             <IconEdit size={14} />
           </button>
-          <button onClick={onDelete} aria-label="删除" className="btn-press" style={miniBtn}>
+          <button onClick={onDelete} disabled={aiStep === 'working'} title={aiStep === 'working' ? '请等待当前稿件任务完成后删除' : '删除简历'} aria-label="删除" className="btn-press" style={miniBtn}>
             <IconTrash size={14} />
           </button>
         </div>
@@ -511,6 +513,7 @@ function ResumeCard({
         <button
           type="button"
           onClick={() => {
+            if (aiStep !== 'select') { setAiOpen(true); return; }
             if (!requireActiveConfig('AI 生成面试稿件')) return;
             if (uploadedResumes.length === 0) {
               alert('请先在上方上传一份简历文件（PDF / DOCX）');
@@ -572,34 +575,46 @@ function ResumeCard({
         </button>
       </div>
 
+      {aiStep !== 'select' && <div className="sugar-task-capsule" role="status">
+        {aiStep === 'working' && <span className="sugar-spinner" aria-hidden="true" />}
+        <div style={{ flex: 1 }}><strong>{aiProgress}</strong><small>{aiStep === 'working' ? '可收起并继续使用其他页面' : aiStep === 'error' ? '正文已保留，可查看并重试' : '可查看或下载稿件'}</small></div>
+        <button type="button" className="sugar-command-trigger" onClick={() => setAiOpen(true)}>查看任务</button>
+      </div>}
       {/* AI 生成弹窗 */}
       {aiOpen && createPortal(
         <div
-          onClick={() => { if (aiStep !== 'working') closeAiModal(); }}
+          onClick={closeAiModal}
           style={{ position: 'fixed', inset: 0, background: 'rgba(40,30,25,0.38)', backdropFilter: 'blur(6px)', WebkitBackdropFilter: 'blur(6px)', zIndex: 400, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16, animation: 'fadeIn .2s ease' }}
         >
           <div
+            ref={aiModalRef} role="dialog" aria-modal="true" aria-label="AI 生成面试稿件"
             onClick={e => e.stopPropagation()}
             style={{ background: 'rgba(255,253,250,0.98)', borderRadius: 24, width: '100%', maxWidth: 620, maxHeight: 'calc(100vh - 60px)', display: 'flex', flexDirection: 'column', boxShadow: '0 30px 80px rgba(120,40,70,.22)', overflow: 'hidden', animation: 'popIn .26s ease both' }}
           >
             {/* Header */}
             <div style={{ padding: '20px 24px 16px', borderBottom: '1px solid #f0ebe0', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexShrink: 0 }}>
               <div>
-                <div style={{ fontFamily: 'Poppins', fontWeight: 700, fontSize: 16, color: '#1b1a17' }}>🤖 AI 生成面试稿件</div>
+                <div style={{ fontFamily: 'Geist', fontWeight: 700, fontSize: 16, color: '#1b1a17' }}>🤖 AI 生成面试稿件</div>
                 <div style={{ fontSize: 12, color: '#8a8478', marginTop: 3 }}>
                   {aiStep === 'select' && '选择要使用的简历文件'}
                   {aiStep === 'working' && (aiProgress || 'AI 正在处理…')}
-                  {aiStep === 'done' && '✅ 生成完成，已保存到文件列表'}
+                  {aiStep === 'done' && '生成完成，已保存到文件列表'}
+                  {aiStep === 'error' && aiProgress}
                 </div>
               </div>
-              {aiStep !== 'working' && (
-                <button onClick={closeAiModal} style={{ width: 34, height: 34, border: '1px solid #e4ddcf', background: '#faf7f0', borderRadius: 10, cursor: 'pointer', color: '#8a8478', fontSize: 14, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>✕</button>
+              {(
+                <button aria-label="收起稿件任务" onClick={closeAiModal} style={{ width: 34, height: 34, border: '1px solid #e4ddcf', background: '#faf7f0', borderRadius: 10, cursor: 'pointer', color: '#8a8478', fontSize: 14, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>✕</button>
               )}
             </div>
 
             {/* Body */}
             <div style={{ flex: 1, overflowY: 'auto', padding: '18px 24px' }}>
 
+              {aiStep !== 'select' && <div className="sugar-task-stages" aria-label="稿件处理阶段">{(['read', 'generate', 'save'] as const).map((phase, index) => {
+                const current = ['read', 'generate', 'save'].indexOf(task.phase);
+                return <span key={phase} className={aiStep === 'done' || index < current ? 'is-done' : index === current ? 'is-current' : ''}>{aiStep === 'done' || index < current ? '✓ ' : ''}{['读取简历', '生成稿件', '保存稿件'][index]}</span>;
+              })}</div>}
+              {aiStep === 'error' && <div className="sugar-inline-error" role="alert">{task.error}<div style={{ marginTop: 5 }}>关闭或收起不会清除当前正文。</div></div>}
               {/* 选择简历文件（多份时） */}
               {aiStep === 'select' && (
                 <div className="flex flex-col gap-2">
@@ -634,7 +649,7 @@ function ResumeCard({
                     <div style={{ textAlign: 'center', padding: '40px 0', color: '#8a8478' }}>
                       <div style={{ fontSize: 36, marginBottom: 14 }}>⏳</div>
                       <div style={{ fontSize: 13.5, fontWeight: 600 }}>{aiProgress}</div>
-                      <div style={{ fontSize: 12, marginTop: 6 }}>预计需要 30-90 秒，请勿关闭窗口</div>
+                      <div style={{ fontSize: 12, marginTop: 6 }}>可收起任务，继续使用其他页面</div>
                     </div>
                   )}
                   {aiStreamText && (
@@ -646,7 +661,7 @@ function ResumeCard({
               )}
 
               {/* 完成 */}
-              {aiStep === 'done' && (
+              {(aiStep === 'done' || aiStep === 'error') && aiStreamText && (
                 <div style={{ background: '#faf7f0', border: '1px solid #f0ebe0', borderRadius: 12, padding: '14px 16px', fontSize: 13, lineHeight: 1.8, whiteSpace: 'pre-wrap', maxHeight: 400, overflowY: 'auto', color: '#2a2720', wordBreak: 'break-word' }}>
                   {aiStreamText}
                 </div>
@@ -655,20 +670,22 @@ function ResumeCard({
 
             {/* Footer */}
             <div style={{ padding: '14px 24px 20px', borderTop: '1px solid #f0ebe0', display: 'flex', justifyContent: 'flex-end', gap: 10, flexShrink: 0 }}>
-              {aiStep !== 'working' && (
-                <button onClick={closeAiModal} style={{ height: 42, padding: '0 20px', border: '1px solid #e4ddcf', background: '#faf7f0', borderRadius: 13, fontSize: 13, fontWeight: 600, color: '#4a463e', cursor: 'pointer' }}>
-                  {aiStep === 'done' ? '关闭' : '取消'}
+              {(
+                <button aria-label="收起稿件任务" onClick={closeAiModal} style={{ height: 42, padding: '0 20px', border: '1px solid #e4ddcf', background: '#faf7f0', borderRadius: 13, fontSize: 13, fontWeight: 600, color: '#4a463e', cursor: 'pointer' }}>
+                  {aiStep === 'working' ? '收起任务' : '关闭'}
                 </button>
               )}
+              {aiStep === 'error' && <button className="sugar-command-trigger" onClick={() => void (task.phase === 'save' ? retrySave() : startGeneration())}>{task.phase === 'save' ? '重试保存' : '重新生成'}</button>}
+              {aiStep === 'done' && <button className="sugar-command-trigger" onClick={() => { patch({ step: 'select', text: '', error: '', progress: '' }); }}>选择文件重新生成</button>}
               {aiStep === 'select' && (
                 <button
-                  onClick={() => { setAiStep('working'); startGeneration(aiSelectedId ?? undefined); }}
+                  onClick={() => void startGeneration(aiSelectedId ?? undefined)}
                   style={{ height: 42, padding: '0 24px', border: 'none', background: '#a89cf0', color: '#fff', borderRadius: 13, fontSize: 13, fontWeight: 700, cursor: 'pointer' }}
                 >
                   🚀 开始生成
                 </button>
               )}
-              {aiStep === 'done' && (
+              {(aiStep === 'done' || aiStep === 'error') && aiStreamText && (
                 <button
                   onClick={handleDownloadDocx}
                   style={{ height: 42, padding: '0 24px', border: 'none', background: '#5fa86b', color: '#fff', borderRadius: 13, fontSize: 13, fontWeight: 700, cursor: 'pointer' }}

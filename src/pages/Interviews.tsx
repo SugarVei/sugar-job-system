@@ -1,3 +1,4 @@
+import { useToast } from '../components/Toast';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import type { Application, Interview, InterviewType, NewRecord } from '../types';
 import { useCollection } from '../hooks/useCollection';
@@ -452,8 +453,12 @@ export default function Interviews() {
     setSelectedInterviewId(ev.id);
   };
 
+  const toast = useToast();
+  const movingLock = useRef(false);
+  const latestInterviews = useRef(items);
+  useEffect(() => { latestInterviews.current = items; }, [items]);
   const moveInterview = async (ev: Interview, day: Date, hour: number) => {
-    if (moving || !ev.interview_time) return;
+    if (movingLock.current || !ev.interview_time) return;
     let nextTime: string;
     try {
       nextTime = moveInterviewToHour(ev.interview_time, day, hour);
@@ -465,14 +470,24 @@ export default function Interviews() {
 
     if (moveFeedbackTimer.current) clearTimeout(moveFeedbackTimer.current);
     setMoveFeedback(null);
+    movingLock.current = true;
     setMoving({ id: ev.id, time: nextTime });
     try {
       await update(ev.id, { interview_time: nextTime });
+      toast.success(`${ev.company_name} · 改期已保存`, { action: { label: '撤销', onClick: async () => {
+        const current = latestInterviews.current.find(item => item.id === ev.id);
+        if (!current || current.interview_time !== nextTime || movingLock.current) throw new Error('安排已发生变化，请在日历确认后修改');
+        movingLock.current = true; setMoving({ id: ev.id, time: ev.interview_time! });
+        try { await update(ev.id, { interview_time: ev.interview_time }); toast.info('已恢复原面试时间'); }
+        finally { movingLock.current = false; setMoving(null); }
+      } } });
       const next = new Date(nextTime);
       setMoveFeedback({ text: `已改期至 ${next.getMonth() + 1}月${next.getDate()}日 ${toLocalInput(nextTime).slice(11, 16)}`, error: false });
     } catch (error) {
+      toast.error('改期保存失败，已恢复原安排');
       setMoveFeedback({ text: `改期失败：${error instanceof Error ? error.message : String(error)}`, error: true });
     } finally {
+      movingLock.current = false;
       setMoving(null);
       moveFeedbackTimer.current = setTimeout(() => setMoveFeedback(null), 5000);
     }
@@ -536,7 +551,7 @@ export default function Interviews() {
         <div style={{ ...CARD, padding: '14px 18px', borderRadius: 18, border: '1px solid #d8e8d2', background: '#f4faf1' }}>
           <div className="flex items-center justify-between gap-3 flex-wrap">
             <div>
-              <div style={{ fontFamily: 'Poppins', fontWeight: 700, fontSize: 15 }}>
+              <div style={{ fontFamily: 'Geist', fontWeight: 700, fontSize: 15 }}>
                 {focusDay.getMonth() + 1} 月 {focusDay.getDate()} 日面试
               </div>
               <div style={{ fontSize: 12.5, color: '#6b665c', marginTop: 3 }}>
@@ -630,7 +645,7 @@ export default function Interviews() {
 
           {/* 移动端列表 */}
           <div className="md:hidden" style={{ ...CARD, padding: 18, borderRadius: 18 }}>
-            <div style={{ fontFamily: 'Poppins', fontWeight: 700, marginBottom: 12 }}>本周面试</div>
+            <div style={{ fontFamily: 'Geist', fontWeight: 700, marginBottom: 12 }}>本周面试</div>
             {eventsByDay.flat().length === 0 ? (
               <EmptyState text="本周暂无面试，点右上角新增。" actionLabel="新增面试" onAction={() => openCreate()} />
             ) : (

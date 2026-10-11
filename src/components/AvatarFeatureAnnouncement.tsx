@@ -60,7 +60,7 @@ export default function AvatarFeatureAnnouncement() {
       <div style={{ flex: 1, minWidth: 180 }}>
         <strong style={{ color: '#292522', fontSize: 13.5 }}>头像更换功能上线啦</strong>
         <p style={{ margin: '4px 0 0', fontSize: 12, lineHeight: 1.65 }}>
-          点击个人头像即可上传自己的图片，或从 35 款候选头像中选择；弹窗颜色会随五种主题同步变化。
+          点击个人头像即可上传自己的图片，或从 35 款候选头像中选择；弹窗颜色会随多种主题同步变化。
         </p>
       </div>
       <button

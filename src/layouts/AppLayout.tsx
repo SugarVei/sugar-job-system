@@ -1,3 +1,4 @@
+import CommandPalette, { openCommandPalette } from '../components/CommandPalette';
 import { useEffect, useState, type ReactNode } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { useTheme } from '../contexts/ThemeContext';
@@ -100,7 +101,7 @@ export default function AppLayout({ children }: { children: ReactNode }) {
               <div style={{ ...brandMark, width: 38, height: 38 }}>
                 <SugarMark size={22} />
               </div>
-              <div style={{ fontFamily: 'Poppins', fontWeight: 600, fontSize: 17 }}>Sugar</div>
+              <div style={{ fontFamily: 'Geist', fontWeight: 600, fontSize: 17 }}>Sugar</div>
             </div>
             <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
               <ThemeSwitcher />
@@ -125,7 +126,7 @@ export default function AppLayout({ children }: { children: ReactNode }) {
             <div style={{ flex: 1, minWidth: 180 }}>
               <h1
                 className="text-[22px] lg:text-[30px]"
-                style={{ fontFamily: 'Poppins', fontWeight: 600, margin: 0, letterSpacing: '-.01em' }}
+                style={{ fontFamily: 'Geist', fontWeight: 600, margin: 0, letterSpacing: '-.01em' }}
               >
                 {greet.title}
               </h1>
@@ -176,6 +177,7 @@ export default function AppLayout({ children }: { children: ReactNode }) {
                   style={{ border: 'none', background: 'none', outline: 'none', fontSize: 14, width: '100%', color: '#1b1a17' }}
                 />
               </div>}
+              <button type="button" className="sugar-command-trigger" onClick={openCommandPalette} aria-label="打开快捷操作" title="Ctrl / ⌘ K">⌘ K</button>
               {(headerChrome?.primaryAction || headerChrome?.showAdd !== false) && <button onClick={headerChrome?.primaryAction?.onClick ?? triggerAdd} disabled={headerChrome?.primaryAction?.loading} className="btn-press" style={addBtn}>
                 <IconPlus size={17} />
                 <span className="hidden sm:inline">{headerChrome?.primaryAction?.label ?? '新增'}</span>
@@ -224,7 +226,7 @@ export default function AppLayout({ children }: { children: ReactNode }) {
             }}
           >
             <div className="flex items-center justify-between" style={{ marginBottom: 12, padding: '0 4px' }}>
-              <div style={{ fontFamily: 'Poppins', fontWeight: 700, fontSize: 15 }}>更多功能</div>
+              <div style={{ fontFamily: 'Geist', fontWeight: 700, fontSize: 15 }}>更多功能</div>
               <button
                 type="button"
                 aria-label="关闭"
@@ -334,6 +336,7 @@ export default function AppLayout({ children }: { children: ReactNode }) {
           <span style={{ fontSize: 10, fontWeight: 600 }}>更多</span>
         </button>
       </nav>
+      <CommandPalette />
       <AvatarPicker
         open={avatarPickerOpen}
         onClose={() => setAvatarPickerOpen(false)}

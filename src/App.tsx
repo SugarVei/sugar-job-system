@@ -1,3 +1,4 @@
+import { ResumeTaskProvider } from './contexts/ResumeTaskContext';
 import { lazy, Suspense, useEffect, useRef, useState } from 'react';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { ApiKeysProvider } from './contexts/ApiKeysContext';
@@ -30,8 +31,9 @@ function isTownExploreRoute() {
 
 function PageCompanion() {
   const { screen } = useAppShell();
-  // The interactive world owns the viewport; suspend the floating video pet here.
-  return screen === 'capitalMap' ? null : <WebPetCompanion />;
+  const [compact, setCompact] = useState(() => window.matchMedia('(max-width: 767px)').matches);
+  useEffect(() => { const media = window.matchMedia('(max-width: 767px)'); const update = () => setCompact(media.matches); media.addEventListener('change', update); return () => media.removeEventListener('change', update); }, []);
+  return screen === 'capitalMap' || (compact && ['applications', 'resumes', 'mailbox', 'interviews'].includes(screen)) ? null : <WebPetCompanion />;
 }
 
 function CurrentPage() {
@@ -79,8 +81,9 @@ function Gate() {
   if (exploringTown) return <Suspense fallback={<div style={{ minHeight: '100dvh', display: 'grid', placeItems: 'center', background: '#d9e7d8', color: '#425f4b' }}>正在进入求职小镇…</div>}><StandaloneTown key={session.user.id}/></Suspense>;
   return <>
     <LiquidBackground />
-    <AppShellProvider><ApiKeysProvider key={session.user.id}><AppLayout><CurrentPage /></AppLayout><PageCompanion /></ApiKeysProvider></AppShellProvider>
+    <AppShellProvider><ApiKeysProvider key={session.user.id}><ResumeTaskProvider><AppLayout><CurrentPage /></AppLayout><PageCompanion /></ResumeTaskProvider></ApiKeysProvider></AppShellProvider>
     {showWelcomeNotice && <WelcomeNoticeModal onClose={() => setShowWelcomeNotice(false)} />}
   </>;
 }
-export default function App() { return <ThemeProvider><ToastProvider><AuthProvider><Gate /></AuthProvider></ToastProvider></ThemeProvider>; }
+function AccountFeedback() { const { session } = useAuth(); return <ToastProvider key={session?.user.id ?? 'signed-out'}><Gate /></ToastProvider>; }
+export default function App() { return <ThemeProvider><AuthProvider><AccountFeedback /></AuthProvider></ThemeProvider>; }

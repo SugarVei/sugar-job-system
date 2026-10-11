@@ -1,3 +1,5 @@
+import MotionTabs from '../components/MotionTabs';
+import { useToast } from '../components/Toast';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { Application, ApplicationPriority, ApplicationStatus, NewRecord, Resume } from '../types';
 import { useCollection } from '../hooks/useCollection';
@@ -5,7 +7,7 @@ import { useAppShell, type ApplicationsListFilter } from '../contexts/AppShellCo
 import { useTheme } from '../contexts/ThemeContext';
 import Modal from '../components/Modal';
 import { Field, TextInput, TextArea, Select, PrimaryButton, GhostButton, FormError } from '../components/Field';
-import { IconEdit, IconTrash, IconPlus, IconExternalLink, IconArrowRight } from '../components/icons';
+import { IconEdit, IconTrash, IconPlus, IconExternalLink, IconArrowRight, IconCheck } from '../components/icons';
 import { STATUS_OPTIONS, statusTag, buildSteps, matchApp, CARD } from '../lib/appHelpers';
 import { getNextApplicationStatus } from '../lib/applicationStatus';
 import EmptyState from '../components/EmptyState';
@@ -148,6 +150,13 @@ export default function Applications() {
   const [formError, setFormError] = useState('');
   const [scrollSig, setScrollSig] = useState(0);
   const [actionError, setActionError] = useState('');
+  const toast = useToast();
+  const statusLocks = useRef(new Set<string>());
+  const [statusPhases, setStatusPhases] = useState<Record<string, 'saving' | 'saved'>>({});
+  const latestItems = useRef(items);
+  useEffect(() => { latestItems.current = items; }, [items]);
+  const successTimers = useRef(new Map<string, ReturnType<typeof setTimeout>>());
+  useEffect(() => { const timers = successTimers.current; return () => { timers.forEach(clearTimeout); }; }, []);
   const companyRef = useRef<HTMLInputElement>(null);
   const resumeSelectionTouched = useRef(false);
 
@@ -260,12 +269,26 @@ export default function Applications() {
   };
 
   const quickUpdateStatus = async (application: Application, status: ApplicationStatus) => {
+    if (statusLocks.current.has(application.id) || application.status === status) return;
+    const id = application.id;
+    statusLocks.current.add(id); clearTimeout(successTimers.current.get(id));
+    setStatusPhases(prev => ({ ...prev, [id]: 'saving' })); setActionError('');
     try {
-      setActionError('');
-      await update(application.id, { status });
+      await update(id, { status });
+      setStatusPhases(prev => ({ ...prev, [id]: 'saved' }));
+      successTimers.current.set(id, setTimeout(() => setStatusPhases(prev => { const copy = { ...prev }; delete copy[id]; return copy; }), 900));
+      toast.success(`${application.company_name} · 已推进至${status}`, { action: { label: '撤销', onClick: async () => {
+        const current = latestItems.current.find(item => item.id === id);
+        if (!current || current.status !== status || statusLocks.current.has(id)) throw new Error('记录已发生变化，请在投递列表确认后修改');
+        clearTimeout(successTimers.current.get(id)); statusLocks.current.add(id); setStatusPhases(prev => ({ ...prev, [id]: 'saving' }));
+        try { await update(id, { status: application.status }); toast.info('已撤销这次状态变更'); }
+        finally { statusLocks.current.delete(id); setStatusPhases(prev => { const copy = { ...prev }; delete copy[id]; return copy; }); }
+      } } });
     } catch (error) {
+      setStatusPhases(prev => { const copy = { ...prev }; delete copy[id]; return copy; });
       setActionError('状态更新失败：' + errorText(error));
-    }
+      toast.error(`${application.company_name} · 状态更新失败`, { action: { label: '重试', onClick: () => quickUpdateStatus(application, status) } });
+    } finally { statusLocks.current.delete(id); }
   };
 
   const advanceStatus = async (application: Application) => {
@@ -330,29 +353,7 @@ export default function Applications() {
             </button>
           )}
         </div>
-        <div className="applications-view-switch" role="group" aria-label="投递记录视图" style={{ display: 'flex', background: '#f5f0e7', border: '1px solid #e4ddcf', borderRadius: 12, padding: 3, height: 44 }}>
-          {(['overview', 'list', 'kanban'] as const).map((mode) => (
-            <button
-              key={mode}
-              type="button"
-              aria-pressed={viewMode === mode}
-              onClick={() => setViewMode(mode)}
-              style={{
-                border: 'none',
-                borderRadius: 9,
-                padding: '0 13px',
-                background: viewMode === mode ? '#fffdf8' : 'transparent',
-                color: viewMode === mode ? '#1b1a17' : '#8a8478',
-                fontSize: 13,
-                fontWeight: 700,
-                cursor: 'pointer',
-                boxShadow: viewMode === mode ? '0 2px 7px rgba(60,50,35,.08)' : 'none',
-              }}
-            >
-              {mode === 'overview' ? '数据概览' : mode === 'list' ? '列表视图' : '看板视图'}
-            </button>
-          ))}
-        </div>
+        <MotionTabs className="applications-view-switch" label="投递记录视图" value={viewMode} onChange={setViewMode} options={[{ value: 'overview', label: '数据概览' }, { value: 'list', label: '列表视图' }, { value: 'kanban', label: '看板视图' }]} />
         <div style={{ display: 'flex', gap: 8 }}>
           <button
             onClick={async () => {
@@ -446,7 +447,7 @@ export default function Applications() {
           onAction={items.length === 0 ? openCreate : applicationsFilter !== 'all' ? () => setApplicationsFilter('all') : undefined}
         />
       ) : viewMode === 'kanban' ? (
-        <KanbanBoard applications={filtered} onEdit={openEdit} onStatusChange={quickUpdateStatus} />
+        <KanbanBoard applications={filtered} onEdit={openEdit} onStatusChange={quickUpdateStatus} busyIds={Object.keys(statusPhases).filter(id => statusPhases[id] === 'saving')} />
       ) : (
         filtered.map((application) => {
           const tag = statusTag(application.status);
@@ -468,7 +469,7 @@ export default function Applications() {
               <div className="flex items-start justify-between gap-4 flex-wrap">
                 <div style={{ minWidth: 0 }}>
                   <div className="flex items-center gap-[10px] flex-wrap">
-                    <h3 style={{ fontFamily: 'Poppins', fontSize: 18, fontWeight: 600, margin: 0 }}>
+                    <h3 style={{ fontFamily: 'Geist', fontSize: 18, fontWeight: 600, margin: 0 }}>
                       {application.company_name} · {application.position_name}
                     </h3>
                     <span style={pill(tag.bg, tag.fg)}>{application.status}</span>
@@ -499,10 +500,12 @@ export default function Applications() {
                   </div>
                 </div>
                 <div className="flex gap-2 flex-none flex-wrap">
-                  {next && (
+                  {(next || statusPhases[application.id]) && (
                     <button
                       onClick={() => void advanceStatus(application)}
-                      className="btn-press"
+                      className={`btn-press ${statusPhases[application.id] === 'saved' ? 'sugar-status-success' : ''}`}
+                      disabled={!!statusPhases[application.id]}
+                      aria-busy={statusPhases[application.id] === 'saving'}
                       title={`推进到「${next}」`}
                       style={{
                         ...iconBtnText,
@@ -511,7 +514,7 @@ export default function Applications() {
                         borderColor: '#1b1a17',
                       }}
                     >
-                      <IconArrowRight size={14} /> {next}
+                      {statusPhases[application.id] === 'saving' ? <><span className="sugar-spinner" /> 保存中</> : statusPhases[application.id] === 'saved' ? <><IconCheck size={14} /> 已更新</> : <><IconArrowRight size={14} /> {next}</>}
                     </button>
                   )}
                   <button onClick={() => openEdit(application)} className="btn-press" style={iconBtnText}>
@@ -781,8 +784,10 @@ function KanbanBoard({
   applications,
   onEdit,
   onStatusChange,
+  busyIds,
 }: {
   applications: Application[];
+  busyIds: string[];
   onEdit: (application: Application) => void;
   onStatusChange: (application: Application, status: ApplicationStatus) => void;
 }) {
@@ -878,7 +883,8 @@ function KanbanBoard({
                       <button
                         key={application.id}
                         type="button"
-                        draggable
+                        draggable={!busyIds.includes(application.id)}
+                        disabled={busyIds.includes(application.id)}
                         onDragStart={(event) => {
                           event.dataTransfer.setData('text/application-id', application.id);
                           event.dataTransfer.effectAllowed = 'move';
@@ -926,6 +932,7 @@ function KanbanBoard({
                         <div onClick={(event) => event.stopPropagation()} style={{ marginTop: 10 }}>
                           <Select
                             value={application.status}
+                            disabled={busyIds.includes(application.id)}
                             onChange={(event) => onStatusChange(application, event.target.value as ApplicationStatus)}
                             style={{ height: 34, fontSize: 12.5 }}
                           >

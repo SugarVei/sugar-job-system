@@ -17,7 +17,7 @@ function readStoredScreen(): ScreenKey {
   return 'dashboard';
 }
 
-export interface NavigateOptions { query?: string; applicationsFilter?: ApplicationsListFilter; interviewDate?: string | null; }
+export interface NavigateOptions { add?: boolean; query?: string; applicationsFilter?: ApplicationsListFilter; interviewDate?: string | null; }
 interface AppShellValue {
   screen: ScreenKey; setScreen: (s: ScreenKey) => void; navigate: (s: ScreenKey, opts?: NavigateOptions) => void;
   query: string; setQuery: (q: string) => void; applicationsFilter: ApplicationsListFilter; setApplicationsFilter: (f: ApplicationsListFilter) => void;
@@ -34,17 +34,23 @@ export function AppShellProvider({ children }: { children: ReactNode }) {
   const [assistantTab, setAssistantTab] = useState<ResumeAssistantTab>('overview');
   const [headerChrome, setHeaderChrome] = useState<HeaderChrome | null>(null);
   const addRef = useRef<(() => void) | null>(null);
+  const pendingAdd = useRef<ScreenKey | null>(null);
 
   useEffect(() => { try { sessionStorage.setItem(SCREEN_STORAGE_KEY, screen); } catch { /* ignore */ } }, [screen]);
   const setScreen = useCallback((next: ScreenKey) => { setQuery(''); if (next !== 'applications') setApplicationsFilter('all'); if (next !== 'interviews') setInterviewDateFilter(null); setScreenState(next); }, []);
-  const navigate = useCallback((next: ScreenKey, opts?: NavigateOptions) => { setQuery(opts?.query ?? ''); setApplicationsFilter(next === 'applications' ? opts?.applicationsFilter ?? 'all' : 'all'); setInterviewDateFilter(next === 'interviews' ? opts?.interviewDate ?? null : null); setScreenState(next); }, []);
+  const navigate = useCallback((next: ScreenKey, opts?: NavigateOptions) => {
+    setQuery(opts?.query ?? ''); setApplicationsFilter(next === 'applications' ? opts?.applicationsFilter ?? 'all' : 'all'); setInterviewDateFilter(next === 'interviews' ? opts?.interviewDate ?? null : null);
+    pendingAdd.current = opts?.add ? next : null;
+    if (next === screen && opts?.add && addRef.current) { pendingAdd.current = null; addRef.current(); }
+    setScreenState(next);
+  }, [screen]);
 
   useEffect(() => {
     const applyHash = () => { const [screenPath, tab] = window.location.hash.replace(/^#\/?/, '').split('/'); if (screenPath === 'community-world') setScreen('capitalMap'); if (screenPath === 'interview-reviews') setScreen('resumeAssistant'); if (screenPath === 'resume-assistant') { setScreen('resumeAssistant'); if (['overview', 'profile', 'settings', 'runs'].includes(tab)) setAssistantTab(tab as ResumeAssistantTab); } };
     applyHash(); window.addEventListener('hashchange', applyHash); return () => window.removeEventListener('hashchange', applyHash);
   }, [setScreen]);
   const setAssistantTabWithHash = useCallback((tab: ResumeAssistantTab) => { setAssistantTab(tab); if (window.location.hash !== `#/resume-assistant/${tab}`) window.history.replaceState(null, '', `#/resume-assistant/${tab}`); }, []);
-  const registerAdd = useCallback((fn: (() => void) | null) => { addRef.current = fn; }, []);
+  const registerAdd = useCallback((fn: (() => void) | null) => { addRef.current = fn; if (fn && pendingAdd.current === screen) { pendingAdd.current = null; fn(); } }, [screen]);
   const triggerAdd = useCallback(() => { if (addRef.current) addRef.current(); else setScreen('applications'); }, [setScreen]);
   const value = useMemo(() => ({ screen, setScreen, navigate, query, setQuery, applicationsFilter, setApplicationsFilter, interviewDateFilter, setInterviewDateFilter, registerAdd, triggerAdd, assistantTab, setAssistantTab: setAssistantTabWithHash, headerChrome, setHeaderChrome }), [screen, setScreen, navigate, query, applicationsFilter, interviewDateFilter, registerAdd, triggerAdd, assistantTab, setAssistantTabWithHash, headerChrome]);
   return <AppShellContext.Provider value={value}>{children}</AppShellContext.Provider>;

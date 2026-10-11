@@ -1,3 +1,4 @@
+import ApplicationTrend from './ApplicationTrend';
 import { useMemo, useState, type CSSProperties } from 'react';
 import type { Application, ApplicationStatus, Interview } from '../../types';
 import { useCollection } from '../../hooks/useCollection';
@@ -121,6 +122,7 @@ export default function ApplicationsOverview({ applications, allApplications, fi
       </section>
     </div>
 
+    <ApplicationTrend applications={applications} />
     <section className="ao-card ao-companies" aria-labelledby="ao-companies-title">
       <h2 id="ao-companies-title">公司与岗位进展</h2>
       <p className="ao-subtitle">按公司和岗位查看投递进展</p>
