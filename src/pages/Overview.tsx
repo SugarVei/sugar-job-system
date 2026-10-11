@@ -1,3 +1,4 @@
+import { paletteAccent, paletteCardStyle, paletteChart, paletteTint } from '../lib/customPalette';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import type { Application, ApplicationStatus } from '../types';
 import { useCollection } from '../hooks/useCollection';
@@ -134,7 +135,7 @@ Offer 转化率：${items.length > 0 ? Math.round((byStatus['Offer']/items.lengt
 
       {/* 状态环形图 + 状态筛选 */}
       <div className="grid grid-cols-1 lg:grid-cols-[1fr_1.2fr] gap-[22px]">
-        <div style={{ ...CARD, padding: 24 }}>
+        <div style={{ ...CARD, ...paletteCardStyle(0), padding: 24 }}>
           <div style={{ fontFamily: 'Poppins', fontSize: 17, fontWeight: 600 }}>状态分布</div>
           <div className="flex items-center gap-5" style={{ marginTop: 18, flexWrap: 'wrap' }}>
             <div style={{ position: 'relative', width: 172, height: 172, borderRadius: '50%', background: donut, flex: 'none' }}>
@@ -172,7 +173,7 @@ Offer 转化率：${items.length > 0 ? Math.round((byStatus['Offer']/items.lengt
         </div>
 
         {/* 城市分布 */}
-        <div style={{ ...CARD, padding: 24 }}>
+        <div style={{ ...CARD, ...paletteCardStyle(1), padding: 24 }}>
           <div style={{ fontFamily: 'Poppins', fontSize: 17, fontWeight: 600 }}>投递城市分布</div>
           <div style={{ fontSize: 13, color: '#8a8478', marginTop: 3 }}>按城市统计全部 {stats.total} 份投递</div>
           {cityBars.length === 0 ? (
@@ -183,7 +184,7 @@ Offer 转化率：${items.length > 0 ? Math.round((byStatus['Offer']/items.lengt
                 <div key={city} className="flex flex-col items-center gap-[10px]" style={{ flex: 1, height: '100%', justifyContent: 'flex-end' }}>
                   <div style={{ fontFamily: 'Poppins', fontSize: 14, fontWeight: 700 }}>{v}</div>
                   <div style={{ position: 'relative', width: '100%', maxWidth: 44, flex: 1, background: '#efe9dd', borderRadius: 999 }}>
-                    <div style={{ position: 'absolute', left: 0, right: 0, bottom: 0, borderRadius: 999, background: '#1b1a17', height: `${Math.round((v / cMax) * 100)}%` }} />
+                    <div style={{ position: 'absolute', left: 0, right: 0, bottom: 0, borderRadius: 999, background: paletteChart(city, '#1b1a17'), height: `${Math.round((v / cMax) * 100)}%` }} />
                   </div>
                   <div style={{ fontSize: 12.5, color: '#6b665c', fontWeight: 600, whiteSpace: 'nowrap' }}>{city}</div>
                 </div>
@@ -200,7 +201,7 @@ Offer 转化率：${items.length > 0 ? Math.round((byStatus['Offer']/items.lengt
       </div>
 
       {/* 岗位分布 */}
-      <div style={{ ...CARD, padding: 24 }}>
+      <div style={{ ...CARD, ...paletteCardStyle(2), padding: 24 }}>
         <div style={{ fontFamily: 'Poppins', fontSize: 17, fontWeight: 600 }}>投递岗位分布</div>
         <div style={{ fontSize: 13, color: '#8a8478', marginTop: 3 }}>按岗位名称统计全部 {stats.total} 份投递</div>
         {positionBars.length === 0 ? (
@@ -239,7 +240,7 @@ Offer 转化率：${items.length > 0 ? Math.round((byStatus['Offer']/items.lengt
 
       {/* 渠道分布 + 真实投递曲线，状态筛选继续展示对应列表 */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-[22px]">
-        <div style={{ ...CARD, padding: 24 }}>
+        <div style={{ ...CARD, ...paletteCardStyle(3), padding: 24 }}>
           <div style={{ fontFamily: 'Poppins', fontSize: 17, fontWeight: 600, marginBottom: 18 }}>投递渠道</div>
           {channelBars.length === 0 ? (
             <div style={{ fontSize: 13, color: '#a39d90' }}>暂无渠道信息</div>
@@ -370,7 +371,7 @@ function ApiBalanceCard() {
   const hhmm = (d: Date) => `${d.getHours().toString().padStart(2,'0')}:${d.getMinutes().toString().padStart(2,'0')}`;
 
   return (
-    <div style={{ ...CARD, padding: 24 }}>
+    <div style={{ ...CARD, ...paletteCardStyle(4), padding: 24 }}>
       <div className="flex items-center justify-between flex-wrap gap-3" style={{ marginBottom: 18 }}>
         <div className="flex items-center gap-3">
           <div style={{ width: 38, height: 38, borderRadius: 12, background: '#e8f4fd', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 18 }}>{provider.emoji}</div>
@@ -408,10 +409,10 @@ function ApiBalanceCard() {
 
       {apiKey && !provider.supportsBalance && (
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-          <div style={{ background: '#dcebd5', borderRadius: 16, padding: '16px 18px', gridColumn: 'span 2' }}>
-            <div style={{ fontSize: 12, fontWeight: 600, color: '#2f5d36', opacity: 0.85 }}>当前服务商</div>
-            <div style={{ fontFamily: 'Poppins', fontSize: 20, fontWeight: 700, color: '#2f5d36', margin: '5px 0 2px' }}>{provider.emoji} {provider.label}</div>
-            <div style={{ fontSize: 11.5, color: '#2f5d36', opacity: 0.7 }}>该服务商不提供余额查询 API</div>
+          <div style={{ background: paletteTint(1, '#dcebd5'), borderRadius: 16, padding: '16px 18px', gridColumn: 'span 2' }}>
+            <div style={{ fontSize: 12, fontWeight: 600, color: paletteAccent(1, '#2f5d36'), opacity: 0.85 }}>当前服务商</div>
+            <div style={{ fontFamily: 'Poppins', fontSize: 20, fontWeight: 700, color: paletteAccent(1, '#2f5d36'), margin: '5px 0 2px' }}>{provider.emoji} {provider.label}</div>
+            <div style={{ fontSize: 11.5, color: paletteAccent(1, '#2f5d36'), opacity: 0.7 }}>该服务商不提供余额查询 API</div>
           </div>
           <a
             href={provider.topUpUrl}
@@ -432,10 +433,10 @@ function ApiBalanceCard() {
 
       {apiKey && provider.supportsBalance && !error && balance && (
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-          <div style={{ background: '#dcebd5', borderRadius: 16, padding: '16px 18px' }}>
-            <div style={{ fontSize: 12, fontWeight: 600, color: '#2f5d36', opacity: 0.85 }}>总余额</div>
-            <div style={{ fontFamily: 'Poppins', fontSize: 28, fontWeight: 700, color: '#2f5d36', margin: '5px 0 2px' }}>{fmt(balance.total_balance)}</div>
-            <div style={{ fontSize: 11.5, color: '#2f5d36', opacity: 0.7 }}>{balance.currency}</div>
+          <div style={{ background: paletteTint(1, '#dcebd5'), borderRadius: 16, padding: '16px 18px' }}>
+            <div style={{ fontSize: 12, fontWeight: 600, color: paletteAccent(1, '#2f5d36'), opacity: 0.85 }}>总余额</div>
+            <div style={{ fontFamily: 'Poppins', fontSize: 28, fontWeight: 700, color: paletteAccent(1, '#2f5d36'), margin: '5px 0 2px' }}>{fmt(balance.total_balance)}</div>
+            <div style={{ fontSize: 11.5, color: paletteAccent(1, '#2f5d36'), opacity: 0.7 }}>{balance.currency}</div>
           </div>
           <div style={{ background: '#fbeec2', borderRadius: 16, padding: '16px 18px' }}>
             <div style={{ fontSize: 12, fontWeight: 600, color: '#7a5a12', opacity: 0.85 }}>充值余额</div>
@@ -479,9 +480,9 @@ function StatCard({
 }) {
   const body = (
     <>
-      <div style={{ fontSize: 13, fontWeight: 600, color: fg, opacity: 0.85 }}>{label}</div>
-      <div style={{ fontFamily: 'Poppins', fontSize: 34, fontWeight: 700, color: fg, margin: '6px 0 2px' }}>{value}</div>
-      <div style={{ fontSize: 12, color: fg, opacity: 0.72 }}>{sub}</div>
+      <div style={{ fontSize: 13, fontWeight: 600, color: paletteAccent(label, fg), opacity: 0.85 }}>{label}</div>
+      <div style={{ fontFamily: 'Poppins', fontSize: 34, fontWeight: 700, color: paletteAccent(label, fg), margin: '6px 0 2px' }}>{value}</div>
+      <div style={{ fontSize: 12, color: paletteAccent(label, fg), opacity: 0.72 }}>{sub}</div>
     </>
   );
   if (onClick) {
@@ -490,14 +491,14 @@ function StatCard({
         type="button"
         onClick={onClick}
         className="card-hover btn-press"
-        style={{ background: bg, borderRadius: 20, padding: '20px 22px', border: 'none', textAlign: 'left', cursor: 'pointer', width: '100%' }}
+        style={{ ...paletteCardStyle(label, bg, fg), borderRadius: 20, padding: '20px 22px', border: 'none', textAlign: 'left', cursor: 'pointer', width: '100%' }}
       >
         {body}
       </button>
     );
   }
   return (
-    <div style={{ background: bg, borderRadius: 20, padding: '20px 22px' }}>
+    <div style={{ ...paletteCardStyle(label, bg, fg), borderRadius: 20, padding: '20px 22px' }}>
       {body}
     </div>
   );

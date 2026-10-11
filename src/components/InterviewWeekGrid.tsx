@@ -1,3 +1,4 @@
+import { paletteCardVariables } from '../lib/customPalette';
 import { moveInterviewToHour } from '../lib/interviewCalendar';
 import { useRef, useState } from 'react';
 import type { Interview } from '../types';
@@ -82,6 +83,7 @@ export default function InterviewWeekGrid({ days, entries, onOpen, onCreate, onD
                   }}
                   onDragEnd={clearDrag}
                   onClick={() => { if (Date.now() >= suppressClickUntil.current) onOpen(ev); }}
+                  style={paletteCardVariables(ev.id)}
                   className={`interview-event-card tone-${(index + eventIndex) % 5}${events.length > 1 ? ' is-compact' : ''}${draggingId === ev.id ? ' is-dragging' : ''}${movingId === ev.id ? ' is-saving' : ''}`}
                   title={`${ev.company_name} · ${time(date)} · 拖动改期，单击查看详情`}
                   aria-label={`${ev.company_name}，${time(date)}，${ev.round || '面试'}，拖动改期，单击查看详情`}>

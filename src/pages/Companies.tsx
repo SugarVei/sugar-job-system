@@ -1,3 +1,4 @@
+import { paletteCardStyle } from '../lib/customPalette';
 import { useMemo, useRef, useState } from 'react';
 import type { Application, Company, NewRecord } from '../types';
 import { useCollection } from '../hooks/useCollection';
@@ -178,7 +179,7 @@ export default function Companies() {
           {filtered.map(({ company, applications: relatedApplications }) => {
             const color = avatarColor(company.company_name);
             return (
-              <div key={company.id} className="card-hover" style={{ ...CARD, padding: 22 }}>
+              <div key={company.id} className="card-hover" style={{ ...CARD, ...paletteCardStyle(company.id), padding: 22 }}>
                 <div className="flex items-start justify-between gap-[10px]">
                   <div className="flex items-center gap-[11px]" style={{ minWidth: 0 }}>
                     <div

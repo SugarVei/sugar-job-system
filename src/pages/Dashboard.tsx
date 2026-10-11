@@ -1,3 +1,4 @@
+import { paletteAccent, paletteCardStyle, paletteTint } from '../lib/customPalette';
 import { useMemo } from 'react';
 import type { Application, ApplicationPriority, Interview } from '../types';
 import { useCollection } from '../hooks/useCollection';
@@ -133,21 +134,21 @@ export default function Dashboard() {
           fillHeight
         />
 
-        <div style={{ height: '100%', background: '#dcebd5', borderRadius: 26, padding: 24 }}>
+        <div style={{ height: '100%', ...paletteCardStyle(1, '#dcebd5', '#2f5d36'), borderRadius: 26, padding: 24 }}>
           <div className="flex items-center justify-between" style={{ marginBottom: 16 }}>
-            <div style={{ fontFamily: 'Poppins', fontSize: 17, fontWeight: 600, color: '#2f5d36' }}>本月面试</div>
+            <div style={{ fontFamily: 'Poppins', fontSize: 17, fontWeight: 600, color: paletteAccent(1, '#2f5d36') }}>本月面试</div>
             <button
               type="button"
               onClick={() => navigate('interviews')}
               className="btn-press"
-              style={{ fontSize: 13, fontWeight: 600, color: '#4a7a51', background: 'none', border: 'none', cursor: 'pointer' }}
+              style={{ fontSize: 13, fontWeight: 600, color: paletteAccent(1, '#4a7a51'), background: 'none', border: 'none', cursor: 'pointer' }}
             >
               {now.getMonth() + 1} 月 · 查看全部
             </button>
           </div>
           <div className="grid grid-cols-7 gap-[2px]" style={{ marginBottom: 6 }}>
             {['一', '二', '三', '四', '五', '六', '日'].map((w) => (
-              <div key={w} style={{ textAlign: 'center', fontSize: 11.5, fontWeight: 600, color: '#8aa890', padding: '4px 0' }}>{w}</div>
+              <div key={w} style={{ textAlign: 'center', fontSize: 11.5, fontWeight: 600, color: paletteAccent(1, '#8aa890'), padding: '4px 0' }}>{w}</div>
             ))}
           </div>
           <div className="grid grid-cols-7 gap-1">
@@ -172,8 +173,8 @@ export default function Dashboard() {
                       height: 32,
                       borderRadius: '50%',
                       border: d.isToday ? 'none' : d.hasEvent ? '1.8px solid #7cbf85' : 'none',
-                      background: d.isToday ? '#5fa86b' : 'transparent',
-                      color: d.isToday ? '#fff' : d.hasEvent ? '#3f7a47' : '#5d7a62',
+                      background: d.isToday ? 'var(--sugar-primary, #5fa86b)' : 'transparent',
+                      color: d.isToday ? '#fff' : d.hasEvent ? paletteAccent(1, '#3f7a47') : paletteAccent(1, '#5d7a62'),
                       display: 'flex',
                       alignItems: 'center',
                       justifyContent: 'center',
@@ -190,8 +191,8 @@ export default function Dashboard() {
               </div>
             ))}
           </div>
-          <div className="flex gap-4" style={{ marginTop: 16, paddingTop: 14, borderTop: '1px solid rgba(95,140,100,.2)', fontSize: 12, color: '#4a7a51' }}>
-            <span className="flex items-center gap-[6px]"><span style={{ width: 10, height: 10, borderRadius: '50%', background: '#5fa86b' }} />今天</span>
+          <div className="flex gap-4" style={{ marginTop: 16, paddingTop: 14, borderTop: '1px solid rgba(95,140,100,.2)', fontSize: 12, color: paletteAccent(1, '#4a7a51') }}>
+            <span className="flex items-center gap-[6px]"><span style={{ width: 10, height: 10, borderRadius: '50%', background: 'var(--sugar-primary, #5fa86b)' }} />今天</span>
             <span className="flex items-center gap-[6px]"><span style={{ width: 10, height: 10, borderRadius: '50%', border: '1.8px solid #7cbf85' }} />有面试 · 可点</span>
           </div>
         </div>
@@ -199,6 +200,7 @@ export default function Dashboard() {
 
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         <Metric
+          slot={0}
           label="进行中"
           value={stats.inProgress}
           bg="#fbeec2"
@@ -208,6 +210,7 @@ export default function Dashboard() {
           hint="查看进行中投递"
         />
         <Metric
+          slot={1}
           label="本周面试"
           value={stats.weekInterviews}
           bg="#dcebd5"
@@ -217,6 +220,7 @@ export default function Dashboard() {
           hint="打开面试日历"
         />
         <Metric
+          slot={2}
           label="投递总数"
           value={stats.total}
           bg="#ece4d6"
@@ -226,6 +230,7 @@ export default function Dashboard() {
           hint="全部投递记录"
         />
         <Metric
+          slot={3}
           label="已获 Offer"
           value={stats.offers}
           bg="#fbe0d8"
@@ -238,17 +243,17 @@ export default function Dashboard() {
 
       <div className="grid grid-cols-1 lg:grid-cols-[1fr_1.7fr] gap-[22px]">
         <div className="flex flex-col gap-[18px]">
-          <div style={{ ...CARD, padding: 22 }}>
+          <div style={{ ...CARD, ...paletteCardStyle(2), padding: 22 }}>
             <div className="flex items-center justify-between gap-3">
               <div>
                 <div style={{ fontFamily: 'Poppins', fontSize: 16, fontWeight: 600 }}>投递进度</div>
-                <div style={{ fontSize: 13, color: '#8a8478', marginTop: 3 }}>本季目标 {goalTarget} 份</div>
+                <div style={{ fontSize: 13, color: 'var(--sugar-muted, #8a8478)', marginTop: 3 }}>本季目标 {goalTarget} 份</div>
               </div>
               <div style={{ position: 'relative', width: 96, height: 96, flex: 'none' }}>
                 <div style={{ position: 'absolute', inset: 0, borderRadius: '50%', background: `conic-gradient(${theme.accent} 0% ${goalPct}%, #ece4d6 ${goalPct}% 100%)` }} />
-                <div style={{ position: 'absolute', inset: 10, borderRadius: '50%', background: '#fffdf8', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
+                <div style={{ position: 'absolute', inset: 10, borderRadius: '50%', background: 'var(--sugar-surface, #fffdf8)', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
                   <div style={{ fontFamily: 'Poppins', fontSize: 22, fontWeight: 700, lineHeight: 1 }}>{stats.total}</div>
-                  <div style={{ fontSize: 10.5, color: '#8a8478' }}>/ {goalTarget}</div>
+                  <div style={{ fontSize: 10.5, color: 'var(--sugar-muted, #8a8478)' }}>/ {goalTarget}</div>
                 </div>
               </div>
             </div>
@@ -257,22 +262,22 @@ export default function Dashboard() {
             type="button"
             onClick={() => navigate('applications', { applicationsFilter: '待跟进' })}
             className="btn-press"
-            style={{ background: '#1b1a17', borderRadius: 22, padding: 22, color: '#f3efe7', textAlign: 'left', border: 'none', cursor: 'pointer' }}
+            style={{ background: 'var(--sugar-primary, #1b1a17)', borderRadius: 22, padding: 22, color: '#f3efe7', textAlign: 'left', border: 'none', cursor: 'pointer' }}
           >
-            <div style={{ fontSize: 13, color: '#bdb6a5' }}>待跟进 · 点击处理</div>
+            <div style={{ fontSize: 13, color: 'var(--sugar-on-accent, #bdb6a5)' }}>待跟进 · 点击处理</div>
             <div className="flex items-baseline gap-[6px]" style={{ margin: '6px 0 14px' }}>
               <span style={{ fontFamily: 'Poppins', fontSize: 32, fontWeight: 700 }}>{stats.followUps}</span>
-              <span style={{ fontSize: 13, color: '#bdb6a5' }}>条需要处理</span>
+              <span style={{ fontSize: 13, color: 'var(--sugar-on-accent, #bdb6a5)' }}>条需要处理</span>
             </div>
             <div style={{ height: 10, borderRadius: 999, background: 'rgba(255,255,255,.12)', overflow: 'hidden' }}>
               <div style={{ height: '100%', width: `${stats.total ? Math.round((stats.followUps / stats.total) * 100) : 0}%`, borderRadius: 999, background: 'linear-gradient(90deg,#f4c84a,#f0613f)' }} />
             </div>
           </button>
-          <div style={{ ...CARD, padding: 22 }}>
+          <div style={{ ...CARD, ...paletteCardStyle(3), padding: 22 }}>
             <div style={{ fontFamily: 'Poppins', fontSize: 16, fontWeight: 600 }}>今日待办 / 临近截止</div>
-            <div style={{ fontSize: 12.5, color: '#8a8478', margin: '3px 0 14px' }}>下一步到期或 3 天内截止</div>
+            <div style={{ fontSize: 12.5, color: 'var(--sugar-muted, #8a8478)', margin: '3px 0 14px' }}>下一步到期或 3 天内截止</div>
             {todoApps.length === 0 ? (
-              <div style={{ fontSize: 13, color: '#a39d90', padding: '8px 0' }}>暂无临近事项。把下一步动作和时间填进投递记录，这里会自动汇总。</div>
+              <div style={{ fontSize: 13, color: 'var(--sugar-muted, #a39d90)', padding: '8px 0' }}>暂无临近事项。把下一步动作和时间填进投递记录，这里会自动汇总。</div>
             ) : (
               <div className="flex flex-col gap-2">
                 {todoApps.map((app) => {
@@ -324,6 +329,7 @@ export default function Dashboard() {
 }
 
 function Metric({
+  slot,
   label,
   value,
   bg,
@@ -332,6 +338,7 @@ function Metric({
   onClick,
   hint,
 }: {
+  slot: number;
   label: string;
   value: number;
   bg: string;
@@ -348,6 +355,7 @@ function Metric({
       className="card-hover btn-press"
       style={{
         ...CARD,
+        ...paletteCardStyle(slot),
         borderRadius: 20,
         padding: 20,
         display: 'flex',
@@ -360,11 +368,11 @@ function Metric({
       }}
     >
       <div>
-        <div style={{ fontSize: 13, color: '#8a8478' }}>{label}</div>
+        <div style={{ fontSize: 13, color: 'var(--sugar-muted, #8a8478)' }}>{label}</div>
         <div style={{ fontFamily: 'Poppins', fontSize: 30, fontWeight: 600, marginTop: 3 }}>{value}</div>
-        {hint && <div style={{ fontSize: 11, color: '#b0a898', marginTop: 4 }}>{hint}</div>}
+        {hint && <div style={{ fontSize: 11, color: 'var(--sugar-muted, #b0a898)', marginTop: 4 }}>{hint}</div>}
       </div>
-      <div style={{ width: 46, height: 46, borderRadius: 14, background: bg, color: fg, display: 'flex', alignItems: 'center', justifyContent: 'center', flex: 'none' }}>
+      <div style={{ width: 46, height: 46, borderRadius: 14, background: paletteTint(slot, bg), color: paletteAccent(slot, fg), display: 'flex', alignItems: 'center', justifyContent: 'center', flex: 'none' }}>
         {icon}
       </div>
     </button>

@@ -6,6 +6,7 @@ import { useAppShell } from '../contexts/AppShellContext';
 import { useProfile } from '../hooks/useProfile';
 import { MOBILE_MORE_NAV, MOBILE_PRIMARY_NAV, greetFor } from '../components/navConfig';
 import ThemeSwitcher from '../components/ThemeSwitcher';
+import PaletteStudio from '../components/PaletteStudio';
 import AppSidebar from '../components/AppSidebar';
 import PetAnnouncement from '../components/web-pet/PetAnnouncement';
 import AvatarFeatureAnnouncement from '../components/AvatarFeatureAnnouncement';
@@ -55,7 +56,7 @@ export default function AppLayout({ children }: { children: ReactNode }) {
         minHeight: 0,
         width: '100%',
         display: 'flex',
-        color: '#1b1a17',
+        color: 'var(--sugar-ink, #1b1a17)',
         overflow: 'hidden',
       }}
       className="app-fullscreen-root"
@@ -65,7 +66,7 @@ export default function AppLayout({ children }: { children: ReactNode }) {
         style={{
           flex: 1,
           minWidth: 0,
-          background: 'rgba(250,246,240,0.66)',
+          background: 'var(--sugar-shell, rgba(250,246,240,0.66))',
           backdropFilter: 'blur(34px) saturate(1.15)',
           WebkitBackdropFilter: 'blur(34px) saturate(1.15)',
           display: 'flex',
@@ -89,7 +90,7 @@ export default function AppLayout({ children }: { children: ReactNode }) {
         <main style={{ flex: 1, minWidth: 0, minHeight: 0, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
           {/* 移动端顶部条（< lg 显示） */}
           <div
-            className="flex lg:hidden"
+            className="sugar-mobile-header flex lg:hidden"
             style={{
               alignItems: 'center',
               justifyContent: 'space-between',
@@ -159,7 +160,7 @@ export default function AppLayout({ children }: { children: ReactNode }) {
                   alignItems: 'center',
                   gap: 9,
                   height: 46,
-                  background: '#fffdf8',
+                  background: 'var(--sugar-surface, #fffdf8)',
                   borderRadius: 14,
                   padding: '0 16px',
                   boxShadow: '0 4px 14px rgba(60,50,35,.05)',
@@ -231,7 +232,7 @@ export default function AppLayout({ children }: { children: ReactNode }) {
                 type="button"
                 aria-label="关闭"
                 onClick={() => setMobileMoreOpen(false)}
-                style={{ width: 34, height: 34, borderRadius: 10, border: '1px solid #e4ddcf', background: '#fffdf8', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                style={{ width: 34, height: 34, borderRadius: 10, border: '1px solid #e4ddcf', background: 'var(--sugar-surface, #fffdf8)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
               >
                 <IconClose size={16} />
               </button>
@@ -337,6 +338,7 @@ export default function AppLayout({ children }: { children: ReactNode }) {
         </button>
       </nav>
       <CommandPalette />
+      <PaletteStudio />
       <AvatarPicker
         open={avatarPickerOpen}
         onClose={() => setAvatarPickerOpen(false)}
@@ -363,8 +365,8 @@ const addBtn: React.CSSProperties = {
   padding: '0 18px',
   border: 'none',
   borderRadius: 14,
-  background: '#1b1a17',
-  color: '#f4f1ea',
+  background: 'var(--sugar-primary, #1b1a17)',
+  color: 'var(--sugar-on-accent, #f4f1ea)',
   fontSize: 14.5,
   fontWeight: 600,
   cursor: 'pointer',
@@ -377,7 +379,7 @@ const mobileIconBtn: React.CSSProperties = {
   height: 40,
   borderRadius: 12,
   border: '1px solid #e0d8c9',
-  background: '#fffdf8',
+  background: 'var(--sugar-surface, #fffdf8)',
   color: '#4a463e',
   display: 'flex',
   alignItems: 'center',

@@ -1,3 +1,4 @@
+import { paletteCardStyle } from '../lib/customPalette';
 import { useResumeTask } from '../contexts/ResumeTaskContext';
 import { useToast } from '../components/Toast';
 import { lazy, Suspense, useEffect, useMemo, useRef, useState } from 'react';
@@ -445,7 +446,7 @@ function ResumeCard({
   };
 
   return (
-    <div className="card-hover" style={{ ...CARD, padding: 24 }}>
+    <div className="card-hover" style={{ ...CARD, ...paletteCardStyle(resume.id), padding: 24 }}>
       <div className="flex items-start justify-between gap-3">
         <div>
           <h3 style={{ fontFamily: 'Geist', fontSize: 18, fontWeight: 600, margin: '0 0 10px' }}>{resume.resume_name}</h3>

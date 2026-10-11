@@ -1,3 +1,4 @@
+import { paletteCardStyle } from '../lib/customPalette';
 import MotionTabs from '../components/MotionTabs';
 import { useToast } from '../components/Toast';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
@@ -461,6 +462,7 @@ export default function Applications() {
               className="card-hover"
               style={{
                 ...CARD,
+                ...paletteCardStyle(application.id),
                 padding: '22px 24px',
                 border: overdue ? '1px solid #f3b3a1' : undefined,
                 boxShadow: overdue ? '0 6px 18px rgba(162,61,36,.08)' : CARD.boxShadow,
@@ -903,7 +905,7 @@ function KanbanBoard({
                           padding: 14,
                           textAlign: 'left',
                           cursor: 'grab',
-                          background: overdue ? '#fff8f5' : CARD.background,
+                          ...paletteCardStyle(application.id, overdue ? '#fff8f5' : String(CARD.background)),
                           opacity: draggingId === application.id ? 0.55 : 1,
                         }}
                       >

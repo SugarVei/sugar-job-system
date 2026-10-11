@@ -1,3 +1,4 @@
+import { paletteAccent, paletteCardStyle, paletteChart, paletteTint } from '../../lib/customPalette';
 import ApplicationTrend from './ApplicationTrend';
 import { useMemo, useState, type CSSProperties } from 'react';
 import type { Application, ApplicationStatus, Interview } from '../../types';
@@ -83,8 +84,8 @@ export default function ApplicationsOverview({ applications, allApplications, fi
 
   return <div className="applications-overview">
     <section className="ao-metrics" aria-label="投递统计">
-      {metrics.map(metric => <article className="ao-card ao-metric" key={metric.label} title={metric.title}>
-        <div className="ao-metric-icon" style={{ color: metric.color, background: metric.bg }} aria-hidden="true">{metric.icon}</div>
+      {metrics.map((metric, index) => <article className="ao-card ao-metric" key={metric.label} style={paletteCardStyle(index)} title={metric.title}>
+        <div className="ao-metric-icon" style={{ color: paletteAccent(index, metric.color), background: paletteTint(index, metric.bg) }} aria-hidden="true">{metric.icon}</div>
         <div className="ao-metric-copy"><h2>{metric.label}</h2><div className="ao-metric-value">{metric.value}<span>{metric.detail}</span></div></div>
       </article>)}
     </section>
@@ -112,7 +113,7 @@ export default function ApplicationsOverview({ applications, allApplications, fi
         {interviewsLoading ? <p className="ao-inline-empty" role="status">正在加载面试安排…</p>
           : interviewsError ? <div className="ao-inline-empty" role="alert">面试安排加载失败<button type="button" className="ao-text-button" onClick={() => void refresh()}>重试</button></div>
           : activity.length === 0 ? <p className="ao-inline-empty">暂无与当前投递匹配的面试安排</p>
-          : <ol className="ao-timeline">{activity.map((interview, index) => <li key={interview.id} style={{ '--event-color': ['#5286f5', '#56babc', '#73b773'][index] } as CSSProperties}>
+          : <ol className="ao-timeline">{activity.map((interview, index) => <li key={interview.id} style={{ '--event-color': paletteChart(interview.id, ['#5286f5', '#56babc', '#73b773'][index]) } as CSSProperties}>
             <button type="button" className="ao-event" onClick={() => navigate('interviews', { query: interview.company_name, interviewDate: null })}>
               <div className="ao-event-copy"><strong>{interview.company_name}{interview.position_name ? ` · ${interview.position_name}` : ''}</strong>
                 <span>{dateLabel(interview.interview_time, true)}{interview.interview_type ? ` · ${interview.interview_type}` : ''}</span></div>

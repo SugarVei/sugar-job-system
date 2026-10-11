@@ -89,7 +89,7 @@ export default function Modal({
           width: '100%',
           maxWidth,
           maxHeight,
-          background: 'rgba(255,253,250,0.98)',
+          background: 'var(--sugar-surface, rgba(255,253,250,0.98))',
           backdropFilter: 'blur(24px)',
           WebkitBackdropFilter: 'blur(24px)',
           border: '1px solid rgba(255,255,255,0.6)',
@@ -145,7 +145,7 @@ export default function Modal({
             style={{
               padding: '14px 24px 20px',
               borderTop: '1px solid #f0ebe0',
-              background: 'rgba(255,253,250,0.98)',
+              background: 'var(--sugar-surface, rgba(255,253,250,0.98))',
               display: 'flex',
               gap: 10,
               justifyContent: 'flex-end',

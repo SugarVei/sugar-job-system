@@ -1,3 +1,4 @@
+import { paletteCardStyle, paletteTint } from '../lib/customPalette';
 import { useEffect, useMemo, useState } from 'react';
 import type { Application, NewOffer, Offer, OfferStatus } from '../types';
 import { useCollection } from '../hooks/useCollection';
@@ -131,7 +132,7 @@ export default function Offers() {
   return <div className="flex flex-col gap-[18px] animate-rise">
     {db.error && <FormError message={db.error} />}
     <div className="grid grid-cols-2 xl:grid-cols-6 gap-3">{stats.map(([a,b,c],i) =>
-      <div key={String(a)} style={{ ...CARD, padding: 16, background: ['#f9dfe7','#fbeec2','#dcebd5','#e6e2da','#dde8fb',theme.accentSoft][i] }}>
+      <div key={String(a)} style={{ ...CARD, padding: 16, background: paletteTint(i, ['#f9dfe7','#fbeec2','#dcebd5','#e6e2da','#dde8fb',theme.accentSoft][i]) }}>
         <div className="text-xs font-semibold opacity-70">{a}</div><div className="text-xl font-bold mt-1 truncate">{b}</div><div className="text-[11px] opacity-60 mt-1 truncate">{c}</div>
       </div>)}</div>
     <div className="module-toolbar offer-toolbar" style={{ ...CARD, borderRadius: 18 }}>
@@ -147,7 +148,7 @@ export default function Offers() {
       <EmptyState text="还没有收到 Offer，可以先从投递记录中标记 Offer，或手动新增一个 Offer。" actionLabel="新增 Offer" onAction={openCreate} /> :
       <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">{list.map(o => {
         const urgent = o.reply_deadline && (+new Date(o.reply_deadline) - Date.now()) / 86400000 <= 4;
-        return <article key={o.id} className="card-hover" style={{ ...CARD, padding: 20 }}>
+        return <article key={o.id} className="card-hover" style={{ ...CARD, ...paletteCardStyle(o.id), padding: 20 }}>
           <div className="flex justify-between gap-3"><div><h3 className="font-bold text-lg m-0">{o.company_name}</h3><p className="text-sm text-[#8a8478] mt-1">{o.position_name} · {o.city || '城市未填'}</p></div><span style={pill(o.offer_status)}>{o.offer_status}</span></div>
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 my-4 text-sm"><Metric label="月薪" value={money(o.base_salary)} /><Metric label="年包" value={money(o.annual_package)} /><Metric label="回复截止" value={dt(o.reply_deadline)} warn={!!urgent} /><Metric label="综合评分" value={o.total_score == null ? '—' : `${o.total_score} 分`} /></div>
           <div className="flex flex-wrap gap-2 mb-4">{risks(o).map(x => <span key={x} className="text-xs px-2 py-1 rounded-full bg-[#fbe0d8] text-[#a23d24]">{x}</span>)}</div>

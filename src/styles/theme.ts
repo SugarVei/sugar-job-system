@@ -4,7 +4,8 @@
 // 以便切换主题时按钮 / 重点色 / 卡片装饰色同步联动。
 // ============================================================
 
-export type ThemeKey = 'pink' | 'blue' | 'green' | 'gray' | 'cream' | 'peach';
+export type PresetThemeKey = 'pink' | 'blue' | 'green' | 'gray' | 'cream' | 'peach';
+export type ThemeKey = PresetThemeKey | 'custom';
 
 export interface ThemeDef {
   /** 中文名（用于 title 提示） */
@@ -23,7 +24,7 @@ export interface ThemeDef {
   accentSoft: string;
 }
 
-export const THEMES: Record<ThemeKey, ThemeDef> = {
+export const THEMES: Record<PresetThemeKey, ThemeDef> = {
   peach: { name: '蜜桃', base: 'radial-gradient(130% 130% at 70% 20%, #fbf3e9 0%, #f6eadd 38%, #eddacb 100%)', vig: 'rgba(130,80,40,.06)', dot: '#e7bfa7', blobs: ['224,192,170', '235,207,183', '206,173,150', '242,221,198', '235,212,195', '218,184,160'], accent: '#a26346', accentSoft: '#f4e4d9' },
   pink: {
     name: '粉色',
@@ -72,7 +73,7 @@ export const THEMES: Record<ThemeKey, ThemeDef> = {
   },
 };
 
-export const THEME_ORDER: ThemeKey[] = ['pink', 'cream', 'peach', 'green', 'blue', 'gray'];
+export const THEME_ORDER: PresetThemeKey[] = ['pink', 'cream', 'peach', 'green', 'blue', 'gray'];
 
 /** 流光球的几何分布（位置、模糊、动画） */
 export const BLOB_GEO = [

@@ -1,3 +1,4 @@
+import { paletteCardStyle } from '../lib/customPalette';
 import { useMemo, useRef, useState, type CSSProperties, type KeyboardEvent } from 'react';
 import { type HotCompany } from '../data/hotCompanies';
 import StandardCatalogImporter from '../components/StandardCatalogImporter';
@@ -759,7 +760,7 @@ function CompanyCard({
       className="card-hover"
       style={{
         position: 'relative',
-        background: applied ? 'linear-gradient(145deg, rgba(239,247,255,.98), rgba(224,238,253,.94))' : 'rgba(255,253,248,.88)',
+        ...paletteCardStyle(company.name, applied ? 'linear-gradient(145deg, rgba(239,247,255,.98), rgba(224,238,253,.94))' : 'rgba(255,253,248,.88)'),
         border: applied ? '1.5px solid #83add8' : '1px solid #e0d8c9',
         borderRadius: 16,
         padding: 16,

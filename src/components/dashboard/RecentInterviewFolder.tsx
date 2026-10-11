@@ -1,3 +1,4 @@
+import { paletteAccent, paletteTint } from '../../lib/customPalette';
 import { useEffect, useId, useLayoutEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
 import { createPortal } from 'react-dom';
 import { ArrowLeft, CalendarDays, ChevronDown, ChevronLeft, ChevronRight, MousePointer2, X } from 'lucide-react';
@@ -18,9 +19,9 @@ function interviewDate(value: string | null) {
 function shortTime(date: Date | null) {
   return date?.toLocaleString('zh-CN', { month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', hour12: false }) ?? '时间待定';
 }
-function colors(index: number): CSSProperties {
+function colors(index: number, key: string | number = index): CSSProperties {
   const [accent, tint] = PALETTES[index % PALETTES.length];
-  return { '--rif-accent': accent, '--rif-tint': tint } as CSSProperties;
+  return { '--rif-accent': paletteAccent(key, accent), '--rif-tint': paletteTint(key, tint) } as CSSProperties;
 }
 
 interface CardOrigin { x: number; y: number; width: number; height: number; angle: number }
@@ -112,7 +113,7 @@ export default function RecentInterviewFolder({ interviews, onViewAll, onViewCal
               return (
                 <button key={iv.id} type="button"
                   className={`rif-card${selection?.interview.id === iv.id ? ' rif-selected' : ''}`}
-                  style={{ ...colors(index), '--rif-i': index, '--rif-c': c, '--rif-y': `${-135 + Math.abs(c) * 24}px`, '--rif-r': `${c * 12}deg` } as CSSProperties}
+                  style={{ ...colors(index, iv.id), '--rif-i': index, '--rif-c': c, '--rif-y': `${-135 + Math.abs(c) * 24}px`, '--rif-r': `${c * 12}deg` } as CSSProperties}
                   tabIndex={isOpen ? 0 : -1} aria-hidden={!isOpen} disabled={!isOpen}
                   aria-label={`${iv.company_name}，${iv.position_name || '岗位待补充'}，${shortTime(interviewDate(iv.interview_time))}，查看面试详情`}
                   onClick={(event) => setSelection({ interview: iv, index, source: event.currentTarget, origin: measureOrigin(event.currentTarget) })}>
@@ -206,7 +207,7 @@ function InterviewDetail({ selection, onClose, onViewCalendar }: { selection: Se
     <dialog ref={dialogRef} className="rif-dialog" aria-labelledby={titleId}
       onCancel={(event) => { event.preventDefault(); void close(); }}
       onClick={(event) => { if (event.target === event.currentTarget) void close(); }}>
-      <article ref={sheetRef} className="rif-detail-sheet" style={colors(index)}>
+      <article ref={sheetRef} className="rif-detail-sheet" style={colors(index, iv.id)}>
         <button type="button" className="rif-close" aria-label="关闭面试详情" onClick={() => void close()}><X size={15} /></button>
         <div className="rif-card-top"><span className="rif-mark">{initialOf(iv.company_name)}</span><span className="rif-round">{iv.round || '面试'}</span></div>
         <h2 className="rif-company" id={titleId}>{iv.company_name}</h2><span className="rif-role">{iv.position_name || '岗位待补充'}</span>

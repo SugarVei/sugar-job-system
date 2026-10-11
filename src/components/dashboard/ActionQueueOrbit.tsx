@@ -1,3 +1,4 @@
+import { paletteCardVariables } from '../../lib/customPalette';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { Application } from '../../types';
 import './ActionQueueOrbit.css';
@@ -109,7 +110,7 @@ function QueueCard({ item, duplicate, onOpen }: {
       </span>
     </>
   );
-  const style = { '--aq-card-width': `${item.width}px` } as React.CSSProperties;
+  const style = { ...paletteCardVariables(item.id), '--aq-card-width': `${item.width}px` } as React.CSSProperties;
 
   if (duplicate) {
     return <div className={`action-queue-card action-queue-card--${item.colorVariant}`} style={style}>{content}</div>;

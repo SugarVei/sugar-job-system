@@ -28,6 +28,8 @@ const AppShellContext = createContext<AppShellValue | null>(null);
 
 export function AppShellProvider({ children }: { children: ReactNode }) {
   const [screen, setScreenState] = useState<ScreenKey>(() => readStoredScreen());
+  const screenRef = useRef(screen);
+  useEffect(() => { screenRef.current = screen; }, [screen]);
   const [query, setQuery] = useState('');
   const [applicationsFilter, setApplicationsFilter] = useState<ApplicationsListFilter>('all');
   const [interviewDateFilter, setInterviewDateFilter] = useState<string | null>(null);
@@ -46,7 +48,7 @@ export function AppShellProvider({ children }: { children: ReactNode }) {
   }, [screen]);
 
   useEffect(() => {
-    const applyHash = () => { const [screenPath, tab] = window.location.hash.replace(/^#\/?/, '').split('/'); if (screenPath === 'community-world') setScreen('capitalMap'); if (screenPath === 'interview-reviews') setScreen('resumeAssistant'); if (screenPath === 'resume-assistant') { setScreen('resumeAssistant'); if (['overview', 'profile', 'settings', 'runs'].includes(tab)) setAssistantTab(tab as ResumeAssistantTab); } };
+    const applyHash = () => { const [screenPath, tab] = window.location.hash.replace(/^#\/?/, '').split('/'); if (screenPath === 'community-world' && screenRef.current !== 'capitalMap') setScreen('capitalMap'); if (screenPath === 'interview-reviews' && screenRef.current !== 'resumeAssistant') setScreen('resumeAssistant'); if (screenPath === 'resume-assistant') { if (screenRef.current !== 'resumeAssistant') setScreen('resumeAssistant'); if (['overview', 'profile', 'settings', 'runs'].includes(tab)) setAssistantTab(tab as ResumeAssistantTab); } };
     applyHash(); window.addEventListener('hashchange', applyHash); return () => window.removeEventListener('hashchange', applyHash);
   }, [setScreen]);
   const setAssistantTabWithHash = useCallback((tab: ResumeAssistantTab) => { setAssistantTab(tab); if (window.location.hash !== `#/resume-assistant/${tab}`) window.history.replaceState(null, '', `#/resume-assistant/${tab}`); }, []);

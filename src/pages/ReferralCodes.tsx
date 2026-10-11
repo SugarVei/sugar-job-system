@@ -1,3 +1,4 @@
+import { paletteCardStyle } from '../lib/customPalette';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { NewReferralCode, ReferralCode } from '../types';
 import { useCollection } from '../hooks/useCollection';
@@ -219,7 +220,7 @@ export default function ReferralCodes() {
             const color = avatarColor(item.company_name);
             const revealed = revealedIds.has(item.id);
             return (
-              <article key={item.id} className="card-hover flex flex-col" style={{ ...CARD, padding: 20, minHeight: 230 }}>
+              <article key={item.id} className="card-hover flex flex-col" style={{ ...CARD, ...paletteCardStyle(item.id), padding: 20, minHeight: 230 }}>
                 <div className="flex items-start gap-3">
                   <div style={{ ...avatarStyle, background: color.bg, color: color.fg }}>{initialOf(item.company_name)}</div>
                   <div style={{ flex: 1, minWidth: 0 }}>

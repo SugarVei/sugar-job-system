@@ -1,3 +1,4 @@
+import { paletteAccent, paletteTint } from './customPalette';
 import type { Application, ApplicationStatus } from '../types';
 import {
   APPLICATION_STATUSES,
@@ -73,7 +74,8 @@ const AVATAR_COLORS = [
 export function avatarColor(name: string) {
   let sum = 0;
   for (let i = 0; i < name.length; i++) sum += name.charCodeAt(i);
-  return AVATAR_COLORS[sum % AVATAR_COLORS.length];
+  const colors = AVATAR_COLORS[sum % AVATAR_COLORS.length];
+  return { bg: paletteTint(name, colors.bg), fg: paletteAccent(name, colors.fg) };
 }
 
 export function matchApp(application: Application, query: string): boolean {
@@ -95,7 +97,7 @@ export function matchApp(application: Application, query: string): boolean {
 }
 
 export const CARD: React.CSSProperties = {
-  background: '#fffdf8',
+  background: 'var(--sugar-surface, #fffdf8)',
   borderRadius: 22,
   boxShadow: '0 6px 18px rgba(60,50,35,.05)',
 };
