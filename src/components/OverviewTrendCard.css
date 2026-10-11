@@ -12,14 +12,18 @@
 .overview-trend-summary { display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap; margin-top: 5px; }
 .overview-trend-summary strong { font-size: 34px; font-weight: 500; letter-spacing: -1.5px; line-height: 1.25; font-variant-numeric: tabular-nums; }
 .overview-trend-summary span { color: #867366; font-size: 11px; }
-.overview-trend-period { flex: none; border: 1px solid #e3d3c5; border-radius: 8px; padding: 7px 11px; background: transparent; color: #867366; font-size: 12px; cursor: pointer; }
+.overview-trend-period { flex: none; max-width: 132px; border: 1px solid #e3d3c5; border-radius: 8px; padding: 7px 9px; background: #fff8f0; color: #867366; font-family: inherit; font-size: 12px; cursor: pointer; }
 .overview-trend-period:hover { background: #f5e9dd; }
 .overview-trend-period:focus-visible, .overview-trend-plot:focus-visible { outline: 2px solid #c18b68; outline-offset: 5px; }
 .overview-trend-plot { position: relative; margin-top: 20px; height: 206px; border-radius: 4px; touch-action: pan-y; cursor: crosshair; }
 .overview-trend-plot svg { display: block; width: 100%; height: 100%; overflow: visible; }
 .overview-trend-grid { fill: none; stroke: #e3d3c5; stroke-width: 1; stroke-dasharray: 2 5; vector-effect: non-scaling-stroke; }
 .overview-trend-line { fill: none; stroke: #c18b68; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; vector-effect: non-scaling-stroke; }
-.overview-trend-axis { display: flex; justify-content: space-between; margin: 5px 0 0; padding: 0 2px; font-size: 11px; color: #867366; }
+.overview-trend-axis { position: relative; height: 17px; margin: 5px 0 0; font-size: 11px; color: #867366; }
+.overview-trend-axis span { position: absolute; transform: translateX(-50%); white-space: nowrap; }
+.overview-trend-axis span:first-child { transform: none; }
+.overview-trend-axis span:last-child { transform: translateX(-100%); }
+.overview-trend-axis span:only-child { transform: translateX(-50%); }
 .overview-trend-axis .is-future { opacity: .5; }
 .overview-trend-caption { color: #9a8778; font-size: 10px; line-height: 1.7; margin: 15px 0 0; }
 .overview-trend-cross { position: absolute; top: 0; bottom: 0; border-left: 1px dashed #c18b68; opacity: .55; pointer-events: none; }
@@ -29,6 +33,11 @@
 .overview-trend-status { margin-top: 20px; padding-top: 18px; border-top: 1px solid #e9dbce; }
 .overview-trend-status-head { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px; margin-bottom: 14px; }
 .overview-trend-status-head h3 { margin: 0; font-size: 14px; font-weight: 600; }
+.overview-trend-range { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 12px; margin-top: 18px; }
+.overview-trend-range label { display: flex; flex-direction: column; gap: 5px; min-width: 0; color: #867366; font-size: 11px; }
+.overview-trend-range input { min-width: 0; width: 100%; box-sizing: border-box; height: 35px; padding: 5px 8px; border: 1px solid #e3d3c5; border-radius: 8px; background: #fffaf5; color: #302820; font-family: inherit; font-size: 12px; }
+.overview-trend-range input:focus-visible { outline: 2px solid #c18b68; outline-offset: 2px; }
+.overview-trend-invalid { display: flex; align-items: center; justify-content: center; height: 248px; color: #867366; font-size: 13px; text-align: center; }
 @media (max-width: 640px) {
   .overview-trend-card { padding: 22px 21px 20px; border-radius: 26px; }
   .overview-trend-head h2 { font-size: 14px; }
@@ -36,4 +45,7 @@
   .overview-trend-summary { gap: 8px; }
   .overview-trend-plot { height: 175px; margin-top: 17px; }
   .overview-trend-period { padding: 6px 9px; font-size: 11px; }
+  .overview-trend-head { flex-wrap: wrap; }
+  .overview-trend-invalid { height: 215px; }
+  .overview-trend-axis { font-size: 10px; }
 }

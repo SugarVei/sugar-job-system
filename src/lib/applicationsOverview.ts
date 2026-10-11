@@ -1,6 +1,7 @@
 import type { Application, ApplicationStatus, Interview } from '../types';
 import { PREFECTURE_BY_NAME } from '../data/prefectureCities';
 import { APPLICATION_STATUSES, APPLICATION_STATUS_FLOW } from './applicationStatus';
+import { buildApplicationTrend, resolveTrendRange } from './applicationTrend';
 
 export const INTERVIEW_STATUSES: readonly ApplicationStatus[] = ['AI面', 'HR面', '一面', '二面'];
 
@@ -40,21 +41,7 @@ export function countApplicationsBy<T>(items: T[], key: (item: T) => string | nu
 /** Calendar weeks run Monday–Sunday in the viewer's local time; date-only
  * application fields are calendar dates, not UTC timestamps. */
 export function weeklyApplicationTrend(applications: Application[], now = new Date(), previousWeek = false, status: ApplicationStatus | null = null) {
-  const monday = new Date(now.getFullYear(), now.getMonth(), now.getDate() - (now.getDay() + 6) % 7 - (previousWeek ? 7 : 0));
-  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-  const weekdays = ['周一', '周二', '周三', '周四', '周五', '周六', '周日'];
-  const counts = new Map<string, number>();
-  for (const application of applications) {
-    if (application.status === '待投递' || (status && application.status !== status)) continue;
-    const key = application.apply_date?.slice(0, 10);
-    if (key) counts.set(key, (counts.get(key) ?? 0) + 1);
-  }
-  return weekdays.map((label, index) => {
-    const date = new Date(monday.getFullYear(), monday.getMonth(), monday.getDate() + index);
-    const key = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
-    const future = date > today;
-    return { key, label, dateLabel: `${date.getMonth() + 1}/${date.getDate()}`, count: future ? 0 : counts.get(key) ?? 0, future };
-  });
+  return buildApplicationTrend(applications, resolveTrendRange(previousWeek ? 'previousWeek' : 'week', now)!, now, status);
 }
 
 export function summarizeApplications(applications: Application[]) {

@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import type { Application, ApplicationStatus, Interview } from '../types';
 import { APPLICATION_STATUSES } from './applicationStatus';
+import { buildApplicationTrend, resolveTrendRange } from './applicationTrend';
 import {
   countApplicationsBy,
   normalizeApplicationCity,
@@ -17,6 +18,43 @@ function application(status: ApplicationStatus, company = '示例科技', role =
 function interview(id: string, time: string | null, company = '示例科技', role: string | null = '产品运营'): Interview {
   return { id, company_name: company, position_name: role, interview_time: time } as Interview;
 }
+
+test('时间范围覆盖近几周、日历月、跨年与闰月', () => {
+  const now = new Date(2026, 9, 11);
+  assert.deepEqual(resolveTrendRange('fourWeeks', now), { start: '2026-09-14', end: '2026-10-11', unit: 'week' });
+  assert.deepEqual(resolveTrendRange('twoWeeks', now), { start: '2026-09-28', end: '2026-10-11', unit: 'day' });
+  assert.deepEqual(resolveTrendRange('previousMonth', now), { start: '2026-09-01', end: '2026-09-30', unit: 'day' });
+  assert.deepEqual(resolveTrendRange('threeMonths', new Date(2027, 0, 4)), { start: '2026-11-01', end: '2027-01-31', unit: 'month' });
+  assert.equal(resolveTrendRange('previousMonth', new Date(2024, 2, 31))!.end, '2024-02-29');
+});
+
+test('周、月汇总不重复计数，部分首尾周仅计入选定范围，未来及待投递不计入', () => {
+  const rows = ['2026-09-14', '2026-09-20', '2026-09-21', '2026-09-30', '2026-10-11', '2026-10-12'].map(apply_date => ({ ...application('已投递'), apply_date }));
+  rows.push({ ...application('待投递'), apply_date: '2026-10-11' });
+  const now = new Date(2026, 9, 11);
+  assert.deepEqual(buildApplicationTrend(rows, resolveTrendRange('fourWeeks', now)!, now).map(day => day.count), [2, 1, 1, 1]);
+  assert.deepEqual(buildApplicationTrend(rows, resolveTrendRange('threeMonths', now)!, now).map(day => day.count), [0, 4, 1]);
+  const partial = buildApplicationTrend(rows, { start: '2026-09-16', end: '2026-09-30', unit: 'week' }, now);
+  assert.deepEqual(partial.map(day => day.count), [1, 1, 1]);
+  assert.equal(partial[0].key, '2026-09-16');
+  assert.equal(partial[2].endKey, '2026-09-30');
+  assert.ok(buildApplicationTrend(rows, resolveTrendRange('threeMonths', now)!, now, '一面').every(day => day.count === 0));
+});
+
+test('自定义日期包含两端、单日和空范围，拒绝非法和倒置日期，按跨度调整粒度', () => {
+  const now = new Date(2026, 9, 11);
+  const custom = (start: string, end: string) => resolveTrendRange('custom', now, { start, end });
+  assert.equal(custom('2026-09-30', '2026-10-11')!.unit, 'day');
+  assert.equal(custom('2026-08-01', '2026-10-11')!.unit, 'week');
+  assert.equal(custom('2026-01-01', '2026-10-11')!.unit, 'month');
+  assert.equal(custom('2026-02-30', '2026-10-11'), null);
+  assert.equal(custom('', '2026-10-11'), null);
+  assert.equal(custom('2026-10-12', '2026-10-11'), null);
+  const rows = ['2026-09-30', '2026-10-01', '2026-10-02'].map(apply_date => ({ ...application('已投递'), apply_date }));
+  assert.deepEqual(buildApplicationTrend(rows, custom('2026-09-30', '2026-10-01')!, now).map(day => day.count), [1, 1]);
+  assert.deepEqual(buildApplicationTrend(rows, custom('2026-10-01', '2026-10-01')!, now).map(day => day.count), [1]);
+  assert.ok(buildApplicationTrend([], custom('2026-09-30', '2026-10-11')!, now).every(day => day.count === 0));
+});
 
 test('周趋势按投递日期计数，排除待投递、缺失日期、区间外日期并保留状态筛选', () => {
   const rows = [
