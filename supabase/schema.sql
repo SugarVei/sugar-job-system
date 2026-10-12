@@ -380,3 +380,25 @@ create policy "resumes_storage_update_own" on storage.objects
 drop policy if exists "resumes_storage_delete_own" on storage.objects;
 create policy "resumes_storage_delete_own" on storage.objects
   for delete using (bucket_id = 'resumes' and auth.uid()::text = (storage.foldername(name))[1]);
+
+-- Curated campus referral codes. Existing referral_codes remain owner-only.
+-- No account IDs or recommender identities are stored in this shared catalog.
+create table if not exists public.shared_referral_codes (
+  id uuid primary key default gen_random_uuid(),
+  company_name text not null check (length(btrim(company_name)) > 0),
+  referral_code text not null check (length(btrim(referral_code)) > 0),
+  referrer_name text not null default '保密' check (referrer_name = '保密'),
+  recruitment_year integer not null default 2027,
+  status text not null default '待核实' check (status in ('待核实', '已核实', '已失效')),
+  notes text,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now(),
+  unique (company_name, referral_code, recruitment_year)
+);
+
+alter table public.shared_referral_codes enable row level security;
+drop policy if exists shared_referral_codes_read_authenticated on public.shared_referral_codes;
+create policy shared_referral_codes_read_authenticated
+  on public.shared_referral_codes for select to authenticated using (true);
+revoke all on public.shared_referral_codes from public, anon, authenticated;
+grant select on public.shared_referral_codes to authenticated;

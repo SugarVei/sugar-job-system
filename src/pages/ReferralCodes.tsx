@@ -1,7 +1,8 @@
 import { paletteCardStyle } from '../lib/customPalette';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import type { NewReferralCode, ReferralCode } from '../types';
+import type { NewReferralCode, ReferralCode, SharedReferralCode } from '../types';
 import { useCollection } from '../hooks/useCollection';
+import { useSharedReferralCodes } from '../hooks/useSharedReferralCodes';
 import { useAppShell } from '../contexts/AppShellContext';
 import { useTheme } from '../contexts/ThemeContext';
 import Modal from '../components/Modal';
@@ -24,6 +25,9 @@ interface ReferralCodeForm {
   referrer_name: string;
 }
 
+type VisibleReferralCode = (ReferralCode & { visibility: 'private' })
+  | (SharedReferralCode & { visibility: 'shared' });
+
 const EMPTY_FORM: ReferralCodeForm = {
   company_name: '',
   referral_code: '',
@@ -42,7 +46,15 @@ function safeError(error: unknown, secret = '') {
 }
 
 export default function ReferralCodes() {
-  const { items, loading, error, create, update, remove } = useCollection<ReferralCode>('referral_codes');
+  const { items: privateItems, loading: privateLoading, error: privateError, create, update, remove } = useCollection<ReferralCode>('referral_codes');
+  const { items: sharedItems, loading: sharedLoading, error: sharedError } = useSharedReferralCodes();
+  const [scope, setScope] = useState<'all' | 'shared' | 'private'>('all');
+  const items = useMemo<VisibleReferralCode[]>(() => [
+    ...privateItems.map((item) => ({ ...item, visibility: 'private' as const })),
+    ...sharedItems.map((item) => ({ ...item, visibility: 'shared' as const })),
+  ], [privateItems, sharedItems]);
+  const loading = privateLoading || sharedLoading;
+  const error = privateError || sharedError;
   const { query, registerAdd, setScreen } = useAppShell();
   const { theme } = useTheme();
   const [modalOpen, setModalOpen] = useState(false);
@@ -85,11 +97,11 @@ export default function ReferralCodes() {
 
   const filtered = useMemo(() => {
     const needle = query.trim().toLowerCase();
-    if (!needle) return items;
-    return items.filter((item) => [item.company_name, item.referrer_name, item.referral_code]
-      .filter(Boolean)
-      .some((value) => (value as string).toLowerCase().includes(needle)));
-  }, [items, query]);
+    return items.filter((item) => (scope === 'all' || item.visibility === scope)
+      && (!needle || [item.company_name, item.referrer_name, item.referral_code]
+        .filter(Boolean)
+        .some((value) => (value as string).toLowerCase().includes(needle))));
+  }, [items, query, scope]);
 
   const openEdit = (item: ReferralCode) => {
     setEditing(item);
@@ -130,7 +142,7 @@ export default function ReferralCodes() {
         if (editing) next.delete(editing.id);
         return next;
       });
-      showToast(editing ? '内推码记录已更新' : '内推码记录已添加');
+      showToast(editing ? '私人内推码已更新' : '已添加，仅你可见');
     } catch (saveError) {
       setFormError(`保存失败：${safeError(saveError, referralCode)}`);
     } finally {
@@ -206,6 +218,21 @@ export default function ReferralCodes() {
         </PrimaryButton>
       </section>
 
+      <div className="flex flex-wrap gap-2" role="group" aria-label="内推码可见范围筛选">
+        {([
+          ['all', `全部 ${items.length}`],
+          ['shared', `所有用户可见 ${sharedItems.length}`],
+          ['private', `仅我可见 ${privateItems.length}`],
+        ] as const).map(([value, label]) => (
+          <button key={value} onClick={() => setScope(value)} aria-pressed={scope === value} className="btn-press" style={pageTab(scope === value)}>{label}</button>
+        ))}
+      </div>
+      {scope !== 'private' && sharedItems.length > 0 ? (
+        <p style={{ margin: 0, color: '#77776f', fontSize: 13, lineHeight: 1.6 }}>
+          共享内推码来自公开资料，推荐人信息保密。适用岗位与有效期请以企业招聘系统为准。
+        </p>
+      ) : null}
+
       {loading ? (
         <EmptyState text="加载中..." />
       ) : filtered.length === 0 ? (
@@ -226,10 +253,22 @@ export default function ReferralCodes() {
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <h2 style={{ margin: '2px 0 6px', fontSize: 17, fontWeight: 700, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{item.company_name}</h2>
                     <p style={{ margin: 0, color: '#8b8a82', fontSize: 13, lineHeight: 1.45 }}>
-                      推荐人：{item.referrer_name || '未填写'}
+                      推荐人：{item.visibility === 'shared' ? '保密' : item.referrer_name || '未填写'}
                     </p>
+                    <span style={{ display: 'inline-block', marginTop: 7, fontSize: 11, fontWeight: 700, color: item.visibility === 'shared' ? theme.accent : '#77776f' }}>
+                      {item.visibility === 'shared' ? '所有用户可见' : '仅我可见'}
+                    </span>
                   </div>
                 </div>
+
+                {item.visibility === 'shared' ? (
+                  <div style={{ marginTop: 12, fontSize: 12, color: '#8b8a82', lineHeight: 1.5 }}>
+                    {item.recruitment_year} 届校招 · {item.status}
+                    {item.notes ? <p style={{ margin: '4px 0 0' }}>{item.notes}</p> : null}
+                  </div>
+                ) : item.notes ? (
+                  <p style={{ margin: '12px 0 0', fontSize: 12, color: '#8b8a82', lineHeight: 1.5 }}>{item.notes}</p>
+                ) : null}
 
                 <div className="flex items-center justify-between gap-3" style={codeBoxStyle}>
                   <div style={{ minWidth: 0 }}>
@@ -247,8 +286,10 @@ export default function ReferralCodes() {
                   <button onClick={() => toggleReveal(item.id)} aria-label={revealed ? '隐藏内推码' : '显示内推码'} className="btn-press" style={actionButtonStyle}>
                     {revealed ? <IconEyeOff size={15} /> : <IconEye size={15} />}{revealed ? '隐藏' : '显示'}内推码
                   </button>
-                  <button onClick={() => openEdit(item)} aria-label={`编辑${item.company_name}的内推码`} className="btn-press" style={iconActionStyle}><IconEdit size={15} /></button>
-                  <button onClick={() => deleteItem(item)} aria-label={`删除${item.company_name}的内推码`} className="btn-press" style={{ ...iconActionStyle, color: '#b45252' }}><IconTrash size={15} /></button>
+                  {item.visibility === 'private' ? <>
+                    <button onClick={() => openEdit(item)} aria-label={`编辑${item.company_name}的内推码`} className="btn-press" style={iconActionStyle}><IconEdit size={15} /></button>
+                    <button onClick={() => deleteItem(item)} aria-label={`删除${item.company_name}的内推码`} className="btn-press" style={{ ...iconActionStyle, color: '#b45252' }}><IconTrash size={15} /></button>
+                  </> : null}
                 </div>
               </article>
             );
@@ -270,6 +311,7 @@ export default function ReferralCodes() {
         }
       >
         <FormError message={formError} />
+        <p style={{ color: '#77776f', fontSize: 13 }}>此记录仅你可见，推荐人信息不会共享给其他用户。</p>
         <Field label="公司名称 *">
           <TextInput ref={firstRequiredRef} value={form.company_name} onChange={(event) => setForm({ ...form, company_name: event.target.value })} aria-label="公司名称" />
         </Field>

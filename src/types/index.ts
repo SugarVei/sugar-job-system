@@ -57,6 +57,18 @@ export interface Company {
 
 export type ReferralCodeStatus = '可用' | '即将过期' | '已使用';
 
+export interface SharedReferralCode {
+  id: string;
+  company_name: string;
+  referral_code: string;
+  referrer_name: '保密';
+  recruitment_year: number;
+  status: '待核实' | '已核实' | '已失效';
+  notes: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
 export interface ReferralCode {
   id: string;
   user_id: string;
