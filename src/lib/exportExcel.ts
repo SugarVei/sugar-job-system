@@ -2,6 +2,7 @@ import * as XLSX from 'xlsx-js-style';
 import JSZip from 'jszip';
 import type { Application } from '../types';
 import { APPLICATION_STATUSES } from './applicationStatus';
+import { EXCEL_PROGRESS_WIDTH, progressRank, sortApplicationsByProgress, progressDrawingXml } from './excelProgress';
 
 const C = {
   pageBg: 'FFFFFF', border: 'E5E5EA', text: '1D1D1F', textLight: '86868B',
@@ -136,33 +137,33 @@ function displayWidth(value: unknown): number {
 
 function buildDetailSheet(items: Application[]): XLSX.WorkSheet {
   const ws: XLSX.WorkSheet = {};
-  const headers = ['公司名称', '岗位名称', '城市', '投递渠道', '投递日期', '当前状态', '薪资范围', '优先级', '下一步动作', '下一步时间', '截止时间', '匹配度', 'JD关键词', '备注', '录入时间'];
-  merged(ws, 1, 1, 15, 'Sugar 求职系统 · 投递明细', style('FFFFFF', C.text, 16, true, false));
+  const headers = ['公司名称', '岗位名称', '城市', '投递渠道', '投递日期', '当前状态', '薪资范围', 'JD关键词', '备注', '录入时间'];
+  merged(ws, 1, 1, 10, 'Sugar 求职系统 · 投递明细', style('FFFFFF', C.text, 16, true, false));
   headers.forEach((h, i) => {
     const s = style(C.headerBg, C.headerFg, 10.5, true);
     s.border = { bottom: { style: 'thin', color: { rgb: 'D1D1D6' } } };
     cell(ws, 2, i + 1, h, s);
   });
-  const widths = [20, 22, 12, 16, 14, 14, 16, 12, 24, 21, 21, 12, 32, 40, 14];
+  const widths = [20, 22, 12, 16, 14, EXCEL_PROGRESS_WIDTH, 16, 32, 40, 14];
   const rows = [{ hpt: 36 }, { hpt: 30 }];
   items.forEach((app, i) => {
     const values = [app.company_name, app.position_name, app.city, app.channel, app.apply_date, app.status,
-      app.salary_range, app.priority ?? 'normal', app.next_action, app.next_action_at?.slice(0, 16),
-      app.deadline_at?.slice(0, 16), app.match_score, app.jd_keywords?.join('、'), app.notes, app.created_at?.slice(0, 10)];
+      app.salary_range, app.jd_keywords?.join('、'), app.notes, app.created_at?.slice(0, 10)];
     let lines = 1;
     values.forEach((value, c) => {
       const w = displayWidth(value);
-      widths[c] = Math.min(c >= 12 ? 56 : 40, Math.max(widths[c], w + 4));
-      const colors = c === 5 ? C.status[app.status] : undefined;
+      if (c !== 5) widths[c] = Math.min(c >= 7 ? 56 : 40, Math.max(widths[c], w + 4));
+      const colors = c === 5 && progressRank(app.status) < 0 ? C.status[app.status] : undefined;
       cell(ws, i + 3, c + 1, value, style(colors?.bg ?? (i % 2 === 0 ? 'FBFBFC' : 'FFFFFF'), colors?.fg ?? C.text, 10, c < 2 || c === 5));
+      if (c === 5 && progressRank(app.status) >= 0) ws[`G${i + 3}`].z = ';;;';
       lines = Math.max(lines, Math.ceil(w / (widths[c] - 2)), String(value ?? '').split('\n').length);
     });
-    rows.push({ hpt: Math.min(409, Math.max(25, lines * 15 + 8)) });
+    rows.push({ hpt: Math.min(409, Math.max(64, lines * 15 + 8)) });
   });
-  ws['!ref'] = `B1:P${Math.max(2, items.length + 2)}`;
+  ws['!ref'] = `B1:K${Math.max(2, items.length + 2)}`;
   ws['!cols'] = [4, ...widths].map(wch => ({ wch }));
   ws['!rows'] = rows;
-  if (items.length) ws['!autofilter'] = { ref: `B2:P${items.length + 2}` };
+  if (items.length) ws['!autofilter'] = { ref: `B2:K${items.length + 2}` };
   return ws;
 }
 
@@ -283,8 +284,10 @@ const sheetRels = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 export async function createApplicationsExcel(items: Application[], asOf = new Date()): Promise<ArrayBuffer> {
   const date = localDate(asOf);
   const wb = XLSX.utils.book_new();
+  const sortedItems = sortApplicationsByProgress(items);
+  const detail = buildDetailSheet(sortedItems);
   XLSX.utils.book_append_sheet(wb, buildOverviewSheet(items, date), '投递总览');
-  XLSX.utils.book_append_sheet(wb, buildDetailSheet(items),  '投递明细');
+  XLSX.utils.book_append_sheet(wb, detail, '投递明细');
   const { ws: ws3, lastDataRow } = buildWeeklySheet(items);
   XLSX.utils.book_append_sheet(wb, ws3, '周度趋势');
 
@@ -308,6 +311,18 @@ export async function createApplicationsExcel(items: Application[], asOf = new D
       xml = xml.replace(/(<dimension\b[^>]*\/>)/, `$1${view}`);
     }
     zip.file(path, xml);
+  }
+
+  const progress = progressDrawingXml(sortedItems.map((app, i) => ({ status: app.status, height: detail['!rows']![i + 2].hpt! })));
+  if (progress) {
+    zip.file('xl/drawings/statusProgress.xml', progress);
+    zip.file('xl/worksheets/_rels/sheet2.xml.rels', `<?xml version="1.0" encoding="UTF-8"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rIdProgress" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/drawing" Target="../drawings/statusProgress.xml"/></Relationships>`);
+    const entry = zip.file('xl/worksheets/sheet2.xml')!;
+    let xml = await entry.async('text');
+    if (!xml.includes('xmlns:r=')) xml = xml.replace('<worksheet ', '<worksheet xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships" ');
+    zip.file('xl/worksheets/sheet2.xml', xml.replace('</worksheet>', '<drawing r:id="rIdProgress"/></worksheet>'));
+    const contentTypes = await zip.file('[Content_Types].xml')!.async('text');
+    zip.file('[Content_Types].xml', contentTypes.replace('</Types>', '<Override PartName="/xl/drawings/statusProgress.xml" ContentType="application/vnd.openxmlformats-officedocument.drawing+xml"/></Types>'));
   }
 
   if (lastDataRow >= 4) {

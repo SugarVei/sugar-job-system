@@ -4,7 +4,7 @@
     python apple_excel.py
 也支持 python apple_excel.py "原文件.xlsx" --output "新文件.xlsx"
 统计均来自投递明细；待跟进 = 在线测评 + AI面 + HR面 + 待跟进。
-Excel 不支持单元格圆角，状态以淡色底纹模拟胶囊视觉。
+明细删除五个指定字段，以八阶段进度图显示状态，按进度优先、投递日期倒序排列。
 """
 from __future__ import annotations
 
@@ -18,6 +18,8 @@ from pathlib import Path
 import re
 import tempfile
 import unicodedata
+import warnings
+from xml.sax.saxutils import escape, quoteattr
 from zipfile import ZipFile, ZIP_DEFLATED, BadZipFile
 import xml.etree.ElementTree as ET
 
@@ -44,6 +46,9 @@ STATUS = {
 }
 ORDER = ['待投递', '已投递', '在线测评', 'AI面', 'HR面', '一面', '二面',
          'Offer', '已拒绝', '已放弃', '人才库', '待跟进']
+STEPS = ORDER[:8]
+KEEP = (0, 1, 2, 3, 4, 5, 6, 12, 13, 14)
+PROGRESS_WIDTH = 104
 CHART_NS = 'http://schemas.openxmlformats.org/drawingml/2006/chart'
 DRAW_NS = 'http://schemas.openxmlformats.org/drawingml/2006/spreadsheetDrawing'
 ET.register_namespace('c', CHART_NS)
@@ -222,42 +227,139 @@ def build_overview(wb, records, as_of):
     return total, interviews, offers, follow
 
 
-def style_detail(ws):
-    for merged in list(ws.merged_cells.ranges):
-        # The source title is the only permitted merged area in a detail list.
-        if merged.min_row > 1:
-            raise ValueError('投递明细中存在合并数据单元格，请先检查数据，避免遗漏。')
-        ws.unmerge_cells(str(merged))
-    merge_row(ws, 1, 1, 15, text(ws['A1'].value) or 'Sugar 求职系统 · 投递明细', size=16, bold=True, line=False)
+def progress_rank(status):
+    status = text(status)
+    return STEPS.index(status) if status in STEPS else {'待跟进': -1, '人才库': -2, '已拒绝': -3, '已放弃': -4}.get(status, -5)
+
+
+def date_rank(value):
+    if isinstance(value, datetime):
+        return value.date().toordinal()
+    if isinstance(value, date):
+        return value.toordinal()
+    match = re.match(r'^(\d{4})-(\d{2})-(\d{2})', text(value))
+    try:
+        return date(*(int(part) for part in match.groups())).toordinal() if match else 0
+    except ValueError:
+        return 0
+
+
+def build_detail(wb, source, rows):
+    labels = [source.cell(2, i + 1).value for i in KEEP]
+    ws = wb.create_sheet('投递明细_新版', wb.index(source))
+    merge_row(ws, 1, 1, 10, 'Sugar 求职系统 · 投递明细', size=16, bold=True, line=False)
     ws.row_dimensions[1].height = 36
-    labels = [ws.cell(2, c).value for c in range(1, 16)]
     header(ws, 2, 1, labels)
-    widths = [20, 22, 12, 16, 14, 14, 16, 12, 24, 21, 21, 12, 32, 40, 14]
-    for row in ws.iter_rows(min_row=3, max_col=15):
-        for i, cell in enumerate(row):
-            widths[i] = max(widths[i], min(56 if i >= 12 else 40, width(cell.value) + 4))
+    widths = [20, 22, 12, 16, 14, PROGRESS_WIDTH, 16, 32, 40, 14]
+    for row in rows:
+        for i, source_index in enumerate(KEEP):
+            if i != 5:
+                widths[i] = max(widths[i], min(56 if i >= 7 else 40, width(source.cell(row, source_index + 1).value) + 4))
     for i, value in enumerate(widths, 1):
         ws.column_dimensions[get_column_letter(i)].width = value
-    for row in ws.iter_rows(min_row=3, max_col=15):
+    for target_row, source_row in enumerate(rows, 3):
         lines = 1
-        for i, cell in enumerate(row):
-            if isinstance(cell.value, float) and not math.isfinite(cell.value):
-                cell.value = None
-            paint(cell, 'FBFBFC' if cell.row % 2 else 'FFFFFF', bold=i < 2)
-            if i == 5 and text(cell.value) in STATUS:
-                paint(cell, *STATUS[text(cell.value)], bold=True)
+        for i, source_index in enumerate(KEEP):
+            original = source.cell(source_row, source_index + 1)
+            cell = ws.cell(target_row, i + 1)
+            cell.value = clean(original.value)
+            if cell.value is not None:
+                cell.data_type = original.data_type
+            cell.number_format = original.number_format
+            if original.hyperlink:
+                cell.hyperlink = copy(original.hyperlink)
+                cell.hyperlink.ref = cell.coordinate
+            if original.comment:
+                cell.comment = copy(original.comment)
+            paint(cell, 'FBFBFC' if target_row % 2 else 'FFFFFF', bold=i < 2)
+            if i == 5:
+                if text(cell.value) in STEPS:
+                    # Keep the real text value for Excel filters and sorting; native shapes display it.
+                    cell.number_format = ';;;'
+                elif text(cell.value) in STATUS:
+                    paint(cell, *STATUS[text(cell.value)], bold=True)
             if isinstance(cell.value, (datetime, date)):
                 cell.number_format = 'yyyy-mm-dd hh:mm' if isinstance(cell.value, datetime) and cell.value.time() != datetime.min.time() else 'yyyy-mm-dd'
             lines = max(lines, math.ceil(width(cell.value) / (widths[i] - 2)), len(text(cell.value).splitlines()))
-        # 25pt for ordinary rows; expand long JD/notes so all text remains visible.
-        ws.row_dimensions[row[0].row].height = min(409, max(25, lines * 15 + 8))
+        ws.row_dimensions[target_row].height = min(409, max(64, lines * 15 + 8))
     ws.freeze_panes = 'A3'
-    ws.auto_filter.ref = f'A2:O{ws.max_row}'
+    if rows:
+        ws.auto_filter.ref = f'A2:J{ws.max_row}'
     ws.print_title_rows = '1:2'
-    ws.print_area = f'A1:O{ws.max_row}'
+    ws.print_area = f'A1:J{ws.max_row}'
     ws.page_setup.orientation = 'landscape'
     ws.page_setup.fitToWidth = 1
     ws.page_setup.fitToHeight = 0
+    wb.remove(source)
+    ws.title = '投递明细'
+    return ws
+
+
+def progress_drawing_xml(ws):
+    """用标准 DrawingML 图形组绘制进度条；仅使用 Python 标准库。"""
+    shape_id = 1
+    drawing_width = PROGRESS_WIDTH * 7 + 5 - 24
+    drawing_height = 50
+    step_width = drawing_width / 8
+    diameter = 22
+    emu = lambda px: round(px * 9525)
+
+    def shape(name, x, y, w, h, geometry, fill, value='', color=TEXT, size=9, bold=False):
+        nonlocal shape_id
+        identifier = shape_id
+        shape_id += 1
+        fill_xml = f'<a:solidFill><a:srgbClr val="{fill}"/></a:solidFill>' if fill else '<a:noFill/>'
+        body = (f'<xdr:txBody><a:bodyPr wrap="none" lIns="0" tIns="0" rIns="0" bIns="0" anchor="ctr"/><a:lstStyle/><a:p><a:pPr algn="ctr"/><a:r><a:rPr lang="zh-CN" sz="{round(size * 100)}" b="{int(bold)}"><a:solidFill><a:srgbClr val="{color}"/></a:solidFill><a:latin typeface="{FONT}"/><a:ea typeface="{FONT}"/></a:rPr><a:t>{escape(value)}</a:t></a:r><a:endParaRPr lang="zh-CN"/></a:p></xdr:txBody>') if value else ''
+        return f'<xdr:sp><xdr:nvSpPr><xdr:cNvPr id="{identifier}" name={quoteattr(name)}/><xdr:cNvSpPr/></xdr:nvSpPr><xdr:spPr><a:xfrm><a:off x="{emu(x)}" y="{emu(y)}"/><a:ext cx="{emu(w)}" cy="{emu(h)}"/></a:xfrm><a:prstGeom prst="{geometry}"><a:avLst/></a:prstGeom>{fill_xml}<a:ln><a:noFill/></a:ln></xdr:spPr>{body}</xdr:sp>'
+
+    anchors = []
+    for row in range(3, ws.max_row + 1):
+        status = text(ws.cell(row, 7).value)
+        if status not in STEPS:
+            continue
+        current = STEPS.index(status)
+        active = {'Offer': '2E7D47', 'HR面': '1E7E34', 'AI面': '6351A2', '一面': '6351A2', '二面': '1D6FB8', '在线测评': '1D6FB8'}.get(status, TEXT)
+        group_id = shape_id
+        shape_id += 1
+        offset = max(8, ((ws.row_dimensions[row].height or 64) * 4 / 3 - drawing_height) / 2)
+        children = []
+        for i in range(7):
+            children.append(shape(f'连接线 {i + 1}', step_width * (i + .5) + diameter / 2, 10,
+                                  step_width - diameter, 1.5, 'rect', 'B8B8BD' if i < current else LINE))
+        for i, stage in enumerate(STEPS):
+            children.append(shape(f'阶段 {i + 1}', step_width * (i + .5) - diameter / 2, 0, diameter, diameter,
+                                  'ellipse', TEXT if i < current else active if i == current else LINE,
+                                  str(i + 1), 'FFFFFF' if i <= current else SECONDARY, 10, True))
+            children.append(shape(f'阶段名称 {i + 1}', i * step_width, 29, step_width, 19, 'rect', None,
+                                  stage, TEXT if i == current else SECONDARY, 8.5, i == current))
+        anchors.append(f'<xdr:twoCellAnchor editAs="twoCell"><xdr:from><xdr:col>6</xdr:col><xdr:colOff>{emu(12)}</xdr:colOff><xdr:row>{row - 1}</xdr:row><xdr:rowOff>{emu(offset)}</xdr:rowOff></xdr:from><xdr:to><xdr:col>6</xdr:col><xdr:colOff>{emu(drawing_width + 12)}</xdr:colOff><xdr:row>{row - 1}</xdr:row><xdr:rowOff>{emu(offset + drawing_height)}</xdr:rowOff></xdr:to><xdr:grpSp><xdr:nvGrpSpPr><xdr:cNvPr id="{group_id}" name="投递进度 {row - 2}" descr={quoteattr(status)}/><xdr:cNvGrpSpPr/></xdr:nvGrpSpPr><xdr:grpSpPr><a:xfrm><a:off x="0" y="0"/><a:ext cx="{emu(drawing_width)}" cy="{emu(drawing_height)}"/><a:chOff x="0" y="0"/><a:chExt cx="{emu(drawing_width)}" cy="{emu(drawing_height)}"/></a:xfrm></xdr:grpSpPr>{"".join(children)}</xdr:grpSp><xdr:clientData/></xdr:twoCellAnchor>')
+    if not anchors:
+        return None
+    return f'<?xml version="1.0" encoding="UTF-8" standalone="yes"?><xdr:wsDr xmlns:xdr="{DRAW_NS}" xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main">{"".join(anchors)}</xdr:wsDr>'.encode('utf-8')
+
+
+def attach_progress(path, ws):
+    drawing = progress_drawing_xml(ws)
+    if drawing is None:
+        return
+    with ZipFile(path) as source:
+        entries = {entry.filename: source.read(entry.filename) for entry in source.infolist()}
+    sheet_ns = 'http://schemas.openxmlformats.org/spreadsheetml/2006/main'
+    rel_ns = 'http://schemas.openxmlformats.org/officeDocument/2006/relationships'
+    sheet_index = ws.parent.index(ws) + 1
+    sheet_path = f'xl/worksheets/sheet{sheet_index}.xml'
+    root = ET.fromstring(entries[sheet_path])
+    ET.SubElement(root, f'{{{sheet_ns}}}drawing', {f'{{{rel_ns}}}id': 'rIdProgress'})
+    entries[sheet_path] = ET.tostring(root, encoding='utf-8', xml_declaration=True)
+    entries['xl/drawings/statusProgress.xml'] = drawing
+    entries[f'xl/worksheets/_rels/sheet{sheet_index}.xml.rels'] = b'<?xml version="1.0" encoding="UTF-8"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rIdProgress" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/drawing" Target="../drawings/statusProgress.xml"/></Relationships>'
+    content_ns = 'http://schemas.openxmlformats.org/package/2006/content-types'
+    content = ET.fromstring(entries['[Content_Types].xml'])
+    ET.SubElement(content, f'{{{content_ns}}}Override', {'PartName': '/xl/drawings/statusProgress.xml', 'ContentType': 'application/vnd.openxmlformats-officedocument.drawing+xml'})
+    entries['[Content_Types].xml'] = ET.tostring(content, encoding='utf-8', xml_declaration=True)
+    with ZipFile(path, 'w', ZIP_DEFLATED) as output:
+        for name, data in entries.items():
+            output.writestr(name, data)
 
 
 def style_weekly(ws):
@@ -336,6 +438,10 @@ def add_left_margin(ws):
         ws.auto_filter.ref = f'{get_column_letter(left + 1)}{top}:{get_column_letter(right + 1)}{bottom}'
     if ws.print_area:
         ws.print_area = f'A1:{get_column_letter(ws.max_column)}{ws.max_row}'
+    for row in ws:
+        for cell in row:
+            if cell.hyperlink:
+                cell.hyperlink.ref = cell.coordinate
     for chart in ws._charts:
         if isinstance(chart.anchor, str):
             match = re.fullmatch(r'([A-Z]+)(\d+)', chart.anchor)
@@ -358,10 +464,12 @@ def add_left_margin(ws):
                 series.tx.strRef.f = f'{sheet}!${get_column_letter(left + 1)}${top}'
 
 
-def snapshot(ws, offset=0):
-    return [(f'{get_column_letter(cell.column - offset)}{cell.row}', clean(cell.value), cell.data_type if clean(cell.value) is not None else 'blank',
-             cell.hyperlink.target if cell.hyperlink else None)
-            for row in ws.iter_rows(min_row=2, min_col=1 + offset, max_col=15 + offset) for cell in row]
+def snapshot(ws, offset=0, columns=range(10), rows=None):
+    rows = rows if rows is not None else range(3, ws.max_row + 1)
+    return [[(clean(cell.value), cell.data_type if clean(cell.value) is not None else 'blank',
+              cell.hyperlink.target if cell.hyperlink else None,
+              cell.comment.text if cell.comment else None)
+             for cell in [ws.cell(row, i + 1 + offset) for i in columns]] for row in rows]
 
 
 def transform(source, destination):
@@ -376,7 +484,11 @@ def transform(source, destination):
     detail = wb['投递明细']
     if detail.max_column != 15 or detail.cell(2, 6).value != '当前状态':
         raise ValueError('原文件应为表头在第 2 行的 15 列 Sugar 投递明细。')
-    before = snapshot(detail)
+    if any(merged.min_row > 1 for merged in detail.merged_cells.ranges):
+        raise ValueError('投递明细含合并数据单元格，请先检查数据。')
+    sorted_rows = sorted((r for r in range(3, detail.max_row + 1) if any(detail.cell(r, c).value is not None for c in range(1, 16))),
+                         key=lambda r: (-progress_rank(detail.cell(r, 6).value), -date_rank(detail.cell(r, 5).value), r))
+    before = snapshot(detail, columns=KEEP, rows=sorted_rows)
     records = [tuple(clean(c.value) for c in row) for row in detail.iter_rows(min_row=3, max_col=15)
                if any(clean(c.value) is not None for c in row)]
     if any(cell.data_type == 'f' for row in detail.iter_rows(min_row=3, max_col=15) for cell in row):
@@ -384,7 +496,7 @@ def transform(source, destination):
     match = re.search(r'\d{4}-\d{2}-\d{2}', source.name)
     as_of = match.group(0) if match else date.today().isoformat()
     metrics = build_overview(wb, records, as_of)
-    style_detail(detail)
+    detail = build_detail(wb, detail, sorted_rows)
     if '周度趋势' in wb:
         style_weekly(wb['周度趋势'])
     for ws in wb:
@@ -410,10 +522,14 @@ def transform(source, destination):
         temporary = Path(temp.name)
     try:
         wb.save(temporary)
+        attach_progress(temporary, detail)
         with ZipFile(temporary) as zip_file:
             if zip_file.testzip():
                 raise ValueError('输出压缩包校验失败。')
-        check = load_workbook(temporary, data_only=False)
+        # openpyxl reads cell data but cannot round-trip native shapes; this check never saves the reader.
+        with warnings.catch_warnings():
+            warnings.filterwarnings('ignore', message='DrawingML support is incomplete.*')
+            check = load_workbook(temporary, data_only=False)
         if snapshot(check['投递明细'], offset=1) != before:
             raise ValueError('保存后的明细完整性检查失败。')
         check.close()
@@ -429,12 +545,12 @@ def main():
     parser.add_argument('source', nargs='?', type=Path, default=Path(__file__).resolve().parent / 'Sugar求职记录_2026-09-30.xlsx')
     parser.add_argument('--output', type=Path)
     args = parser.parse_args()
-    output = args.output or args.source.resolve().parent / 'Sugar求职记录_Apple简约版.xlsx'
+    output = args.output or args.source.resolve().parent / 'Sugar求职记录_Apple简约版_进度排序版.xlsx'
     try:
         path, (total, interviews, offers, follow) = transform(args.source, output)
     except (OSError, ValueError, KeyError, ET.ParseError, BadZipFile, InvalidFileException) as error:
         parser.exit(1, f'处理失败：{error}\n')
-    print(f'已生成：{path}\n明细：{total} 条 × 15 列；进入面试 {interviews}；Offer {offers}；待跟进 {follow}。')
+    print(f'已生成：{path}\n明细：{total} 条 × 10 列，进度优先排序；进入面试 {interviews}；Offer {offers}；待跟进 {follow}。')
 
 
 if __name__ == '__main__':

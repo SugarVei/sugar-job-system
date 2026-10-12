@@ -20,6 +20,7 @@ moduleTask.filename = filename;
 moduleTask.paths = Module._nodeModulePaths(path.dirname(filename));
 require.extensions['.ts'](moduleTask, filename);
 const { createApplicationsExcel } = moduleTask.exports;
+const { sortApplicationsByProgress } = require('../src/lib/excelProgress.ts');
 const statuses = ['待投递','已投递','在线测评','AI面','HR面','一面','二面','Offer','已拒绝','已放弃','人才库','待跟进'];
 
 function item(i) {
@@ -38,15 +39,31 @@ async function verify(items, hasChart) {
   const workbook = XLSX.read(buffer, { type: 'array' });
   const detail = workbook.Sheets['投递明细'];
   assert.equal(detail.G2.v, '当前状态');
+  assert.equal(XLSX.utils.decode_range(detail['!ref']).e.c, 10);
+  const exportedHeaders = Array.from({ length: 10 }, (_, i) => detail[`${XLSX.utils.encode_col(i + 1)}2`].v);
+  for (const removed of ['优先级', '下一步动作', '下一步时间', '截止时间', '匹配度']) assert(!exportedHeaders.includes(removed));
   assert.equal(XLSX.utils.decode_range(detail['!ref']).e.r + 1, items.length + 2);
-  items.forEach((app, i) => {
+  const sorted = sortApplicationsByProgress(items);
+  sorted.forEach((app, i) => {
     assert.equal(detail[`B${i + 3}`].v, app.company_name);
     assert.equal(detail[`G${i + 3}`].v, app.status);
-    assert.equal(detail[`O${i + 3}`].v, app.notes ?? '');
+    assert.equal(detail[`J${i + 3}`].v, app.notes ?? '');
+    const actual = Array.from({ length: 10 }, (_, c) => detail[`${XLSX.utils.encode_col(c + 1)}${i + 3}`].v);
+    assert.deepEqual(actual, [app.company_name, app.position_name, app.city ?? '', app.channel ?? '', app.apply_date ?? '', app.status, app.salary_range ?? '', app.jd_keywords?.join('、') ?? '', app.notes ?? '', app.created_at?.slice(0,10) ?? '']);
   });
-  if (items.length && items[0].match_score === 0) {
-    assert.equal(detail.M3.t, 'n');
-    assert.equal(detail.M3.v, 0);
+  const active = sorted.filter(app => statuses.indexOf(app.status) >= 0 && statuses.indexOf(app.status) < 8);
+  assert.equal(!!zip.file('xl/drawings/statusProgress.xml'), active.length > 0);
+  if (active.length) {
+    const drawing = await zip.file('xl/drawings/statusProgress.xml').async('text');
+    assert.equal((drawing.match(/<xdr:grpSp>/g) ?? []).length, active.length);
+    const groups = drawing.match(/<xdr:twoCellAnchor[\s\S]*?<\/xdr:twoCellAnchor>/g);
+    groups.forEach(group => {
+      assert.equal((group.match(/prst="ellipse"/g) ?? []).length, 8);
+      for (const stage of statuses.slice(0,8)) assert(group.includes(`<a:t>${stage}</a:t>`));
+      assert(group.includes('<xdr:col>6</xdr:col>'));
+    });
+    const ids = [...drawing.matchAll(/<xdr:cNvPr id="(\d+)"/g)].map(match => match[1]);
+    assert.equal(ids.length, new Set(ids).size);
   }
   const overview = workbook.Sheets['投递总览'];
   assert.equal(overview.B5.v, items.length);
@@ -77,11 +94,25 @@ async function verify(items, hasChart) {
 }
 
 (async () => {
+  const mixed = [
+    { ...item(0), company_name: '已拒绝', status: '已拒绝', apply_date: '2026-10-12' },
+    { ...item(1), company_name: 'HR面', status: 'HR面', apply_date: '2026-10-12' },
+    { ...item(2), company_name: '二面', status: '二面', apply_date: '2026-01-01' },
+    { ...item(3), company_name: 'Offer', status: 'Offer', apply_date: null },
+    { ...item(4), company_name: '新投递 A', status: '已投递', apply_date: '2026-10-12' },
+    { ...item(5), company_name: '旧投递', status: '已投递', apply_date: '2026-09-30' },
+    { ...item(6), company_name: '新投递 B', status: '已投递', apply_date: '2026-10-12' },
+    { ...item(7), company_name: '无日期', status: '已投递', apply_date: null },
+  ];
+  const original = mixed.slice();
+  assert.deepEqual(sortApplicationsByProgress(mixed).map(app => app.company_name), ['Offer', '二面', 'HR面', '新投递 A', '新投递 B', '旧投递', '无日期', '已拒绝']);
+  assert.deepEqual(mixed, original);
+  await verify(mixed, true);
   await verify(Array.from({ length: 172 }, (_, i) => item(i)), true);
   await verify([], false);
   await verify([{ ...item(0), apply_date: null }], false);
   await verify([{ ...item(0), apply_date: '2026-02-30' }], false);
   await verify([{ ...item(0), status: '自定义状态', match_score: Number.NaN }], true);
   await verify([{ ...item(0), apply_date: '2021-01-01' }], true);
-  console.log('PASS: six export cases, OOXML chart references, frozen panes, all statuses, numeric zero, empty and invalid dates.');
+  console.log('PASS: seven export cases, native eight-stage progress groups, ten preserved fields, progress/date/stable sorting, empty and invalid dates.');
 })().catch(error => { console.error(error); process.exitCode = 1; });
