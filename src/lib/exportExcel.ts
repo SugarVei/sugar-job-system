@@ -1,380 +1,194 @@
-
 import * as XLSX from 'xlsx-js-style';
 import JSZip from 'jszip';
-import type { Application, ApplicationStatus } from '../types';
+import type { Application } from '../types';
 import { APPLICATION_STATUSES } from './applicationStatus';
 
-// ── 颜色：完全对应网页主题 ────────────────────────────────────
 const C = {
-  pageBg:     'FAF7F0',
-  pageBg2:    'F0EBE0',
-  border:     'E4DDCF',
-  titleBg:    '1B1A17',
-  titleFg:    'FFFDF8',
-  headerBg:   '2F2E2A',
-  headerFg:   'F5F0E7',
-  text:       '4A463E',
-  textLight:  '8A8478',
-  // 网页 StatCard 颜色
-  green:  { bg: 'D9E6D3', fg: '2F5D36' },
-  yellow: { bg: 'FBEEC2', fg: '7A5A12' },
-  coral:  { bg: 'FBE0D8', fg: 'A23D24' },
-  purple: { bg: 'E4E0F7', fg: '4A3F96' },
-  // 网页状态颜色（来自 Overview.tsx STATUS_COLOR）
+  pageBg: 'FFFFFF', border: 'E5E5EA', text: '1D1D1F', textLight: '86868B',
+  headerBg: 'F2F3F7', headerFg: '2C2C2E', chartLine: '1973E8', chartDark: '1D6FB8',
   status: {
-    '待投递': { bg: 'CFC6B4', fg: '5D584D' },
-    '已投递': { bg: 'CFC6B4', fg: '5D584D' },
-    '在线测评': { bg: 'E4D7A8', fg: '7A5A12' },
-    '一面':   { bg: '7CC4A0', fg: '1B4D35' },
-    '二面':   { bg: '6BB7B1', fg: '1B4D35' },
-    'AI面':   { bg: '8B7ED8', fg: 'FFFFFF' },
-    'HR面':   { bg: '7AA7D8', fg: '1B4D35' },
-    'Offer':  { bg: '5FA86B', fg: 'FFFFFF' },
-    '已拒绝': { bg: 'F0613F', fg: 'FFFFFF' },
-    '已放弃': { bg: 'C56C5A', fg: 'FFFFFF' },
-    '人才库': { bg: 'A89B82', fg: 'FFFFFF' },
-    '待跟进': { bg: 'A89CF0', fg: '2D2473' },
+    '已投递': { bg: 'F2F3F5', fg: '5F6368' },
+    '在线测评': { bg: 'E8F4FD', fg: '1973E8' },
+    'AI面': { bg: 'EEF2FF', fg: '4F46E5' },
+    '一面': { bg: 'EEF2FF', fg: '4F46E5' },
+    '二面': { bg: 'EEF2FF', fg: '4F46E5' },
+    'HR面': { bg: 'E6F4EA', fg: '1E7E34' },
+    'Offer': { bg: 'F0F7F2', fg: '2E7D47' },
+    '已拒绝': { bg: 'FDECEE', fg: 'C93B47' },
+    '已放弃': { bg: 'FDECEE', fg: 'C93B47' },
+    '待投递': { bg: 'FEF7EB', fg: 'B25E09' },
+    '待跟进': { bg: 'FAF4EF', fg: 'B25E28' },
+    '人才库': { bg: 'F2F3F5', fg: '5F6368' },
   } as Record<string, { bg: string; fg: string }>,
-  chartLine:  '5FA86B',
-  chartDark:  '2F5D36',
 };
 
-const STATUS_ORDER: ApplicationStatus[] = [...APPLICATION_STATUSES];
-
-// ── 样式工厂 ─────────────────────────────────────────────────
-function border(rgb = C.border) {
-  const side = { style: 'thin', color: { rgb } };
-  return { top: side, bottom: side, left: side, right: side };
-}
-
-function titleSt(bg = C.titleBg, fg = C.titleFg, sz = 16): any {
+function style(bg = C.pageBg, fg = C.text, sz = 10, bold = false, line = true) {
   return {
-    font: { bold: true, sz, color: { rgb: fg }, name: 'Calibri' },
+    font: { name: '微软雅黑', sz, bold, color: { rgb: fg } },
     fill: { patternType: 'solid', fgColor: { rgb: bg } },
-    alignment: { horizontal: 'center', vertical: 'center' },
+    alignment: { horizontal: 'center', vertical: 'center', wrapText: true },
+    border: line ? { bottom: { style: 'thin', color: { rgb: C.border } } } : {},
   };
 }
 
-function hdrSt(bg = C.headerBg, fg = C.headerFg): any {
-  return {
-    font: { bold: true, sz: 11, color: { rgb: fg } },
-    fill: { patternType: 'solid', fgColor: { rgb: bg } },
-    alignment: { horizontal: 'center', vertical: 'center' },
-    border: border(),
-  };
+function cell(ws: XLSX.WorkSheet, row: number, col: number, value: unknown, s = style()) {
+  const v = value == null || (typeof value === 'number' && !Number.isFinite(value)) ? '' : value;
+  ws[XLSX.utils.encode_cell({ r: row - 1, c: col - 1 })] = {
+    v, t: typeof v === 'number' ? 'n' : 's', s,
+  } as XLSX.CellObject;
 }
 
-function dataSt(bg = C.pageBg, fg = C.text, bold = false, align: any = 'left'): any {
-  return {
-    font: { sz: 10, color: { rgb: fg }, bold },
-    fill: { patternType: 'solid', fgColor: { rgb: bg } },
-    alignment: { horizontal: align, vertical: 'center' },
-    border: border(),
-  };
-}
-
-function bgSt(rgb = C.pageBg): any {
-  return { fill: { patternType: 'solid', fgColor: { rgb } } };
-}
-
-function sectionSt(): any {
-  return {
-    font: { bold: true, sz: 12, color: { rgb: C.text } },
-    fill: { patternType: 'solid', fgColor: { rgb: C.pageBg } },
-    alignment: { horizontal: 'left', vertical: 'center' },
-  };
-}
-
-// ── 辅助：设置单元格 ──────────────────────────────────────────
-function setCell(ws: any, addr: string, v: any, t: string, s: any) {
-  ws[addr] = { v, t, s };
-}
-
-function fillRow(ws: any, cols: string[], row: number, s: any) {
-  cols.forEach(col => setCell(ws, `${col}${row}`, '', 's', s));
-}
-
-// ── 辅助：ISO 周次 ────────────────────────────────────────────
-function getWeekKey(dateStr: string): string {
-  const d = new Date(dateStr);
-  const date = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()));
-  const day = date.getUTCDay() || 7;
-  date.setUTCDate(date.getUTCDate() + 4 - day);
-  const yearStart = new Date(Date.UTC(date.getUTCFullYear(), 0, 1));
-  const week = Math.ceil((((date.getTime() - yearStart.getTime()) / 86400000) + 1) / 7);
-  return `${date.getUTCFullYear()}-W${String(week).padStart(2, '0')}`;
+function merged(ws: XLSX.WorkSheet, row: number, first: number, last: number, value: unknown, s = style()) {
+  for (let c = first; c <= last; c++) cell(ws, row, c, c === first ? value : '', s);
+  (ws['!merges'] ??= []).push({ s: { r: row - 1, c: first - 1 }, e: { r: row - 1, c: last - 1 } });
 }
 
 function pct(n: number, total: number) {
-  return total > 0 ? `${((n / total) * 100).toFixed(1)}%` : '-';
+  return `${(total ? n / total * 100 : 0).toFixed(1)}%`;
 }
 
-// ── Sheet 1：投递总览 ─────────────────────────────────────────
-function buildOverviewSheet(items: Application[]): any {
-  const ws: any = {};
-  const COLS = ['A','B','C','D','E','F'];
-
-  const total = items.length;
-  const interviewing = items.filter(a => ['一面','二面','AI面','HR面','Offer'].includes(a.status)).length;
-  const offers = items.filter(a => a.status === 'Offer').length;
-  const followUps = items.filter(a => a.status === '待跟进').length;
-
-  const statusCount: Record<string, number> = {};
-  STATUS_ORDER.forEach(s => (statusCount[s] = 0));
-  const channelCount: Record<string, number> = {};
-  const cityCount: Record<string, number> = {};
-  items.forEach(app => {
-    statusCount[app.status] = (statusCount[app.status] ?? 0) + 1;
-    const ch = app.channel?.trim() || '未填写';
-    channelCount[ch] = (channelCount[ch] ?? 0) + 1;
-    const ci = app.city?.trim() || '未填写';
-    cityCount[ci] = (cityCount[ci] ?? 0) + 1;
-  });
-
-  // Row 1：大标题
-  setCell(ws, 'A1', 'Sugar 求职系统 · 投递情况总览', 's', titleSt(C.titleBg, C.titleFg, 18));
-  ['B','C','D','E','F'].forEach(c => setCell(ws, `${c}1`, '', 's', titleSt(C.titleBg, C.titleFg, 18)));
-
-  // Row 2：空白
-  fillRow(ws, COLS, 2, bgSt());
-
-  // Row 3：核心数据 section label
-  setCell(ws, 'A3', '📈  核心数据', 's', sectionSt());
-  ['B','C','D','E','F'].forEach(c => setCell(ws, `${c}3`, '', 's', bgSt()));
-
-  // Rows 4-6 & 8-10：4 张 StatCard（对应网页的 4 个颜色卡片）
-  const cards = [
-    { label: '投递总数',  value: total,       sub: '全部记录',                   ...C.green  },
-    { label: '进入面试',  value: interviewing, sub: `进面率 ${pct(interviewing, total)}`, ...C.yellow },
-    { label: '获得 Offer',value: offers,       sub: `Offer 率 ${pct(offers, total)}`,    ...C.coral  },
-    { label: '待跟进',   value: followUps,    sub: '需要处理',                  ...C.purple },
-  ];
-
-  const cardDefs = [
-    { cols: ['A','B','C'], startRow: 4 },
-    { cols: ['D','E','F'], startRow: 4 },
-    { cols: ['A','B','C'], startRow: 8 },
-    { cols: ['D','E','F'], startRow: 8 },
-  ];
-
-  cards.forEach((card, i) => {
-    const { cols, startRow } = cardDefs[i];
-    const cardBgSt = (_row: number, extra: any = {}) => ({
-      font: { sz: 10, color: { rgb: card.fg }, ...extra.font },
-      fill: { patternType: 'solid', fgColor: { rgb: card.bg } },
-      alignment: { horizontal: 'left', vertical: 'center' },
-      ...extra,
-    });
-    // label
-    setCell(ws, `${cols[0]}${startRow}`, card.label, 's', { ...cardBgSt(0), font: { bold: true, sz: 11, color: { rgb: card.fg } } });
-    cols.slice(1).forEach(c => setCell(ws, `${c}${startRow}`, '', 's', bgSt(card.bg)));
-    // big number
-    setCell(ws, `${cols[0]}${startRow+1}`, card.value, 'n', {
-      font: { bold: true, sz: 26, color: { rgb: card.fg }, name: 'Poppins' },
-      fill: { patternType: 'solid', fgColor: { rgb: card.bg } },
-      alignment: { horizontal: 'left', vertical: 'center' },
-    });
-    cols.slice(1).forEach(c => setCell(ws, `${c}${startRow+1}`, '', 's', bgSt(card.bg)));
-    // sub label
-    setCell(ws, `${cols[0]}${startRow+2}`, card.sub, 's', { ...cardBgSt(0), font: { sz: 10, color: { rgb: card.fg } } });
-    cols.slice(1).forEach(c => setCell(ws, `${c}${startRow+2}`, '', 's', bgSt(card.bg)));
-  });
-
-  // Row 7, 11：两排卡片之间的间隔
-  fillRow(ws, COLS, 7, bgSt());
-  fillRow(ws, COLS, 11, bgSt());
-
-  // Row 12：状态分布 section label
-  setCell(ws, 'A12', '📋  状态分布', 's', sectionSt());
-  ['B','C','D','E','F'].forEach(c => setCell(ws, `${c}12`, '', 's', bgSt()));
-
-  // Row 13：状态表头
-  ['状态','数量','占比'].forEach((h, i) => setCell(ws, `${'ABC'[i]}13`, h, 's', hdrSt()));
-  ['D','E','F'].forEach(c => setCell(ws, `${c}13`, '', 's', bgSt()));
-
-  // Rows 14-19：状态数据（颜色对应网页状态标签）
-  STATUS_ORDER.forEach((status, i) => {
-    const row = 14 + i;
-    const cnt = statusCount[status] ?? 0;
-    const sc = C.status[status] ?? { bg: C.pageBg, fg: C.text };
-    const st: any = {
-      font: { sz: 10, color: { rgb: sc.fg }, bold: true },
-      fill: { patternType: 'solid', fgColor: { rgb: sc.bg } },
-      alignment: { horizontal: 'center', vertical: 'center' },
-      border: border(),
-    };
-    setCell(ws, `A${row}`, status, 's', st);
-    setCell(ws, `B${row}`, cnt, 'n', st);
-    setCell(ws, `C${row}`, pct(cnt, total), 's', { ...st, font: { sz: 10, color: { rgb: sc.fg } } });
-    ['D','E','F'].forEach(c => setCell(ws, `${c}${row}`, '', 's', bgSt()));
-  });
-
-  // 城市分布
-  const cityRows = Object.entries(cityCount).sort((a,b) => b[1]-a[1]).slice(0, 10);
-  let r = 21;
-  fillRow(ws, COLS, 20, bgSt());
-  setCell(ws, `A${r}`, '🌆  城市分布 (Top 10)', 's', sectionSt());
-  ['B','C','D','E','F'].forEach(c => setCell(ws, `${c}${r}`, '', 's', bgSt()));
-  r++;
-  ['城市','数量','占比'].forEach((h,i) => setCell(ws, `${'ABC'[i]}${r}`, h, 's', hdrSt()));
-  ['D','E','F'].forEach(c => setCell(ws, `${c}${r}`, '', 's', bgSt()));
-  r++;
-  cityRows.forEach(([city, cnt], idx) => {
-    const bg = idx % 2 === 0 ? C.pageBg : C.pageBg2;
-    setCell(ws, `A${r}`, city, 's', dataSt(bg, C.text, false, 'left'));
-    setCell(ws, `B${r}`, cnt, 'n', dataSt(bg, C.text, true, 'center'));
-    setCell(ws, `C${r}`, pct(cnt, total), 's', dataSt(bg, C.textLight, false, 'center'));
-    ['D','E','F'].forEach(c => setCell(ws, `${c}${r}`, '', 's', bgSt()));
-    r++;
-  });
-
-  // 渠道分布
-  const chRows = Object.entries(channelCount).sort((a,b) => b[1]-a[1]).slice(0, 10);
-  fillRow(ws, COLS, r, bgSt()); r++;
-  setCell(ws, `A${r}`, '📡  投递渠道分布', 's', sectionSt());
-  ['B','C','D','E','F'].forEach(c => setCell(ws, `${c}${r}`, '', 's', bgSt()));
-  r++;
-  ['渠道','数量','占比'].forEach((h,i) => setCell(ws, `${'ABC'[i]}${r}`, h, 's', hdrSt()));
-  ['D','E','F'].forEach(c => setCell(ws, `${c}${r}`, '', 's', bgSt()));
-  r++;
-  chRows.forEach(([ch, cnt], idx) => {
-    const bg = idx % 2 === 0 ? C.pageBg : C.pageBg2;
-    setCell(ws, `A${r}`, ch, 's', dataSt(bg, C.text, false, 'left'));
-    setCell(ws, `B${r}`, cnt, 'n', dataSt(bg, C.text, true, 'center'));
-    setCell(ws, `C${r}`, pct(cnt, total), 's', dataSt(bg, C.textLight, false, 'center'));
-    ['D','E','F'].forEach(c => setCell(ws, `${c}${r}`, '', 's', bgSt()));
-    r++;
-  });
-
-  ws['!ref'] = `A1:F${r - 1}`;
-  ws['!cols'] = [{ wch: 20 }, { wch: 12 }, { wch: 12 }, { wch: 20 }, { wch: 12 }, { wch: 12 }];
-
-  const merges: any[] = [
-    { s:{r:0,c:0}, e:{r:0,c:5} }, // 标题
-    { s:{r:1,c:0}, e:{r:1,c:5} }, // 空白
-    { s:{r:2,c:0}, e:{r:2,c:5} }, // 核心数据 label
-    // Card 1
-    { s:{r:3,c:0}, e:{r:3,c:2} }, { s:{r:4,c:0}, e:{r:4,c:2} }, { s:{r:5,c:0}, e:{r:5,c:2} },
-    // Card 2
-    { s:{r:3,c:3}, e:{r:3,c:5} }, { s:{r:4,c:3}, e:{r:4,c:5} }, { s:{r:5,c:3}, e:{r:5,c:5} },
-    { s:{r:6,c:0}, e:{r:6,c:5} }, // 间隔
-    // Card 3
-    { s:{r:7,c:0}, e:{r:7,c:2} }, { s:{r:8,c:0}, e:{r:8,c:2} }, { s:{r:9,c:0}, e:{r:9,c:2} },
-    // Card 4
-    { s:{r:7,c:3}, e:{r:7,c:5} }, { s:{r:8,c:3}, e:{r:8,c:5} }, { s:{r:9,c:3}, e:{r:9,c:5} },
-    { s:{r:10,c:0}, e:{r:10,c:5} }, // 间隔
-    { s:{r:11,c:0}, e:{r:11,c:5} }, // 状态 label
-    { s:{r:19,c:0}, e:{r:19,c:5} }, // 城市前间隔
-    { s:{r:20,c:0}, e:{r:20,c:5} }, // 城市 label
-  ];
-  ws['!merges'] = merges;
-
-  const rowHeights: any[] = [];
-  rowHeights[0] = { hpt: 44 };
-  rowHeights[1] = { hpt: 8 };
-  rowHeights[2] = { hpt: 30 };
-  [3,7].forEach(start => {
-    rowHeights[start]   = { hpt: 26 };
-    rowHeights[start+1] = { hpt: 44 };
-    rowHeights[start+2] = { hpt: 20 };
-  });
-  rowHeights[6]  = { hpt: 8 };
-  rowHeights[10] = { hpt: 8 };
-  rowHeights[11] = { hpt: 30 };
-  rowHeights[12] = { hpt: 28 };
-  ws['!rows'] = rowHeights;
-
-  return ws;
+function localDate(date: Date) {
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
 }
 
-// ── Sheet 2：投递明细 ─────────────────────────────────────────
-function buildDetailSheet(items: Application[]): any {
-  const ws: any = {};
-  const COLS = 'ABCDEFGHIJKLMNO';
-  const headers = ['公司名称','岗位名称','城市','投递渠道','投递日期','当前状态','薪资范围','优先级','下一步动作','下一步时间','截止时间','匹配度','JD关键词','备注','录入时间'];
-
-  headers.forEach((_, i) =>
-    setCell(ws, `${COLS[i]}1`, i === 0 ? 'Sugar 求职系统 · 投递明细' : '', 's', titleSt(C.titleBg, C.titleFg, 14))
-  );
-  headers.forEach((h, i) => setCell(ws, `${COLS[i]}2`, h, 's', hdrSt()));
-
-  items.forEach((app, rowIdx) => {
-    const row = rowIdx + 3;
-    const altBg = rowIdx % 2 === 0 ? C.pageBg : C.pageBg2;
-    const sc = C.status[app.status] ?? { bg: C.pageBg, fg: C.text };
-    const vals = [
-      app.company_name, app.position_name, app.city ?? '',
-      app.channel ?? '', app.apply_date ?? '', app.status,
-      app.salary_range ?? '', app.priority ?? 'normal', app.next_action ?? '',
-      app.next_action_at?.slice(0, 16) ?? '', app.deadline_at?.slice(0, 16) ?? '',
-      app.match_score ?? '', app.jd_keywords?.join('、') ?? '',
-      app.notes ?? '', app.created_at?.slice(0,10) ?? '',
-    ];
-    vals.forEach((val, i) => {
-      if (i === 5) {
-        setCell(ws, `${COLS[i]}${row}`, val, 's', {
-          font: { sz: 10, color: { rgb: sc.fg }, bold: true },
-          fill: { patternType: 'solid', fgColor: { rgb: sc.bg } },
-          alignment: { horizontal: 'center', vertical: 'center' },
-          border: border(),
-        });
-      } else {
-        const bold = i < 2;
-        const align = (i >= 2 && i <= 7) || i === 11 ? 'center' : 'left';
-        setCell(ws, `${COLS[i]}${row}`, val, 's', dataSt(altBg, C.text, bold, align));
-      }
-    });
-  });
-
-  const last = Math.max(3, items.length + 2);
-  ws['!ref'] = `A1:O${last}`;
-  ws['!merges'] = [{ s:{r:0,c:0}, e:{r:0,c:14} }];
-  ws['!cols'] = [
-    {wch:18},{wch:18},{wch:10},{wch:14},
-    {wch:12},{wch:10},{wch:12},{wch:10},{wch:18},
-    {wch:18},{wch:18},{wch:10},{wch:24},{wch:30},{wch:12},
-  ];
-  ws['!rows'] = [{ hpt: 36 }, { hpt: 28 }];
-  return ws;
+function getWeekKey(dateStr: string): string | null {
+  // Date-only application dates must keep their calendar day in every timezone.
+  const match = /^(\d{4})-(\d{2})-(\d{2})/.exec(dateStr);
+  if (!match) return null;
+  const [, y, m, d] = match;
+  const date = new Date(Date.UTC(+y, +m - 1, +d));
+  if (date.getUTCFullYear() !== +y || date.getUTCMonth() !== +m - 1 || date.getUTCDate() !== +d) return null;
+  const day = date.getUTCDay() || 7;
+  date.setUTCDate(date.getUTCDate() + 4 - day);
+  const yearStart = new Date(Date.UTC(date.getUTCFullYear(), 0, 1));
+  const week = Math.ceil(((date.getTime() - yearStart.getTime()) / 86400000 + 1) / 7);
+  return `${date.getUTCFullYear()}-W${String(week).padStart(2, '0')}`;
 }
 
-// ── Sheet 3：周度趋势 ─────────────────────────────────────────
-function buildWeeklySheet(items: Application[]): { ws: any; lastDataRow: number } {
-  const ws: any = {};
+function counts(items: Application[], pick: (a: Application) => string | null) {
+  const result = new Map<string, number>();
+  for (const app of items) {
+    const key = pick(app)?.trim() || '未填写';
+    result.set(key, (result.get(key) ?? 0) + 1);
+  }
+  return [...result].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0], 'zh-CN'));
+}
 
-  const byWeek: Record<string, number> = {};
-  items.forEach(app => {
-    if (app.apply_date) {
-      const w = getWeekKey(app.apply_date);
-      byWeek[w] = (byWeek[w] ?? 0) + 1;
+function distribution(ws: XLSX.WorkSheet, row: number, col: number, headers: string[], rows: [string, number][], total: number) {
+  headers.forEach((h, i) => cell(ws, row, col + i, h, style(C.headerBg, C.headerFg, 10.5, true)));
+  rows.forEach(([label, n], i) => {
+    const s = style(i % 2 === 0 ? 'FBFBFC' : 'FFFFFF');
+    cell(ws, row + i + 1, col, label, s);
+    cell(ws, row + i + 1, col + 1, n, s);
+    cell(ws, row + i + 1, col + 2, total ? n / total : 0, s);
+    ws[XLSX.utils.encode_cell({ r: row + i, c: col + 1 })].z = '0.0%';
+    if (headers[0] === '状态') {
+      const colors = C.status[label];
+      if (colors) cell(ws, row + i + 1, col, label, style(colors.bg, colors.fg, 10, true));
     }
   });
-  const weekData = Object.entries(byWeek).sort((a,b) => a[0].localeCompare(b[0]));
+}
 
-  setCell(ws, 'A1', '📅  每周投递趋势', 's', titleSt(C.titleBg, C.titleFg, 16));
-  ['B','C'].forEach(c => setCell(ws, `${c}1`, '', 's', titleSt(C.titleBg, C.titleFg, 16)));
-  ['A','B','C'].forEach(c => setCell(ws, `${c}2`, '', 's', bgSt()));
-  setCell(ws, 'A3', '周次', 's', hdrSt());
-  setCell(ws, 'B3', '投递数', 's', hdrSt());
-  setCell(ws, 'C3', '', 's', bgSt());
-
-  weekData.forEach(([week, cnt], i) => {
-    const row = i + 4;
-    const bg = i % 2 === 0 ? C.pageBg : C.pageBg2;
-    setCell(ws, `A${row}`, week, 's', dataSt(bg, C.text, false, 'center'));
-    setCell(ws, `B${row}`, cnt, 'n', dataSt(bg, C.chartDark, true, 'center'));
-    setCell(ws, `C${row}`, '', 's', bgSt());
+function buildOverviewSheet(items: Application[], date: string): XLSX.WorkSheet {
+  const ws: XLSX.WorkSheet = {};
+  const total = items.length;
+  const interviewing = items.filter(a => ['一面', '二面', 'AI面', 'HR面', 'Offer'].includes(a.status)).length;
+  const offers = items.filter(a => a.status === 'Offer').length;
+  const followUps = items.filter(a => ['在线测评', 'AI面', 'HR面', '待跟进'].includes(a.status)).length;
+  merged(ws, 1, 1, 6, 'Sugar 求职系统 · 投递情况总览', style('FFFFFF', C.text, 16, true, false));
+  merged(ws, 2, 1, 6, `求职进度全景监控看板 · 数据更新至 ${date}`, style('FFFFFF', C.textLight, 9.5, false, false));
+  const cards = [
+    ['投递总数', total, '全部记录', 'F0F4FA', '1D6FB8', 'DCE5F2'],
+    ['进入面试', interviewing, `进面率 ${pct(interviewing, total)}`, 'F4F1FA', '6351A2', 'E3DCF2'],
+    ['获得 Offer', offers, `Offer 率 ${pct(offers, total)}${offers ? '' : ' · 冲刺中'}`, 'F0F7F2', '2E7D47', 'D9EBDC'],
+    ['待跟进事项', followUps, '测评 / AI面 / HR面 / 待跟进', 'FAF4EF', 'B25E28', 'F2E4D6'],
+  ] as const;
+  cards.forEach(([label, n, sub, bg, fg, edge], i) => {
+    const row = i < 2 ? 4 : 8;
+    const col = i % 2 === 0 ? 1 : 4;
+    merged(ws, row, col, col + 2, label, style(bg, fg, 10.5, true, false));
+    merged(ws, row + 1, col, col + 2, n, style(bg, fg, 26, true, false));
+    const s = style(bg, fg, 9.5, false, false);
+    s.border = { bottom: { style: 'thin', color: { rgb: edge } } };
+    merged(ws, row + 2, col, col + 2, sub, s);
   });
+  const statusCounts = counts(items, a => a.status);
+  // Include every observed status once; move the next table down for larger datasets.
+  const statuses = [...APPLICATION_STATUSES.filter(s => statusCounts.some(([key]) => key === s)), ...statusCounts.map(([s]) => s).filter(s => !(APPLICATION_STATUSES as readonly string[]).includes(s))];
+  distribution(ws, 12, 1, ['状态', '数量', '占比'], statuses.map(s => [s, statusCounts.find(([key]) => key === s)?.[1] ?? 0]), total);
+  distribution(ws, 12, 4, ['城市', '数量', '占比'], counts(items, a => a.city).slice(0, 10), total);
+  const channelStart = Math.max(24, 14 + statuses.length);
+  const channels = counts(items, a => a.channel);
+  distribution(ws, channelStart, 1, ['渠道', '数量', '占比'], channels, total);
+  const end = Math.max(36, channelStart + channels.length);
+  for (let r = 25; r <= end; r++) for (let c = 4; c <= 6; c++) cell(ws, r, c, '', style('F8F9FA', C.text, 11, false, false));
+  ws.D25.v = `求职洞察\n\n① 关注核心城市，按目标岗位精准投递\n\n② 当前进面率 ${pct(interviewing, total)}，持续复盘面试\n\n③ 增加精准内推，优先跟进 ${followUps} 项待办`;
+  ws['!merges']!.push({ s: { r: 24, c: 3 }, e: { r: end - 1, c: 5 } });
+  ws['!ref'] = `A1:F${end}`;
+  ws['!cols'] = [24, 12, 16, 24, 12, 16].map(wch => ({ wch }));
+  ws['!rows'] = Array.from({ length: end }, (_, i) => ({ hpt: i === 0 ? 36 : i === 1 ? 18 : [3, 7].includes(i) ? 22 : [4, 8].includes(i) ? 36 : [5, 9].includes(i) ? 20 : [2, 6, 10].includes(i) ? 12 : 24 }));
+  return ws;
+}
 
-  const lastDataRow = 3 + weekData.length;
-  ws['!ref'] = `A1:C${Math.max(4, lastDataRow)}`;
-  ws['!merges'] = [
-    { s:{r:0,c:0}, e:{r:0,c:2} },
-    { s:{r:1,c:0}, e:{r:1,c:2} },
-  ];
-  ws['!cols'] = [{ wch: 14 }, { wch: 10 }, { wch: 2 }];
-  ws['!rows'] = [{ hpt: 40 }, { hpt: 8 }, { hpt: 28 }];
-  return { ws, lastDataRow };
+function displayWidth(value: unknown): number {
+  return Math.max(0, ...String(value ?? '').split(/\r?\n/).map(line => [...line].reduce((n, ch) => n + (ch.codePointAt(0)! > 255 ? 2 : 1), 0)));
+}
+
+function buildDetailSheet(items: Application[]): XLSX.WorkSheet {
+  const ws: XLSX.WorkSheet = {};
+  const headers = ['公司名称', '岗位名称', '城市', '投递渠道', '投递日期', '当前状态', '薪资范围', '优先级', '下一步动作', '下一步时间', '截止时间', '匹配度', 'JD关键词', '备注', '录入时间'];
+  merged(ws, 1, 1, 15, 'Sugar 求职系统 · 投递明细', style('FFFFFF', C.text, 16, true, false));
+  headers.forEach((h, i) => {
+    const s = style(C.headerBg, C.headerFg, 10.5, true);
+    s.border = { bottom: { style: 'thin', color: { rgb: 'D1D1D6' } } };
+    cell(ws, 2, i + 1, h, s);
+  });
+  const widths = [20, 22, 12, 16, 14, 14, 16, 12, 24, 21, 21, 12, 32, 40, 14];
+  const rows = [{ hpt: 36 }, { hpt: 30 }];
+  items.forEach((app, i) => {
+    const values = [app.company_name, app.position_name, app.city, app.channel, app.apply_date, app.status,
+      app.salary_range, app.priority ?? 'normal', app.next_action, app.next_action_at?.slice(0, 16),
+      app.deadline_at?.slice(0, 16), app.match_score, app.jd_keywords?.join('、'), app.notes, app.created_at?.slice(0, 10)];
+    let lines = 1;
+    values.forEach((value, c) => {
+      const w = displayWidth(value);
+      widths[c] = Math.min(c >= 12 ? 56 : 40, Math.max(widths[c], w + 4));
+      const colors = c === 5 ? C.status[app.status] : undefined;
+      cell(ws, i + 3, c + 1, value, style(colors?.bg ?? (i % 2 === 0 ? 'FBFBFC' : 'FFFFFF'), colors?.fg ?? C.text, 10, c < 2 || c === 5));
+      lines = Math.max(lines, Math.ceil(w / (widths[c] - 2)), String(value ?? '').split('\n').length);
+    });
+    rows.push({ hpt: Math.min(409, Math.max(25, lines * 15 + 8)) });
+  });
+  ws['!ref'] = `A1:O${Math.max(2, items.length + 2)}`;
+  ws['!cols'] = widths.map(wch => ({ wch }));
+  ws['!rows'] = rows;
+  if (items.length) ws['!autofilter'] = { ref: `A2:O${items.length + 2}` };
+  return ws;
+}
+
+function buildWeeklySheet(items: Application[]): { ws: XLSX.WorkSheet; lastDataRow: number } {
+  const ws: XLSX.WorkSheet = {};
+  const byWeek = new Map<string, number>();
+  let undated = 0;
+  items.forEach(app => {
+    const key = app.apply_date ? getWeekKey(app.apply_date) : null;
+    if (key) byWeek.set(key, (byWeek.get(key) ?? 0) + 1);
+    else undated++;
+  });
+  const entries = [...byWeek].sort((a, b) => a[0].localeCompare(b[0]));
+  merged(ws, 1, 1, 3, '每周投递趋势', style('FFFFFF', C.text, 16, true, false));
+  merged(ws, 2, 1, 3, undated ? `${undated} 条无有效投递日期，未计入趋势` : '', style('FFFFFF', C.textLight, 9.5, false, false));
+  cell(ws, 3, 1, '周次', style(C.headerBg, C.headerFg, 10.5, true));
+  cell(ws, 3, 2, '投递数', style(C.headerBg, C.headerFg, 10.5, true));
+  entries.forEach(([key, n], i) => {
+    const s = style(i % 2 === 0 ? 'FBFBFC' : 'FFFFFF');
+    cell(ws, i + 4, 1, key, s);
+    cell(ws, i + 4, 2, n, s);
+  });
+  ws['!ref'] = `A1:C${Math.max(3, entries.length + 3)}`;
+  ws['!cols'] = [{ wch: 20 }, { wch: 16 }, { wch: 8 }];
+  ws['!rows'] = Array.from({ length: Math.max(3, entries.length + 3) }, (_, i) => ({ hpt: i === 0 ? 36 : 24 }));
+  return { ws, lastDataRow: entries.length + 3 };
 }
 
 // ── Chart XML（真实 Excel 折线图）────────────────────────────
@@ -402,7 +216,7 @@ function chartXml(lastDataRow: number) {
           </c:spPr>
         </c:marker>
         <c:dLbls>
-          <c:spPr/><c:txPr><a:bodyPr/><a:lstStyle/><a:p><a:pPr><a:defRPr sz="900" b="0"/></a:pPr></a:p></c:txPr>
+          <c:txPr><a:bodyPr/><a:lstStyle/><a:p><a:pPr><a:defRPr sz="900" b="0"/></a:pPr></a:p></c:txPr>
           <c:showLegendKey val="0"/><c:showVal val="1"/><c:showCatName val="0"/>
           <c:showSerName val="0"/><c:showPercent val="0"/><c:showBubbleSize val="0"/>
         </c:dLbls>
@@ -410,12 +224,12 @@ function chartXml(lastDataRow: number) {
         <c:val><c:numRef><c:f>'周度趋势'!$B$4:$B$${lastDataRow}</c:f></c:numRef></c:val>
         <c:smooth val="1"/>
       </c:ser>
-      <c:marker val="1"/><c:smooth val="0"/>
+      <c:marker val="1"/><c:smooth val="0"/><c:axId val="12345678"/><c:axId val="87654321"/>
     </c:lineChart>
     <c:catAx>
       <c:axId val="12345678"/><c:scaling><c:orientation val="minMax"/></c:scaling>
       <c:delete val="0"/><c:axPos val="b"/>
-      <c:tickMark val="none"/><c:tickLblPos val="nextTo"/>
+      <c:majorTickMark val="none"/><c:minorTickMark val="none"/><c:tickLblPos val="nextTo"/>
       <c:spPr><a:ln><a:solidFill><a:srgbClr val="${C.border}"/></a:solidFill></a:ln></c:spPr>
       <c:txPr><a:bodyPr rot="-5400000"/><a:lstStyle/><a:p><a:pPr><a:defRPr sz="800"><a:solidFill><a:srgbClr val="${C.textLight}"/></a:solidFill></a:defRPr></a:pPr></a:p></c:txPr>
       <c:crossAx val="87654321"/>
@@ -424,7 +238,7 @@ function chartXml(lastDataRow: number) {
       <c:axId val="87654321"/><c:scaling><c:orientation val="minMax"/></c:scaling>
       <c:delete val="0"/><c:axPos val="l"/>
       <c:majorGridlines><c:spPr><a:ln w="9525"><a:solidFill><a:srgbClr val="${C.border}"/></a:solidFill><a:prstDash val="dash"/></a:ln></c:spPr></c:majorGridlines>
-      <c:tickMark val="none"/><c:tickLblPos val="nextTo"/>
+      <c:majorTickMark val="none"/><c:minorTickMark val="none"/><c:tickLblPos val="nextTo"/>
       <c:spPr><a:ln><a:noFill/></a:ln></c:spPr>
       <c:txPr><a:bodyPr/><a:lstStyle/><a:p><a:pPr><a:defRPr sz="800"><a:solidFill><a:srgbClr val="${C.textLight}"/></a:solidFill></a:defRPr></a:pPr></a:p></c:txPr>
       <c:crossAx val="12345678"/>
@@ -441,7 +255,7 @@ function chartXml(lastDataRow: number) {
 
 const drawingXml = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <xdr:wsDr xmlns:xdr="http://schemas.openxmlformats.org/drawingml/2006/spreadsheetDrawing" xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships" xmlns:c="http://schemas.openxmlformats.org/drawingml/2006/chart">
-<xdr:twoCellAnchor moveWithCells="0" sizeWithCells="0">
+<xdr:twoCellAnchor editAs="oneCell">
   <xdr:from><xdr:col>3</xdr:col><xdr:colOff>0</xdr:colOff><xdr:row>2</xdr:row><xdr:rowOff>0</xdr:rowOff></xdr:from>
   <xdr:to><xdr:col>15</xdr:col><xdr:colOff>0</xdr:colOff><xdr:row>24</xdr:row><xdr:rowOff>0</xdr:rowOff></xdr:to>
   <xdr:graphicFrame macro="">
@@ -466,18 +280,35 @@ const sheetRels = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 </Relationships>`;
 
 // ── 主导出函数 ────────────────────────────────────────────────
-export async function exportApplicationsToExcel(items: Application[]): Promise<void> {
+export async function createApplicationsExcel(items: Application[], asOf = new Date()): Promise<ArrayBuffer> {
+  const date = localDate(asOf);
   const wb = XLSX.utils.book_new();
-  XLSX.utils.book_append_sheet(wb, buildOverviewSheet(items), '投递总览');
+  XLSX.utils.book_append_sheet(wb, buildOverviewSheet(items, date), '投递总览');
   XLSX.utils.book_append_sheet(wb, buildDetailSheet(items),  '投递明细');
   const { ws: ws3, lastDataRow } = buildWeeklySheet(items);
   XLSX.utils.book_append_sheet(wb, ws3, '周度趋势');
 
+  // xlsx-js-style does not serialize sheet views or frozen panes. Add valid OOXML views.
   // 写入 buffer
   const buf = XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
 
   // 注入图表 XML（仅在有周度数据时）
   const zip = await JSZip.loadAsync(buf as ArrayBuffer);
+
+  for (let i = 1; i <= 3; i++) {
+    const path = `xl/worksheets/sheet${i}.xml`;
+    const entry = zip.file(path);
+    if (!entry) throw new Error(`Missing worksheet: ${path}`);
+    let xml = await entry.async('text');
+    const pane = i === 2 ? '<pane ySplit="2" topLeftCell="A3" activePane="bottomLeft" state="frozen"/><selection pane="bottomLeft" activeCell="A3" sqref="A3"/>' : '';
+    const view = `<sheetViews><sheetView workbookViewId="0" showGridLines="0">${pane}</sheetView></sheetViews>`;
+    if (/<sheetViews[\s>]/.test(xml)) {
+      xml = xml.replace(/<sheetViews\b[^>]*>[\s\S]*?<\/sheetViews>/, view);
+    } else {
+      xml = xml.replace(/(<dimension\b[^>]*\/>)/, `$1${view}`);
+    }
+    zip.file(path, xml);
+  }
 
   if (lastDataRow >= 4) {
     zip.file('xl/charts/chart1.xml', chartXml(lastDataRow));
@@ -508,11 +339,16 @@ export async function exportApplicationsToExcel(items: Application[]): Promise<v
     }
   }
 
-  const out = await zip.generateAsync({ type: 'arraybuffer' });
+  return zip.generateAsync({ type: 'arraybuffer', compression: 'DEFLATE' });
+}
+
+export async function exportApplicationsToExcel(items: Application[]): Promise<void> {
+  const asOf = new Date();
+  const out = await createApplicationsExcel(items, asOf);
   const blob = new Blob([out], {
     type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
   });
-  const date = new Date().toISOString().slice(0, 10);
+  const date = localDate(asOf);
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
   a.href = url;
@@ -520,5 +356,5 @@ export async function exportApplicationsToExcel(items: Application[]): Promise<v
   document.body.appendChild(a);
   a.click();
   document.body.removeChild(a);
-  URL.revokeObjectURL(url);
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
