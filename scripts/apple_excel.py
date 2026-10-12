@@ -346,13 +346,26 @@ def attach_progress(path, ws):
         entries = {entry.filename: source.read(entry.filename) for entry in source.infolist()}
     sheet_ns = 'http://schemas.openxmlformats.org/spreadsheetml/2006/main'
     rel_ns = 'http://schemas.openxmlformats.org/officeDocument/2006/relationships'
+    package_rel_ns = 'http://schemas.openxmlformats.org/package/2006/relationships'
     sheet_index = ws.parent.index(ws) + 1
     sheet_path = f'xl/worksheets/sheet{sheet_index}.xml'
+    relationships_path = f'xl/worksheets/_rels/sheet{sheet_index}.xml.rels'
+    relationships = ET.fromstring(entries[relationships_path]) if relationships_path in entries else ET.Element(f'{{{package_rel_ns}}}Relationships')
+    existing_ids = {node.attrib.get('Id') for node in relationships}
+    relationship_id = 'rIdProgress'
+    while relationship_id in existing_ids:
+        relationship_id += '_'
+    ET.SubElement(relationships, f'{{{package_rel_ns}}}Relationship', {
+        'Id': relationship_id, 'Type': f'{rel_ns}/drawing', 'Target': '../drawings/statusProgress.xml'})
     root = ET.fromstring(entries[sheet_path])
-    ET.SubElement(root, f'{{{sheet_ns}}}drawing', {f'{{{rel_ns}}}id': 'rIdProgress'})
+    # Drawing precedes legacyDrawing (existing cell notes) in the worksheet schema.
+    drawing_node = ET.Element(f'{{{sheet_ns}}}drawing', {f'{{{rel_ns}}}id': relationship_id})
+    after_drawing = {'legacyDrawing', 'legacyDrawingHF', 'drawingHF', 'picture', 'oleObjects', 'controls', 'webPublishItems', 'tableParts', 'extLst'}
+    insert_at = next((i for i, node in enumerate(root) if node.tag.rsplit('}', 1)[-1] in after_drawing), len(root))
+    root.insert(insert_at, drawing_node)
     entries[sheet_path] = ET.tostring(root, encoding='utf-8', xml_declaration=True)
     entries['xl/drawings/statusProgress.xml'] = drawing
-    entries[f'xl/worksheets/_rels/sheet{sheet_index}.xml.rels'] = b'<?xml version="1.0" encoding="UTF-8"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rIdProgress" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/drawing" Target="../drawings/statusProgress.xml"/></Relationships>'
+    entries[relationships_path] = ET.tostring(relationships, encoding='utf-8', xml_declaration=True)
     content_ns = 'http://schemas.openxmlformats.org/package/2006/content-types'
     content = ET.fromstring(entries['[Content_Types].xml'])
     ET.SubElement(content, f'{{{content_ns}}}Override', {'PartName': '/xl/drawings/statusProgress.xml', 'ContentType': 'application/vnd.openxmlformats-officedocument.drawing+xml'})
@@ -529,7 +542,7 @@ def transform(source, destination):
         # openpyxl reads cell data but cannot round-trip native shapes; this check never saves the reader.
         with warnings.catch_warnings():
             warnings.filterwarnings('ignore', message='DrawingML support is incomplete.*')
-            check = load_workbook(temporary, data_only=False)
+            check = load_workbook(BytesIO(temporary.read_bytes()), data_only=False)
         if snapshot(check['投递明细'], offset=1) != before:
             raise ValueError('保存后的明细完整性检查失败。')
         check.close()
