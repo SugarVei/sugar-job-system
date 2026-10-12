@@ -23,15 +23,17 @@ interface ReferralCodeForm {
   company_name: string;
   referral_code: string;
   referrer_name: string;
+  visibility: 'private' | 'public';
 }
 
-type VisibleReferralCode = (ReferralCode & { visibility: 'private' })
-  | (SharedReferralCode & { visibility: 'shared' });
+type VisibleReferralCode = (ReferralCode & { owned: true; access: 'private' | 'shared' })
+  | (SharedReferralCode & { owned: false; access: 'shared' });
 
 const EMPTY_FORM: ReferralCodeForm = {
   company_name: '',
   referral_code: '',
   referrer_name: '',
+  visibility: 'private',
 };
 
 function maskCode(code: string) {
@@ -46,13 +48,19 @@ function safeError(error: unknown, secret = '') {
 }
 
 export default function ReferralCodes() {
-  const { items: privateItems, loading: privateLoading, error: privateError, create, update, remove } = useCollection<ReferralCode>('referral_codes');
-  const { items: sharedItems, loading: sharedLoading, error: sharedError } = useSharedReferralCodes();
+  const { items: ownItems, loading: privateLoading, error: privateError, create, update, remove } = useCollection<ReferralCode>('referral_codes');
+  const { items: sharedItems, loading: sharedLoading, error: sharedError, refresh: refreshShared } = useSharedReferralCodes();
   const [scope, setScope] = useState<'all' | 'shared' | 'private'>('all');
-  const items = useMemo<VisibleReferralCode[]>(() => [
-    ...privateItems.map((item) => ({ ...item, visibility: 'private' as const })),
-    ...sharedItems.map((item) => ({ ...item, visibility: 'shared' as const })),
-  ], [privateItems, sharedItems]);
+  const items = useMemo<VisibleReferralCode[]>(() => {
+    const ownIds = new Set(ownItems.map((item) => item.id));
+    return [
+      ...ownItems.map((item) => ({ ...item, owned: true as const, access: item.visibility === 'public' ? 'shared' as const : 'private' as const })),
+      ...sharedItems.filter((item) => !item.owner_referral_id || !ownIds.has(item.owner_referral_id))
+        .map((item) => ({ ...item, owned: false as const, access: 'shared' as const })),
+    ];
+  }, [ownItems, sharedItems]);
+  const privateCount = items.filter((item) => item.access === 'private').length;
+  const sharedCount = items.length - privateCount;
   const loading = privateLoading || sharedLoading;
   const error = privateError || sharedError;
   const { query, registerAdd, setScreen } = useAppShell();
@@ -97,7 +105,7 @@ export default function ReferralCodes() {
 
   const filtered = useMemo(() => {
     const needle = query.trim().toLowerCase();
-    return items.filter((item) => (scope === 'all' || item.visibility === scope)
+    return items.filter((item) => (scope === 'all' || item.access === scope)
       && (!needle || [item.company_name, item.referrer_name, item.referral_code]
         .filter(Boolean)
         .some((value) => (value as string).toLowerCase().includes(needle))));
@@ -109,6 +117,7 @@ export default function ReferralCodes() {
       company_name: item.company_name,
       referral_code: '',
       referrer_name: item.referrer_name ?? '',
+      visibility: item.visibility ?? 'private',
     });
     setFormError('');
     setModalOpen(true);
@@ -129,6 +138,7 @@ export default function ReferralCodes() {
       company_name: companyName,
       referral_code: referralCode,
       referrer_name: referrerName,
+      visibility: form.visibility,
     };
 
     setFormError('');
@@ -136,13 +146,15 @@ export default function ReferralCodes() {
     try {
       if (editing) await update(editing.id, payload);
       else await create(payload);
+      await refreshShared();
+      setScope(form.visibility === 'public' ? 'shared' : 'private');
       setModalOpen(false);
       setRevealedIds((current) => {
         const next = new Set(current);
         if (editing) next.delete(editing.id);
         return next;
       });
-      showToast(editing ? '私人内推码已更新' : '已添加，仅你可见');
+      showToast(form.visibility === 'public' ? '已共享给所有用户，推荐人保密' : editing ? '已更新，仅你可见' : '已添加，仅你可见');
     } catch (saveError) {
       setFormError(`保存失败：${safeError(saveError, referralCode)}`);
     } finally {
@@ -155,6 +167,7 @@ export default function ReferralCodes() {
     if (!confirm('此操作不可恢复，请再次确认删除。')) return;
     try {
       await remove(item.id);
+      await refreshShared();
       setRevealedIds((current) => {
         const next = new Set(current);
         next.delete(item.id);
@@ -221,15 +234,15 @@ export default function ReferralCodes() {
       <div className="flex flex-wrap gap-2" role="group" aria-label="内推码可见范围筛选">
         {([
           ['all', `全部 ${items.length}`],
-          ['shared', `所有用户可见 ${sharedItems.length}`],
-          ['private', `仅我可见 ${privateItems.length}`],
+          ['shared', `所有用户可见 ${sharedCount}`],
+          ['private', `仅我可见 ${privateCount}`],
         ] as const).map(([value, label]) => (
           <button key={value} onClick={() => setScope(value)} aria-pressed={scope === value} className="btn-press" style={pageTab(scope === value)}>{label}</button>
         ))}
       </div>
-      {scope !== 'private' && sharedItems.length > 0 ? (
+      {scope !== 'private' && sharedCount > 0 ? (
         <p style={{ margin: 0, color: '#77776f', fontSize: 13, lineHeight: 1.6 }}>
-          共享内推码来自公开资料，推荐人信息保密。适用岗位与有效期请以企业招聘系统为准。
+          共享内推码由用户分享或公开资料整理，推荐人信息保密。适用岗位与有效期请以企业招聘系统为准。
         </p>
       ) : null}
 
@@ -253,17 +266,17 @@ export default function ReferralCodes() {
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <h2 style={{ margin: '2px 0 6px', fontSize: 17, fontWeight: 700, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{item.company_name}</h2>
                     <p style={{ margin: 0, color: '#8b8a82', fontSize: 13, lineHeight: 1.45 }}>
-                      推荐人：{item.visibility === 'shared' ? '保密' : item.referrer_name || '未填写'}
+                      推荐人：{item.access === 'shared' ? '保密' : item.referrer_name || '未填写'}
                     </p>
-                    <span style={{ display: 'inline-block', marginTop: 7, fontSize: 11, fontWeight: 700, color: item.visibility === 'shared' ? theme.accent : '#77776f' }}>
-                      {item.visibility === 'shared' ? '所有用户可见' : '仅我可见'}
+                    <span style={{ display: 'inline-block', marginTop: 7, fontSize: 11, fontWeight: 700, color: item.access === 'shared' ? theme.accent : '#77776f' }}>
+                      {item.access === 'shared' ? '所有用户可见' : '仅我可见'}
                     </span>
                   </div>
                 </div>
 
-                {item.visibility === 'shared' ? (
+                {!item.owned ? (
                   <div style={{ marginTop: 12, fontSize: 12, color: '#8b8a82', lineHeight: 1.5 }}>
-                    {item.recruitment_year} 届校招 · {item.status}
+                    {item.recruitment_year ? `${item.recruitment_year} 届校招` : '用户分享'} · {item.status}
                     {item.notes ? <p style={{ margin: '4px 0 0' }}>{item.notes}</p> : null}
                   </div>
                 ) : item.notes ? (
@@ -286,7 +299,7 @@ export default function ReferralCodes() {
                   <button onClick={() => toggleReveal(item.id)} aria-label={revealed ? '隐藏内推码' : '显示内推码'} className="btn-press" style={actionButtonStyle}>
                     {revealed ? <IconEyeOff size={15} /> : <IconEye size={15} />}{revealed ? '隐藏' : '显示'}内推码
                   </button>
-                  {item.visibility === 'private' ? <>
+                  {item.owned ? <>
                     <button onClick={() => openEdit(item)} aria-label={`编辑${item.company_name}的内推码`} className="btn-press" style={iconActionStyle}><IconEdit size={15} /></button>
                     <button onClick={() => deleteItem(item)} aria-label={`删除${item.company_name}的内推码`} className="btn-press" style={{ ...iconActionStyle, color: '#b45252' }}><IconTrash size={15} /></button>
                   </> : null}
@@ -311,11 +324,26 @@ export default function ReferralCodes() {
         }
       >
         <FormError message={formError} />
-        <p style={{ color: '#77776f', fontSize: 13 }}>此记录仅你可见，推荐人信息不会共享给其他用户。</p>
+        <Field label="可见范围">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2" role="radiogroup" aria-label="内推码可见范围">
+            {([
+              ['private', '只有自己可见'],
+              ['public', '全部用户都可以见'],
+            ] as const).map(([value, label]) => (
+              <label key={value} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '12px 10px', borderRadius: 12, cursor: saving ? 'default' : 'pointer', border: `1px solid ${form.visibility === value ? theme.accent : '#e7e0d6'}`, background: form.visibility === value ? theme.accentSoft : '#fbfaf6', fontSize: 13, fontWeight: 600 }}>
+                <input type="radio" name="referral-visibility" value={value} checked={form.visibility === value} disabled={saving} onChange={() => setForm({ ...form, visibility: value })} style={{ accentColor: theme.accent }} />
+                {label}
+              </label>
+            ))}
+          </div>
+        </Field>
+        <p style={{ color: '#77776f', fontSize: 13, lineHeight: 1.6 }}>
+          {form.visibility === 'public' ? '公司和内推码将对所有登录用户可见。推荐人姓名仅你可见，其他用户看到的是“保密”。' : '此记录仅你可见，推荐人信息不会共享给其他用户。'}
+        </p>
         <Field label="公司名称 *">
           <TextInput ref={firstRequiredRef} value={form.company_name} onChange={(event) => setForm({ ...form, company_name: event.target.value })} aria-label="公司名称" />
         </Field>
-        <Field label="推荐人姓名 *">
+        <Field label="推荐人姓名 *（仅自己可见）">
           <TextInput value={form.referrer_name} onChange={(event) => setForm({ ...form, referrer_name: event.target.value })} aria-label="推荐人姓名" />
         </Field>
         <Field label="内推码 *">

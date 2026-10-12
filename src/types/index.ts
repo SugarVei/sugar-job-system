@@ -62,7 +62,8 @@ export interface SharedReferralCode {
   company_name: string;
   referral_code: string;
   referrer_name: '保密';
-  recruitment_year: number;
+  recruitment_year: number | null;
+  owner_referral_id: string | null;
   status: '待核实' | '已核实' | '已失效';
   notes: string | null;
   created_at: string;
@@ -72,6 +73,7 @@ export interface SharedReferralCode {
 export interface ReferralCode {
   id: string;
   user_id: string;
+  visibility: 'private' | 'public';
   company_id: string | null;
   company_name: string;
   industry: string | null;
