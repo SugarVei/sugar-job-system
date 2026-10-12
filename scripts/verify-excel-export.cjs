@@ -37,28 +37,29 @@ async function verify(items, hasChart) {
   const zip = await JSZip.loadAsync(buffer);
   const workbook = XLSX.read(buffer, { type: 'array' });
   const detail = workbook.Sheets['投递明细'];
-  assert.equal(detail.F2.v, '当前状态');
+  assert.equal(detail.G2.v, '当前状态');
   assert.equal(XLSX.utils.decode_range(detail['!ref']).e.r + 1, items.length + 2);
   items.forEach((app, i) => {
-    assert.equal(detail[`A${i + 3}`].v, app.company_name);
-    assert.equal(detail[`F${i + 3}`].v, app.status);
-    assert.equal(detail[`N${i + 3}`].v, app.notes ?? '');
+    assert.equal(detail[`B${i + 3}`].v, app.company_name);
+    assert.equal(detail[`G${i + 3}`].v, app.status);
+    assert.equal(detail[`O${i + 3}`].v, app.notes ?? '');
   });
   if (items.length && items[0].match_score === 0) {
-    assert.equal(detail.L3.t, 'n');
-    assert.equal(detail.L3.v, 0);
+    assert.equal(detail.M3.t, 'n');
+    assert.equal(detail.M3.v, 0);
   }
   const overview = workbook.Sheets['投递总览'];
-  assert.equal(overview.A5.v, items.length);
+  assert.equal(overview.B5.v, items.length);
   const statusRange = XLSX.utils.sheet_to_json(overview, { header: 1 }).slice(12);
   const names = statusRange.map(row => row[0]);
   for (const status of new Set(items.map(app => app.status))) assert(names.includes(status));
   for (let n = 1; n <= 3; n++) {
     const xml = await zip.file(`xl/worksheets/sheet${n}.xml`).async('text');
     assert(xml.includes('showGridLines="0"'));
+    assert(!/<c\b[^>]*\br="A\d+"/.test(xml), 'A column must remain an empty margin');
     if (n === 2) {
       assert(xml.includes('ySplit="2"'));
-      assert(xml.includes('topLeftCell="A3"'));
+      assert(xml.includes('topLeftCell="B3"'));
     }
   }
   assert.equal(!!zip.file('xl/charts/chart1.xml'), hasChart);
@@ -67,6 +68,8 @@ async function verify(items, hasChart) {
     const line = xml.match(/<c:lineChart>[\s\S]*?<\/c:lineChart>/)[0];
     assert.equal((line.match(/<c:axId/g) ?? []).length, 2);
     assert(!xml.includes('<c:tickMark'));
+    assert(xml.includes("'周度趋势'!$B$4:$B$"));
+    assert(xml.includes("'周度趋势'!$C$4:$C$"));
     const drawing = await zip.file('xl/drawings/drawing1.xml').async('text');
     assert(!drawing.includes('moveWithCells'));
     assert(!drawing.includes('sizeWithCells'));

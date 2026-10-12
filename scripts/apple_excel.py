@@ -29,7 +29,7 @@ from openpyxl.chart.text import RichText
 from openpyxl.drawing.line import LineProperties
 from openpyxl.drawing.text import Paragraph, ParagraphProperties, CharacterProperties
 from openpyxl.styles import Alignment, Border, Font, PatternFill, Side
-from openpyxl.utils import get_column_letter
+from openpyxl.utils import get_column_letter, column_index_from_string, range_boundaries
 from openpyxl.utils.exceptions import InvalidFileException
 
 FONT = '微软雅黑'
@@ -316,10 +316,52 @@ def style_weekly(ws):
     ws.freeze_panes = f'A{header_row + 1}'
 
 
-def snapshot(ws):
-    return [(cell.coordinate, clean(cell.value), cell.data_type if clean(cell.value) is not None else 'blank',
+def add_left_margin(ws):
+    """将整张排版右移一列，同时移动合并范围、列宽、图表与引用。"""
+    dimensions = [(key, copy(value)) for key, value in ws.column_dimensions.items()]
+    ws.insert_cols(1)
+    for merged in ws.merged_cells.ranges:
+        merged.shift(col_shift=1)
+    ws.column_dimensions.clear()
+    for key, dimension in dimensions:
+        index = column_index_from_string(key) + 1
+        dimension.index = get_column_letter(index)
+        dimension.min = dimension.max = index
+        ws.column_dimensions[dimension.index] = dimension
+    ws.column_dimensions['A'].width = 4
+    if ws.freeze_panes:
+        ws.freeze_panes = 'B' + str(ws.freeze_panes[1:])
+    if ws.auto_filter.ref:
+        left, top, right, bottom = range_boundaries(ws.auto_filter.ref)
+        ws.auto_filter.ref = f'{get_column_letter(left + 1)}{top}:{get_column_letter(right + 1)}{bottom}'
+    if ws.print_area:
+        ws.print_area = f'A1:{get_column_letter(ws.max_column)}{ws.max_row}'
+    for chart in ws._charts:
+        if isinstance(chart.anchor, str):
+            match = re.fullmatch(r'([A-Z]+)(\d+)', chart.anchor)
+            chart.anchor = get_column_letter(column_index_from_string(match[1]) + 1) + match[2]
+        else:
+            chart.anchor._from.col += 1
+            if hasattr(chart.anchor, 'to'):
+                chart.anchor.to.col += 1
+        for series in chart.series:
+            for reference in (series.val.numRef if series.val else None,
+                              series.cat.numRef if series.cat else None,
+                              series.cat.strRef if series.cat else None):
+                if reference is not None and reference.f:
+                    sheet, area = reference.f.rsplit('!', 1)
+                    left, top, right, bottom = range_boundaries(area)
+                    reference.f = f'{sheet}!${get_column_letter(left + 1)}${top}:${get_column_letter(right + 1)}${bottom}'
+            if series.tx and series.tx.strRef:
+                sheet, area = series.tx.strRef.f.rsplit('!', 1)
+                left, top, _, _ = range_boundaries(area)
+                series.tx.strRef.f = f'{sheet}!${get_column_letter(left + 1)}${top}'
+
+
+def snapshot(ws, offset=0):
+    return [(f'{get_column_letter(cell.column - offset)}{cell.row}', clean(cell.value), cell.data_type if clean(cell.value) is not None else 'blank',
              cell.hyperlink.target if cell.hyperlink else None)
-            for row in ws.iter_rows(min_row=2, max_col=15) for cell in row]
+            for row in ws.iter_rows(min_row=2, min_col=1 + offset, max_col=15 + offset) for cell in row]
 
 
 def transform(source, destination):
@@ -358,6 +400,11 @@ def transform(source, destination):
     wb.active = wb.index(wb['投递总览'])
     if snapshot(detail) != before:
         raise ValueError('明细完整性检查失败；没有保存输出。')
+    for ws in wb:
+        if ws.title in ('投递总览', '投递明细', '周度趋势'):
+            add_left_margin(ws)
+    if snapshot(detail, offset=1) != before:
+        raise ValueError('右移后的明细完整性检查失败；没有保存输出。')
     destination.parent.mkdir(parents=True, exist_ok=True)
     with tempfile.NamedTemporaryFile(dir=destination.parent, suffix='.xlsx', delete=False) as temp:
         temporary = Path(temp.name)
@@ -367,7 +414,7 @@ def transform(source, destination):
             if zip_file.testzip():
                 raise ValueError('输出压缩包校验失败。')
         check = load_workbook(temporary, data_only=False)
-        if snapshot(check['投递明细']) != before:
+        if snapshot(check['投递明细'], offset=1) != before:
             raise ValueError('保存后的明细完整性检查失败。')
         check.close()
         temporary.replace(destination)

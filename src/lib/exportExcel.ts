@@ -33,14 +33,14 @@ function style(bg = C.pageBg, fg = C.text, sz = 10, bold = false, line = true) {
 
 function cell(ws: XLSX.WorkSheet, row: number, col: number, value: unknown, s = style()) {
   const v = value == null || (typeof value === 'number' && !Number.isFinite(value)) ? '' : value;
-  ws[XLSX.utils.encode_cell({ r: row - 1, c: col - 1 })] = {
+  ws[XLSX.utils.encode_cell({ r: row - 1, c: col })] = {
     v, t: typeof v === 'number' ? 'n' : 's', s,
   } as XLSX.CellObject;
 }
 
 function merged(ws: XLSX.WorkSheet, row: number, first: number, last: number, value: unknown, s = style()) {
   for (let c = first; c <= last; c++) cell(ws, row, c, c === first ? value : '', s);
-  (ws['!merges'] ??= []).push({ s: { r: row - 1, c: first - 1 }, e: { r: row - 1, c: last - 1 } });
+  (ws['!merges'] ??= []).push({ s: { r: row - 1, c: first }, e: { r: row - 1, c: last } });
 }
 
 function pct(n: number, total: number) {
@@ -81,7 +81,7 @@ function distribution(ws: XLSX.WorkSheet, row: number, col: number, headers: str
     cell(ws, row + i + 1, col, label, s);
     cell(ws, row + i + 1, col + 1, n, s);
     cell(ws, row + i + 1, col + 2, total ? n / total : 0, s);
-    ws[XLSX.utils.encode_cell({ r: row + i, c: col + 1 })].z = '0.0%';
+    ws[XLSX.utils.encode_cell({ r: row + i, c: col + 2 })].z = '0.0%';
     if (headers[0] === '状态') {
       const colors = C.status[label];
       if (colors) cell(ws, row + i + 1, col, label, style(colors.bg, colors.fg, 10, true));
@@ -122,10 +122,10 @@ function buildOverviewSheet(items: Application[], date: string): XLSX.WorkSheet 
   distribution(ws, channelStart, 1, ['渠道', '数量', '占比'], channels, total);
   const end = Math.max(36, channelStart + channels.length);
   for (let r = 25; r <= end; r++) for (let c = 4; c <= 6; c++) cell(ws, r, c, '', style('F8F9FA', C.text, 11, false, false));
-  ws.D25.v = `求职洞察\n\n① 关注核心城市，按目标岗位精准投递\n\n② 当前进面率 ${pct(interviewing, total)}，持续复盘面试\n\n③ 增加精准内推，优先跟进 ${followUps} 项待办`;
-  ws['!merges']!.push({ s: { r: 24, c: 3 }, e: { r: end - 1, c: 5 } });
-  ws['!ref'] = `A1:F${end}`;
-  ws['!cols'] = [24, 12, 16, 24, 12, 16].map(wch => ({ wch }));
+  ws.E25.v = `求职洞察\n\n① 关注核心城市，按目标岗位精准投递\n\n② 当前进面率 ${pct(interviewing, total)}，持续复盘面试\n\n③ 增加精准内推，优先跟进 ${followUps} 项待办`;
+  ws['!merges']!.push({ s: { r: 24, c: 4 }, e: { r: end - 1, c: 6 } });
+  ws['!ref'] = `B1:G${end}`;
+  ws['!cols'] = [4, 24, 12, 16, 24, 12, 16].map(wch => ({ wch }));
   ws['!rows'] = Array.from({ length: end }, (_, i) => ({ hpt: i === 0 ? 36 : i === 1 ? 18 : [3, 7].includes(i) ? 22 : [4, 8].includes(i) ? 36 : [5, 9].includes(i) ? 20 : [2, 6, 10].includes(i) ? 12 : 24 }));
   return ws;
 }
@@ -159,10 +159,10 @@ function buildDetailSheet(items: Application[]): XLSX.WorkSheet {
     });
     rows.push({ hpt: Math.min(409, Math.max(25, lines * 15 + 8)) });
   });
-  ws['!ref'] = `A1:O${Math.max(2, items.length + 2)}`;
-  ws['!cols'] = widths.map(wch => ({ wch }));
+  ws['!ref'] = `B1:P${Math.max(2, items.length + 2)}`;
+  ws['!cols'] = [4, ...widths].map(wch => ({ wch }));
   ws['!rows'] = rows;
-  if (items.length) ws['!autofilter'] = { ref: `A2:O${items.length + 2}` };
+  if (items.length) ws['!autofilter'] = { ref: `B2:P${items.length + 2}` };
   return ws;
 }
 
@@ -185,8 +185,8 @@ function buildWeeklySheet(items: Application[]): { ws: XLSX.WorkSheet; lastDataR
     cell(ws, i + 4, 1, key, s);
     cell(ws, i + 4, 2, n, s);
   });
-  ws['!ref'] = `A1:C${Math.max(3, entries.length + 3)}`;
-  ws['!cols'] = [{ wch: 20 }, { wch: 16 }, { wch: 8 }];
+  ws['!ref'] = `B1:D${Math.max(3, entries.length + 3)}`;
+  ws['!cols'] = [{ wch: 4 }, { wch: 20 }, { wch: 16 }, { wch: 8 }];
   ws['!rows'] = Array.from({ length: Math.max(3, entries.length + 3) }, (_, i) => ({ hpt: i === 0 ? 36 : 24 }));
   return { ws, lastDataRow: entries.length + 3 };
 }
@@ -220,8 +220,8 @@ function chartXml(lastDataRow: number) {
           <c:showLegendKey val="0"/><c:showVal val="1"/><c:showCatName val="0"/>
           <c:showSerName val="0"/><c:showPercent val="0"/><c:showBubbleSize val="0"/>
         </c:dLbls>
-        <c:cat><c:strRef><c:f>'周度趋势'!$A$4:$A$${lastDataRow}</c:f></c:strRef></c:cat>
-        <c:val><c:numRef><c:f>'周度趋势'!$B$4:$B$${lastDataRow}</c:f></c:numRef></c:val>
+        <c:cat><c:strRef><c:f>'周度趋势'!$B$4:$B$${lastDataRow}</c:f></c:strRef></c:cat>
+        <c:val><c:numRef><c:f>'周度趋势'!$C$4:$C$${lastDataRow}</c:f></c:numRef></c:val>
         <c:smooth val="1"/>
       </c:ser>
       <c:marker val="1"/><c:smooth val="0"/><c:axId val="12345678"/><c:axId val="87654321"/>
@@ -256,8 +256,8 @@ function chartXml(lastDataRow: number) {
 const drawingXml = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <xdr:wsDr xmlns:xdr="http://schemas.openxmlformats.org/drawingml/2006/spreadsheetDrawing" xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships" xmlns:c="http://schemas.openxmlformats.org/drawingml/2006/chart">
 <xdr:twoCellAnchor editAs="oneCell">
-  <xdr:from><xdr:col>3</xdr:col><xdr:colOff>0</xdr:colOff><xdr:row>2</xdr:row><xdr:rowOff>0</xdr:rowOff></xdr:from>
-  <xdr:to><xdr:col>15</xdr:col><xdr:colOff>0</xdr:colOff><xdr:row>24</xdr:row><xdr:rowOff>0</xdr:rowOff></xdr:to>
+  <xdr:from><xdr:col>4</xdr:col><xdr:colOff>0</xdr:colOff><xdr:row>2</xdr:row><xdr:rowOff>0</xdr:rowOff></xdr:from>
+  <xdr:to><xdr:col>16</xdr:col><xdr:colOff>0</xdr:colOff><xdr:row>24</xdr:row><xdr:rowOff>0</xdr:rowOff></xdr:to>
   <xdr:graphicFrame macro="">
     <xdr:nvGraphicFramePr><xdr:cNvPr id="2" name="Chart 1"/><xdr:cNvGraphicFramePr/></xdr:nvGraphicFramePr>
     <xdr:xfrm><a:off x="0" y="0"/><a:ext cx="0" cy="0"/></xdr:xfrm>
@@ -300,7 +300,7 @@ export async function createApplicationsExcel(items: Application[], asOf = new D
     const entry = zip.file(path);
     if (!entry) throw new Error(`Missing worksheet: ${path}`);
     let xml = await entry.async('text');
-    const pane = i === 2 ? '<pane ySplit="2" topLeftCell="A3" activePane="bottomLeft" state="frozen"/><selection pane="bottomLeft" activeCell="A3" sqref="A3"/>' : '';
+    const pane = i === 2 ? '<pane xSplit="1" ySplit="2" topLeftCell="B3" activePane="bottomRight" state="frozen"/><selection pane="bottomRight" activeCell="B3" sqref="B3"/>' : '';
     const view = `<sheetViews><sheetView workbookViewId="0" showGridLines="0">${pane}</sheetView></sheetViews>`;
     if (/<sheetViews[\s>]/.test(xml)) {
       xml = xml.replace(/<sheetViews\b[^>]*>[\s\S]*?<\/sheetViews>/, view);
