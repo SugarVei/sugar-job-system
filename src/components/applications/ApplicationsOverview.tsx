@@ -2,7 +2,6 @@ import { paletteAccent, paletteCardStyle, paletteChart, paletteTint } from '../.
 import ApplicationTrend from './ApplicationTrend';
 import { useMemo, useState, type CSSProperties } from 'react';
 import type { Application, ApplicationStatus, Interview } from '../../types';
-import { useCollection } from '../../hooks/useCollection';
 import { useAppShell } from '../../contexts/AppShellContext';
 import { avatarColor, initialOf, statusTag } from '../../lib/appHelpers';
 import { APPLICATION_STATUSES, APPLICATION_STATUS_FLOW } from '../../lib/applicationStatus';
@@ -54,6 +53,10 @@ function ProgressDots({ status }: { status: ApplicationStatus }) {
 interface Props {
   applications: Application[];
   allApplications: Application[];
+  interviews: Interview[];
+  interviewsLoading: boolean;
+  interviewsError: string | null;
+  onRefreshInterviews: () => Promise<void>;
   filterKey: string;
   onEdit: (application: Application) => void;
   onCreate: () => void;
@@ -61,8 +64,7 @@ interface Props {
   hasRecords: boolean;
 }
 
-export default function ApplicationsOverview({ applications, allApplications, filterKey, onEdit, onCreate, onSelectStatus, hasRecords }: Props) {
-  const { items: interviews, loading: interviewsLoading, error: interviewsError, refresh } = useCollection<Interview>('interviews');
+export default function ApplicationsOverview({ applications, allApplications, interviews, interviewsLoading, interviewsError, onRefreshInterviews, filterKey, onEdit, onCreate, onSelectStatus, hasRecords }: Props) {
   const { navigate } = useAppShell();
   const [pagination, setPagination] = useState({ filterKey, page: 0 });
   const page = pagination.filterKey === filterKey ? pagination.page : 0;
@@ -111,7 +113,7 @@ export default function ApplicationsOverview({ applications, allApplications, fi
       <section className="ao-card ao-activity" aria-labelledby="ao-activity-title">
         <div className="ao-section-heading"><h2 id="ao-activity-title">面试动态</h2><button className="ao-text-button" type="button" onClick={() => navigate('interviews', { query: '', interviewDate: null })}>查看更多<IconChevronRight size={14} /></button></div>
         {interviewsLoading ? <p className="ao-inline-empty" role="status">正在加载面试安排…</p>
-          : interviewsError ? <div className="ao-inline-empty" role="alert">面试安排加载失败<button type="button" className="ao-text-button" onClick={() => void refresh()}>重试</button></div>
+          : interviewsError ? <div className="ao-inline-empty" role="alert">面试安排加载失败<button type="button" className="ao-text-button" onClick={() => void onRefreshInterviews()}>重试</button></div>
           : activity.length === 0 ? <p className="ao-inline-empty">暂无与当前投递匹配的面试安排</p>
           : <ol className="ao-timeline">{activity.map((interview, index) => <li key={interview.id} style={{ '--event-color': paletteChart(interview.id, ['#5286f5', '#56babc', '#73b773'][index]) } as CSSProperties}>
             <button type="button" className="ao-event" onClick={() => navigate('interviews', { query: interview.company_name, interviewDate: null })}>

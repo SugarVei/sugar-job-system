@@ -11,6 +11,7 @@ import { initialOf, avatarColor, CARD, statusTag } from '../lib/appHelpers';
 import EmptyState from '../components/EmptyState';
 import AIChatDialog from '../components/AIChatDialog';
 import { normalizeCompanyName } from '../lib/companyName';
+import { useToast } from '../components/Toast';
 
 const empty: NewRecord<Company> = {
   company_name: '',
@@ -41,6 +42,9 @@ export default function Companies() {
   const [editing, setEditing] = useState<Company | null>(null);
   const [form, setForm] = useState<NewRecord<Company>>(empty);
   const [saving, setSaving] = useState(false);
+  const [exporting, setExporting] = useState(false);
+  const [exportError, setExportError] = useState('');
+  const toast = useToast();
   const [formError, setFormError] = useState('');
   const [scrollSig, setScrollSig] = useState(0);
   const nameRef = useRef<HTMLInputElement>(null);
@@ -134,9 +138,25 @@ export default function Companies() {
     setTimeout(() => setQuery(companyName), 0);
   };
 
+  const exportExcel = async () => {
+    if (exporting || !filtered.length || companiesLoading || applicationsLoading) return;
+    setExporting(true);
+    setExportError('');
+    try {
+      const { exportCompaniesToExcel } = await import('../lib/exportCatalogExcel');
+      await exportCompaniesToExcel(filtered, query || industryFilter !== 'all' ? `当前筛选 · ${filtered.length} 家公司` : '全部公司');
+      toast.success(`已导出 ${filtered.length} 家公司`);
+    } catch (error) {
+      setExportError('导出失败：' + errorText(error));
+    } finally {
+      setExporting(false);
+    }
+  };
+
   return (
     <div className="flex flex-col gap-[18px] animate-rise">
       {(companiesError || applicationsError) && <FormError message={companiesError || applicationsError || ''} />}
+      {exportError && <FormError message={exportError} />}
 
       <div className="flex flex-col lg:flex-row lg:items-center gap-3 p-4" style={{ ...CARD, borderRadius: 20 }}>
         <Select value={industryFilter} onChange={(event) => setIndustryFilter(event.target.value)} style={{ flex: 1 }} aria-label="按行业筛选公司">
@@ -148,6 +168,9 @@ export default function Companies() {
           ))}
         </Select>
         <div className="flex flex-wrap gap-3">
+          <GhostButton onClick={() => void exportExcel()} disabled={exporting || !filtered.length || companiesLoading || applicationsLoading || Boolean(companiesError || applicationsError)} title="导出当前筛选的公司及全部关联投递" style={{ height: 44 }}>
+            {exporting ? '导出中...' : '导出为 Excel'}
+          </GhostButton>
           {companyRows.length > 0 && (
             <AIChatDialog
               systemPrompt={aiSystemPrompt}

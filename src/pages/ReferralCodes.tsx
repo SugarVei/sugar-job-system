@@ -69,6 +69,8 @@ export default function ReferralCodes() {
   const [editing, setEditing] = useState<ReferralCode | null>(null);
   const [form, setForm] = useState<ReferralCodeForm>(EMPTY_FORM);
   const [saving, setSaving] = useState(false);
+  const [exporting, setExporting] = useState(false);
+  const [exportError, setExportError] = useState('');
   const [formError, setFormError] = useState('');
   const [scrollSignal, setScrollSignal] = useState(0);
   const [revealedIds, setRevealedIds] = useState<Set<string>>(() => new Set());
@@ -210,6 +212,22 @@ export default function ReferralCodes() {
     }
   };
 
+  const exportExcel = async () => {
+    if (exporting || loading || !filtered.length) return;
+    setExporting(true);
+    setExportError('');
+    try {
+      const { exportReferralCodesToExcel } = await import('../lib/exportCatalogExcel');
+      const label = scope === 'private' ? '仅我可见' : scope === 'shared' ? '所有用户可见' : '全部内推码';
+      await exportReferralCodesToExcel(filtered, `${label}${query.trim() ? ' · 当前搜索' : ''}`);
+      showToast(`已导出 ${filtered.length} 条内推码`);
+    } catch (error) {
+      setExportError('导出失败：' + safeError(error));
+    } finally {
+      setExporting(false);
+    }
+  };
+
   return (
     <div className="flex flex-col gap-[18px] animate-rise">
       <div className="flex flex-wrap gap-2" aria-label="公司库与内推码管理页面切换">
@@ -218,6 +236,7 @@ export default function ReferralCodes() {
       </div>
 
       {error ? <FormError message={error} /> : null}
+      {exportError ? <FormError message={exportError} /> : null}
 
       <section className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 p-4" style={{ ...CARD, borderRadius: 20 }} aria-label="内推码概览">
         <div className="flex items-center gap-3">
@@ -226,9 +245,14 @@ export default function ReferralCodes() {
             共 <strong style={{ color: '#1b1a17' }}>{items.length}</strong> 条内推码 · <strong style={{ color: '#1b1a17' }}>{companyCount}</strong> 家公司
           </p>
         </div>
-        <PrimaryButton accent={theme.accent} onClick={openCreate} aria-label="新增内推码" style={{ height: 44 }}>
-          <span className="inline-flex items-center gap-2"><IconPlus size={16} />新增内推码</span>
-        </PrimaryButton>
+        <div className="flex flex-wrap gap-2">
+          <GhostButton onClick={() => void exportExcel()} disabled={exporting || loading || !filtered.length || Boolean(error)} title="导出当前筛选的内推码，共享记录推荐人保密" style={{ height: 44 }}>
+            {exporting ? '导出中...' : '导出为 Excel'}
+          </GhostButton>
+          <PrimaryButton accent={theme.accent} onClick={openCreate} aria-label="新增内推码" style={{ height: 44 }}>
+            <span className="inline-flex items-center gap-2"><IconPlus size={16} />新增内推码</span>
+          </PrimaryButton>
+        </div>
       </section>
 
       <div className="flex flex-wrap gap-2" role="group" aria-label="内推码可见范围筛选">

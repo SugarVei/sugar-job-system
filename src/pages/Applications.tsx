@@ -2,7 +2,7 @@ import { paletteCardStyle } from '../lib/customPalette';
 import MotionTabs from '../components/MotionTabs';
 import { useToast } from '../components/Toast';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import type { Application, ApplicationPriority, ApplicationStatus, NewRecord, Resume } from '../types';
+import type { Application, ApplicationPriority, ApplicationStatus, NewRecord, Resume, Interview } from '../types';
 import { useCollection } from '../hooks/useCollection';
 import { useAppShell, type ApplicationsListFilter } from '../contexts/AppShellContext';
 import { useTheme } from '../contexts/ThemeContext';
@@ -12,7 +12,6 @@ import { IconEdit, IconTrash, IconPlus, IconExternalLink, IconArrowRight, IconCh
 import { STATUS_OPTIONS, statusTag, buildSteps, matchApp, CARD } from '../lib/appHelpers';
 import { getNextApplicationStatus } from '../lib/applicationStatus';
 import EmptyState from '../components/EmptyState';
-import { exportApplicationsToExcel } from '../lib/exportExcel';
 import AIRecordImporter, { type ApplicationExtraction } from '../components/AIRecordImporter';
 import ApplicationsOverview from '../components/applications/ApplicationsOverview';
 
@@ -131,6 +130,7 @@ function matchesFilter(application: Application, filter: ApplicationsListFilter)
 export default function Applications() {
   const { items, loading, error: applicationsError, create, update, remove } = useCollection<Application>('applications');
   const { items: resumes, error: resumesError } = useCollection<Resume>('resumes');
+  const { items: interviews, loading: interviewsLoading, error: interviewsError, refresh: refreshInterviews } = useCollection<Interview>('interviews');
   const latestResumeId = useMemo(() => [...resumes].sort((a, b) =>
     Date.parse(b.updated_at || b.created_at) - Date.parse(a.updated_at || a.created_at)
     || Date.parse(b.created_at) - Date.parse(a.created_at)
@@ -358,17 +358,21 @@ export default function Applications() {
         <div style={{ display: 'flex', gap: 8 }}>
           <button
             onClick={async () => {
-              if (items.length === 0 || exporting) return;
+              if (items.length === 0 || exporting || interviewsLoading) return;
+              setActionError('');
               setExporting(true);
               try {
-                await exportApplicationsToExcel(items);
+                if (interviewsError) throw new Error('面试安排加载失败，请在数据概览中重试后导出');
+                const { exportApplicationsToExcel } = await import('../lib/exportExcel');
+                await exportApplicationsToExcel(items, interviews);
               } catch (err) {
                 setActionError('导出失败：' + String(err));
               } finally {
                 setExporting(false);
               }
             }}
-            disabled={items.length === 0 || exporting}
+            disabled={items.length === 0 || exporting || loading || interviewsLoading || Boolean(applicationsError)}
+            title="导出全部投递记录及完整投递总览"
             style={{
               height: 44,
               padding: '0 16px',
@@ -430,6 +434,10 @@ export default function Applications() {
           filterKey={`${applicationsFilter}:${query}`}
           applications={filtered}
           allApplications={items}
+          interviews={interviews}
+          interviewsLoading={interviewsLoading}
+          interviewsError={interviewsError}
+          onRefreshInterviews={refreshInterviews}
           onEdit={openEdit}
           onCreate={openCreate}
           onSelectStatus={setApplicationsFilter}
