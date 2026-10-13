@@ -14,6 +14,7 @@ import { getNextApplicationStatus } from '../lib/applicationStatus';
 import EmptyState from '../components/EmptyState';
 import AIRecordImporter, { type ApplicationExtraction } from '../components/AIRecordImporter';
 import ApplicationsOverview from '../components/applications/ApplicationsOverview';
+import ApplicationsHeatmap from '../components/applications/ApplicationsHeatmap';
 
 const empty: NewRecord<Application> = {
   company_id: null,
@@ -144,6 +145,7 @@ export default function Applications() {
   const { theme } = useTheme();
   const [viewMode, setViewMode] = useState<ViewMode>(() => readStoredView());
   const [modalOpen, setModalOpen] = useState(false);
+  const [heatmapOpen, setHeatmapOpen] = useState(false);
   const [editing, setEditing] = useState<Application | null>(null);
   const [form, setForm] = useState<NewRecord<Application>>(empty);
   const [saving, setSaving] = useState(false);
@@ -354,7 +356,13 @@ export default function Applications() {
             </button>
           )}
         </div>
-        <MotionTabs className="applications-view-switch" label="投递记录视图" value={viewMode} onChange={setViewMode} options={[{ value: 'overview', label: '数据概览' }, { value: 'list', label: '列表视图' }, { value: 'kanban', label: '看板视图' }]} />
+        <div className="applications-view-controls">
+          <MotionTabs className="applications-view-switch" label="投递记录视图" value={viewMode} onChange={setViewMode} options={[{ value: 'overview', label: '数据概览' }, { value: 'list', label: '列表视图' }, { value: 'kanban', label: '看板视图' }]} />
+          <button type="button" className="applications-heatmap-trigger btn-press" aria-haspopup="dialog" aria-expanded={heatmapOpen} onClick={() => setHeatmapOpen(true)}>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true"><rect x="3" y="3" width="7" height="7" rx="2" /><rect x="14" y="3" width="7" height="7" rx="2" /><rect x="3" y="14" width="7" height="7" rx="2" /><rect x="14" y="14" width="7" height="7" rx="2" /></svg>
+            热力图概览
+          </button>
+        </div>
         <div style={{ display: 'flex', gap: 8 }}>
           <button
             onClick={async () => {
@@ -397,6 +405,8 @@ export default function Applications() {
           </PrimaryButton>
         </div>
       </div>
+
+      {heatmapOpen && <ApplicationsHeatmap applications={items} loading={loading} error={applicationsError} onClose={() => setHeatmapOpen(false)} />}
 
       {applicationsFilter !== 'all' && (
         <div
