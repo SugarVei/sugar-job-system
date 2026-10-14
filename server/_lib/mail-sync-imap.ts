@@ -22,6 +22,23 @@ export type SyncMail = {
   incomplete: boolean;
   uidvalidity?: string;
 };
+export async function mailboxHighUid(
+  client: Pick<ImapFlow, "status" | "fetchOne">,
+  box: { uidNext?: number; exists?: number },
+  folder: string,
+) {
+  if (Number.isSafeInteger(box.uidNext) && Number(box.uidNext) > 0)
+    return Number(box.uidNext) - 1;
+  // Some 163 EXAMINE responses omit UIDNEXT. Never serialize NaN as a
+  // successful null cursor and silently skip all new messages.
+  const status = await client.status(folder, { uidNext: true, messages: true });
+  if (status && Number.isSafeInteger(status.uidNext) && Number(status.uidNext) > 0)
+    return Number(status.uidNext) - 1;
+  if ((status && status.messages === 0) || box.exists === 0) return 0;
+  const last = await client.fetchOne("*", { uid: true });
+  if (last && Number.isSafeInteger(last.uid) && last.uid > 0) return last.uid;
+  throw new Error("MAIL_CURSOR_UNAVAILABLE");
+}
 export function publicAddress(ip: string) {
   if (isIP(ip) === 4) {
     const [a, b] = ip.split(".").map(Number);

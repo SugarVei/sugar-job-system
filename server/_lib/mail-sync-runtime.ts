@@ -1,6 +1,6 @@
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import { DateTime } from "luxon";
-import { withMailbox, parseSyncMail, type SyncMail } from "./mail-sync-imap";
+import { withMailbox, parseSyncMail, mailboxHighUid, type SyncMail } from "./mail-sync-imap";
 import { extractMail, provenance } from "./mail-sync-ai";
 import { mailCandidate } from "../../src/lib/mailSyncRules";
 
@@ -90,7 +90,7 @@ export async function scanAccount(db: SupabaseClient, claim: ScanClaim) {
     await withMailbox(claim.account, claim.password, async (client) => {
       const box = await client.mailboxOpen(s.folder, { readOnly: true });
       const validity = box.uidValidity.toString();
-      const high = Math.max(0, box.uidNext - 1);
+      const high = await mailboxHighUid(client, box, s.folder);
       const reset =
         s.uidvalidity !== validity || s.last_uid === null || !!s.backfill_since;
       const start = reset ? 0 : Number(s.last_uid);

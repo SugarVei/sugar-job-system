@@ -12155,6 +12155,17 @@ var MAIL_SYNC_REASONS = {
 };
 
 // server/_lib/mail-sync-imap.ts
+async function mailboxHighUid(client, box, folder) {
+  if (Number.isSafeInteger(box.uidNext) && Number(box.uidNext) > 0)
+    return Number(box.uidNext) - 1;
+  const status = await client.status(folder, { uidNext: true, messages: true });
+  if (status && Number.isSafeInteger(status.uidNext) && Number(status.uidNext) > 0)
+    return Number(status.uidNext) - 1;
+  if (status && status.messages === 0 || box.exists === 0) return 0;
+  const last = await client.fetchOne("*", { uid: true });
+  if (last && Number.isSafeInteger(last.uid) && last.uid > 0) return last.uid;
+  throw new Error("MAIL_CURSOR_UNAVAILABLE");
+}
 function publicAddress(ip) {
   if (isIP(ip) === 4) {
     const [a, b] = ip.split(".").map(Number);
@@ -12459,7 +12470,7 @@ async function scanAccount(db, claim) {
     await withMailbox(claim.account, claim.password, async (client) => {
       const box = await client.mailboxOpen(s.folder, { readOnly: true });
       const validity = box.uidValidity.toString();
-      const high = Math.max(0, box.uidNext - 1);
+      const high = await mailboxHighUid(client, box, s.folder);
       const reset = s.uidvalidity !== validity || s.last_uid === null || !!s.backfill_since;
       const start = reset ? 0 : Number(s.last_uid);
       const since = new Date(s.backfill_since || s.enabled_at);

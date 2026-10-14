@@ -1,6 +1,18 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { parseSyncMail, publicAddress } from "./mail-sync-imap.ts";
+import { parseSyncMail, publicAddress, mailboxHighUid } from "./mail-sync-imap.ts";
+test("163 missing UIDNEXT uses STATUS or the last message UID instead of a null scan cursor", async () => {
+  const client = {
+    status: async () => ({ uidNext: 43, messages: 3 }),
+    fetchOne: async () => ({ uid: 42 }),
+  } as unknown as Parameters<typeof mailboxHighUid>[0];
+  assert.equal(await mailboxHighUid(client, { exists: 3 }, "INBOX"), 42);
+  client.status = async () => ({ messages: 3 }) as Awaited<ReturnType<typeof client.status>>;
+  assert.equal(await mailboxHighUid(client, { exists: 3 }, "INBOX"), 42);
+  assert.equal(await mailboxHighUid(client, { exists: 0 }, "INBOX"), 0);
+  client.fetchOne = async () => false;
+  await assert.rejects(mailboxHighUid(client, { exists: 3 }, "INBOX"), /MAIL_CURSOR_UNAVAILABLE/);
+});
 test("MIME HTML is parsed and sanitized without executing or loading tracking content", async () => {
   const raw = Buffer.from(
     'From: HR <hr@example.com>\r\nTo: me@example.com\r\nDate: Wed, 14 Oct 2026 14:00:00 +0800\r\nSubject: interview\r\nMessage-ID: <test@example.com>\r\nContent-Type: text/html; charset=utf-8\r\n\r\n<p>星河科技面试 2026年10月16日09:34</p><script>alert(1)</script><img src="https://tracker.example.com/pixel"><a href="javascript:alert(2)">bad</a><a href="https://meeting.example.com">meet</a>',
