@@ -8,7 +8,9 @@ for (const name of ['mail-interview-sync', 'mailbox-fetch']) {
     entryPoints: [resolve(root, 'server', `${name}.ts`)],
     outfile: resolve(root, 'api', `${name}.js`),
     bundle: true,
-    packages: 'external',
+    // Bundle the sanitizer's ESM parser with its CommonJS entry so the
+    // Vercel loader never has to require htmlparser2 as an ES module.
+    external: ['@supabase/supabase-js', 'imapflow', 'mailparser', 'luxon'],
     platform: 'node',
     format: 'esm',
     target: 'node22',
