@@ -9,7 +9,8 @@
     "build": "tsc -p tsconfig.json --noEmit && vite build",
     "preview": "vite preview",
     "lint": "eslint .",
-    "test": "node --experimental-strip-types --import ./scripts/register-ts-ext.mjs --test src/lib/customPalette.test.ts src/lib/dashboardWorkspace.test.ts src/lib/standardCompanyImport.test.ts src/lib/standardCompanyCatalog.test.ts src/lib/standardCompanyWorkbook.test.ts src/lib/standardCatalogAdmin.test.ts src/data/hotCompanyHq.test.ts src/lib/jobAssistAI.test.ts src/lib/applicationsOverview.test.ts src/lib/applicationsHeatmap.test.ts src/lib/interviewApplicationMatch.test.ts src/lib/interviewSummary.test.ts src/lib/interviewCalendar.test.ts src/components/community-world/walkableGround.test.ts src/components/community-world/multiplayer.test.ts src/components/community-world/renderQuality.test.ts src/components/community-world/spatialBatch.test.ts src/components/community-world/renderCadence.test.ts src/components/community-world/roomLayout.test.ts src/lib/mailInterview.test.ts src/lib/mailSyncRules.test.ts api/_lib/mail-sync-imap.test.ts"
+    "test": "node --experimental-strip-types --import ./scripts/register-ts-ext.mjs --test src/lib/customPalette.test.ts src/lib/dashboardWorkspace.test.ts src/lib/standardCompanyImport.test.ts src/lib/standardCompanyCatalog.test.ts src/lib/standardCompanyWorkbook.test.ts src/lib/standardCatalogAdmin.test.ts src/data/hotCompanyHq.test.ts src/lib/jobAssistAI.test.ts src/lib/applicationsOverview.test.ts src/lib/applicationsHeatmap.test.ts src/lib/interviewApplicationMatch.test.ts src/lib/interviewSummary.test.ts src/lib/interviewCalendar.test.ts src/components/community-world/walkableGround.test.ts src/components/community-world/multiplayer.test.ts src/components/community-world/renderQuality.test.ts src/components/community-world/spatialBatch.test.ts src/components/community-world/renderCadence.test.ts src/components/community-world/roomLayout.test.ts src/lib/mailInterview.test.ts src/lib/mailSyncRules.test.ts server/_lib/mail-sync-imap.test.ts",
+    "prebuild": "node scripts/build-mail-sync.mjs"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.45.4",
@@ -38,6 +39,7 @@
     "@types/three": "^0.186.0",
     "@vitejs/plugin-react": "^4.3.1",
     "autoprefixer": "^10.4.20",
+    "esbuild": "0.21.5",
     "eslint": "^10.6.0",
     "eslint-plugin-react-hooks": "^7.1.1",
     "eslint-plugin-react-refresh": "^0.5.3",

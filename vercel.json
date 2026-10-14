@@ -4,11 +4,11 @@
   "buildCommand": "npm run build",
   "outputDirectory": "dist",
   "functions": {
-    "api/mail-interview-sync.ts": {
+    "api/mail-interview-sync.js": {
       "maxDuration": 120,
       "memory": 1024
     },
-    "api/mailbox-fetch.ts": {
+    "api/mailbox-fetch.js": {
       "maxDuration": 30,
       "memory": 1024
     },

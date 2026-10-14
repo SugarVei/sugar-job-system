@@ -14,9 +14,9 @@
 
 ## 后台实现
 
-- `api/mail-interview-sync.ts`：登录认证、邮箱元数据与安全保存、同步状态、设置、确认建议、内部调度；`verify` 仅供具有调度 token 的内部验收，调用真实 AI 处理示例邮件，不写入日历。
-- `api/mailbox-fetch.ts`：用户 JWT + 账号 ID；后端从 Vault 加载授权信息，浏览器请求与响应不携带授权码。
-- `api/_lib/mail-sync-*`：有界 IMAP 读取、MIME/HTML 安全解析、AI 适配器、来源标识、持久化任务消费。
+- `server/mail-interview-sync.ts`：登录认证、邮箱元数据与安全保存、同步状态、设置、确认建议、内部调度；`verify` 仅供具有调度 token 的内部验收，调用真实 AI 处理示例邮件，不写入日历。
+- `server/mailbox-fetch.ts`：用户 JWT + 账号 ID；后端从 Vault 加载授权信息，浏览器请求与响应不携带授权码。
+- `server/_lib/mail-sync-*`：有界 IMAP 读取、MIME/HTML 安全解析、AI 适配器、来源标识、持久化任务消费。
 - `src/lib/mailSyncRules.ts`：日期、时区、夏令时、原文证据、附件和取消校验。复用已有公司名称规范化规则生成业务指纹。
 - `public.mail_sync_settings`：每邮箱扫描游标、下次检查、配置版本和租约。
 - `public.mail_sync_messages`：持久化待处理任务、有限证据、识别状态与建议；扫描游标和任务同事务提交。
@@ -45,3 +45,5 @@ select cron.alter_job(jobid, active := true) from cron.job where jobname = 'mail
 验证包括 `npm test`、构建、独立后端 TypeScript 检查、改动文件 ESLint、桌面/手机交互，以及真实数据库事务测试。事务测试覆盖去重、手动修改保护、取消、删除抑制、配置暂停和同线程多轮面试，测试数据全部回滚。线上另外验证实际 JS/CSS、接口认证、真实后台收件箱检查和当前服务商调用。
 
 仅有构建成功、平台 READY、HTTP 200 或本地示例交互不证明真实新面试邮件已自动保存。最终完整流程需要真实新通知到达后，确认后台记录、日历持久化与来源一致；此边界必须在交付说明中如实记录。
+
+生产 API 为 scripts/build-mail-sync.mjs 生成的独立 JS 入口。构建前重新生成并提交这些入口，以避免 Vercel 在加载跨目录 TS 模块时发生启动错误。
