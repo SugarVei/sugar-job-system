@@ -102,7 +102,7 @@ export default function AppSidebar({ screen, onNavigate, name, avatar, onUpdateN
         <div className="app-sidebar-top">
           <button className="app-sidebar-brand" aria-label="Sugar 首页" onClick={() => onNavigate('dashboard')}>
             <SugarMark size={26} />
-            <span>Sugar<small>行动优先 · 求职系统</small></span>
+            <span>Sugar</span>
           </button>
           <SidebarButton className="app-sidebar-toggle" aria-expanded={expanded} label={expanded ? '收起侧边栏' : '展开侧边栏'} onActivate={toggleSidebar} {...tooltipEvents}>
             {expanded ? <PanelLeftClose size={18} /> : <PanelLeftOpen size={18} />}

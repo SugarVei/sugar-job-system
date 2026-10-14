@@ -4,7 +4,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { useTheme } from '../contexts/ThemeContext';
 import { useAppShell } from '../contexts/AppShellContext';
 import { useProfile } from '../hooks/useProfile';
-import { MOBILE_MORE_NAV, MOBILE_PRIMARY_NAV, greetFor } from '../components/navConfig';
+import { MOBILE_MORE_NAV, MOBILE_PRIMARY_NAV } from '../components/navConfig';
 import ThemeSwitcher from '../components/ThemeSwitcher';
 import PaletteStudio from '../components/PaletteStudio';
 import AppSidebar from '../components/AppSidebar';
@@ -32,7 +32,6 @@ export default function AppLayout({ children }: { children: ReactNode }) {
   const [mobileMoreOpen, setMobileMoreOpen] = useState(false);
   const [avatarPickerOpen, setAvatarPickerOpen] = useState(false);
 
-  const greet = greetFor(screen, name);
   const moreActive = MOBILE_MORE_NAV.some((item) => item.key === screen);
 
   useEffect(() => {
@@ -112,42 +111,35 @@ export default function AppLayout({ children }: { children: ReactNode }) {
             </div>
           </div>
 
-          {/* 顶栏：标题 + 搜索 + 新增 */}
+          <p
+            className="app-project-notice px-4 pt-3 lg:pt-4"
+            style={{ fontSize: 11.5, color: '#9a9488', margin: 0, lineHeight: 1.55, textAlign: 'center', flex: 'none' }}
+          >
+            如有兴趣改进，可以访问{' '}
+            <a
+              href="https://github.com/SugarVei/sugar-job-system"
+              target="_blank"
+              rel="noopener noreferrer"
+              style={{ color: '#6f6659', fontWeight: 700, textDecoration: 'underline', textUnderlineOffset: 2 }}
+            >
+              GitHub 项目地址
+            </a>
+            ，记得给个 Star 哦 ⭐
+          </p>
+
+          {/* 顶栏：模块切换 + 搜索 + 新增 */}
           <div
             style={{
               display: 'flex',
               alignItems: 'center',
-              justifyContent: 'space-between',
+              justifyContent: 'flex-end',
               gap: 16,
               flexWrap: 'wrap',
               flex: 'none',
             }}
-            className="px-4 lg:px-[34px] pt-3 lg:pt-[26px] pb-3 lg:pb-[18px]"
+            className="px-4 lg:px-[34px] pt-3 lg:pt-[18px] pb-3 lg:pb-[18px]"
           >
-            <div style={{ flex: 1, minWidth: 180 }}>
-              <h1
-                className="text-[22px] lg:text-[30px]"
-                style={{ fontFamily: 'Geist', fontWeight: 600, margin: 0, letterSpacing: '-.01em' }}
-              >
-                {greet.title}
-              </h1>
-              <p style={{ fontSize: 14, color: '#8a8478', margin: '5px 0 0' }}>{greet.sub}</p>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 16, flexWrap: 'wrap', marginTop: 4 }}>
-                <p style={{ fontSize: 11.5, color: '#9a9488', margin: 0, lineHeight: 1.45 }}>
-                  如有兴趣改进，可以访问{' '}
-                  <a
-                    href="https://github.com/SugarVei/sugar-job-system"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    style={{ color: '#6f6659', fontWeight: 700, textDecoration: 'underline', textUnderlineOffset: 2 }}
-                  >
-                    GitHub 项目地址
-                  </a>
-                  ，记得给个 Star 哦 ⭐
-                </p>
-                {headerChrome?.inlineContent}
-              </div>
-            </div>
+            {headerChrome?.inlineContent && <div style={{ flex: 1, minWidth: 180 }}>{headerChrome.inlineContent}</div>}
             <div className="flex items-center gap-3 flex-none w-full sm:w-auto">
               {/* 主题切换仅桌面顶栏显示（移动端在顶部条） */}
               <div className="hidden lg:block">
