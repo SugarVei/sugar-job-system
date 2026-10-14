@@ -4,7 +4,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { useTheme } from '../contexts/ThemeContext';
 import { useAppShell } from '../contexts/AppShellContext';
 import { useProfile } from '../hooks/useProfile';
-import { MOBILE_MORE_NAV, MOBILE_PRIMARY_NAV } from '../components/navConfig';
+import { MOBILE_MORE_NAV, MOBILE_PRIMARY_NAV, NAV_ITEMS } from '../components/navConfig';
 import ThemeSwitcher from '../components/ThemeSwitcher';
 import PaletteStudio from '../components/PaletteStudio';
 import AppSidebar from '../components/AppSidebar';
@@ -33,6 +33,7 @@ export default function AppLayout({ children }: { children: ReactNode }) {
   const [avatarPickerOpen, setAvatarPickerOpen] = useState(false);
 
   const moreActive = MOBILE_MORE_NAV.some((item) => item.key === screen);
+  const pageTitle = NAV_ITEMS.find(item => item.key === screen)?.label ?? '总览';
 
   useEffect(() => {
     const openAvatarPicker = () => setAvatarPickerOpen(true);
@@ -127,7 +128,7 @@ export default function AppLayout({ children }: { children: ReactNode }) {
             ，记得给个 Star 哦 ⭐
           </p>
 
-          {/* 顶栏：模块切换 + 搜索 + 新增 */}
+          {/* 顶栏：功能名称 + 模块切换 + 搜索 + 新增 */}
           <div
             style={{
               display: 'flex',
@@ -139,7 +140,15 @@ export default function AppLayout({ children }: { children: ReactNode }) {
             }}
             className="px-4 lg:px-[34px] pt-3 lg:pt-[18px] pb-3 lg:pb-[18px]"
           >
-            {headerChrome?.inlineContent && <div style={{ flex: 1, minWidth: 180 }}>{headerChrome.inlineContent}</div>}
+            <div style={{ flex: 1, minWidth: 180, display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
+              <h1
+                className="app-page-title text-[20px] lg:text-[24px]"
+                style={{ fontFamily: 'Geist', fontWeight: 600, margin: 0, lineHeight: 1.3, letterSpacing: '-.01em' }}
+              >
+                {pageTitle}
+              </h1>
+              {headerChrome?.inlineContent}
+            </div>
             <div className="flex items-center gap-3 flex-none w-full sm:w-auto">
               {/* 主题切换仅桌面顶栏显示（移动端在顶部条） */}
               <div className="hidden lg:block">
