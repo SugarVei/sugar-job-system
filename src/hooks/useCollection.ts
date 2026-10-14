@@ -1,6 +1,7 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { supabase, isSupabaseConfigured } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
+import { mailSyncRequest } from '../lib/mailSyncClient';
 
 interface BaseRow {
   id: string;
@@ -102,35 +103,45 @@ export function useCollection<T extends BaseRow>(
   const [items, setItems] = useState<T[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const readSequence = useRef(0);
 
-  const fetchAll = useCallback(async () => {
+  const fetchAll = useCallback(async (silent = false) => {
+    const sequence = ++readSequence.current;
     if (!userId || !isSupabaseConfigured) {
       setItems([]);
       setLoading(false);
       return;
     }
 
-    setLoading(true);
-    setError(null);
+    if (!silent) { setLoading(true); setError(null); }
 
     try {
-      const { data, error: err } = await supabase
+      if (table === 'mailbox_accounts') {
+        const data = await mailSyncRequest<{ accounts: T[] }>('accounts');
+        if (sequence !== readSequence.current) return;
+        setItems(data.accounts); return;
+      }
+      const request = supabase
         .from(table)
         .select('*')
         .eq('user_id', userId)
         .order(orderBy.column, { ascending: orderBy.ascending ?? false });
+      if (table === 'interviews') request.neq('status', 'cancelled');
+      const { data, error: err } = await request;
+      if (sequence !== readSequence.current) return;
 
       if (err) {
         setError(readableDbError(err, table));
-        setItems([]);
+        if (!silent) setItems([]);
       } else {
         setItems((data ?? []) as T[]);
       }
     } catch (err) {
+      if (sequence !== readSequence.current) return;
       setError(readableDbError(err, table));
-      setItems([]);
+      if (!silent) setItems([]);
     } finally {
-      setLoading(false);
+      if (sequence === readSequence.current) setLoading(false);
     }
   }, [userId, table, orderBy.column, orderBy.ascending]);
 
@@ -138,10 +149,34 @@ export function useCollection<T extends BaseRow>(
     fetchAll();
   }, [fetchAll]);
 
+  useEffect(() => {
+    if (table !== 'interviews' || !userId) return;
+    let revision: string | null = null;
+    const refreshVisible = async () => {
+      if (document.hidden) return;
+      const { data, error } = await supabase.rpc('mail_sync_user_revision');
+      if (error) return;
+      const next = JSON.stringify(data);
+      if (revision !== null && next !== revision) void fetchAll(true);
+      revision = next;
+    };
+    void refreshVisible();
+    const changed = () => { if (!document.hidden) void fetchAll(true); };
+    const timer = setInterval(refreshVisible, 30000);
+    document.addEventListener('visibilitychange', refreshVisible);
+    window.addEventListener('sugar:interviews-changed', changed);
+    return () => { clearInterval(timer); document.removeEventListener('visibilitychange', refreshVisible); window.removeEventListener('sugar:interviews-changed', changed); };
+  }, [table, userId, fetchAll]);
+
   const create = useCallback(
     async (payload: Record<string, unknown>) => {
       if (!user) throw new Error('未登录');
       if (!isSupabaseConfigured) throw new Error('Supabase 尚未配置，无法保存数据。');
+
+      if (table === 'mailbox_accounts') {
+        const data = await mailSyncRequest<{ account: T }>('save-account', payload, true);
+        setItems(prev => [data.account, ...prev]); return data.account;
+      }
 
       const insertPayload = { ...payload, user_id: user.id };
       const { data, error: err } = await supabase
@@ -196,6 +231,10 @@ export function useCollection<T extends BaseRow>(
   const update = useCallback(
     async (id: string, payload: Record<string, unknown>) => {
       if (!user) throw new Error('未登录');
+      if (table === 'mailbox_accounts') {
+        const data = await mailSyncRequest<{ account: T }>('save-account', { ...payload, accountId: id }, true);
+        setItems(prev => prev.map(item => item.id === id ? data.account : item)); return data.account;
+      }
       const updatePayload = { ...payload, updated_at: new Date().toISOString() };
       const { data, error: err } = await supabase
         .from(table)
@@ -232,6 +271,10 @@ export function useCollection<T extends BaseRow>(
   const remove = useCallback(
     async (id: string) => {
       if (!user) throw new Error('未登录');
+      if (table === 'mailbox_accounts') {
+        await mailSyncRequest('delete-account', { accountId: id }, true);
+        setItems(prev => prev.filter(item => item.id !== id)); return;
+      }
       const { error: err } = await supabase.from(table).delete().eq('id', id).eq('user_id', user.id);
       if (err) throw new Error(readableDbError(err, table));
       setItems((prev) => prev.filter((it) => it.id !== id));

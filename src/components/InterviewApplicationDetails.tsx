@@ -7,6 +7,7 @@ import { buildSteps, statusTag } from '../lib/appHelpers';
 import { callAIJson } from '../lib/aiChatClient';
 import { automaticInterviewCompany, interviewCompanyKey, matchingInterviewPosition, rankInterviewCompanies } from '../lib/interviewApplicationMatch';
 import './InterviewApplicationDetails.css';
+import MailInterviewSource from './MailInterviewSource';
 
 function dateTime(value: string | null) {
   if (!value) return '';
@@ -100,8 +101,12 @@ export default function InterviewApplicationDetails({ interview, applications, l
           <Detail label="时间" value={dateTime(interview.interview_time)} />
           <Detail label="面试岗位" value={interview.position_name} />
           <Detail label="形式" value={interview.interview_type} />
+          <Detail label="地点" value={interview.location} />
+          <Detail label="联系人" value={interview.contact} />
         </div>
-        {interview.notes && <p className="interview-application-note">面试备注：{interview.notes}</p>}
+        {interview.meeting_url && <a href={interview.meeting_url} target="_blank" rel="noreferrer">打开面试会议链接 →</a>}
+        <MailInterviewSource interview={interview} onClose={onClose} />
+        {interview.notes && <p className="interview-application-note">面试备注：{interview.notes.replace(/\[Sugar邮件:[^\]]+\]\n?/g, '')}</p>}
       </section>
 
       <section className="interview-application-records">

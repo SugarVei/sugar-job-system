@@ -8,7 +8,7 @@ export default function MailInterviewDraft({ message, accountId, applications, c
   create: (payload: NewRecord<Interview>) => Promise<Interview>; onCreated: (interview: Interview) => void; onCancel: () => void;
 }) {
   const { user } = useAuth();
-  const raw = `${message.subject} ${message.snippet} ${(message.html || '').replace(/<[^>]+>/g, ' ')}`.replace(/&nbsp;/g, ' ');
+  const raw = `${message.subject} ${message.body || message.snippet} ${(message.html || '').replace(/<[^>]+>/g, ' ')}`.replace(/&nbsp;/g, ' ');
   const match = applications.find(a => raw.toLowerCase().includes(a.company_name.trim().toLowerCase()) && a.company_name.trim().length > 1);
   const [company, setCompany] = useState(match?.company_name ?? '');
   const [position, setPosition] = useState(match?.position_name ?? raw.match(/([\u4e00-\u9fa5A-Za-z0-9+.#-]{2,24}(?:工程师|分析师|设计师|产品经理|管培生|专员))/)?.[1] ?? '');

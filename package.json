@@ -9,7 +9,7 @@
     "build": "tsc -p tsconfig.json --noEmit && vite build",
     "preview": "vite preview",
     "lint": "eslint .",
-    "test": "node --experimental-strip-types --import ./scripts/register-ts-ext.mjs --test src/lib/customPalette.test.ts src/lib/dashboardWorkspace.test.ts src/lib/standardCompanyImport.test.ts src/lib/standardCompanyCatalog.test.ts src/lib/standardCompanyWorkbook.test.ts src/lib/standardCatalogAdmin.test.ts src/data/hotCompanyHq.test.ts src/lib/jobAssistAI.test.ts src/lib/applicationsOverview.test.ts src/lib/applicationsHeatmap.test.ts src/lib/interviewApplicationMatch.test.ts src/lib/interviewSummary.test.ts src/lib/interviewCalendar.test.ts src/components/community-world/walkableGround.test.ts src/components/community-world/multiplayer.test.ts src/components/community-world/renderQuality.test.ts src/components/community-world/spatialBatch.test.ts src/components/community-world/renderCadence.test.ts src/components/community-world/roomLayout.test.ts src/lib/mailInterview.test.ts"
+    "test": "node --experimental-strip-types --import ./scripts/register-ts-ext.mjs --test src/lib/customPalette.test.ts src/lib/dashboardWorkspace.test.ts src/lib/standardCompanyImport.test.ts src/lib/standardCompanyCatalog.test.ts src/lib/standardCompanyWorkbook.test.ts src/lib/standardCatalogAdmin.test.ts src/data/hotCompanyHq.test.ts src/lib/jobAssistAI.test.ts src/lib/applicationsOverview.test.ts src/lib/applicationsHeatmap.test.ts src/lib/interviewApplicationMatch.test.ts src/lib/interviewSummary.test.ts src/lib/interviewCalendar.test.ts src/components/community-world/walkableGround.test.ts src/components/community-world/multiplayer.test.ts src/components/community-world/renderQuality.test.ts src/components/community-world/spatialBatch.test.ts src/components/community-world/renderCadence.test.ts src/components/community-world/roomLayout.test.ts src/lib/mailInterview.test.ts src/lib/mailSyncRules.test.ts api/_lib/mail-sync-imap.test.ts"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.45.4",
@@ -17,18 +17,24 @@
     "imapflow": "^1.6.6",
     "jszip": "^3.10.1",
     "lucide-react": "^1.49.0",
+    "luxon": "3.7.2",
+    "mailparser": "3.9.39",
     "pdf-parse": "^1.1.4",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
+    "sanitize-html": "2.18.0",
     "tesseract.js": "^7.0.0",
     "three": "^0.186.1",
     "xlsx-js-style": "^1.2.0"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
+    "@types/luxon": "3.7.1",
+    "@types/mailparser": "3.4.6",
     "@types/node": "^26.1.1",
     "@types/react": "^18.3.5",
     "@types/react-dom": "^18.3.0",
+    "@types/sanitize-html": "2.16.0",
     "@types/three": "^0.186.0",
     "@vitejs/plugin-react": "^4.3.1",
     "autoprefixer": "^10.4.20",

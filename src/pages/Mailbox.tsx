@@ -1,5 +1,8 @@
 import MailInterviewDraft from '../components/MailInterviewDraft';
 import { useAuth } from '../contexts/AuthContext';
+import { useApiKeys } from '../contexts/ApiKeysContext';
+import { authenticatedMailRequest, automaticMailStatus, type MailSyncState } from '../lib/mailSyncClient';
+import MailAutoSync from '../components/MailAutoSync';
 import { mailIdentity, mailSourceMarker, parseMailDate } from '../lib/mailInterview';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import type { Application, Interview, MailboxAccount, MailboxMessage, MailboxProvider, NewMailboxAccount } from '../types';
@@ -86,22 +89,6 @@ const PROVIDERS: ProviderOption[] = [
   },
 ];
 
-async function readApiJson(res: Response) {
-  const text = await res.text();
-  try {
-    return JSON.parse(text) as Record<string, unknown>;
-  } catch {
-    const clipped = text.replace(/\s+/g, ' ').trim().slice(0, 160);
-    if (/FUNCTION_INVOCATION_FAILED|A server error has occurred/i.test(text)) {
-      throw new Error('邮件服务暂时不可用，请稍后重试。');
-    }
-    if (clipped.startsWith('<!DOCTYPE') || clipped.startsWith('<html')) {
-      throw new Error('邮件接口未正确部署，请等待最新部署完成后再试。');
-    }
-    throw new Error(clipped || `请求失败（HTTP ${res.status}）`);
-  }
-}
-
 function providerOfEmail(email: string): MailboxProvider {
   const d = email.toLowerCase().split('@')[1] || '';
   if (['163.com', '126.com', 'yeah.com'].includes(d)) return 'netease163';
@@ -161,6 +148,7 @@ function mailSummary(message: MailboxMessage) {
 export default function Mailbox() {
   const db = useCollection<MailboxAccount>('mailbox_accounts');
   const { user } = useAuth();
+  const { activeProvider } = useApiKeys();
   const interviewDb = useCollection<Interview>('interviews');
   const applicationDb = useCollection<Application>('applications');
   const { registerAdd, navigate } = useAppShell();
@@ -196,15 +184,36 @@ export default function Mailbox() {
   const mailRequest = useRef(0), detailRequest = useRef(0);
   const [processed, setProcessed] = useState<Record<string, boolean>>({});
   const [draftId, setDraftId] = useState<string | null>(null);
+  const [syncState, setSyncState] = useState<MailSyncState | null>(null);
   const storageKey = user && account ? `sugar.mail.processed.v2:${user.id}:${account.id}` : null;
   useEffect(() => {
     activeMailbox.current = account?.id ?? null;
     mailRequest.current++; detailRequest.current++;
     setMessages([]); setSelected(null); setLoadingMail(false); setDetailLoading(false);
-    setDraftId(null);
+    setDraftId(null); setSyncState(null);
     try { const stored = storageKey ? JSON.parse(localStorage.getItem(storageKey) || '{}') : {}; setProcessed(stored && typeof stored === 'object' ? stored : {}); }
     catch { setProcessed({}); }
   }, [storageKey, account?.id]);
+
+  useEffect(() => {
+    const raw = sessionStorage.getItem('sugar.mail.source-selection');
+    if (!raw || db.loading) return;
+    let source: {accountId:string;uid:number;uidvalidity?:string;expectedIdentity?:string};
+    try { source = JSON.parse(raw); } catch { sessionStorage.removeItem('sugar.mail.source-selection'); return; }
+    if (!db.items.some(a => a.id === source.accountId)) { sessionStorage.removeItem('sugar.mail.source-selection'); toast.error('原邮箱已解除绑定'); return; }
+    if (account?.id !== source.accountId) { setActiveId(source.accountId); return; }
+    sessionStorage.removeItem('sugar.mail.source-selection');
+    const requestId = ++detailRequest.current;
+    setDetailLoading(true);
+    void authenticatedMailRequest<{message:MailboxMessage}>('/api/mailbox-fetch', source).then(data => {
+      if (requestId !== detailRequest.current) return;
+      if (source.expectedIdentity && mailIdentity(data.message) !== source.expectedIdentity) throw new Error('原邮件标识已变化，请在原邮箱核对');
+      setSelected(data.message); setMessages(prev => [data.message, ...prev.filter(m => m.uid !== data.message.uid)]);
+    }).catch(error => { if (requestId === detailRequest.current) toast.error(error instanceof Error ? error.message : '原邮件已无法读取'); })
+      .finally(() => { if (requestId === detailRequest.current) setDetailLoading(false); });
+  // The request is keyed by mailbox identity, not the frequently changing collection array.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [account?.id, db.loading]);
   const writeProcessed = (message: MailboxMessage, value: boolean) => {
     let previous = processed;
     try { if (storageKey) previous = JSON.parse(localStorage.getItem(storageKey) || '{}'); } catch { /* retain session values */ }
@@ -213,7 +222,7 @@ export default function Mailbox() {
     try { if (storageKey) localStorage.setItem(storageKey, JSON.stringify(next)); }
     catch { toast.info('浏览器无法保存处理标记，本次会话内仍然有效'); }
   };
-  const linkedInterview = (message: MailboxMessage) => account ? interviewDb.items.find(i => i.notes?.includes(mailSourceMarker(account.id, message))) : undefined;
+  const linkedInterview = (message: MailboxMessage) => account ? interviewDb.items.find(i => i.id === automaticMailStatus(syncState, message)?.interview_id || i.notes?.includes(mailSourceMarker(account.id, message))) : undefined;
 
   const providerMeta = PROVIDERS.find((p) => p.id === provider) ?? PROVIDERS[0];
 
@@ -235,7 +244,7 @@ export default function Mailbox() {
       setActiveId(account.id);
       setProvider(account.provider || providerOfEmail(account.email));
       setEmail(account.email);
-      setAuthCode(account.auth_code);
+      setAuthCode('');
       setImapHost(account.imap_host || '');
       setImapPort(String(account.imap_port || 993));
     }
@@ -257,7 +266,7 @@ export default function Mailbox() {
   const saveAccount = async () => {
     const e = email.trim();
     const code = authCode.trim().replace(/\s+/g, '');
-    if (!e || !code) {
+    if (!e || (!code && (!account || addingNew))) {
       setFormError('邮箱与授权码均为必填。');
       return;
     }
@@ -272,13 +281,14 @@ export default function Mailbox() {
     setSaving(true);
     setFormError('');
     try {
-      const payload: NewMailboxAccount = {
+      const payload: NewMailboxAccount & { aiProvider: string } = {
         provider,
         email: e,
         auth_code: code,
         display_name: e.split('@')[0],
         imap_host: provider === 'custom' ? imapHost.trim() : null,
         imap_port: provider === 'custom' ? Number(imapPort) || 993 : 993,
+        aiProvider: activeProvider,
       };
       if (account && !addingNew) {
         await db.update(account.id, payload);
@@ -300,11 +310,7 @@ export default function Mailbox() {
   const fetchMail = async (target?: MailboxAccount | null) => {
     const acc = target ?? account;
     const e = (acc?.email || email).trim();
-    const code = (acc?.auth_code || authCode).trim().replace(/\s+/g, '');
-    const prov = acc?.provider || provider;
-    const host = acc?.imap_host || imapHost;
-    const port = acc?.imap_port || Number(imapPort) || 993;
-    if (!e || !code) {
+    if (!e || !acc) {
       setMailError('请先保存邮箱与授权码。');
       return;
     }
@@ -313,32 +319,19 @@ export default function Mailbox() {
     setMailError('');
     setSelected(null);
     try {
-      const res = await fetch('/api/mailbox-fetch', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          email: e,
-          authCode: code,
-          limit: 40,
-          provider: prov,
-          imapHost: host || undefined,
-          imapPort: port,
-        }),
-      });
-      const data = await readApiJson(res) as {
+      const data = await authenticatedMailRequest<{
         error?: string;
         messages?: MailboxMessage[];
         unseen?: number;
         total?: number;
-      };
+      }>('/api/mailbox-fetch', { accountId: acc.id, limit: 40 });
       if (requestId !== mailRequest.current) return;
-      if (!res.ok || data.error) throw new Error((data.error as string) || '拉取失败');
+      if (data.error) throw new Error(data.error || '拉取失败');
       const nextMessages = data.messages ?? [];
       setMessages(nextMessages);
       setSelected(nextMessages[0] ?? null);
       setUnseen(data.unseen ?? 0);
       setTotal(data.total ?? 0);
-      if (acc) await db.update(acc.id, { last_synced_at: new Date().toISOString() });
       if (requestId === mailRequest.current) toast.success(`已同步 ${data.messages?.length ?? 0} 封最近邮件`);
     } catch (err) {
       if (requestId !== mailRequest.current) return;
@@ -355,23 +348,9 @@ export default function Mailbox() {
     if (window.matchMedia('(max-width: 767px)').matches) requestAnimationFrame(() => document.getElementById('sugar-mail-detail')?.scrollIntoView({ block: 'start', behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'instant' : 'smooth' }));
     setDetailLoading(true);
     try {
-      const e = (account?.email || email).trim();
-      const code = (account?.auth_code || authCode).trim().replace(/\s+/g, '');
-      const res = await fetch('/api/mailbox-fetch', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          email: e,
-          authCode: code,
-          uid: msg.uid,
-          provider: account?.provider || provider,
-          imapHost: account?.imap_host || imapHost || undefined,
-          imapPort: account?.imap_port || Number(imapPort) || 993,
-        }),
-      });
-      const data = await readApiJson(res) as { error?: string; message?: MailboxMessage };
+      const data = await authenticatedMailRequest<{ error?: string; message?: MailboxMessage }>('/api/mailbox-fetch', { accountId: account?.id, uid: msg.uid, uidvalidity: msg.uidvalidity });
       if (requestId !== detailRequest.current) return;
-      if (!res.ok || data.error) throw new Error((data.error as string) || '读取失败');
+      if (data.error) throw new Error(data.error || '读取失败');
       if (data.message) setSelected(data.message);
     } catch (err) {
       if (requestId === detailRequest.current) toast.error(err instanceof Error ? err.message : '读取正文失败');
@@ -411,6 +390,7 @@ export default function Mailbox() {
 
   const toggleProcessed = () => { if (selected) writeProcessed(selected, !selectedProcessed); };
   const selectedInterview = selected ? linkedInterview(selected) : undefined;
+  const selectedAutoStatus = automaticMailStatus(syncState, selected);
   const openLinked = (interview: Interview) => {
     const date = interview.interview_time ? new Date(interview.interview_time) : null;
     const dateKey = date ? `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}` : null;
@@ -418,6 +398,8 @@ export default function Mailbox() {
   };
   const addToInterviewCalendar = () => {
     if (!selected || !account) return;
+    if (selectedAutoStatus?.analysis?.action === 'cancel' || selectedAutoStatus?.status === 'suppressed') { window.dispatchEvent(new Event('sugar:open-sync-history')); return; }
+    if (selectedAutoStatus?.status === 'review') { window.dispatchEvent(new Event('sugar:review-mail')); return; }
     if (selectedInterview) { openLinked(selectedInterview); return; }
     setDraftId(mailIdentity(selected));
   };
@@ -455,12 +437,14 @@ export default function Mailbox() {
         </div>
       </section>
 
+      {account && <MailAutoSync key={account.id} accountId={account.id} interviews={interviewDb.items} onRepair={() => setSettingsOpen(true)} onView={openLinked} onState={setSyncState} />}
+
       {settingsOpen && (
         <section style={{ ...CARD, padding: 18, borderRadius: 18, border: '1px solid #ece4d6' }}>
           <div className="flex items-start justify-between gap-3 flex-wrap">
             <div>
               <div style={{ fontSize: 15, fontWeight: 800 }}>{addingNew || !account ? '绑定邮箱' : '邮箱设置'}</div>
-              <div style={{ fontSize: 12, color: '#8a8478', marginTop: 3 }}>授权信息仅保存在你的账号下（RLS），服务端不写日志。</div>
+              <div style={{ fontSize: 12, color: '#8a8478', marginTop: 3 }}>授权信息已加密保存。更新账号时留空可继续使用已保存的授权码。</div>
             </div>
             {providerMeta.guideUrl && <a href={providerMeta.guideUrl} target="_blank" rel="noreferrer" style={{ fontSize: 12.5, fontWeight: 700, color: theme.accent }}>如何获取授权码 →</a>}
           </div>
@@ -634,7 +618,8 @@ export default function Mailbox() {
                 </div>
                 <h2 style={{ margin: '14px 0 0', fontSize: 19, fontWeight: 800, lineHeight: 1.35, color: '#1b1a17' }}>{selected.subject}</h2>
                 {interviewDb.error && <FormError message={`面试记录读取失败，请刷新后重试：${interviewDb.error}`} />}
-                {selected.hasAttachment && <div style={{ marginTop: 6, color: '#89631c', fontSize: 11.5 }}>含附件（请到原邮箱网页端下载）</div>}
+                  {selected.hasAttachment && <div style={{ marginTop: 6, color: '#89631c', fontSize: 11.5 }}>含附件（请到原邮箱网页端下载）</div>}
+                  {selectedAutoStatus && <p className="mail-source-status">{selectedAutoStatus.status === 'review' ? '需要确认后才能更新日历' : selectedAutoStatus.status === 'suppressed' ? '这场面试已删除，不会自动重新添加' : selectedAutoStatus.analysis?.action === 'cancel' ? '面试已取消，历史记录保留' : selectedAutoStatus.analysis?.action === 'reschedule' ? '已自动更新日历安排' : '已自动加入面试日历'}</p>}
                 <div className="grid grid-cols-1 sm:grid-cols-[repeat(3,minmax(0,1fr))_auto] gap-0" style={{ marginTop: 16, padding: '14px 14px', border: '1px solid #e8e0d2', borderRadius: 14, background: '#faf7f0' }}>
                   <SummaryCell icon={<IconInterviews size={16} />} label="面试时间" value={selectedSummary?.interviewTime || '查看邮件'} />
                   <SummaryCell icon={<IconMail size={16} />} label="面试形式" value={selectedSummary?.form || '查看邮件正文'} />
@@ -668,7 +653,7 @@ export default function Mailbox() {
                     />
                   ) : (
                     <div style={{ fontSize: 14, lineHeight: 1.8, color: '#333', whiteSpace: 'pre-wrap' }}>
-                      {selected.snippet || '（无正文）'}
+                      {selected.body || selected.snippet || '（无正文）'}
                     </div>
                   )}
                 </div>

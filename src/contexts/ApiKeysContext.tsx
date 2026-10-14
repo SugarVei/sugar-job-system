@@ -3,6 +3,7 @@ import { supabase, isSupabaseConfigured } from '../lib/supabase';
 import { useAuth } from './AuthContext';
 import { PROVIDERS, type ProviderId } from '../lib/providers';
 import ApiRequiredDialog from '../components/ApiRequiredDialog';
+import { mailSyncRequest } from '../lib/mailSyncClient';
 
 type KeyMap = Partial<Record<ProviderId, string>>;
 
@@ -52,18 +53,29 @@ export function ApiKeysProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => { fetchKeys(); }, [fetchKeys]);
 
+  useEffect(() => {
+    if (!userId || loading || !keys[activeProvider]) return;
+    const controller = new AbortController();
+    void mailSyncRequest('provider', { provider: activeProvider }, true, controller.signal)
+      .then(() => window.dispatchEvent(new Event('sugar:mail-sync-settings-changed')))
+      .catch(() => { /* Mailbox status reports configuration failures; existing AI features stay usable. */ });
+    return () => controller.abort();
+  }, [userId, loading, activeProvider, keys]);
+
   const saveKey = useCallback(async (provider: ProviderId, apiKey: string) => {
     if (!user) throw new Error('未登录');
-    await supabase.from('user_api_keys').upsert(
+    const { error } = await supabase.from('user_api_keys').upsert(
       { user_id: user.id, provider, api_key: apiKey, updated_at: new Date().toISOString() },
       { onConflict: 'user_id,provider' },
     );
+    if (error) throw new Error('AI Key 未保存成功，请重试');
     setKeys(prev => ({ ...prev, [provider]: apiKey }));
   }, [user]);
 
   const removeKey = useCallback(async (provider: ProviderId) => {
     if (!user) throw new Error('未登录');
-    await supabase.from('user_api_keys').delete().eq('user_id', user.id).eq('provider', provider);
+    const { error } = await supabase.from('user_api_keys').delete().eq('user_id', user.id).eq('provider', provider);
+    if (error) throw new Error('AI Key 未删除成功，请重试');
     setKeys(prev => { const next = { ...prev }; delete next[provider]; return next; });
   }, [user]);
 

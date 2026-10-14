@@ -119,6 +119,14 @@ export interface Interview {
   id: string;
   user_id: string;
   application_id?: string | null;
+  status?: 'scheduled' | 'cancelled';
+  source?: 'manual' | 'email';
+  version?: number;
+  timezone?: string | null;
+  meeting_url?: string | null;
+  location?: string | null;
+  contact?: string | null;
+  end_time?: string | null;
   company_name: string;
   position_name: string | null;
   interview_time: string | null;
@@ -188,7 +196,8 @@ export interface MailboxAccount {
   provider: MailboxProvider;
   email: string;
   /** 客户端授权码 / 应用专用密码；仅通过 RLS 隔离，前端勿打印 */
-  auth_code: string;
+  auth_code?: string;
+  secret_configured?: boolean;
   display_name: string | null;
   imap_host: string | null;
   imap_port: number | null;
@@ -201,6 +210,8 @@ export type NewMailboxAccount = Pick<MailboxAccount, 'provider' | 'email' | 'aut
 
 export interface MailboxMessage {
   uid: number;
+  uidvalidity?: string;
+  body?: string;
   subject: string;
   from: string;
   date: string | null;
