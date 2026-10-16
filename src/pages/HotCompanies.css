@@ -49,12 +49,12 @@
 .hc-recruitment-label > span:last-child { overflow: hidden; text-overflow: ellipsis; }
 .hc-recruitment-label .hc-status-dot { width: 9px; height: 9px; background: var(--status-dot, var(--status-color)); }
 .hc-check-label { margin-top: 10px; font-size: 13px; line-height: 1.6; color: #A8A29E; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
-.hc-company-footer { margin-top: auto; padding-top: 18px; }
-.hc-company-website, .hc-link-unavailable { display: flex; align-items: center; justify-content: center; gap: 5px; width: 100%; min-height: 44px; padding: 11px 8px; border: 1px solid rgba(0,0,0,.06); border-radius: 18px; color: #1D1D1F; background: rgba(255,255,255,.85); box-shadow: 0 2px 8px rgba(0,0,0,.04); text-decoration: none; font-size: 14px; font-weight: 600; line-height: 20px; white-space: nowrap; }
+.hc-company-footer { display: flex; align-items: center; gap: 12px; margin-top: auto; padding-top: 18px; }
+.hc-company-website, .hc-link-unavailable { display: flex; align-items: center; justify-content: center; gap: 5px; flex: 1; min-width: 0; min-height: 44px; padding: 11px 8px; border: 1px solid rgba(0,0,0,.06); border-radius: 18px; color: #1D1D1F; background: rgba(255,255,255,.85); box-shadow: 0 2px 8px rgba(0,0,0,.04); text-decoration: none; font-size: 14px; font-weight: 600; line-height: 20px; white-space: nowrap; }
 .hc-company-website:hover { background: #fff; }
 .hc-link-unavailable { color: #6E6E73; }
 .hc-icon-button, .hc-row-actions > summary { display: inline-flex; align-items: center; justify-content: center; width: 30px; height: 30px; flex: none; border: 0; border-radius: 9px; background: var(--hc-tint); color: #827a70; cursor: pointer; }
-.hc-row-actions { position: relative; align-self: flex-end; margin-top: 14px; }
+.hc-row-actions { position: relative; flex: none; }
 .hc-row-actions > summary { list-style: none; width: 34px; height: 34px; border-radius: 50%; background: rgba(120,120,128,.06); color: #6E6E73; }
 .hc-row-actions > summary:hover, .hc-row-actions[open] > summary { background: rgba(120,120,128,.12); }
 .hc-row-actions > summary::-webkit-details-marker { display: none; }

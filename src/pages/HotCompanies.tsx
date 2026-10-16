@@ -609,7 +609,6 @@ function CompanyEntry({ company, applied, recruitmentStatus, statusesLoading, re
     <div className="hc-check-label">{activityLabel}</div>
     <div className="hc-company-footer">
       {isHttpUrl(entryUrl) ? <a className="hc-company-website" href={entryUrl} target="_blank" rel="noopener noreferrer" aria-label={`${company.name}招聘官网`}>招聘官网<ArrowUpRight size={14} /></a> : <span className="hc-link-unavailable">暂无官网</span>}
-    </div>
       <details ref={detailsRef} className="hc-row-actions" onBlur={event => { if (!event.currentTarget.contains(event.relatedTarget as Node)) event.currentTarget.open = false; }} onKeyDown={event => { if (event.key === 'Escape') { event.preventDefault(); event.currentTarget.open = false; event.currentTarget.querySelector('summary')?.focus(); } }}>
         <summary aria-label={`${company.name}更多操作`}><MoreHorizontal size={19} /></summary><div className="hc-row-menu">
           <p>{recruitment.title}</p>{suggestedEntry && !suggestedEntryUrl && <p>建议入口：{suggestedEntry}</p>}{company.deadlineText && <p>截止：{company.deadlineText}</p>}
@@ -618,6 +617,7 @@ function CompanyEntry({ company, applied, recruitmentStatus, statusesLoading, re
           {removable && onDelete && <button type="button" className="hc-delete-action" disabled={deleting} onClick={() => { if (detailsRef.current) detailsRef.current.open = false; onDelete(); }}>{deleting ? '正在删除…' : '删除私有公司'}</button>}
         </div>
       </details>
+    </div>
   </article>;
 }
 
