@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties, type KeyboardEvent } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties, type KeyboardEvent } from 'react';
 import { ArrowUpRight, ChevronDown, ChevronLeft, ChevronRight, Filter, Info, MoreHorizontal, PanelRightOpen, Search, X } from 'lucide-react';
 import { CompanyDiscoveryPanel, type CompanyDiscoveryMode } from '../components/CompanyDiscovery';
 import './HotCompanies.css';
@@ -13,7 +13,6 @@ import { useCampusRecruitmentStatuses, type CampusRecruitmentStatus } from '../h
 import { useToast } from '../components/Toast';
 import type { Company, NewRecord } from '../types';
 import { CARD, initialOf } from '../lib/appHelpers';
-import { paletteSlot } from '../lib/customPalette';
 import { applicationCompanyMatchesHotCompany, normalizeCompanyName } from '../lib/companyName';
 import { seedStatusForCompany } from '../data/campusRecruitmentSeed';
 import { IconExternalLink } from '../components/icons';
@@ -591,25 +590,24 @@ function CompanyEntry({ company, applied, recruitmentStatus, statusesLoading, re
   const evidenceUrl = recruitmentStatus?.evidence_url || suggestedEntryUrl || company.url;
   const industries = (company.industryTags?.length ? company.industryTags : [company.industry]).filter(Boolean).join(' · ');
   const detailsRef = useRef<HTMLDetailsElement>(null);
-  const colorSlot = paletteSlot(company.name);
-  // Keep a company's tint stable while filtering, paging, or switching themes.
-  const cardColors = {
-    '--hc-card-bg': `var(--sugar-card-${colorSlot}-bg, color-mix(in srgb, var(--sugar-accent-soft) ${24 + colorSlot * 7}%, white))`,
-    '--hc-card-fg': `var(--sugar-card-${colorSlot}-fg, var(--hc-ink))`,
-    '--hc-card-border': `var(--sugar-card-${colorSlot}-border, var(--hc-line))`,
-    '--hc-initial-bg': `color-mix(in srgb, var(--sugar-card-${colorSlot}-bg, var(--sugar-accent-soft)) ${72 + colorSlot * 7}%, white)`,
-    '--hc-initial-fg': `var(--sugar-card-${colorSlot}-fg, var(--sugar-accent))`,
-  } as CSSProperties;
   const updateDate = updateDateForCompany(company);
   const activityLabel = updateDate ? `${updateDate} 更新` : recruitmentCheckLabel(recruitmentStatus, company);
   const statusLabel = recruitment.label.replace(/^27校招/u, '').replace('已开始', '已开招').replace('未开始', '未开招').replace('即将开招/预热', '即将开招');
-  return <article className={`hc-company-entry${applied ? ' hc-company-applied' : ''}`} style={cardColors} data-company-name={company.name} aria-label={company.name}>
-    <div className="hc-company-identity">
-      <span className="hc-company-initial" aria-hidden="true">{initialOf(company.name)}</span>
-      <div><h2 title={`${company.name}${company.companyType ? ` · ${company.companyType}` : ''}`}>{company.name}</h2><div className="hc-company-industry" title={[industries, company.city].filter(Boolean).join(' · ')}>{[industries, company.city].filter(Boolean).join(' · ') || '公司信息待补充'}</div>{applied && <button className="hc-applied-link" type="button" onClick={() => onViewApplications(company)} aria-label={`查看${company.name}的投递记录`}>已投递</button>}</div>
+  const nameRef = useFittedCompanyName(company.name, statusLabel);
+  const statusColors = statusLabel === '已开招'
+    ? { '--status-color': '#1E7F3C', '--status-dot': '#22A35C' }
+    : statusLabel === '未开招'
+      ? { '--status-color': '#B7791F', '--status-dot': '#E8A33D' }
+      : { '--status-color': recruitment.style.color, '--status-dot': recruitment.style.color };
+  return <article className={`hc-company-entry${applied ? ' hc-company-applied' : ''}`} data-company-name={company.name} aria-label={company.name}>
+    <div className="hc-company-top">
+      <h2 ref={nameRef} title={company.name}>{company.name}</h2>
+      <span className="hc-recruitment-label" style={statusColors as CSSProperties} title={recruitment.title}><span className="hc-status-dot" /><span>{statusLabel}</span></span>
     </div>
-    <div className="hc-company-card-bottom">
-      <div className="hc-company-status"><span className="hc-recruitment-label" style={{ '--status-color': recruitment.style.color } as CSSProperties} title={recruitment.title}><span className="hc-status-dot" />{statusLabel}</span><span className="hc-check-label" title={activityLabel}>{activityLabel}</span></div>
+    <div className="hc-company-industry">{[company.companyType, industries].filter(Boolean).join(' · ') || '公司信息待补充'}</div>
+    <div className="hc-company-cities">{company.city || '招聘城市待补充'}</div>
+    <div className="hc-check-label">{activityLabel}</div>
+    <div className="hc-company-footer">
       {isHttpUrl(entryUrl) ? <a className="hc-company-website" href={entryUrl} target="_blank" rel="noopener noreferrer" aria-label={`${company.name}招聘官网`}>招聘官网<ArrowUpRight size={14} /></a> : <span className="hc-link-unavailable">暂无官网</span>}
     </div>
       <details ref={detailsRef} className="hc-row-actions" onBlur={event => { if (!event.currentTarget.contains(event.relatedTarget as Node)) event.currentTarget.open = false; }} onKeyDown={event => { if (event.key === 'Escape') { event.preventDefault(); event.currentTarget.open = false; event.currentTarget.querySelector('summary')?.focus(); } }}>
@@ -621,6 +619,43 @@ function CompanyEntry({ company, applied, recruitmentStatus, statusesLoading, re
         </div>
       </details>
   </article>;
+}
+
+/** Refit on card/panel/viewport changes and after fonts load, including a larger width. */
+function useFittedCompanyName(name: string, status: string) {
+  const ref = useRef<HTMLHeadingElement>(null);
+  useLayoutEffect(() => {
+    const element = ref.current;
+    if (!element) return;
+    let disposed = false;
+    let frame = 0;
+    const fit = () => {
+      if (disposed || !element.clientWidth) return;
+      element.style.fontSize = '22px';
+      if (element.scrollWidth <= element.clientWidth) return;
+      // Binary search half-pixel steps; 15px still falls back to CSS ellipsis.
+      let low = 0;
+      let high = 13;
+      let best = 15;
+      while (low <= high) {
+        const middle = Math.floor((low + high) / 2);
+        const size = 15 + middle * .5;
+        element.style.fontSize = `${size}px`;
+        if (element.scrollWidth <= element.clientWidth) {
+          best = size;
+          low = middle + 1;
+        } else high = middle - 1;
+      }
+      element.style.fontSize = `${best}px`;
+    };
+    fit();
+    const scheduleFit = () => { cancelAnimationFrame(frame); frame = requestAnimationFrame(fit); };
+    const observer = new ResizeObserver(scheduleFit);
+    observer.observe(element);
+    void document.fonts.ready.then(() => { if (!disposed) scheduleFit(); });
+    return () => { disposed = true; observer.disconnect(); cancelAnimationFrame(frame); };
+  }, [name, status]);
+  return ref;
 }
 
 const primaryLink: CSSProperties = {
