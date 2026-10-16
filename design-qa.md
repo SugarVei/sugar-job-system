@@ -85,3 +85,12 @@ Checked in the isolated Playwright browser previously authorized by the user:
 - At 1487 x 1058: sidebar width 248, footer y=887, account y=991 with height 55 and 12px bottom inset.
 - Checked account dialog open/close, collapse/expand, and 390/1280/1487px without horizontal overflow. The company card and discovery panel design and theme tokens remain in place.
 - Evidence: design-qa-assets/restored-sidebar.png. Build and whitespace checks passed.
+
+## Shared module background requested after sidebar restoration (2026-10-16)
+
+- The user requested the Hot Companies background to match the other modules and provided the green Overview screen as reference.
+- Removed the module-specific app-fullscreen-surface background and backdrop-filter override. Hot Companies now uses the same AppLayout shell and LiquidBackground as Overview, including the current preset/custom theme.
+- Compared computed shell backgrounds and backdrop filters between Hot Companies and Overview in all six presets: all matched. Custom palette shell, filter and background gradient also matched.
+- Confirmed the green view visually against the supplied reference and checked 390px for horizontal overflow (none). Existing cards, theme accents and restored bottom account controls remain intact.
+- Evidence: design-qa-assets/shared-background.png (1854 x 917, isolated fixture).
+- Vite production build and git diff --check passed.

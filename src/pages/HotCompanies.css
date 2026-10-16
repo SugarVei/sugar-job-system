@@ -1,6 +1,5 @@
 /* All decorative colors inherit the selected preset or custom palette. */
 .hot-companies-layout { --hc-ink: var(--sugar-ink, #22211f); --hc-muted: var(--sugar-muted, #74716b); --hc-line: var(--sugar-line, color-mix(in srgb, var(--sugar-accent) 15%, white)); --hc-surface: var(--sugar-surface, color-mix(in srgb, var(--sugar-accent-soft) 8%, white)); --hc-tint: color-mix(in srgb, var(--sugar-accent-soft) 44%, white); --hc-selected: var(--sugar-accent-soft); --hc-accent: var(--sugar-accent); }
-.hot-companies-layout .app-fullscreen-surface { background: var(--hc-surface) !important; backdrop-filter: none !important; }
 .hot-companies-layout .app-content-header { padding-top: 4px; padding-bottom: 11px; }
 .hot-companies-layout .app-content-scroll { padding-right: 4px; }
 .hot-companies-layout .app-page-title { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Microsoft YaHei', sans-serif !important; font-size: 34px; font-weight: 650 !important; letter-spacing: -.04em !important; }
