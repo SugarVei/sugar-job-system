@@ -74,8 +74,10 @@ export default function StandardCatalogImporter({
   updatedAt,
   catalogError,
   onApplied,
+  compact = false,
 }: {
   currentCompanies: CatalogCompany[];
+  compact?: boolean;
   updatedAt?: string | null;
   catalogError?: string | null;
   onApplied: () => Promise<void> | void;
@@ -227,7 +229,7 @@ export default function StandardCatalogImporter({
     : '还没有导入过飞书表';
 
   return (
-    <section style={{ background: '#fffdf8', border: '1px solid #e0d8c9', borderRadius: 22, padding: 18 }}>
+    <section className={compact ? 'hc-panel-tool hc-excel-tool' : undefined} style={{ background: '#fffdf8', border: '1px solid #e0d8c9', borderRadius: 22, padding: 18 }}>
       <div className="flex items-start justify-between gap-4 flex-wrap">
         <div>
           <h2 style={{ margin: 0, fontSize: 16, fontWeight: 750, color: '#1b1a17' }}>用 Excel 更新标准公司库</h2>

@@ -1,135 +1,79 @@
-# Brand Logo Design QA
-
-- Source visual truth: `C:\Temp\codex-clipboard-808980ef-4775-47d0-9f69-37bd4f1defee.png`
-- Implementation screenshot: `D:\Users\86181\Documents\简历\sugar-job-system\design-qa-assets\logo-login-after.png`
-- Combined comparison: `D:\Users\86181\Documents\简历\sugar-job-system\design-qa-assets\logo-comparison.png`
-- Viewport: 1280 × 800
-- State: unauthenticated login page, desktop
-
-## Full-view comparison evidence
-
-The source is a standalone logo rather than a full-page mockup, so the full implementation page was checked for placement and context. The transparent black mark is centered above the login heading with no black rounded rectangle, border, shadow, or visible white image background.
-
-## Focused region comparison evidence
-
-The combined comparison confirms that the implementation preserves the reference mark's recognizable proportions, orientation, three-part loop structure, solid black treatment, and transparent surrounding area. The mark remains sharp and readable at UI size.
-
-## Required fidelity surfaces
-
-- Fonts and typography: unchanged; surrounding Sugar UI typography remains consistent.
-- Spacing and layout rhythm: existing logo slots are preserved; removal of the container background does not shift adjacent text.
-- Colors and visual tokens: logo is black and inherits no theme-colored background.
-- Image quality and asset fidelity: transparent PNG has transparent corners, crisp edges, and no rounded-rectangle backing.
-- Copy and content: unchanged.
-
-## Findings
-
-No actionable P0, P1, or P2 differences were found for the requested logo replacement.
-
-## Interaction and console checks
-
-- Login page loaded and rendered meaningful content.
-- No Vite error overlay was present.
-- One Supabase refresh-token 400 occurred from a stale local browser session; it is unrelated to the logo asset or layout change.
-
-## Comparison history
-
-- Initial implementation: replaced the old asset, removed background/radius/shadow wrappers, and updated favicon.
-- Post-fix evidence: `design-qa-assets/logo-comparison.png`; no additional visual fixes required.
+# 热门公司附图修正核对
 
 final result: passed
 
----
+## Source and implementation
 
-# 智能填表助手五色主题 Design QA
+The user's latest attached image is the source of truth. The earlier directory/dropdown design is superseded.
 
-- Source visual truth: `C:\Users\86181\.codex\generated_images\019ffde0-f681-7f82-b80a-c38cdbe920d9\exec-712071a9-7cd3-43ef-ae6b-d4f69355d19d.png`
-- Implementation screenshot: `D:\Users\86181\Documents\简历\sugar-job-system\design-qa-assets\resume-assistant-desktop.png`
-- Full-view comparison: `D:\Users\86181\Documents\简历\sugar-job-system\design-qa-assets\resume-assistant-qa-comparison.png`
-- Focused comparison: `D:\Users\86181\Documents\简历\sugar-job-system\design-qa-assets\resume-assistant-qa-focused.png`
-- Responsive screenshot: `D:\Users\86181\Documents\简历\sugar-job-system\design-qa-assets\resume-assistant-mobile.png`
-- Source pixels: 1821 × 864; implementation pixels: 1884 × 892
-- CSS viewport: 1884 × 892 desktop and 390 × 844 mobile; device scale factor: 1
-- State: overview tab, pink theme, no paired extension, empty profile and runs in local QA session
-
-## Full-view comparison evidence
-
-The side-by-side comparison confirms the approved structure: the existing Sugar sidebar remains unchanged; the right side retains the page header, five theme controls, primary action and four tabs; overview content is reorganized into four compact top cards plus recent-runs and capability-boundary panels. The implementation keeps the same low-saturation card treatment, rounded geometry and clear hierarchy while using the project's real header and navigation shell.
-
-## Focused region comparison evidence
-
-The focused comparison verifies the status, profile, AI and workflow cards at readable scale. Card order, labels, compact workflow steps, icon treatment, button hierarchy, borders and theme accents match the selected direction. The implementation uses actual project data, so the local empty profile renders `0%` instead of the mock's illustrative `86%`; this is expected data behavior rather than design drift.
-
-## Required fidelity surfaces
-
-- Fonts and typography: existing Sugar font stack, weights and Chinese text rendering are preserved; headings, eyebrows, body copy and actions maintain clear hierarchy without wrapping regressions.
-- Spacing and layout rhythm: desktop uses a 12-column grid with 16 px gaps and consistent 20 px card radii; mobile collapses to one column with no horizontal overflow.
-- Colors and visual tokens: pink, blue, green, gray-lavender and cream themes map to distinct component-level CSS tokens and persist through the existing theme context.
-- Image quality and asset fidelity: the screen uses the project's existing SVG icon library; no raster placeholders or generated decorative assets were introduced.
-- Copy and content: all approved labels are present; data-dependent values remain connected to the existing profile, device, AI credential and run hooks.
-
-## Interaction and browser checks
-
-- Five theme controls changed both the persisted `sugar_theme` value and the component accent token: pink `#e96883`, blue `#4f8fd5`, green `#72a962`, gray-lavender `#8c86c7`, cream `#c09b62`.
-- Overview, standard profile, plugin and AI, and run-history tabs updated their hash routes successfully.
-- The connect-extension dialog opened and closed successfully.
-- Mobile viewport 390 × 844 reported `scrollWidth=390`; no horizontal overflow.
-- No page errors or Vite error overlay were detected. The existing Vite stream-browser compatibility warning is unrelated to this UI change.
-
-## Findings
-
-- P0: none.
-- P1: none.
-- P2: none.
-- Accepted environment difference: the local QA session used an intentionally invalid demo session, so the existing cloud-reconnect notice is visible. It is not shown during a healthy authenticated production session.
+- Original source: C:/Temp/codex-clipboard-bd04eeed-d371-4a59-8570-3ab4df407b10.png
+- Preserved source: design-qa-assets/corrected-target.png
+- Working preview: http://127.0.0.1:4187/hot-companies-preview.html?layout=side-panel
+- Desktop screenshot: design-qa-assets/corrected-desktop.png
+- Full comparison, source left and implementation right: design-qa-assets/corrected-comparison-full.png
+- Focused panel comparison at original density: design-qa-assets/corrected-comparison-panel.png
+- Mobile screenshots: design-qa-assets/corrected-mobile-cards.png and corrected-mobile-panel.png
+- Desktop source, CSS viewport and output are all 1487 x 1058, device scale 1. No density normalization was needed. Focused panel crops are 344 x 834 each.
+- Comparison state: light warm surface, expanded app sidebar, first page, scroll top 0, discovery panel expanded and Resume selected, no file selected.
 
 ## Comparison history
 
-- Initial coded implementation already matched the approved right-side structure with no actionable P0/P1/P2 issue.
-- Browser verification confirmed theme persistence, tab navigation, dialog behavior and mobile responsiveness; no visual correction loop was required.
+1. [P1, resolved] The previous implementation used the wrong visual target. Replaced the list and discovery popover with the attached two-column card layout and a persistent right-side discovery panel. Default mode is Resume; AI and Excel switch within the same panel.
+2. [P2, resolved] The first corrected render had the content about 25px too low. Reduced header/status-strip spacing and adjusted main padding. Final panel is x=1129, y=199.66, width=344, height=834, against the source panel around x=1127, y=197. First card is x=318, y=389.66, width=380.5, height=137. Source card is around x=316, y=388, width=381, height=136.
+3. [P2, resolved] Early panel labels were too small and the upload icon lacked the reference's text lines. Increased tab, description, consent, option and primary-action text; used the existing outline FileText library icon. Final upload well is 302 x 180; primary action is 302 x 48. Recaptured and compared both full view and focused panel after this change.
 
-final result: passed
+No remaining actionable P0/P1/P2 findings in the reviewed states.
 
----
+## Required fidelity surfaces
 
-# Action Queue Orbit Design QA
+- Typography: system sans-serif with Chinese UI fallbacks, 34px page title, 27px panel title, 18px tool title, 16px company names and main action. Platform font rasterization differs from the generated reference; the hierarchy and wrapping have been checked.
+- Spacing/layout: five separated status totals, search plus filter button, three aligned selectors, two company columns, right panel 344px wide, persistent pagination, segmented AI/Resume/Excel modes. Panel geometry and first-card position closely match the attached target. Existing sidebar navigation remains functional, with its account and footer arrangement styled for this module.
+- Color/tokens: the user approved the attached layout and then requested colors to follow the selected site theme. Company cards use stable name-based tint slots. All six presets update card surfaces, initials, panel, tabs, selected preferences, pagination and focus colors. Custom palettes reuse the existing five card slots and contrast-safe foregrounds. Recruitment status colors retain their meaning. The reference black primary action is retained.
+- Images/icons: preserved the source application's native company-initial avatars with its existing initialOf helper and stable paletteSlot mapping, matching the attached design's text-avatar treatment. Icons come from the installed outline library. No generated corporate logos or approximated brand marks are introduced. Unused logo assets from the superseded concept were archived outside the worktree.
+- Copy/content: matches 发现公司, AI / 简历 / Excel, 通过简历找公司, 上传简历, 匹配偏好, 开始匹配 and administrator-only Excel messaging. Consent and account-private results remain in place. Existing additional preferences are available through 更多. The application uses its catalog and audit data instead of copying fictional company counts or dates from the source image.
 
-- Reference: `D:\google download\Sugar-ActionQueue-Orbit-Prototype.html`
-- Viewport/state: desktop reference canvas 860 × 400, three applications, reduced motion enabled, rotation 0°, no hover, no selection, no expanded card.
-- Reference screenshot: `D:\Users\86181\Documents\简历\outputs\prototype-fan-3-exact.png`
-- Implementation screenshot: `D:\Users\86181\Documents\简历\outputs\implementation-fan-3-matched.png`
-- Combined comparison: `D:\Users\86181\Documents\简历\outputs\fan-3-side-by-side.png`
-- 50% overlay: `D:\Users\86181\Documents\简历\outputs\fan-3-overlay-50.png`
-- Pixel difference: `D:\Users\86181\Documents\简历\outputs\fan-3-pixel-diff.png`
+## Interaction evidence
 
-## Action queue findings
+Checked in the isolated Playwright browser previously authorized by the user:
 
-- Resolved P1: the native button formatting context vertically centered card text. Card content is now pinned to the prototype's 13 px desktop/tablet and 10 px mobile top inset, with matching horizontal insets.
-- P0: none.
-- P1: none after correction.
-- P2: none.
-- The reference element screenshot originated on a half-CSS-pixel page coordinate and rendered at 861 × 401. The comparison used the best-aligned 860 × 400 crop at offset (1, 1). Mean absolute RGB difference after alignment: (0.757, 0.904, 0.924) on the 0–255 scale.
-- Remaining visible difference is subpixel font anti-aliasing from the reference's fractional page origin; no structural double edges remain in the stage, cards, navigation, mask, or glow.
+- Responsive layouts at 320, 390, 768, 1280 and 1487px; no horizontal document overflow. A fresh mobile load starts with discovery collapsed. Opening it uses a single inline panel.
+- Administrator has AI, Resume and Excel tabs. Ordinary user has only AI and Resume. End-key navigation selects the last available tab.
+- AI search returns the in-memory example candidate. Prompt survives tab changes and panel collapse/reopen.
+- Resume selection, 科技 preference, required consent, and mocked upload/parse/match/save flow completed with one displayed recommendation.
+- Actual XLSX fixture parsing, change-preview dialog, cancel, collapse/reopen and preserved file selection. Evidence: design-qa-assets/corrected-excel-confirm.png.
+- Next page changes page index to 1; empty-search/reset returns to page 0. Full pages remain bounded to 48 cards. Direct-page selection and numbered controls remain available.
+- All existing website, evidence, applied-record and private-delete handlers remain connected to the card actions.
+- Browser console: zero errors in final checks. Existing xlsx-js-style stream compatibility warning remains; the workbook parser flow passed.
 
-## Literal source-port iteration
+## Validation and scope
 
-- Earlier finding: the implementation still depended on component CSS and a native button formatting context, while the source prototype renders each orbit card as a plain normal-flow element with inline style objects.
-- Fix made: the stage, glow, header, ring origin, slot, card, mask, navigation, and expanded-card visual declarations are now copied into React inline styles from the unpacked prototype. Orbit cards now use the prototype's normal-flow `div` structure with keyboard-equivalent button semantics. The external stylesheet is limited to focus and keyframe behavior.
-- Post-fix code checks: `npm run lint` and `npm run build` pass.
-- Post-fix visual evidence is currently unavailable because the connected Chrome extension cannot establish a browser-control session and this Codex turn exposes no alternate in-app browser surface. The previous screenshot predates this literal source-port iteration and is not reused as new proof.
+- Production build passed after the final font/icon adjustment. Existing chunk-size and JSZip import warnings remain.
+- Targeted ESLint passed on changed TSX components.
+- Existing standardCompanyImport, standardCompanyWorkbook and standardCatalogAdmin tests plus customPalette tests: 25 passed.
+- git diff --check passed.
+- Preview uses a fake Supabase origin and in-memory API/storage/database responses. It does not sign in to a real account, call paid AI, or write production data.
+- Release target: existing GitHub main to the sugarvresume production project, https://www.sugarv.mom/. Production asset and browser verification follows the push; simulated API checks do not prove real-account writes or live AI matching.
 
-final result: blocked
+## Accepted P3 differences
 
----
+- Current navigation includes the existing 求职小镇 entry and current theme/command controls; none were removed to mimic the illustrative image.
+- Company names, counts and audit dates differ because the existing catalog is used. The preview is explicitly labelled as example data.
+- Small platform-dependent font and icon-weight differences remain.
 
-## Fan-mode layer ordering iteration
+## Completion checklist
 
-- Source visual truth: `C:\Temp\codex-clipboard-8f1de996-dceb-4f92-8133-39a6025ab57a.png`
-- Target state: three applications in desktop fan mode, with the center card in front.
-- Finding [P1]: translucent card opacity plus per-card blur/filter promoted the fan cards into separate Chromium compositor layers. The later yellow card painted across the nearer green card, and text from rear cards remained visible through the center card.
-- Fix made: fan cards retain the prototype's 3D positions, angles, sizes, colors, and transforms, but are rendered opaque with blur disabled. Each fan slot now receives a deterministic near-to-far layer value derived from its current angular distance. The five-or-more-card ring path is unchanged.
-- Code verification: `npm run lint` passed; `npm run build` passed.
-- Post-fix implementation screenshot: unavailable. Both the in-app browser and Chrome browser connections fail before tab acquisition with a local browser-client initialization error, so a valid rendered comparison cannot be captured in this run.
-- Temporary three-record QA entry was removed before commit.
+- [x] Latest attached image is the sole layout target.
+- [x] Corrected two-column cards plus right discovery panel.
+- [x] Functional modes, collapse/reopen, persistent selections and administrator checks.
+- [x] Source and final screenshots reviewed together at the same viewport/state.
+- [x] Required typography, layout, palette, assets and copy checks complete.
+- [x] Build, lint, 25 relevant tests and local interaction checks pass.
 
-final result: blocked
+## Theme follow-up verification (2026-10-16)
+
+- Checked every preset through the existing theme switcher; all six produced distinct card, initial, panel and selected-tab colors.
+- Applied a five-color custom palette through the actual palette-studio iframe bridge. Multiple company card hues and readable matching foregrounds appeared; custom selection persisted after reload.
+- Verified no document overflow at 320, 390, 768, 1280 and 1487px.
+- Browser console: no errors.
+- Evidence: design-qa-assets/theme-blue.png and design-qa-assets/theme-custom.png.
+- AI and resume result cards and the compact Excel upload area also inherit the selected theme. Shared components preserve their normal appearance outside the compact panel.

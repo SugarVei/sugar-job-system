@@ -1,11 +1,12 @@
 import { useMemo, useRef, useState, type ChangeEvent, type DragEvent } from 'react';
 import JSZip from 'jszip';
+import { FileText } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
 import type { HotCompany } from '../data/hotCompanies';
 import { IconFile, IconTrash } from './icons';
 
-const PREFERENCES = ['大公司', '小公司', '外企', '国企', '民企', '互联网', '制造业', '服务业', '新能源', '芯片半导体', '汽车', '金融'];
+const PREFERENCES = ['科技', '大公司', '小公司', '外企', '国企', '民企', '互联网', '制造业', '服务业', '新能源', '芯片半导体', '汽车', '金融'];
 const MAX_FILE_SIZE = 10 * 1024 * 1024;
 const PDF_MIME_TYPE = 'application/pdf';
 const DOCX_MIME_TYPE = 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
@@ -72,14 +73,17 @@ async function extractDocxText(file: File) {
 export default function ResumeCompanyFinder({
   standardCompanies,
   onSaved,
+  compact = false,
 }: {
   standardCompanies: HotCompany[];
+  compact?: boolean;
   onSaved: () => Promise<void> | void;
 }) {
   const { user } = useAuth();
   const inputRef = useRef<HTMLInputElement>(null);
   const [file, setFile] = useState<File | null>(null);
   const [preferences, setPreferences] = useState<string[]>([]);
+  const [showAllPreferences, setShowAllPreferences] = useState(false);
   const [dragging, setDragging] = useState(false);
   const [consented, setConsented] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -181,16 +185,17 @@ export default function ResumeCompanyFinder({
   };
 
   return (
-    <section style={{ background: '#fffdf8', border: '1px solid #e0d8c9', borderRadius: 22, padding: 18 }}>
+    <section className={compact ? 'hc-panel-tool hc-resume-tool' : undefined} style={{ background: '#fffdf8', border: '1px solid #e0d8c9', borderRadius: 22, padding: 18 }}>
       <div className="flex items-start justify-between gap-4 flex-wrap">
         <div>
           <h2 style={{ margin: 0, fontSize: 16, fontWeight: 750, color: '#1b1a17' }}>通过简历找公司</h2>
-          <p style={{ margin: '5px 0 0', fontSize: 12.5, color: '#8a8478', lineHeight: 1.55 }}>上传简历、选择倾向，AI 会优先从标准公司池中为你筛选合适公司，再补充你的私有候选公司。</p>
+          <p style={{ margin: '5px 0 0', fontSize: 12.5, color: '#8a8478', lineHeight: 1.55 }}>{compact ? '上传简历，基于你的经历匹配合适的公司' : '上传简历、选择倾向，AI 会优先从标准公司池中为你筛选合适公司，再补充你的私有候选公司。'}</p>
         </div>
-        <span style={{ fontSize: 12, color: '#9a9488' }}>仅当前账号可见</span>
+        {!compact && <span style={{ fontSize: 12, color: '#9a9488' }}>仅当前账号可见</span>}
       </div>
 
       <div
+        className={compact ? 'hc-panel-upload' : undefined}
         role="button"
         tabIndex={0}
         onClick={() => inputRef.current?.click()}
@@ -205,14 +210,14 @@ export default function ResumeCompanyFinder({
         {file ? (
           <div className="flex items-center justify-center gap-2" style={{ color: '#4f7a56' }}><IconFile size={20} /><span style={{ fontSize: 13.5, fontWeight: 700 }}>{file.name}</span><span style={{ fontSize: 12, fontWeight: 500 }}>（{(file.size / 1024 / 1024).toFixed(1)} MB）</span><button type="button" onClick={(event) => { event.stopPropagation(); setFile(null); setResults(null); }} aria-label="移除简历" style={{ border: 0, background: 'transparent', color: '#8a8478', cursor: 'pointer', display: 'inline-flex' }}><IconTrash size={15} /></button></div>
         ) : (
-          <><div style={{ color: '#9b633d', display: 'flex', justifyContent: 'center' }}><IconFile size={24} /></div><div style={{ marginTop: 7, fontSize: 13.5, fontWeight: 700, color: '#4a463e' }}>点击上传，或把简历拖到这里</div><div style={{ marginTop: 4, fontSize: 12, color: '#9a9488' }}>支持 PDF、DOCX，最大 10MB</div></>
+          <><div style={{ color: '#9b633d', display: 'flex', justifyContent: 'center' }}>{compact ? <FileText size={38} /> : <IconFile size={24} />}</div><div style={{ marginTop: 7, fontSize: 13.5, fontWeight: 700, color: '#4a463e' }}>{compact ? '上传简历' : '点击上传，或把简历拖到这里'}</div><div style={{ marginTop: 4, fontSize: 12, color: '#9a9488' }}>{compact ? 'PDF / DOCX · 最大 10MB' : '支持 PDF、DOCX，最大 10MB'}</div></>
         )}
       </div>
 
-      <div style={{ marginTop: 15 }}><div style={{ fontSize: 12.5, fontWeight: 700, color: '#6b665c', marginBottom: 9 }}>公司倾向（可多选）</div><div className="flex flex-wrap gap-2">{PREFERENCES.map((item) => { const selected = preferences.includes(item); return <button key={item} type="button" onClick={() => togglePreference(item)} aria-pressed={selected} style={{ border: `1px solid ${selected ? '#1b1a17' : '#e0d8c9'}`, background: selected ? '#1b1a17' : '#fff', color: selected ? '#fff' : '#6b665c', borderRadius: 999, height: 32, padding: '0 12px', cursor: 'pointer', fontSize: 12.5, fontWeight: 650 }}>{item}</button>; })}</div></div>
-      <label className="flex items-start gap-2" style={{ marginTop: 15, color: '#6b665c', fontSize: 12, lineHeight: 1.5, cursor: 'pointer' }}><input type="checkbox" checked={consented} onChange={(event) => setConsented(event.target.checked)} style={{ marginTop: 2, accentColor: '#1b1a17' }} />我同意系统先脱敏手机号、邮箱和身份证号后，将简历内容发送给我配置的 AI 服务商用于本次匹配。</label>
+      <div className={compact ? 'hc-panel-preferences' : undefined} style={{ marginTop: 15 }}><div className={compact ? 'hc-preferences-heading' : undefined} style={{ fontSize: 12.5, fontWeight: 700, color: '#6b665c', marginBottom: 9 }}>{compact ? '匹配偏好' : '公司倾向'}<span>（可多选）</span>{compact && <button type="button" className="hc-more-preferences" aria-expanded={showAllPreferences} onClick={() => setShowAllPreferences(value => !value)}>{showAllPreferences ? '收起' : '更多'}</button>}</div><div className="hc-preference-options flex flex-wrap gap-2">{(compact && !showAllPreferences ? ['外企', '国企', '科技'] : PREFERENCES).map((item) => { const selected = preferences.includes(item); return <button key={item} type="button" onClick={() => togglePreference(item)} aria-pressed={selected} style={{ border: `1px solid ${selected ? '#1b1a17' : '#e0d8c9'}`, background: selected ? '#1b1a17' : '#fff', color: selected ? '#fff' : '#6b665c', borderRadius: 999, height: 32, padding: '0 12px', cursor: 'pointer', fontSize: 12.5, fontWeight: 650 }}>{item}</button>; })}</div></div>
+      <label className={`flex items-start gap-2${compact ? ' hc-panel-consent' : ''}`} style={{ marginTop: 15, color: '#6b665c', fontSize: 12, lineHeight: 1.5, cursor: 'pointer' }}><input type="checkbox" checked={consented} onChange={(event) => setConsented(event.target.checked)} style={{ marginTop: 2, accentColor: '#1b1a17' }} /> <span>{compact ? '同意脱敏后将简历发送至我配置的 AI 服务用于本次匹配' : '我同意系统先脱敏手机号、邮箱和身份证号后，将简历内容发送给我配置的 AI 服务商用于本次匹配。'}</span></label>
       {error && <div style={{ marginTop: 12, color: '#a23d24', fontSize: 12.5, lineHeight: 1.55 }}>{error}</div>}
-      <div className="flex items-center justify-between gap-3 flex-wrap" style={{ marginTop: 15 }}><span style={{ fontSize: 11.5, color: loading ? '#8a5a34' : '#9a9488' }}>{loading ? progress : '原文件存入私有空间；标准公司不会被修改。'}</span><button type="button" onClick={() => void analyze()} disabled={!file || loading} className="btn-press" style={{ border: 0, borderRadius: 12, height: 40, padding: '0 18px', background: !file || loading ? '#d8d0c2' : '#1b1a17', color: '#fffdf8', cursor: !file || loading ? 'not-allowed' : 'pointer', fontSize: 13, fontWeight: 750 }}>{loading ? '正在分析简历…' : '开始匹配公司'}</button></div>
+      <div className={`flex items-center justify-between gap-3 flex-wrap${compact ? ' hc-panel-submit' : ''}`} style={{ marginTop: 15 }}><span style={{ fontSize: 11.5, color: loading ? '#8a5a34' : '#9a9488' }}>{loading ? progress : compact ? '结果仅当前账号可见' : '原文件存入私有空间；标准公司不会被修改。'}</span><button type="button" onClick={() => { if (compact && !file) inputRef.current?.click(); else void analyze(); }} disabled={loading || (!compact && !file)} className="btn-press" style={{ border: 0, borderRadius: 12, height: 40, padding: '0 18px', background: !file || loading ? '#d8d0c2' : '#1b1a17', color: '#fffdf8', cursor: loading || (!compact && !file) ? 'not-allowed' : 'pointer', fontSize: 13, fontWeight: 750 }}>{loading ? '正在分析简历…' : compact ? '开始匹配' : '开始匹配公司'}</button></div>
 
       {results && <div style={{ marginTop: 18, borderTop: '1px solid #ebe3d7', paddingTop: 16 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', marginBottom: 12 }}><strong style={{ fontSize: 13.5, color: '#1b1a17' }}>本次建议投递 {results.standardMatches.length + results.privateRecommendations.length} 家</strong><span style={{ fontSize: 11.5, color: '#8a8478' }}>热门公司仅作参考，AI 已补充非热门候选；投递前请核实官网岗位。</span></div>
@@ -225,13 +230,13 @@ export default function ResumeCompanyFinder({
 }
 
 function ResultCard({ item, standard = false }: { item: Result; standard?: boolean }) {
-  return <article style={{ border: '1px solid #e0d8c9', borderRadius: 14, background: standard ? '#f6faf6' : '#fff', padding: 13 }}>
+  return <article className="hc-discovery-result" style={{ border: '1px solid #e0d8c9', borderRadius: 14, background: standard ? '#f6faf6' : '#fff', padding: 13 }}>
     <div className="flex items-start justify-between gap-2">
       <div style={{ minWidth: 0 }}>
         <div style={{ fontSize: 13.5, color: '#4a463e', fontWeight: 750 }}>{item.name}</div>
         <div style={{ fontSize: 11.5, color: '#9a9488', marginTop: 3 }}>{[item.industry, item.city, item.companyType].filter(Boolean).join(' · ') || (standard ? '标准公司' : '私有候选')}</div>
       </div>
-      <span style={{ flex: 'none', borderRadius: 999, background: standard ? '#dceedd' : '#f4e8d8', color: standard ? '#397245' : '#9b633d', padding: '3px 7px', fontSize: 11.5, fontWeight: 750 }}>{item.score}分</span>
+      <span className="hc-result-score" style={{ flex: 'none', borderRadius: 999, background: standard ? '#dceedd' : '#f4e8d8', color: standard ? '#397245' : '#9b633d', padding: '3px 7px', fontSize: 11.5, fontWeight: 750 }}>{item.score}分</span>
     </div>
     <p style={{ margin: '9px 0 0', fontSize: 12, color: '#6b665c', lineHeight: 1.55 }}>{item.reason}</p>
     {!standard && <div style={{ marginTop: 8, color: '#8a5a34', fontSize: 11.5, fontWeight: 700 }}>建议投递 · {item.sourceNote || '投递前核实官网岗位与招聘状态'}</div>}

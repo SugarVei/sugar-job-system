@@ -1,5 +1,7 @@
-import { paletteCardStyle } from '../lib/customPalette';
-import { useMemo, useRef, useState, type CSSProperties, type KeyboardEvent } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties, type KeyboardEvent } from 'react';
+import { ArrowUpRight, ChevronDown, ChevronLeft, ChevronRight, Filter, Info, MoreHorizontal, PanelRightOpen, Search, X } from 'lucide-react';
+import { CompanyDiscoveryPanel, type CompanyDiscoveryMode } from '../components/CompanyDiscovery';
+import './HotCompanies.css';
 import { type HotCompany } from '../data/hotCompanies';
 import StandardCatalogImporter from '../components/StandardCatalogImporter';
 import {
@@ -10,10 +12,11 @@ import { useApiKeys } from '../contexts/ApiKeysContext';
 import { useCampusRecruitmentStatuses, type CampusRecruitmentStatus } from '../hooks/useCampusRecruitmentStatuses';
 import { useToast } from '../components/Toast';
 import type { Company, NewRecord } from '../types';
-import { CARD, avatarColor, initialOf } from '../lib/appHelpers';
+import { CARD, initialOf } from '../lib/appHelpers';
+import { paletteSlot } from '../lib/customPalette';
 import { applicationCompanyMatchesHotCompany, normalizeCompanyName } from '../lib/companyName';
 import { seedStatusForCompany } from '../data/campusRecruitmentSeed';
-import { IconExternalLink, IconSearch, IconTrash } from '../components/icons';
+import { IconExternalLink } from '../components/icons';
 import ResumeCompanyFinder from '../components/ResumeCompanyFinder';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
@@ -74,7 +77,7 @@ function updateDateForCompany(company: HotCompany) {
 }
 
 export default function HotCompanies() {
-  const { setScreen, setQuery } = useAppShell();
+  const { setScreen, setQuery, setHeaderChrome } = useAppShell();
   const { user } = useAuth();
   const { requireActiveConfig } = useApiKeys();
   const {
@@ -111,6 +114,40 @@ export default function HotCompanies() {
   const [importingName, setImportingName] = useState('');
   const [importMessage, setImportMessage] = useState('');
   const [deletingName, setDeletingName] = useState('');
+  const [discoveryMode, setDiscoveryMode] = useState<CompanyDiscoveryMode>('resume');
+  const [discoveryOpen, setDiscoveryOpen] = useState(() => window.matchMedia('(min-width: 1100px)').matches);
+  const [filtersOpen, setFiltersOpen] = useState(true);
+  const [visitedTools, setVisitedTools] = useState<CompanyDiscoveryMode[]>(['resume']);
+  const canManage = canManageStandardCatalog(user?.email);
+  const openDiscovery = useCallback((mode: CompanyDiscoveryMode) => {
+    setDiscoveryMode(mode);
+    setVisitedTools(tools => tools.includes(mode) ? tools : [...tools, mode]);
+    setDiscoveryOpen(true);
+  }, []);
+  const closeDiscovery = useCallback(() => setDiscoveryOpen(false), []);
+
+  useEffect(() => {
+    setHeaderChrome({ searchPlaceholder: null, showAdd: true, inlineContent: <span className="hc-header-subtitle">2027 届校招</span>, actions: !discoveryOpen ? <button type="button" className="hc-panel-reopen" onClick={() => setDiscoveryOpen(true)}><PanelRightOpen size={16} />发现公司</button> : undefined });
+    return () => setHeaderChrome(null);
+  }, [discoveryOpen, setHeaderChrome]);
+
+  useEffect(() => {
+    const dismissMenus = (event: PointerEvent) => {
+      document.querySelectorAll<HTMLDetailsElement>('.hc-row-actions[open]').forEach(details => {
+        if (!details.contains(event.target as Node)) details.open = false;
+      });
+    };
+    document.addEventListener('pointerdown', dismissMenus);
+    return () => document.removeEventListener('pointerdown', dismissMenus);
+  }, []);
+
+
+  useEffect(() => {
+    const media = window.matchMedia('(max-width: 1099px)');
+    const collapseOnSmallScreen = () => { if (media.matches) setDiscoveryOpen(false); };
+    media.addEventListener('change', collapseOnSmallScreen);
+    return () => media.removeEventListener('change', collapseOnSmallScreen);
+  }, []);
 
   const existingNames = useMemo(
     () => new Set([
@@ -236,11 +273,6 @@ export default function HotCompanies() {
   const accountOnlyCompanyCount = accountOnlyCompanies.length;
   const recruitmentOverviewCompanyCount = recruitmentOverviewCompanies.length;
 
-  const importedMatches = useMemo(() => {
-    const q = pageSearch.trim().toLowerCase();
-    if (!q) return importedCompanies;
-    return importedCompanies.filter((c) => c.name.toLowerCase().includes(q));
-  }, [importedCompanies, pageSearch]);
 
   const viewApplications = (company: HotCompany) => {
     const matchingApplication = applications.find((application) =>
@@ -370,82 +402,52 @@ export default function HotCompanies() {
     }
   };
 
+  const companyEntries = pagedGroups.flatMap(group => group.companies.map(company => ({ company, groupName: group.name })));
+  const hasFilters = Boolean(pageSearch || activeCompanyType !== ALL || activeIndustry !== ALL || selectedUpdateDate !== ALL || activeRecruitmentStatus !== ALL_RECRUITMENT_STATUSES);
+  const clearFilters = () => { setPageSearch(''); setActiveCompanyType(ALL); setActiveIndustry(ALL); setActiveUpdateDate(ALL); setActiveRecruitmentStatus(ALL_RECRUITMENT_STATUSES); setPageIndex(0); };
+
   return (
-    <div className="flex flex-col gap-[22px] animate-rise">
-      <section style={{ ...CARD, padding: 18, borderRadius: 22 }}>
-        <div className="flex items-start justify-between gap-4 flex-wrap">
-          <div>
-            <div style={{ fontSize: 15, fontWeight: 750, color: '#1b1a17' }}>2027 届校招核查总览</div>
-            <div style={{ fontSize: 12.5, color: '#8a8478', marginTop: 4 }}>
-              标准公司 {standardCompanyCount} 家 + 我添加 {accountOnlyCompanyCount} 家 = 共 {recruitmentOverviewCompanyCount} 家 · {latestCheckLabel} · 每日自动更新
-            </div>
-          </div>
-          {activeRecruitmentStatus !== ALL_RECRUITMENT_STATUSES && (
-            <button
-              type="button"
-              onClick={() => { setActiveRecruitmentStatus(ALL_RECRUITMENT_STATUSES); setPageIndex(0); }}
-              className="btn-press"
-              style={{ ...secondaryButton, height: 34, background: '#faf7f0' }}
-            >
-              查看全部状态
-            </button>
-          )}
-        </div>
-        <div className="grid grid-cols-2 md:grid-cols-5 gap-2.5" style={{ marginTop: 14 }}>
-          {recruitmentStatusFilters.map((status) => {
-            const active = activeRecruitmentStatus === status.key;
-            return (
-              <button
-                key={status.key}
-                type="button"
-                onClick={() => {
-                  setActiveRecruitmentStatus(active ? ALL_RECRUITMENT_STATUSES : status.key);
-                  setPageIndex(0);
-                  if (!active) {
-                    setActiveCompanyType(ALL);
-                    setActiveIndustry(ALL);
-                  }
-                }}
-                aria-pressed={active}
-                className="btn-press"
-                style={{
-                  minHeight: 68,
-                  padding: '10px 12px',
-                  borderRadius: 14,
-                  border: `1.5px solid ${active ? status.color : status.border}`,
-                  background: active ? status.color : status.background,
-                  color: active ? '#fff' : status.color,
-                  textAlign: 'left',
-                  cursor: 'pointer',
-                }}
-              >
-                <span style={{ display: 'block', fontFamily: 'Poppins', fontSize: 20, fontWeight: 750, lineHeight: 1 }}>
-                  {status.count}
-                </span>
-                <span style={{ display: 'block', fontSize: 11.5, fontWeight: 700, marginTop: 7 }}>
-                  {status.label}
-                </span>
-              </button>
-            );
-          })}
-        </div>
+    <div className="hot-companies-page">
+      <section className="hc-status-overview" aria-label="2027 届校招核查总览">
+        {recruitmentStatusFilters.map(status => <button key={status.key} type="button" aria-pressed={activeRecruitmentStatus === status.key} className="hc-status-filter"
+          style={{ '--status-color': ({ started: '#67a67c', warmup: '#f0bc3e', not_started: '#a4a6a8', internship_only: '#7e9ec5', unknown: '#cf9aa8' })[status.key] } as CSSProperties}
+          onClick={() => { const active = activeRecruitmentStatus === status.key; setActiveRecruitmentStatus(active ? ALL_RECRUITMENT_STATUSES : status.key); setPageIndex(0); if (!active) { setActiveCompanyType(ALL); setActiveIndustry(ALL); } }}>
+          <span className="hc-status-filter-label"><span className="hc-status-dot" />{status.label}</span><strong>{status.count.toLocaleString()}</strong>
+        </button>)}
+        <button type="button" className="hc-total-filter" aria-pressed={activeRecruitmentStatus === ALL_RECRUITMENT_STATUSES} title={`标准公司 ${standardCompanyCount} 家 · 我添加 ${accountOnlyCompanyCount} 家 · ${latestCheckLabel}`} onClick={() => { setActiveRecruitmentStatus(ALL_RECRUITMENT_STATUSES); setPageIndex(0); }}><Info size={20} /><span>每日自动核查<br />共 {recruitmentOverviewCompanyCount.toLocaleString()} 家公司</span></button>
       </section>
 
-      {canManageStandardCatalog(user?.email) && (
-        <StandardCatalogImporter
-          currentCompanies={standardCatalogRows}
-          updatedAt={standardCatalogUpdatedAt}
-          catalogError={standardCatalogError}
-          onApplied={async () => {
-            await refreshStandardCatalog();
-            toast.success('标准公司库已更新，热门公司和地图校招会一起刷新');
-          }}
-        />
-      )}
+      <div className={`hc-workspace${discoveryOpen ? '' : ' hc-workspace-collapsed'}`}>
+      <div className="hc-company-browser">
+        <section className="hc-filters" aria-label="筛选公司">
+          <div className="hc-search-row">
+            <div className="hc-search"><Search size={18} aria-hidden="true" /><input value={pageSearch} onChange={event => { setPageSearch(event.target.value); setPageIndex(0); }} placeholder="搜索公司名称" aria-label="搜索公司名称" />{pageSearch && <button className="hc-icon-button" type="button" onClick={() => { setPageSearch(''); setPageIndex(0); }} aria-label="清除公司搜索"><X size={15} /></button>}</div>
+            <button type="button" className="hc-filter-toggle" aria-expanded={filtersOpen} aria-controls="hc-company-filter-controls" onClick={() => setFiltersOpen(value => !value)}><Filter size={17} />筛选</button>
+          </div>
+          <div id="hc-company-filter-controls" className="hc-filter-controls" hidden={!filtersOpen}>
+            <CompanyFilter label="企业性质" options={companyTypeOptions} value={activeCompanyType} onChange={value => { setActiveCompanyType(value); setPageIndex(0); }} />
+            <CompanyFilter label="行业分类" options={industryOptions} value={activeIndustry} onChange={value => { setActiveIndustry(value); setPageIndex(0); }} />
+            <CompanyFilter label="添加时间" options={updateDateOptions} value={selectedUpdateDate} onChange={value => { setActiveUpdateDate(value); setPageIndex(0); }} />
+          </div>
+        </section>
 
-      <ResumeCompanyFinder standardCompanies={standardCompanies} onSaved={refreshCompanyRecommendations} />
+        <section ref={resultsStartRef} className="hc-results" aria-label="公司列表">
+          <div className="hc-results-top"><div className="hc-results-count"><h2>{hasFilters ? '筛选结果' : '全部公司'} <strong>{matchingCompanyCount.toLocaleString()}</strong></h2>{hasFilters && <button type="button" className="hc-text-button" onClick={clearFilters}>重置筛选</button>}</div></div>
+          {matchingCompanyCount > 0 ? <>
+            <div className="hc-company-results">
+              {companyEntries.map(({ company, groupName }) => <CompanyEntry key={`${groupName}-${company.name}`} company={company}
+                removable={groupName === AI_GROUP_NAME} deleting={deletingName === company.name}
+                applied={appliedApplicationCompanyNames.some(name => applicationCompanyMatchesHotCompany(name, company.name))}
+                recruitmentStatus={resolveRecruitmentStatus(company, recruitmentStatusByCompany.get(normalizeCompanyName(company.name)))} statusesLoading={statusesLoading}
+                onViewApplications={viewApplications} onDelete={groupName === AI_GROUP_NAME ? () => void deleteImported(company) : undefined} />)}
+            </div>
+            <CompanyResultsPagination count={matchingCompanyCount} page={currentPage} pageCount={pageCount} onPageChange={changePage} />
+          </> : <div className="hc-empty"><Search size={28} strokeWidth={1.5} /><h2>没有找到匹配的公司</h2><p>试试其他关键词，或调整筛选条件。</p><button type="button" className="hc-text-button" onClick={clearFilters}>查看全部公司</button></div>}
+        </section>
+      </div>
 
-      <section style={{ ...CARD, padding: 18, borderRadius: 22 }}>
+      <CompanyDiscoveryPanel open={discoveryOpen} mode={discoveryMode} canManage={canManage} onModeChange={openDiscovery} onClose={closeDiscovery}>
+        <div hidden={discoveryMode !== 'ai'}>      <section style={{ ...CARD, padding: 18, borderRadius: 22 }}>
         <div className="flex items-start justify-between gap-4 flex-wrap">
           <div>
             <div style={{ fontFamily: 'Poppins', fontSize: 16, fontWeight: 700, color: '#1b1a17' }}>AI 找公司</div>
@@ -512,9 +514,9 @@ export default function HotCompanies() {
             {aiResults.map((candidate) => {
               const imported = existingNames.has(candidate.name);
               return (
-                <article key={`${candidate.name}-${candidate.url}`} style={{ border: '1px solid #e0d8c9', background: '#fffdf8', borderRadius: 16, padding: 14, minWidth: 0 }}>
+                <article className="hc-discovery-result" key={`${candidate.name}-${candidate.url}`} style={{ border: '1px solid #e0d8c9', background: '#fffdf8', borderRadius: 16, padding: 14, minWidth: 0 }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 10, minWidth: 0 }}>
-                    <div style={{ width: 38, height: 38, borderRadius: 11, background: '#efe2d5', color: '#9b633d', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700, flex: 'none' }}>
+                    <div style={{ width: 38, height: 38, borderRadius: 11, background: 'var(--hc-selected)', color: 'var(--hc-accent)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700, flex: 'none' }}>
                       {initialOf(candidate.name)}
                     </div>
                     <div style={{ minWidth: 0 }}>
@@ -540,139 +542,30 @@ export default function HotCompanies() {
             })}
           </div>
         )}
-      </section>
-
-      <section style={{ ...CARD, padding: 16, borderRadius: 20 }}>
-        <FilterRow label="添加时间顺序" options={updateDateOptions} value={selectedUpdateDate} onChange={(value) => { setActiveUpdateDate(value); setPageIndex(0); }} singleLine />
-        <FilterRow label="企业性质" options={companyTypeOptions} value={activeCompanyType} onChange={(value) => { setActiveCompanyType(value); setPageIndex(0); }} />
-        <FilterRow label="行业分类" options={industryOptions} value={activeIndustry} onChange={(value) => { setActiveIndustry(value); setPageIndex(0); }} />
-      </section>
-
-      {/* 页面内公司名搜索 */}
-      <div style={{ ...CARD, padding: 16, borderRadius: 20 }}>
-        <div className="flex items-center gap-3 flex-wrap">
-          <div
-            style={{
-              flex: 1,
-              minWidth: 200,
-              display: 'flex',
-              alignItems: 'center',
-              gap: 10,
-              height: 46,
-              background: '#faf7f0',
-              border: '1.5px solid #e0d8c9',
-              borderRadius: 14,
-              padding: '0 14px',
-            }}
-          >
-            <IconSearch size={17} color="#a39d90" />
-            <input
-              value={pageSearch}
-              onChange={(e) => { setPageSearch(e.target.value); setPageIndex(0); }}
-              placeholder="搜索公司名称（支持已添加与精选列表）…"
-              aria-label="搜索公司名称"
-              style={{ border: 'none', background: 'none', outline: 'none', fontSize: 14, width: '100%', color: '#1b1a17' }}
-            />
-            {pageSearch && (
-              <button
-                type="button"
-                onClick={() => { setPageSearch(''); setPageIndex(0); }}
-                className="btn-press"
-                style={{ border: 'none', background: 'none', color: '#9a9488', fontSize: 12, fontWeight: 700, cursor: 'pointer' }}
-              >
-                清除
-              </button>
-            )}
-          </div>
-          <div style={{ fontSize: 12.5, color: '#9a9488' }}>
-            {pageSearch
-              ? `匹配 ${matchingCompanyCount} 家`
-              : `已添加 ${importedCompanies.length} 家 · 可删除`}
-          </div>
-        </div>
-        {pageSearch.trim() && importedCompanies.length > 0 && (
-          <div style={{ marginTop: 12, fontSize: 12.5, color: '#6b665c' }}>
-            在「我添加的公司」中命中 {importedMatches.length} 家
-          </div>
-        )}
+      </section></div>
+        <div hidden={discoveryMode !== 'resume'}>{visitedTools.includes('resume') && <ResumeCompanyFinder compact standardCompanies={standardCompanies} onSaved={refreshCompanyRecommendations} />}</div>
+        <div hidden={discoveryMode !== 'excel'}>{canManage && visitedTools.includes('excel') && <StandardCatalogImporter compact currentCompanies={standardCatalogRows} updatedAt={standardCatalogUpdatedAt} catalogError={standardCatalogError} onApplied={async () => { await refreshStandardCatalog(); toast.success('标准公司库已更新，热门公司和地图校招会一起刷新'); }} />}</div>
+      </CompanyDiscoveryPanel>
       </div>
-
-      {matchingCompanyCount > 0 && (
-        <div ref={resultsStartRef}>
-          <CompanyResultsPagination count={matchingCompanyCount} page={currentPage} pageCount={pageCount} onPageChange={changePage} />
-        </div>
-      )}
-
-      {groups.length === 0 ? (
-        <div style={{ ...CARD, padding: 26, color: '#8a8478', fontSize: 14 }}>
-          {pageSearch
-            ? `没有名称包含「${pageSearch}」的公司。`
-            : '没有匹配的公司。'}
-        </div>
-      ) : (
-        pagedGroups.map((group) => (
-          <section key={group.name} style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 9 }}>
-              <span style={{ width: 8, height: 8, borderRadius: 999, background: group.dot, flex: 'none' }} />
-              <span style={{ fontSize: 13.5, fontWeight: 700, color: '#4a463e' }}>{group.name}</span>
-              <span style={{ fontSize: 12, color: '#9a9488' }}>{group.totalCount} 家{group.totalCount !== group.companies.length ? ` · 本页 ${group.companies.length} 家` : ''}</span>
-              {group.name === AI_GROUP_NAME && (
-                <span style={{ fontSize: 11.5, color: '#a08cb5', fontWeight: 600 }}>可删除</span>
-              )}
-            </div>
-            <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-4">
-              {group.companies.map((company) => (
-                <CompanyCard
-                  key={`${group.name}-${company.name}`}
-                  company={company}
-                  removable={group.name === AI_GROUP_NAME}
-                  deleting={deletingName === company.name}
-                  applied={appliedApplicationCompanyNames.some((applicationCompanyName) =>
-                    applicationCompanyMatchesHotCompany(applicationCompanyName, company.name))}
-                  recruitmentStatus={resolveRecruitmentStatus(
-                    company,
-                    recruitmentStatusByCompany.get(normalizeCompanyName(company.name)),
-                  )}
-                  statusesLoading={statusesLoading}
-                  onViewApplications={viewApplications}
-                  onDelete={group.name === AI_GROUP_NAME ? () => void deleteImported(company) : undefined}
-                />
-              ))}
-            </div>
-          </section>
-        ))
-      )}
-      {pageCount > 1 && (
-        <div className="pb-40 lg:pb-0">
-          <CompanyResultsPagination count={matchingCompanyCount} page={currentPage} pageCount={pageCount} onPageChange={changePage} />
-        </div>
-      )}
     </div>
   );
 }
 
 function CompanyResultsPagination({ count, page, pageCount, onPageChange }: {
-  count: number;
-  page: number;
-  pageCount: number;
-  onPageChange: (page: number) => void;
+  count: number; page: number; pageCount: number; onPageChange: (page: number) => void;
 }) {
-  const first = page * COMPANY_PAGE_SIZE + 1;
-  const last = Math.min(count, (page + 1) * COMPANY_PAGE_SIZE);
-  return (
-    <nav aria-label="公司结果分页" style={{ ...CARD, padding: '12px 16px', borderRadius: 18, display: 'flex', alignItems: 'center', justifyContent: 'flex-start', gap: 16, flexWrap: 'wrap' }}>
-      <span style={{ fontSize: 13, color: '#625d54' }}>共 {count} 家 · 显示 {first}–{last} 家</span>
-      {pageCount > 1 && (
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-          <button type="button" onClick={() => onPageChange(page - 1)} disabled={page === 0} style={{ ...secondaryButton, height: 34, opacity: page === 0 ? 0.5 : 1 }}>上一页</button>
-          <select aria-label="选择结果页" value={page} onChange={(event) => onPageChange(Number(event.target.value))} style={{ height: 34, padding: '0 8px', border: '1px solid #e0d8c9', borderRadius: 10, background: '#fffdf8', color: '#4a463e', fontSize: 13 }}>
-            {Array.from({ length: pageCount }, (_, index) => <option key={index} value={index}>第 {index + 1} / {pageCount} 页</option>)}
-          </select>
-          <button type="button" onClick={() => onPageChange(page + 1)} disabled={page === pageCount - 1} style={{ ...secondaryButton, height: 34, opacity: page === pageCount - 1 ? 0.5 : 1 }}>下一页</button>
-        </div>
-      )}
-    </nav>
-  );
+  const start = Math.max(0, Math.min(page - 2, pageCount - 5));
+  const pages = Array.from({ length: Math.min(5, pageCount) }, (_, index) => start + index);
+  return <nav className="hc-pagination" aria-label="公司结果分页">
+    <div className="hc-pagination-controls">
+      <button className="hc-page-arrow" type="button" aria-label="上一页" disabled={page === 0} onClick={() => onPageChange(page - 1)}><ChevronLeft size={18} /></button>
+      {pages.map(index => <button className="hc-page-number" type="button" key={index} aria-label={`第 ${index + 1} 页`} aria-current={page === index ? 'page' : undefined} onClick={() => onPageChange(index)}>{index + 1}</button>)}
+      {pageCount > 5 && <span className="hc-page-jump"><MoreHorizontal size={16} aria-hidden="true" /><select aria-label="选择结果页" title="跳转页面" value={page} onChange={event => onPageChange(Number(event.target.value))}>{Array.from({ length: pageCount }, (_, index) => <option key={index} value={index}>第 {index + 1} / {pageCount} 页</option>)}</select></span>}
+      {pages[pages.length - 1] < pageCount - 1 && <button className="hc-page-number" type="button" aria-label={`第 ${pageCount} 页`} onClick={() => onPageChange(pageCount - 1)}>{pageCount}</button>}
+      <button className="hc-page-arrow" type="button" aria-label="下一页" disabled={page === pageCount - 1} onClick={() => onPageChange(page + 1)}><ChevronRight size={18} /></button>
+    </div>
+    <span className="hc-pagination-count" title={`每页 ${COMPANY_PAGE_SIZE} 家 · 显示 ${page * COMPANY_PAGE_SIZE + 1}–${Math.min(count, (page + 1) * COMPANY_PAGE_SIZE)} 家`}>共 {count.toLocaleString()} 条</span>
+  </nav>;
 }
 
 function resolveRecruitmentStatus(company: HotCompany, dbStatus?: CampusRecruitmentStatus) {
@@ -684,242 +577,50 @@ function resolveRecruitmentStatus(company: HotCompany, dbStatus?: CampusRecruitm
   return seedStatusForCompany(company.name, company.url);
 }
 
-function FilterRow({
-  label,
-  options,
-  value,
-  onChange,
-  singleLine = false,
-}: {
-  label: string;
-  options: string[];
-  value: string;
-  onChange: (value: string) => void;
-  singleLine?: boolean;
-}) {
-  return (
-    <div style={{ display: 'flex', alignItems: singleLine ? 'center' : 'flex-start', gap: 10, flexWrap: singleLine ? 'nowrap' : 'wrap', marginBottom: 10, overflowX: singleLine ? 'auto' : 'visible' }}>
-      <span style={{ width: singleLine ? 'auto' : 68, flex: 'none', paddingTop: singleLine ? 0 : 9, color: '#756f65', fontSize: 12.5, fontWeight: 800, whiteSpace: 'nowrap' }}>{label}</span>
-      <div style={{ display: 'flex', flex: singleLine ? 'none' : 1, gap: 8, flexWrap: singleLine ? 'nowrap' : 'wrap', width: singleLine ? 'max-content' : undefined }}>
-        {[ALL, ...options].map((option) => {
-          const active = value === option;
-          return (
-            <button
-              key={option}
-              type="button"
-              onClick={() => onChange(option)}
-              aria-pressed={active}
-              className="btn-press"
-              style={{
-                minHeight: 34,
-                padding: '5px 13px',
-                borderRadius: 999,
-                border: active ? '1px solid #1b1a17' : '1px solid #e0d8c9',
-                background: active ? '#1b1a17' : '#fffdf8',
-                color: active ? '#f4f1ea' : '#6b665c',
-                fontSize: 12.5,
-                fontWeight: 700,
-                whiteSpace: 'normal',
-                cursor: 'pointer',
-              }}
-            >
-              {option}
-            </button>
-          );
-        })}
-      </div>
-    </div>
-  );
+function CompanyFilter({ label, options, value, onChange }: { label: string; options: string[]; value: string; onChange: (value: string) => void }) {
+  return <label className={`hc-filter${value !== ALL ? ' hc-filter-active' : ''}`}><select aria-label={label} value={value} onChange={event => onChange(event.target.value)}><option value={ALL}>{label}</option>{options.map(option => <option key={option} value={option}>{option}</option>)}</select><ChevronDown size={15} aria-hidden="true" /></label>;
 }
 
-function CompanyCard({
-  company,
-  applied,
-  recruitmentStatus,
-  statusesLoading,
-  removable,
-  deleting,
-  onViewApplications,
-  onDelete,
-}: {
-  company: HotCompany;
-  applied: boolean;
-  recruitmentStatus?: CampusRecruitmentStatus;
-  statusesLoading: boolean;
-  removable?: boolean;
-  deleting?: boolean;
-  onViewApplications: (company: HotCompany) => void;
-  onDelete?: () => void;
+function CompanyEntry({ company, applied, recruitmentStatus, statusesLoading, removable, deleting, onViewApplications, onDelete }: {
+  company: HotCompany; applied: boolean; recruitmentStatus?: CampusRecruitmentStatus; statusesLoading: boolean; removable?: boolean; deleting?: boolean; onViewApplications: (company: HotCompany) => void; onDelete?: () => void;
 }) {
-  const color = avatarColor(company.name);
   const recruitment = recruitmentStatusPresentation(company, recruitmentStatus, statusesLoading);
   const suggestedEntry = company.recruitment?.entry;
   const suggestedEntryUrl = isHttpUrl(suggestedEntry) ? suggestedEntry : undefined;
-  return (
-    <article
-      className="card-hover"
-      style={{
-        position: 'relative',
-        ...paletteCardStyle(company.name, applied ? 'linear-gradient(145deg, rgba(239,247,255,.98), rgba(224,238,253,.94))' : 'rgba(255,253,248,.88)'),
-        border: applied ? '1.5px solid #83add8' : '1px solid #e0d8c9',
-        borderRadius: 16,
-        padding: 16,
-        display: 'flex',
-        flexDirection: 'column',
-        gap: 12,
-        boxShadow: applied ? '0 7px 18px rgba(66,112,163,.16)' : '0 3px 10px rgba(60,50,35,.08)',
-        minWidth: 0,
-      }}
-    >
-      {applied && (
-        <button
-          type="button"
-          onClick={() => onViewApplications(company)}
-          aria-label={`查看${company.name}的投递记录`}
-          style={{
-            position: 'absolute',
-            top: 12,
-            right: removable ? 48 : 12,
-            padding: '4px 9px',
-            borderRadius: 999,
-            background: '#3975b7',
-            color: '#fff',
-            fontSize: 11,
-            fontWeight: 800,
-            letterSpacing: '.04em',
-            border: 'none',
-            cursor: 'pointer',
-          }}
-        >
-          已投递
-        </button>
-      )}
-      {removable && onDelete && (
-        <button
-          type="button"
-          onClick={onDelete}
-          disabled={deleting}
-          aria-label={`删除${company.name}`}
-          title="从我添加的公司中删除"
-          className="btn-press"
-          style={{
-            position: 'absolute',
-            top: 10,
-            right: 10,
-            width: 32,
-            height: 32,
-            borderRadius: 10,
-            border: '1px solid #f3b3a1',
-            background: '#fff5f2',
-            color: '#a23d24',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            cursor: deleting ? 'not-allowed' : 'pointer',
-            opacity: deleting ? 0.6 : 1,
-          }}
-        >
-          <IconTrash size={14} />
-        </button>
-      )}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 12, minWidth: 0, paddingRight: applied || removable ? 72 : 0 }}>
-        <div
-          style={{
-            width: 44,
-            height: 44,
-            borderRadius: 12,
-            background: color.bg,
-            color: color.fg,
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            fontFamily: 'Poppins',
-            fontSize: 18,
-            fontWeight: 700,
-            flex: 'none',
-          }}
-        >
-          {initialOf(company.name)}
+  const entryUrl = suggestedEntryUrl || company.applyUrl || company.url;
+  const evidenceUrl = recruitmentStatus?.evidence_url || suggestedEntryUrl || company.url;
+  const industries = (company.industryTags?.length ? company.industryTags : [company.industry]).filter(Boolean).join(' · ');
+  const detailsRef = useRef<HTMLDetailsElement>(null);
+  const colorSlot = paletteSlot(company.name);
+  // Keep a company's tint stable while filtering, paging, or switching themes.
+  const cardColors = {
+    '--hc-card-bg': `var(--sugar-card-${colorSlot}-bg, color-mix(in srgb, var(--sugar-accent-soft) ${24 + colorSlot * 7}%, white))`,
+    '--hc-card-fg': `var(--sugar-card-${colorSlot}-fg, var(--hc-ink))`,
+    '--hc-card-border': `var(--sugar-card-${colorSlot}-border, var(--hc-line))`,
+    '--hc-initial-bg': `color-mix(in srgb, var(--sugar-card-${colorSlot}-bg, var(--sugar-accent-soft)) ${72 + colorSlot * 7}%, white)`,
+    '--hc-initial-fg': `var(--sugar-card-${colorSlot}-fg, var(--sugar-accent))`,
+  } as CSSProperties;
+  const updateDate = updateDateForCompany(company);
+  const activityLabel = updateDate ? `${updateDate} 更新` : recruitmentCheckLabel(recruitmentStatus, company);
+  const statusLabel = recruitment.label.replace(/^27校招/u, '').replace('已开始', '已开招').replace('未开始', '未开招').replace('即将开招/预热', '即将开招');
+  return <article className={`hc-company-entry${applied ? ' hc-company-applied' : ''}`} style={cardColors} data-company-name={company.name} aria-label={company.name}>
+    <div className="hc-company-identity">
+      <span className="hc-company-initial" aria-hidden="true">{initialOf(company.name)}</span>
+      <div><h2 title={`${company.name}${company.companyType ? ` · ${company.companyType}` : ''}`}>{company.name}</h2><div className="hc-company-industry" title={[industries, company.city].filter(Boolean).join(' · ')}>{[industries, company.city].filter(Boolean).join(' · ') || '公司信息待补充'}</div>{applied && <button className="hc-applied-link" type="button" onClick={() => onViewApplications(company)} aria-label={`查看${company.name}的投递记录`}>已投递</button>}</div>
+    </div>
+    <div className="hc-company-card-bottom">
+      <div className="hc-company-status"><span className="hc-recruitment-label" style={{ '--status-color': recruitment.style.color } as CSSProperties} title={recruitment.title}><span className="hc-status-dot" />{statusLabel}</span><span className="hc-check-label" title={activityLabel}>{activityLabel}</span></div>
+      {isHttpUrl(entryUrl) ? <a className="hc-company-website" href={entryUrl} target="_blank" rel="noopener noreferrer" aria-label={`${company.name}招聘官网`}>招聘官网<ArrowUpRight size={14} /></a> : <span className="hc-link-unavailable">暂无官网</span>}
+    </div>
+      <details ref={detailsRef} className="hc-row-actions" onBlur={event => { if (!event.currentTarget.contains(event.relatedTarget as Node)) event.currentTarget.open = false; }} onKeyDown={event => { if (event.key === 'Escape') { event.preventDefault(); event.currentTarget.open = false; event.currentTarget.querySelector('summary')?.focus(); } }}>
+        <summary aria-label={`${company.name}更多操作`}><MoreHorizontal size={19} /></summary><div className="hc-row-menu">
+          <p>{recruitment.title}</p>{suggestedEntry && !suggestedEntryUrl && <p>建议入口：{suggestedEntry}</p>}{company.deadlineText && <p>截止：{company.deadlineText}</p>}
+          {isHttpUrl(evidenceUrl) && <a href={evidenceUrl} target="_blank" rel="noopener noreferrer">查看核查依据<ArrowUpRight size={14} /></a>}
+          {applied && <button type="button" onClick={() => onViewApplications(company)}>查看投递记录</button>}
+          {removable && onDelete && <button type="button" className="hc-delete-action" disabled={deleting} onClick={() => { if (detailsRef.current) detailsRef.current.open = false; onDelete(); }}>{deleting ? '正在删除…' : '删除私有公司'}</button>}
         </div>
-        <div style={{ minWidth: 0 }}>
-          <div style={{ fontSize: 15, fontWeight: 700, color: '#4a463e', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-            {company.name}
-          </div>
-          <div style={{ fontSize: 12, color: '#9a9488', marginTop: 3, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-            {[company.companyType, ...(company.industryTags?.length ? company.industryTags : [company.industry]), company.city].filter(Boolean).join(' · ')}
-          </div>
-        </div>
-      </div>
-      {company.deadlineText && (
-        <div style={{ fontSize: 11.5, color: '#8a5b39', lineHeight: 1.45 }}>
-          截止：{company.deadlineText}
-        </div>
-      )}
-      <div
-        style={{
-          minHeight: 58,
-          padding: '10px 11px',
-          borderRadius: 12,
-          border: `1px solid ${recruitment.style.borderColor ?? '#e0d8c9'}`,
-          background: recruitment.style.background,
-          color: recruitment.style.color,
-        }}
-      >
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
-          <span style={{ fontSize: 12.5, fontWeight: 800 }}>{recruitment.label}</span>
-          <span style={{ fontSize: 10.5, color: '#8a8478', whiteSpace: 'nowrap' }}>
-            {recruitmentCheckLabel(recruitmentStatus, company)}
-          </span>
-        </div>
-        <div
-          title={recruitment.title}
-          style={{
-            marginTop: 5,
-            color: '#625d54',
-            fontSize: 11.5,
-            lineHeight: 1.45,
-            display: '-webkit-box',
-            WebkitLineClamp: 2,
-            WebkitBoxOrient: 'vertical',
-            overflow: 'hidden',
-          }}
-        >
-          {recruitment.title}
-        </div>
-      </div>
-      {suggestedEntry && !suggestedEntryUrl && (
-        <div
-          title={suggestedEntry}
-          style={{
-            color: '#756f65',
-            fontSize: 11.5,
-            lineHeight: 1.45,
-            whiteSpace: 'nowrap',
-            overflow: 'hidden',
-            textOverflow: 'ellipsis',
-          }}
-        >
-          建议入口：{suggestedEntry}
-        </div>
-      )}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-        <a href={suggestedEntryUrl || company.url} target="_blank" rel="noopener noreferrer" className="btn-press" style={primaryLink}>
-          建议入口 <IconExternalLink size={13} />
-        </a>
-        <a
-          href={recruitmentStatus?.evidence_url || suggestedEntryUrl || company.url}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="btn-press"
-          style={recruitmentButton}
-          aria-label={`${company.name}查看核查依据`}
-          title={recruitment.title}
-        >
-          核查依据
-        </a>
-      </div>
-    </article>
-  );
+      </details>
+  </article>;
 }
 
 const primaryLink: CSSProperties = {
@@ -955,12 +656,6 @@ const secondaryButton: CSSProperties = {
   whiteSpace: 'nowrap',
 };
 
-const recruitmentButton: CSSProperties = {
-  ...secondaryButton,
-  minWidth: 84,
-  padding: '0 10px',
-  textDecoration: 'none',
-};
 
 function isHttpUrl(value?: string): value is string {
   return Boolean(value && /^https?:\/\//iu.test(value));

@@ -59,7 +59,7 @@ export default function AppLayout({ children }: { children: ReactNode }) {
         color: 'var(--sugar-ink, #1b1a17)',
         overflow: 'hidden',
       }}
-      className="app-fullscreen-root"
+      className={`app-fullscreen-root${screen === 'hotCompanies' ? ' hot-companies-layout' : ''}`}
     >
       <div
         className="app-fullscreen-surface"
@@ -138,7 +138,7 @@ export default function AppLayout({ children }: { children: ReactNode }) {
               flexWrap: 'wrap',
               flex: 'none',
             }}
-            className="px-4 lg:px-[34px] pt-3 lg:pt-[18px] pb-3 lg:pb-[18px]"
+            className="app-content-header px-4 lg:px-[34px] pt-3 lg:pt-[18px] pb-3 lg:pb-[18px]"
           >
             <div style={{ flex: 1, minWidth: 180, display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
               <h1
@@ -180,6 +180,7 @@ export default function AppLayout({ children }: { children: ReactNode }) {
                 />
               </div>}
               <button type="button" className="sugar-command-trigger" onClick={openCommandPalette} aria-label="打开快捷操作" title="Ctrl / ⌘ K">⌘ K</button>
+              {headerChrome?.actions}
               {(headerChrome?.primaryAction || headerChrome?.showAdd !== false) && <button onClick={headerChrome?.primaryAction?.onClick ?? triggerAdd} disabled={headerChrome?.primaryAction?.loading} className="btn-press" style={addBtn}>
                 <IconPlus size={17} />
                 <span className="hidden sm:inline">{headerChrome?.primaryAction?.label ?? '新增'}</span>
@@ -191,7 +192,7 @@ export default function AppLayout({ children }: { children: ReactNode }) {
           <PetAnnouncement />
           <AvatarFeatureAnnouncement />
           <div
-            className="scrolly px-4 lg:px-[34px] pb-24 lg:pb-[34px]"
+            className="app-content-scroll scrolly px-4 lg:px-[34px] pb-24 lg:pb-[34px]"
             style={{ flex: 1, minHeight: 0, overflowY: headerChrome?.contentScroll === false ? 'hidden' : 'auto', overscrollBehaviorY: 'contain', paddingTop: 8 }}
           >
             {children}
