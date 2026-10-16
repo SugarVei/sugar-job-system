@@ -77,3 +77,11 @@ Checked in the isolated Playwright browser previously authorized by the user:
 - Browser console: no errors.
 - Evidence: design-qa-assets/theme-blue.png and design-qa-assets/theme-custom.png.
 - AI and resume result cards and the compact Excel upload area also inherit the selected theme. Shared components preserve their normal appearance outside the compact panel.
+
+## Sidebar restoration requested after release (2026-10-16)
+
+- The user requested the original sidebar with the avatar/account control at the bottom. Removed all HotCompanies-specific sidebar sizing, reordering, avatar, typography and footer overrides.
+- The shared sidebar CSS is once again authoritative: 248px expanded and 64px collapsed, with navigation above the AI settings/logout/account footer. The account is the last item at the bottom.
+- At 1487 x 1058: sidebar width 248, footer y=887, account y=991 with height 55 and 12px bottom inset.
+- Checked account dialog open/close, collapse/expand, and 390/1280/1487px without horizontal overflow. The company card and discovery panel design and theme tokens remain in place.
+- Evidence: design-qa-assets/restored-sidebar.png. Build and whitespace checks passed.

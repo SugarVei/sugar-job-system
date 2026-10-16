@@ -4,19 +4,6 @@
 .hot-companies-layout .app-content-header { padding-top: 4px; padding-bottom: 11px; }
 .hot-companies-layout .app-content-scroll { padding-right: 4px; }
 .hot-companies-layout .app-page-title { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Microsoft YaHei', sans-serif !important; font-size: 34px; font-weight: 650 !important; letter-spacing: -.04em !important; }
-.hot-companies-layout .app-sidebar.expanded { width: 284px; padding: 24px 16px 20px; background: var(--hc-tint); }
-.hot-companies-layout .app-sidebar.expanded .app-sidebar-top { order: 0; min-height: 62px; padding-bottom: 16px; }
-.hot-companies-layout .app-sidebar.expanded .app-sidebar-brand > span { font-size: 22px; }
-.hot-companies-layout .app-sidebar.expanded .app-sidebar-brand svg { width: 28px; height: 28px; }
-.hot-companies-layout .app-sidebar.expanded .app-sidebar-bottom { display: contents; }
-.hot-companies-layout .app-sidebar.expanded .app-sidebar-account-button { order: 1; min-height: 84px; margin: 0 0 16px; padding: 0 8px 14px; border-bottom: 1px solid var(--hc-line); border-radius: 0; }
-.hot-companies-layout .app-sidebar.expanded .app-sidebar-avatar { width: 52px; height: 52px; }
-.hot-companies-layout .app-sidebar.expanded .app-sidebar-account-name { display: flex; flex-direction: column-reverse; gap: 5px; }
-.hot-companies-layout .app-sidebar.expanded .app-sidebar-account-name strong { font-size: 15px; }
-.hot-companies-layout .app-sidebar.expanded .app-sidebar-account-name small { font-size: 11px; margin: 0; }
-.hot-companies-layout .app-sidebar.expanded .app-sidebar-nav { order: 2; gap: 4px; }
-.hot-companies-layout .app-sidebar.expanded .app-sidebar-nav-button { min-height: 48px; font-size: 15px; border-radius: 12px; }
-.hot-companies-layout .app-sidebar.expanded .app-sidebar-bottom > .app-sidebar-nav-button { order: 3; min-height: 45px; margin-top: 10px; background: var(--hc-surface); border: 1px solid var(--hc-line); }
 .hot-companies-page { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', sans-serif; color: var(--hc-ink); font-size: 14px; padding-bottom: 90px; }
 .hc-header-subtitle { font-size: 13px; font-weight: 400; color: #817c75; }
 .hot-companies-page button { cursor: pointer; -webkit-tap-highlight-color: transparent; }
