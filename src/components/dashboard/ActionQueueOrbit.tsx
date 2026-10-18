@@ -80,6 +80,16 @@ function relativeUpdated(value: string | null) {
   return `${days} 天前`;
 }
 
+function isHttpUrl(value: string | null) {
+  if (!value) return false;
+  try {
+    const url = new URL(value);
+    return url.protocol === 'http:' || url.protocol === 'https:';
+  } catch {
+    return false;
+  }
+}
+
 function toQueueItem(app: Application, index: number): ActionQueueItem {
   const status = queueStatusFor(app);
   return {
@@ -204,6 +214,17 @@ function DetailDrawer({ item, onClose, onViewDetail }: {
           <div><dt>建议下一步</dt><dd>{item.nextAction}</dd></div>
           <div><dt>最近更新</dt><dd>{item.updated}</dd></div>
         </dl>
+        {isHttpUrl(item.app.job_url) && (
+          <a
+            className="action-queue-drawer__recruitment-link"
+            href={item.app.job_url!}
+            target="_blank"
+            rel="noopener noreferrer"
+            aria-label={`打开${item.companyName}的招聘页面`}
+          >
+            打开招聘页面 <span aria-hidden="true">↗</span>
+          </a>
+        )}
         <div className="action-queue-drawer__actions">
           <button className="action-queue-drawer__primary" type="button" onClick={handleProcess}>去处理</button>
           <button className="action-queue-drawer__secondary" type="button" onClick={onClose}>稍后处理</button>

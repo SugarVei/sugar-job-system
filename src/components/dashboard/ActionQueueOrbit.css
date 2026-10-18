@@ -265,6 +265,9 @@ button.action-queue-card:hover { transform: translateY(-4px); border-color: var(
 .action-queue-drawer__facts div { display: flex; justify-content: space-between; gap: 12px; font-size: 13.5px; }
 .action-queue-drawer__facts dt { color: var(--aq-ink-2); }
 .action-queue-drawer__facts dd { max-width: 62%; margin: 0; font-weight: 600; text-align: right; }
+.action-queue-drawer__recruitment-link { display: flex; align-items: center; justify-content: center; gap: 7px; min-height: 44px; margin-top: 24px; border: 1px solid var(--aq-line); border-radius: 14px; color: var(--aq-ink); background: var(--aq-surface); font-size: 14px; font-weight: 600; text-decoration: none; transition: background .18s ease, border-color .18s ease, transform .18s ease; }
+.action-queue-drawer__recruitment-link:hover { border-color: var(--aq-brand-soft); background: var(--aq-brand-soft); transform: translateY(-1px); }
+.action-queue-drawer__recruitment-link:focus-visible { outline: 2px solid var(--aq-brand); outline-offset: 2px; }
 .action-queue-drawer__actions { display: flex; gap: 10px; margin-top: auto; }
 .action-queue-drawer__primary,
 .action-queue-drawer__secondary { flex: 1; border-radius: 14px; padding: 12px 0; font-size: 14px; }
