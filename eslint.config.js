@@ -5,7 +5,10 @@ import reactRefresh from 'eslint-plugin-react-refresh';
 import tseslint from 'typescript-eslint';
 
 export default tseslint.config(
-  { ignores: ['dist', 'node_modules', '*.tsbuildinfo'] },
+  {
+    // Generated bundles include third-party lint directives; lint server/ sources instead.
+    ignores: ['dist', 'node_modules', '*.tsbuildinfo', 'api/mail-interview-sync.js', 'api/mailbox-fetch.js'],
+  },
   {
     extends: [js.configs.recommended, ...tseslint.configs.recommended],
     files: ['**/*.{ts,tsx}'],

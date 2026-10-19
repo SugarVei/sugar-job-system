@@ -23,7 +23,9 @@ export default function AvatarPicker({ open, onClose, onSave }: AvatarPickerProp
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
 
-  onCloseRef.current = onClose;
+  useEffect(() => {
+    onCloseRef.current = onClose;
+  }, [onClose]);
 
   useEffect(() => {
     if (!open) return;

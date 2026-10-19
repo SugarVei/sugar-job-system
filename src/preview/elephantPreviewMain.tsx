@@ -4,7 +4,7 @@ import ElephantVideo from '../components/web-pet/ElephantVideo';
 import { elephantClips } from '../components/web-pet/elephantAnimations';
 import './ElephantPreview.css';
 
-function ElephantPreview() {
+export function ElephantPreview() {
   const [selected, setSelected] = useState(0);
   const [paused, setPaused] = useState(() => matchMedia('(prefers-reduced-motion: reduce)').matches);
   const [background, setBackground] = useState('cream');

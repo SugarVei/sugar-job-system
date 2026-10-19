@@ -284,7 +284,7 @@ export function normalizeCatalogUpdateDate(value: unknown) {
     const timestamp = Date.UTC(1899, 11, 30) + Math.floor(Number(text)) * 86_400_000;
     return new Date(timestamp).toISOString().slice(0, 10);
   }
-  const match = text.match(/^(\d{4})[年/.\-](\d{1,2})[月/.\-](\d{1,2})(?:日|\b)/u);
+  const match = text.match(/^(\d{4})[年/.-](\d{1,2})[月/.-](\d{1,2})(?:日|\b)/u);
   if (!match) return '';
   const year = Number(match[1]);
   const month = Number(match[2]);
