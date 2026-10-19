@@ -126,7 +126,7 @@ export default function HotCompanies() {
   const closeDiscovery = useCallback(() => setDiscoveryOpen(false), []);
 
   useEffect(() => {
-    setHeaderChrome({ searchPlaceholder: null, showAdd: true, inlineContent: <span className="hc-header-subtitle">2027 届校招</span>, actions: !discoveryOpen ? <button type="button" className="hc-panel-reopen" onClick={() => setDiscoveryOpen(true)}><PanelRightOpen size={16} />发现公司</button> : undefined });
+    setHeaderChrome({ searchPlaceholder: null, showAdd: true, contentScroll: false, inlineContent: <span className="hc-header-subtitle">2027 届校招</span>, actions: !discoveryOpen ? <button type="button" className="hc-panel-reopen" onClick={() => setDiscoveryOpen(true)}><PanelRightOpen size={16} />发现公司</button> : undefined });
     return () => setHeaderChrome(null);
   }, [discoveryOpen, setHeaderChrome]);
 
@@ -407,6 +407,7 @@ export default function HotCompanies() {
 
   return (
     <div className="hot-companies-page">
+      <div className="hc-page-scroll scrolly">
       <section className="hc-status-overview" aria-label="2027 届校招核查总览">
         {recruitmentStatusFilters.map(status => <button key={status.key} type="button" aria-pressed={activeRecruitmentStatus === status.key} className="hc-status-filter"
           style={{ '--status-color': ({ started: '#67a67c', warmup: '#f0bc3e', not_started: '#a4a6a8', internship_only: '#7e9ec5', unknown: '#cf9aa8' })[status.key] } as CSSProperties}
@@ -440,7 +441,6 @@ export default function HotCompanies() {
                 recruitmentStatus={resolveRecruitmentStatus(company, recruitmentStatusByCompany.get(normalizeCompanyName(company.name)))} statusesLoading={statusesLoading}
                 onViewApplications={viewApplications} onDelete={groupName === AI_GROUP_NAME ? () => void deleteImported(company) : undefined} />)}
             </div>
-            <CompanyResultsPagination count={matchingCompanyCount} page={currentPage} pageCount={pageCount} onPageChange={changePage} />
           </> : <div className="hc-empty"><Search size={28} strokeWidth={1.5} /><h2>没有找到匹配的公司</h2><p>试试其他关键词，或调整筛选条件。</p><button type="button" className="hc-text-button" onClick={clearFilters}>查看全部公司</button></div>}
         </section>
       </div>
@@ -546,6 +546,10 @@ export default function HotCompanies() {
         <div hidden={discoveryMode !== 'excel'}>{canManage && visitedTools.includes('excel') && <StandardCatalogImporter compact currentCompanies={standardCatalogRows} updatedAt={standardCatalogUpdatedAt} catalogError={standardCatalogError} onApplied={async () => { await refreshStandardCatalog(); toast.success('标准公司库已更新，热门公司和地图校招会一起刷新'); }} />}</div>
       </CompanyDiscoveryPanel>
       </div>
+      </div>
+      {matchingCompanyCount > 0 && <div className={`hc-pagination-footer hc-workspace${discoveryOpen ? '' : ' hc-workspace-collapsed'}`}>
+        <CompanyResultsPagination count={matchingCompanyCount} page={currentPage} pageCount={pageCount} onPageChange={changePage} />
+      </div>}
     </div>
   );
 }
