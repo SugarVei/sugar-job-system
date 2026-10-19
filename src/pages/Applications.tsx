@@ -340,7 +340,7 @@ export default function Applications() {
             </option>
           ))}
         </Select>
-        <div className="hidden sm:flex" style={{ fontSize: 13, color: '#9a9488', alignSelf: 'center', gap: 10 }}>
+        <div className="hidden sm:flex" style={{ fontSize: 13, color: 'var(--sugar-ink-tertiary)', alignSelf: 'center', gap: 10 }}>
           <span>共 {filtered.length} 条</span>
           {overdueCount > 0 && (
             <span style={{ color: '#a23d24', fontWeight: 700 }}>逾期 {overdueCount}</span>
@@ -496,7 +496,7 @@ export default function Applications() {
                     <span style={pill(priority.bg, priority.fg)}>{priority.label}</span>
                     {overdue && <span style={pill('#fbe0d8', '#a23d24')}>已逾期</span>}
                   </div>
-                  <div className="flex flex-wrap mt-[9px]" style={{ gap: '6px 18px', fontSize: 13, color: '#8a8478' }}>
+                  <div className="flex flex-wrap mt-[9px]" style={{ gap: '6px 18px', fontSize: 13, color: 'var(--sugar-ink-tertiary)' }}>
                     {application.city && <span>{application.city}</span>}
                     {application.channel && <span>{application.channel}</span>}
                     {application.salary_range && <span>{application.salary_range}</span>}
@@ -753,7 +753,7 @@ export default function Applications() {
               placeholder="记录人工或 AI 分析结果"
             />
           </Field>
-          <div style={{ fontSize: 12, color: '#9a9488', marginBottom: 14, lineHeight: 1.55 }}>
+          <div style={{ fontSize: 12, color: 'var(--sugar-ink-tertiary)', marginBottom: 14, lineHeight: 1.55 }}>
             可在此粘贴 JD 原文与关键词，匹配分可手动填写；简历库中也可对照岗位优化版本。
           </div>
         </div>
@@ -879,7 +879,7 @@ function KanbanBoard({
             >
               <div className="flex items-center justify-between" style={{ marginBottom: 10, flex: 'none' }}>
                 <span style={pill(tag.bg, tag.fg)}>{column.status}</span>
-                <span style={{ fontSize: 12, color: '#8a8478', fontWeight: 700 }}>{column.items.length}</span>
+                <span style={{ fontSize: 12, color: 'var(--sugar-ink-tertiary)', fontWeight: 700 }}>{column.items.length}</span>
               </div>
               <div
                 className="kanban-column-scroll flex flex-col gap-2"
@@ -892,7 +892,7 @@ function KanbanBoard({
                 }}
               >
                 {column.items.length === 0 ? (
-                  <div style={{ border: '1px dashed #d8cfbd', borderRadius: 13, padding: 14, color: '#a39d90', fontSize: 12.5, textAlign: 'center' }}>
+                  <div style={{ border: '1px dashed #d8cfbd', borderRadius: 13, padding: 14, color: 'var(--sugar-ink-tertiary)', fontSize: 12.5, textAlign: 'center' }}>
                     拖到此处更改状态
                   </div>
                 ) : (
@@ -933,7 +933,7 @@ function KanbanBoard({
                         <div style={{ fontSize: 12.5, fontWeight: 600, color: '#5d584d', marginTop: 3 }}>
                           {application.position_name}
                         </div>
-                        <div className="flex flex-wrap" style={{ gap: '5px 8px', marginTop: 9, fontSize: 11.5, color: '#8a8478' }}>
+                        <div className="flex flex-wrap" style={{ gap: '5px 8px', marginTop: 9, fontSize: 11.5, color: 'var(--sugar-ink-tertiary)' }}>
                           {application.city && <span>{application.city}</span>}
                           {application.salary_range && <span>{application.salary_range}</span>}
                           {application.channel && <span>{application.channel}</span>}
@@ -1002,6 +1002,6 @@ const iconBtn: React.CSSProperties = {
   border: '1px solid #e4ddcf',
   background: '#faf7f0',
   borderRadius: 11,
-  color: '#8a8478',
+  color: 'var(--sugar-ink-tertiary)',
   cursor: 'pointer',
 };

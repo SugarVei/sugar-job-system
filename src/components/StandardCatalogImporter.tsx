@@ -233,11 +233,11 @@ export default function StandardCatalogImporter({
       <div className="flex items-start justify-between gap-4 flex-wrap">
         <div>
           <h2 style={{ margin: 0, fontSize: 16, fontWeight: 750, color: '#1b1a17' }}>用 Excel 更新标准公司库</h2>
-          <p style={{ margin: '5px 0 0', fontSize: 12.5, color: '#8a8478', lineHeight: 1.55 }}>
+          <p style={{ margin: '5px 0 0', fontSize: 12.5, color: 'var(--sugar-ink-tertiary)', lineHeight: 1.55 }}>
             行里只要写了 27 届就会保留，包括「26届和27届」。只写 23–26 届的会丢掉。不会删除底库或表里没出现的公司。写入后热门公司和地图校招「全部企业」会一起更新。
           </p>
         </div>
-        <span style={{ fontSize: 12, color: '#9a9488' }}>{latestLabel}</span>
+        <span style={{ fontSize: 12, color: 'var(--sugar-ink-tertiary)' }}>{latestLabel}</span>
       </div>
 
       <div
@@ -276,7 +276,7 @@ export default function StandardCatalogImporter({
               type="button"
               onClick={(event) => { event.stopPropagation(); chooseFile(null); }}
               aria-label="移除文件"
-              style={{ border: 0, background: 'transparent', color: '#8a8478', cursor: 'pointer', display: 'inline-flex' }}
+              style={{ border: 0, background: 'transparent', color: 'var(--sugar-ink-tertiary)', cursor: 'pointer', display: 'inline-flex' }}
             >
               <IconTrash size={15} />
             </button>
@@ -285,7 +285,7 @@ export default function StandardCatalogImporter({
           <>
             <div style={{ color: '#9b633d', display: 'flex', justifyContent: 'center' }}><IconFile size={24} /></div>
             <div style={{ marginTop: 7, fontSize: 13.5, fontWeight: 700, color: '#4a463e' }}>点击上传，或把汇总表 Excel 拖到这里</div>
-            <div style={{ marginTop: 4, fontSize: 12, color: '#9a9488' }}>仅支持 .xlsx，最大 20MB；只保留 27 届，表头需包含公司名或单位名称</div>
+            <div style={{ marginTop: 4, fontSize: 12, color: 'var(--sugar-ink-tertiary)' }}>仅支持 .xlsx，最大 20MB；只保留 27 届，表头需包含公司名或单位名称</div>
           </>
         )}
       </div>
@@ -297,13 +297,13 @@ export default function StandardCatalogImporter({
       )}
 
       {!canManage && (
-        <div style={{ marginTop: 12, color: '#8a8478', fontSize: 12.5, lineHeight: 1.55 }}>
+        <div style={{ marginTop: 12, color: 'var(--sugar-ink-tertiary)', fontSize: 12.5, lineHeight: 1.55 }}>
           只有管理员账号可以上传并写入共享标准公司库。
         </div>
       )}
 
       <div className="flex items-center justify-between gap-3 flex-wrap" style={{ marginTop: 15 }}>
-        <span style={{ fontSize: 11.5, color: '#9a9488' }}>说明里出现 27 届就保留；只有 23–26 届的会在预览里显示为跳过。</span>
+        <span style={{ fontSize: 11.5, color: 'var(--sugar-ink-tertiary)' }}>说明里出现 27 届就保留；只有 23–26 届的会在预览里显示为跳过。</span>
         <button
           type="button"
           onClick={() => void previewImport()}
@@ -370,7 +370,7 @@ export default function StandardCatalogImporter({
               <SummaryChip label="跳过" value={preview.summary.skipped} color="#8b4d58" background="#f7e9ec" />
             </div>
             {preview.summary.sheets && preview.summary.sheets.length > 0 && (
-              <div style={{ fontSize: 12, color: '#8a8478' }}>已读取分表：{preview.summary.sheets.join('、')}</div>
+              <div style={{ fontSize: 12, color: 'var(--sugar-ink-tertiary)' }}>已读取分表：{preview.summary.sheets.join('、')}</div>
             )}
             <DiffList title="将新增" total={preview.summary.added} rows={preview.added} empty="没有新公司" />
             <DiffList title="将更新" total={preview.summary.updated} rows={preview.updated} empty="没有字段变化" showBefore />
@@ -412,7 +412,7 @@ function DiffList({
         {title} {total} 家{total > rows.length ? '（预览前 40 家）' : ''}
       </div>
       {rows.length === 0 ? (
-        <div style={{ marginTop: 6, fontSize: 12.5, color: '#8a8478' }}>{empty}</div>
+        <div style={{ marginTop: 6, fontSize: 12.5, color: 'var(--sugar-ink-tertiary)' }}>{empty}</div>
       ) : (
         <ul style={{ margin: '8px 0 0', padding: 0, listStyle: 'none', display: 'flex', flexDirection: 'column', gap: 8 }}>
           {rows.map((row, index) => {
@@ -420,12 +420,12 @@ function DiffList({
             return (
               <li key={`${row.kind}-${company.name}-${index}`} style={{ border: '1px solid #ebe3d7', borderRadius: 12, padding: '10px 12px' }}>
                 <div style={{ fontSize: 13.5, fontWeight: 700, color: '#4a463e' }}>{company.name}</div>
-                <div style={{ marginTop: 3, fontSize: 12, color: '#8a8478' }}>
+                <div style={{ marginTop: 3, fontSize: 12, color: 'var(--sugar-ink-tertiary)' }}>
                   {[company.industry, company.city, company.group].filter(Boolean).join(' · ')}
                 </div>
                 {company.url && <div style={{ marginTop: 3, fontSize: 12, color: '#6b665c', wordBreak: 'break-all' }}>{company.url}</div>}
                 {showBefore && row.current && (
-                  <div style={{ marginTop: 4, fontSize: 11.5, color: '#9a9488' }}>
+                  <div style={{ marginTop: 4, fontSize: 11.5, color: 'var(--sugar-ink-tertiary)' }}>
                     原：{[row.current.industry, row.current.city, row.current.url].filter(Boolean).join(' · ')}
                   </div>
                 )}

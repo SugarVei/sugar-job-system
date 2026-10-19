@@ -39,7 +39,7 @@ export default function MailInterviewDraft({ message, accountId, applications, c
     } catch (error) { setError(`保存失败：${error instanceof Error ? error.message : String(error)}。输入已保留，可重试。`); }
     finally { lock.current = false; setSaving(false); }
   }}>
-    <strong style={{ fontSize: 14 }}>确认面试安排</strong><div style={{ fontSize: 11, color: '#8a8478', marginTop: 7 }}>已从邮件中预填可识别的信息，请核对后保存。</div>
+    <strong style={{ fontSize: 14 }}>确认面试安排</strong><div style={{ fontSize: 11, color: 'var(--sugar-ink-tertiary)', marginTop: 7 }}>已从邮件中预填可识别的信息，请核对后保存。</div>
     <fieldset disabled={saving} style={{ border: 0, padding: 0, margin: 0 }}><div className="sugar-mail-draft-grid">
       <label>公司名称<input required value={company} onChange={e => setCompany(e.target.value)} /></label>
       <label>岗位<input value={position} onChange={e => setPosition(e.target.value)} /></label>

@@ -183,16 +183,16 @@ export default function AIChatDialog({
             <span style={{ fontSize: 20 }}>🤖</span>
             <div>
               <div style={{ fontFamily: 'Poppins', fontWeight: 700, fontSize: 15, color: '#1b1a17' }}>AI 求职分析助手</div>
-              <div style={{ fontSize: 11.5, color: '#a39d90', marginTop: 1 }}>基于你的真实数据进行分析</div>
+              <div style={{ fontSize: 11.5, color: 'var(--sugar-ink-tertiary)', marginTop: 1 }}>基于你的真实数据进行分析</div>
             </div>
           </div>
           <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
             {messages.length > 0 && (
-              <button onClick={() => setMessages([])} style={{ fontSize: 12, color: '#a39d90', background: 'none', border: 'none', cursor: 'pointer', padding: '2px 8px', borderRadius: 6 }}>清空</button>
+              <button onClick={() => setMessages([])} style={{ fontSize: 12, color: 'var(--sugar-ink-tertiary)', background: 'none', border: 'none', cursor: 'pointer', padding: '2px 8px', borderRadius: 6 }}>清空</button>
             )}
             <button
               onClick={() => setOpen(false)}
-              style={{ width: 34, height: 34, borderRadius: 10, border: '1px solid #e4ddcf', background: '#faf7f0', color: '#8a8478', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 14, flexShrink: 0 }}
+              style={{ width: 34, height: 34, borderRadius: 10, border: '1px solid #e4ddcf', background: '#faf7f0', color: 'var(--sugar-ink-tertiary)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 14, flexShrink: 0 }}
             >✕</button>
           </div>
         </div>
@@ -200,10 +200,10 @@ export default function AIChatDialog({
         {/* Messages */}
         <div style={{ flex: 1, overflowY: 'auto', padding: '14px 18px', display: 'flex', flexDirection: 'column', gap: 12 }}>
           {messages.length === 0 && (
-            <div style={{ textAlign: 'center', color: '#a39d90', fontSize: 13, marginTop: 40 }}>
+            <div style={{ textAlign: 'center', color: 'var(--sugar-ink-tertiary)', fontSize: 13, marginTop: 40 }}>
               <div style={{ fontSize: 36, marginBottom: 12 }}>💡</div>
               <div style={{ fontWeight: 600, color: '#6b665c', marginBottom: 8 }}>可以问我：</div>
-              <div style={{ lineHeight: 2.2, color: '#8a8478' }}>
+              <div style={{ lineHeight: 2.2, color: 'var(--sugar-ink-tertiary)' }}>
                 「我的投递情况怎么样？」<br />
                 「哪个渠道效果最好？」<br />
                 「给我一些求职建议」

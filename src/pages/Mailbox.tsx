@@ -418,9 +418,9 @@ export default function Mailbox() {
               <div className="flex items-center gap-3 flex-wrap">
                 <strong style={{ fontFamily: 'Geist', fontSize: 16.5 }}>{account ? `${PROVIDERS.find((p) => p.id === account.provider)?.short || '邮箱'} · ${account.email.split('@')[0]}` : '尚未绑定邮箱'}</strong>
                 {account && <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, color: '#2f7a45', fontSize: 12.5, fontWeight: 700 }}><span style={{ width: 8, height: 8, borderRadius: 99, background: '#2f9b50' }} />已连接</span>}
-                {account && <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, color: '#9a9488', fontSize: 12 }}><IconClock size={14} />{account.last_synced_at ? `同步于 ${new Date(account.last_synced_at).toLocaleString('zh-CN')}` : '尚未同步'}</span>}
+                {account && <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, color: 'var(--sugar-ink-tertiary)', fontSize: 12 }}><IconClock size={14} />{account.last_synced_at ? `同步于 ${new Date(account.last_synced_at).toLocaleString('zh-CN')}` : '尚未同步'}</span>}
               </div>
-              <div style={{ marginTop: 3, color: '#8a8478', fontSize: 12 }}>
+              <div style={{ marginTop: 3, color: 'var(--sugar-ink-tertiary)', fontSize: 12 }}>
                 {account ? account.email : '支持网易、QQ、Gmail、Outlook 与学校邮箱'}
                 {total > 0 && ` · 共 ${total} 封 · 未读 ${unseen}`}
               </div>
@@ -444,7 +444,7 @@ export default function Mailbox() {
           <div className="flex items-start justify-between gap-3 flex-wrap">
             <div>
               <div style={{ fontSize: 15, fontWeight: 800 }}>{addingNew || !account ? '绑定邮箱' : '邮箱设置'}</div>
-              <div style={{ fontSize: 12, color: '#8a8478', marginTop: 3 }}>授权信息已加密保存。更新账号时留空可继续使用已保存的授权码。</div>
+              <div style={{ fontSize: 12, color: 'var(--sugar-ink-tertiary)', marginTop: 3 }}>授权信息已加密保存。更新账号时留空可继续使用已保存的授权码。</div>
             </div>
             {providerMeta.guideUrl && <a href={providerMeta.guideUrl} target="_blank" rel="noreferrer" style={{ fontSize: 12.5, fontWeight: 700, color: theme.accent }}>如何获取授权码 →</a>}
           </div>
@@ -500,7 +500,7 @@ export default function Mailbox() {
           >
             <div style={{ fontWeight: 800, fontSize: 15 }}>面试邮件</div>
             <div className="flex items-center gap-2" style={{ minWidth: 0 }}>
-              <label style={{ height: 34, display: 'flex', alignItems: 'center', gap: 7, border: '1px solid #e0d8c9', background: '#fff', borderRadius: 9, padding: '0 10px', color: '#9a9488', minWidth: 0 }}><IconSearch size={14} /><input value={keyword} onChange={(e) => setKeyword(e.target.value)} placeholder="搜索邮件" style={{ border: 0, outline: 0, background: 'transparent', width: 104, minWidth: 0, fontSize: 12 }} /></label>
+              <label style={{ height: 34, display: 'flex', alignItems: 'center', gap: 7, border: '1px solid #e0d8c9', background: '#fff', borderRadius: 9, padding: '0 10px', color: 'var(--sugar-ink-tertiary)', minWidth: 0 }}><IconSearch size={14} /><input value={keyword} onChange={(e) => setKeyword(e.target.value)} placeholder="搜索邮件" style={{ border: 0, outline: 0, background: 'transparent', width: 104, minWidth: 0, fontSize: 12 }} /></label>
               <button type="button" className="btn-press" aria-pressed={unreadFirst} onClick={() => setUnreadFirst((value) => !value)} style={{ height: 34, borderRadius: 9, border: `1px solid ${unreadFirst ? '#1b1a17' : '#e0d8c9'}`, background: unreadFirst ? '#1b1a17' : '#fffdf8', color: unreadFirst ? '#fffdf8' : '#5d584d', padding: '0 10px', fontSize: 12, fontWeight: 700, whiteSpace: 'nowrap', cursor: 'pointer' }}>未读优先</button>
             </div>
           </div>
@@ -552,7 +552,7 @@ export default function Mailbox() {
                           >
                             {cleanSender(m.from)}
                           </span>
-                          <span style={{ fontSize: 10.5, color: '#9a9488', whiteSpace: 'nowrap' }}>{formatMailDate(m.date)}</span>
+                          <span style={{ fontSize: 10.5, color: 'var(--sugar-ink-tertiary)', whiteSpace: 'nowrap' }}>{formatMailDate(m.date)}</span>
                         </div>
                         <div
                           style={{
@@ -569,7 +569,7 @@ export default function Mailbox() {
                           {m.subject}
                         </div>
                         {m.snippet && (
-                          <div style={{ fontSize: 12, color: '#8a8478', marginTop: 4, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                          <div style={{ fontSize: 12, color: 'var(--sugar-ink-tertiary)', marginTop: 4, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                             {m.snippet}
                           </div>
                         )}
@@ -599,7 +599,7 @@ export default function Mailbox() {
           }}
         >
           {!selected ? (
-            <div style={{ margin: 'auto', padding: 32, textAlign: 'center', color: '#8a8478', fontSize: 13.5, lineHeight: 1.7 }}>
+            <div style={{ margin: 'auto', padding: 32, textAlign: 'center', color: 'var(--sugar-ink-tertiary)', fontSize: 13.5, lineHeight: 1.7 }}>
               从左侧选择一封邮件阅读
               <br />
               正文将按接近网页邮箱的版式展示
@@ -612,9 +612,9 @@ export default function Mailbox() {
                 <div className="flex items-start justify-between gap-3">
                   <div className="flex items-center gap-3" style={{ minWidth: 0 }}>
                     <span style={{ width: 42, height: 42, borderRadius: 13, display: 'grid', placeItems: 'center', flex: 'none', background: selectedMeta?.bg, color: selectedMeta?.color, fontSize: selectedMeta && selectedMeta.short.length > 2 ? 10 : 12, fontWeight: 800 }}>{selectedMeta?.short}</span>
-                    <div style={{ minWidth: 0 }}><div style={{ fontSize: 14, fontWeight: 800 }}>{cleanSender(selected.from)}</div><div style={{ fontSize: 11.5, color: '#9a9488', marginTop: 2 }}>发送至 {account?.email || '我的邮箱'}</div></div>
+                    <div style={{ minWidth: 0 }}><div style={{ fontSize: 14, fontWeight: 800 }}>{cleanSender(selected.from)}</div><div style={{ fontSize: 11.5, color: 'var(--sugar-ink-tertiary)', marginTop: 2 }}>发送至 {account?.email || '我的邮箱'}</div></div>
                   </div>
-                  <div style={{ textAlign: 'right', flex: 'none' }}><span style={{ display: 'inline-block', fontSize: 10.5, fontWeight: 800, padding: '3px 8px', borderRadius: 999, background: selectedProcessed ? '#e7eee2' : '#fbeec2', color: selectedProcessed ? '#477051' : '#7a5a12' }}>{selectedProcessed ? '已处理' : '待处理'}</span><div style={{ fontSize: 11, color: '#9a9488', marginTop: 6 }}>{formatMailDate(selected.date)}</div></div>
+                  <div style={{ textAlign: 'right', flex: 'none' }}><span style={{ display: 'inline-block', fontSize: 10.5, fontWeight: 800, padding: '3px 8px', borderRadius: 999, background: selectedProcessed ? '#e7eee2' : '#fbeec2', color: selectedProcessed ? '#477051' : '#7a5a12' }}>{selectedProcessed ? '已处理' : '待处理'}</span><div style={{ fontSize: 11, color: 'var(--sugar-ink-tertiary)', marginTop: 6 }}>{formatMailDate(selected.date)}</div></div>
                 </div>
                 <h2 style={{ margin: '14px 0 0', fontSize: 19, fontWeight: 800, lineHeight: 1.35, color: '#1b1a17' }}>{selected.subject}</h2>
                 {interviewDb.error && <FormError message={`面试记录读取失败，请刷新后重试：${interviewDb.error}`} />}
@@ -667,9 +667,9 @@ export default function Mailbox() {
 }
 
 function SummaryCell({ icon, label, value }: { icon: React.ReactNode; label: string; value: string }) {
-  return <div style={{ minWidth: 0, padding: '2px 14px', borderRight: '1px solid #e8e0d2' }}><div className="flex items-center gap-2" style={{ color: '#8a8478', fontSize: 11.5 }}>{icon}{label}</div><div title={value} style={{ marginTop: 8, color: '#1b1a17', fontSize: 13.5, fontWeight: 800, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{value}</div></div>;
+  return <div style={{ minWidth: 0, padding: '2px 14px', borderRight: '1px solid #e8e0d2' }}><div className="flex items-center gap-2" style={{ color: 'var(--sugar-ink-tertiary)', fontSize: 11.5 }}>{icon}{label}</div><div title={value} style={{ marginTop: 8, color: '#1b1a17', fontSize: 13.5, fontWeight: 800, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{value}</div></div>;
 }
 
 const outlineAction: React.CSSProperties = { height: 40, display: 'inline-flex', alignItems: 'center', gap: 7, padding: '0 14px', border: '1px solid #ded5c7', borderRadius: 11, background: '#fffdf8', color: '#3f3b34', fontSize: 12.5, fontWeight: 700, cursor: 'pointer', whiteSpace: 'nowrap' };
 const accountChip: React.CSSProperties = { height: 32, padding: '0 11px', border: '1px solid #e0d8c9', borderRadius: 999, color: '#5d584d', fontSize: 12, fontWeight: 700, cursor: 'pointer' };
-const eyeButton: React.CSSProperties = { position: 'absolute', right: 10, top: '50%', transform: 'translateY(-50%)', border: 'none', background: 'none', cursor: 'pointer', color: '#8a8478', display: 'flex' };
+const eyeButton: React.CSSProperties = { position: 'absolute', right: 10, top: '50%', transform: 'translateY(-50%)', border: 'none', background: 'none', cursor: 'pointer', color: 'var(--sugar-ink-tertiary)', display: 'flex' };

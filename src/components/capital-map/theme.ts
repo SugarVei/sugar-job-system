@@ -2,7 +2,7 @@ export const MAP_COLORS = {
   page: 'rgba(255,253,248,0.72)',
   panel: '#fffdf8',
   ink: '#1b1a17',
-  muted: '#8a8478',
+  muted: '#6b665c',
   line: '#e0d8c9',
   area: '#f3eee4',
   areaHover: '#ebe4d6',

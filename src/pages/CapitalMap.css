@@ -32,7 +32,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  color: #8a8478;
+  color: var(--sugar-ink-tertiary);
   font-size: 14px;
   pointer-events: none;
 }
@@ -236,7 +236,7 @@
   margin: 8px 0 0;
   font-size: 13px;
   line-height: 1.55;
-  color: #8a8478;
+  color: var(--sugar-ink-tertiary);
 }
 
 .capital-map-badge {
@@ -307,7 +307,7 @@
 }
 
 .capital-map-chip span {
-  color: #8a8478;
+  color: var(--sugar-ink-tertiary);
   font-size: 12px;
 }
 
@@ -347,14 +347,14 @@
 
 .capital-map-company__sub {
   margin-top: 3px;
-  color: #8a8478;
+  color: var(--sugar-ink-tertiary);
   font-size: 12px;
   line-height: 1.4;
 }
 
 .capital-map-company__url {
   margin-top: 5px;
-  color: #8a8478;
+  color: var(--sugar-ink-tertiary);
   font-size: 11px;
   word-break: break-all;
   line-height: 1.4;

@@ -28,7 +28,7 @@ export function ToastProvider({ children }: { children: ReactNode }) {
   return <ToastContext.Provider value={value}>{children}<div aria-live="polite" style={{ position: 'fixed', right: 16, bottom: 88, zIndex: 500, display: 'flex', flexDirection: 'column', gap: 8, maxWidth: 'min(390px, calc(100vw - 32px))', pointerEvents: 'none' }}>
     {items.map(item => <div key={item.id} className="sugar-content-enter" style={{ pointerEvents: 'auto', padding: '12px 14px', borderRadius: 14, fontSize: 13, fontWeight: 600, lineHeight: 1.45, boxShadow: '0 8px 28px #30231518', background: item.kind === 'error' ? '#fbebe8' : item.kind === 'success' ? '#e5efdf' : '#fffdf8', color: item.kind === 'error' ? '#a23d24' : '#1b1a17', border: '1px solid #e4ddcf', display: 'flex', alignItems: 'center', gap: 12 }}>
       <span>{item.message}</span>{item.action && <button disabled={busy.includes(item.id)} onClick={() => void act(item)} style={{ border: 0, background: 'transparent', color: '#47633f', font: 'inherit', padding: '6px 4px', cursor: 'pointer', flex: 'none' }}>{busy.includes(item.id) ? '处理中…' : item.action.label}</button>}
-      <button aria-label="关闭通知" disabled={busy.includes(item.id)} onClick={() => remove(item.id)} style={{ border: 0, background: 'none', cursor: 'pointer', color: '#8a8478', padding: 4 }}>×</button>
+      <button aria-label="关闭通知" disabled={busy.includes(item.id)} onClick={() => remove(item.id)} style={{ border: 0, background: 'none', cursor: 'pointer', color: 'var(--sugar-ink-tertiary)', padding: 4 }}>×</button>
     </div>)}
   </div></ToastContext.Provider>;
 }

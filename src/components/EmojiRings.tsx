@@ -103,7 +103,7 @@ export default function EmojiRings() {
           left: 42,
           textAlign: 'left',
           fontSize: 13,
-          color: '#9a9488',
+          color: 'var(--sugar-ink-tertiary)',
           fontWeight: 500,
           letterSpacing: '.02em',
         }}

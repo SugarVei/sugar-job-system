@@ -89,7 +89,7 @@ export default function ApiKeySettings() {
             <div style={{ fontFamily: 'Poppins', fontWeight: 700, fontSize: 15.5, color: '#1b1a17' }}>
               {guideMode === 'choice' ? `你想怎么完成 ${guideProvider.label} API 购买？` : guideMode === 'self' ? `${guideProvider.label} 自助购买流程` : 'API 配置指导服务'}
             </div>
-            <div style={{ fontSize: 11.5, color: '#a39d90', marginTop: 3 }}>{guideProvider.guideDesc}</div>
+            <div style={{ fontSize: 11.5, color: 'var(--sugar-ink-tertiary)', marginTop: 3 }}>{guideProvider.guideDesc}</div>
           </div>
           <button onClick={closeGuide} style={iconBtn}>×</button>
         </div>
@@ -224,7 +224,7 @@ export default function ApiKeySettings() {
             <span style={{ fontSize: 20 }}>🔐</span>
             <div>
               <div style={{ fontFamily: 'Poppins', fontWeight: 700, fontSize: 15, color: '#1b1a17' }}>AI 模型设置</div>
-              <div style={{ fontSize: 11.5, color: '#a39d90', marginTop: 1 }}>配置你自己的 API Key，调用不同 AI 服务商</div>
+              <div style={{ fontSize: 11.5, color: 'var(--sugar-ink-tertiary)', marginTop: 1 }}>配置你自己的 API Key，调用不同 AI 服务商</div>
             </div>
           </div>
           <button onClick={() => setOpen(false)} style={iconBtn}>×</button>
@@ -288,7 +288,7 @@ export default function ApiKeySettings() {
                       <a href={p.keyUrl} target="_blank" rel="noopener noreferrer" style={linkBtn}>获取 API Key →</a>
                     </div>
                   </div>
-                  <div style={{ fontSize: 11.5, color: '#8a8478', marginBottom: 10, lineHeight: 1.55 }}>
+                  <div style={{ fontSize: 11.5, color: 'var(--sugar-ink-tertiary)', marginBottom: 10, lineHeight: 1.55 }}>
                     {p.guideDesc} · 难度：{p.difficulty} · {p.pricingNote}
                   </div>
                   <div style={{ display: 'flex', gap: 8 }}>
@@ -308,7 +308,7 @@ export default function ApiKeySettings() {
                       />
                       <button
                         onClick={() => setShowKey(prev => ({ ...prev, [pid]: !visible }))}
-                        style={{ position: 'absolute', right: 10, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', color: '#a39d90', fontSize: 14, padding: 2 }}
+                        style={{ position: 'absolute', right: 10, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', color: 'var(--sugar-ink-tertiary)', fontSize: 14, padding: 2 }}
                       >{visible ? '🙈' : '👁️'}</button>
                     </div>
                     <button
@@ -331,7 +331,7 @@ export default function ApiKeySettings() {
             <div style={{ marginTop: 14, fontSize: 13, color: '#a23d24', background: '#fbe0d8', borderRadius: 10, padding: '10px 14px' }}>{error}</div>
           )}
 
-          <div style={{ marginTop: 16, fontSize: 12, color: '#a39d90', lineHeight: 1.7 }}>
+          <div style={{ marginTop: 16, fontSize: 12, color: 'var(--sugar-ink-tertiary)', lineHeight: 1.7 }}>
             💡 API Key 受账号权限保护存储，只有当前登录用户可以访问。所有充值和账号登录都应在服务商官方页面完成，Sugar 不会收集第三方平台账号密码。
           </div>
         </div>
@@ -408,7 +408,7 @@ const iconBtn: React.CSSProperties = {
   borderRadius: 10,
   border: '1px solid #e4ddcf',
   background: '#faf7f0',
-  color: '#8a8478',
+  color: 'var(--sugar-ink-tertiary)',
   cursor: 'pointer',
   display: 'flex',
   alignItems: 'center',
@@ -472,7 +472,7 @@ const qrPlaceholder: React.CSSProperties = {
   borderRadius: 16,
   border: '1px dashed #d8d0c2',
   background: '#faf7f0',
-  color: '#8a8478',
+  color: 'var(--sugar-ink-tertiary)',
   display: 'flex',
   alignItems: 'center',
   justifyContent: 'center',

@@ -122,7 +122,7 @@ export default function Modal({
               borderRadius: 11,
               border: '1px solid #e4ddcf',
               background: '#faf7f0',
-              color: '#8a8478',
+              color: 'var(--sugar-ink-tertiary)',
               cursor: 'pointer',
               display: 'flex',
               alignItems: 'center',

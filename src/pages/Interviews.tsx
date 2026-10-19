@@ -196,7 +196,7 @@ function ExperienceShare() {
         <div style={{ padding: '22px 20px 16px', borderBottom: '1px solid #eee6da' }}>
           <div style={{ fontSize: 12, color: '#a65a3c', fontWeight: 700, letterSpacing: '.03em' }}>资料目录</div>
           <div style={{ fontSize: 18, fontWeight: 750, marginTop: 7 }}>{category === 'common' ? '通用问题导航' : '公司岗位导航'}</div>
-          <div style={{ color: '#8a8478', fontSize: 12.5, marginTop: 5 }}>{category === 'common' ? '整理面试中高频出现的问题' : '按公司和岗位整理真实面经'}</div>
+          <div style={{ color: 'var(--sugar-ink-tertiary)', fontSize: 12.5, marginTop: 5 }}>{category === 'common' ? '整理面试中高频出现的问题' : '按公司和岗位整理真实面经'}</div>
         </div>
         <div className="grid grid-cols-2 gap-2" style={{ padding: 12, borderBottom: '1px solid #eee6da' }}>
           {([
@@ -226,7 +226,7 @@ function ExperienceShare() {
         <div style={{ padding: '14px 10px 18px', flex: 1, minHeight: 0, overflowY: 'auto', overscrollBehavior: 'contain' }}>
           {Array.from(new Set(articles.map((article) => article.group))).map((group) => (
             <div key={group} style={{ marginBottom: 14 }}>
-              <div style={{ padding: '0 10px 6px', color: '#8a8478', fontSize: 12, fontWeight: 700 }}>{group}</div>
+              <div style={{ padding: '0 10px 6px', color: 'var(--sugar-ink-tertiary)', fontSize: 12, fontWeight: 700 }}>{group}</div>
               {articles.filter((article) => article.group === group).map((article, index) => (
                 <button
                   key={article.id}
@@ -267,9 +267,9 @@ function ExperienceShare() {
               {selected.group}
             </span>
             <h2 style={{ fontSize: 'clamp(25px, 3vw, 34px)', lineHeight: 1.2, margin: '20px 0 0', letterSpacing: '-.03em' }}>{selected.title}</h2>
-            {selected.company && <div style={{ color: '#8a8478', fontSize: 13, marginTop: 9 }}>{selected.company} · {selected.role}</div>}
+            {selected.company && <div style={{ color: 'var(--sugar-ink-tertiary)', fontSize: 13, marginTop: 9 }}>{selected.company} · {selected.role}</div>}
           </div>
-          <div style={{ color: '#a39d90', fontSize: 12, fontWeight: 700, paddingTop: 5 }}>{category === 'common' ? '通用问题' : '公司岗位面经'}</div>
+          <div style={{ color: 'var(--sugar-ink-tertiary)', fontSize: 12, fontWeight: 700, paddingTop: 5 }}>{category === 'common' ? '通用问题' : '公司岗位面经'}</div>
         </div>
 
         {selected.intent && <section style={{ marginTop: 32 }}>
@@ -603,7 +603,7 @@ export default function Interviews() {
               })}
             </div>
           ) : (
-            <div style={{ fontSize: 13, color: '#8a8478', marginTop: 10 }}>这天还没有面试安排。</div>
+            <div style={{ fontSize: 13, color: 'var(--sugar-ink-tertiary)', marginTop: 10 }}>这天还没有面试安排。</div>
           )}
         </div>
         </Modal>

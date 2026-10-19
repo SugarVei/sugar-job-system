@@ -66,9 +66,7 @@ export default function AppLayout({ children }: { children: ReactNode }) {
         style={{
           flex: 1,
           minWidth: 0,
-          background: 'var(--sugar-shell, rgba(250,246,240,0.66))',
-          backdropFilter: 'blur(34px) saturate(1.15)',
-          WebkitBackdropFilter: 'blur(34px) saturate(1.15)',
+          background: 'var(--sugar-shell, #f7f3ec)',
           display: 'flex',
           overflow: 'hidden',
           height: '100%',
@@ -114,7 +112,7 @@ export default function AppLayout({ children }: { children: ReactNode }) {
 
           <p
             className="app-project-notice px-4 pt-3 lg:pt-4"
-            style={{ fontSize: 11.5, color: '#9a9488', margin: 0, lineHeight: 1.55, textAlign: 'center', flex: 'none' }}
+            style={{ fontSize: 11.5, color: 'var(--sugar-ink-tertiary)', margin: 0, lineHeight: 1.55, textAlign: 'center', flex: 'none' }}
           >
             如有兴趣改进，可以访问{' '}
             <a
@@ -167,7 +165,7 @@ export default function AppLayout({ children }: { children: ReactNode }) {
                   boxShadow: '0 4px 14px rgba(60,50,35,.05)',
                 }}
               >
-                <span style={{ color: '#a39d90', flex: 'none', display: 'flex' }}>
+                <span style={{ color: 'var(--sugar-ink-tertiary)', flex: 'none', display: 'flex' }}>
                   <IconSearch size={17} />
                 </span>
                 <input
@@ -305,7 +303,7 @@ export default function AppLayout({ children }: { children: ReactNode }) {
                 background: 'none',
                 border: 'none',
                 cursor: 'pointer',
-                color: active ? theme.accent : '#9a9488',
+                color: active ? theme.accent : 'var(--sugar-ink-tertiary)',
                 flex: '1 1 0',
                 minWidth: 0,
                 padding: '6px 0',
@@ -329,7 +327,7 @@ export default function AppLayout({ children }: { children: ReactNode }) {
             background: 'none',
             border: 'none',
             cursor: 'pointer',
-            color: moreActive || mobileMoreOpen ? theme.accent : '#9a9488',
+            color: moreActive || mobileMoreOpen ? theme.accent : 'var(--sugar-ink-tertiary)',
             flex: '1 1 0',
             minWidth: 0,
             padding: '6px 0',

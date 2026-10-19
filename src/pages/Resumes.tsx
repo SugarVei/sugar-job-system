@@ -294,7 +294,7 @@ export default function Resumes() {
             placeholder="这一版的侧重点、适用场景等"
           />
         </Field>
-        <p style={{ fontSize: 12.5, color: '#a39d90', margin: '4px 0 0' }}>
+        <p style={{ fontSize: 12.5, color: 'var(--sugar-ink-tertiary)', margin: '4px 0 0' }}>
           保存后，可在卡片上的“上传简历 / 上传面试稿件”区域上传 PDF / DOCX 文件。
         </p>
       </Modal>
@@ -456,7 +456,7 @@ function ResumeCard({
                 {resume.target_position}
               </span>
             )}
-            <span style={{ border: '1px solid #e0d8c9', color: '#8a8478', fontSize: 12, fontWeight: 600, padding: '4px 11px', borderRadius: 999 }}>
+            <span style={{ border: '1px solid #e0d8c9', color: 'var(--sugar-ink-tertiary)', fontSize: 12, fontWeight: 600, padding: '4px 11px', borderRadius: 999 }}>
               关联投递 {linkCount}
             </span>
           </div>
@@ -471,7 +471,7 @@ function ResumeCard({
         </div>
       </div>
 
-      {resume.notes && <p style={{ fontSize: 13, lineHeight: 1.6, color: '#8a8478', margin: '14px 0 16px' }}>{resume.notes}</p>}
+      {resume.notes && <p style={{ fontSize: 13, lineHeight: 1.6, color: 'var(--sugar-ink-tertiary)', margin: '14px 0 16px' }}>{resume.notes}</p>}
 
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3" style={{ margin: '4px 0 14px', alignItems: 'stretch' }}>
         <input
@@ -596,7 +596,7 @@ function ResumeCard({
             <div style={{ padding: '20px 24px 16px', borderBottom: '1px solid #f0ebe0', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexShrink: 0 }}>
               <div>
                 <div style={{ fontFamily: 'Geist', fontWeight: 700, fontSize: 16, color: '#1b1a17' }}>🤖 AI 生成面试稿件</div>
-                <div style={{ fontSize: 12, color: '#8a8478', marginTop: 3 }}>
+                <div style={{ fontSize: 12, color: 'var(--sugar-ink-tertiary)', marginTop: 3 }}>
                   {aiStep === 'select' && '选择要使用的简历文件'}
                   {aiStep === 'working' && (aiProgress || 'AI 正在处理…')}
                   {aiStep === 'done' && '生成完成，已保存到文件列表'}
@@ -604,7 +604,7 @@ function ResumeCard({
                 </div>
               </div>
               {(
-                <button aria-label="收起稿件任务" onClick={closeAiModal} style={{ width: 34, height: 34, border: '1px solid #e4ddcf', background: '#faf7f0', borderRadius: 10, cursor: 'pointer', color: '#8a8478', fontSize: 14, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>✕</button>
+                <button aria-label="收起稿件任务" onClick={closeAiModal} style={{ width: 34, height: 34, border: '1px solid #e4ddcf', background: '#faf7f0', borderRadius: 10, cursor: 'pointer', color: 'var(--sugar-ink-tertiary)', fontSize: 14, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>✕</button>
               )}
             </div>
 
@@ -635,7 +635,7 @@ function ResumeCard({
                       <div style={{ width: 32, height: 32, borderRadius: 9, background: '#e0daf6', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 14, flexShrink: 0 }}>📄</div>
                       <div>
                         <div style={{ fontSize: 13.5, fontWeight: 600, color: '#1b1a17' }}>{f.file_name}</div>
-                        <div style={{ fontSize: 11.5, color: '#a39d90', marginTop: 2 }}>{fmtDateTime(f.created_at)}</div>
+                        <div style={{ fontSize: 11.5, color: 'var(--sugar-ink-tertiary)', marginTop: 2 }}>{fmtDateTime(f.created_at)}</div>
                       </div>
                       {aiSelectedId === f.id && <span style={{ marginLeft: 'auto', color: '#a89cf0', fontSize: 18 }}>✓</span>}
                     </button>
@@ -647,7 +647,7 @@ function ResumeCard({
               {aiStep === 'working' && (
                 <div>
                   {!aiStreamText && (
-                    <div style={{ textAlign: 'center', padding: '40px 0', color: '#8a8478' }}>
+                    <div style={{ textAlign: 'center', padding: '40px 0', color: 'var(--sugar-ink-tertiary)' }}>
                       <div style={{ fontSize: 36, marginBottom: 14 }}>⏳</div>
                       <div style={{ fontSize: 13.5, fontWeight: 600 }}>{aiProgress}</div>
                       <div style={{ fontSize: 12, marginTop: 6 }}>可收起任务，继续使用其他页面</div>
@@ -716,7 +716,7 @@ function ResumeCard({
 
       <div className="flex flex-col gap-[9px]">
         {files.length === 0 ? (
-          <div style={{ fontSize: 12.5, color: '#a39d90', padding: '4px 2px' }}>暂无文件，点击或拖拽文件到上方区域上传。</div>
+          <div style={{ fontSize: 12.5, color: 'var(--sugar-ink-tertiary)', padding: '4px 2px' }}>暂无文件，点击或拖拽文件到上方区域上传。</div>
         ) : (
           files.map((f) => {
             const isResume = f.kind === 'resume';
@@ -736,7 +736,7 @@ function ResumeCard({
                     </div>
                     <div style={{ minWidth: 0 }}>
                       <div style={{ fontSize: 13.5, fontWeight: 600, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{f.file_name}</div>
-                      <div style={{ fontSize: 11.5, color: '#a39d90' }}>
+                      <div style={{ fontSize: 11.5, color: 'var(--sugar-ink-tertiary)' }}>
                         {isAI ? (isResume ? 'AI 定制简历草稿' : 'AI 生成面试稿件') : isResume ? '简历本体' : '面试稿件'} · {fmtDateTime(f.created_at)}
                       </div>
                     </div>
@@ -842,7 +842,7 @@ const miniBtn: React.CSSProperties = {
   borderRadius: 10,
   border: '1px solid #e4ddcf',
   background: '#faf7f0',
-  color: '#8a8478',
+  color: 'var(--sugar-ink-tertiary)',
   display: 'flex',
   alignItems: 'center',
   justifyContent: 'center',

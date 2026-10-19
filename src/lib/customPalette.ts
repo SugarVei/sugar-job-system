@@ -1,6 +1,6 @@
 import type { CSSProperties } from 'react';
 import type { ThemeDef } from '../styles/theme';
-import { contrastRatio, hexToLch, hexToRgb, lchToHex } from './colorScience';
+import { contrastRatio, hexToLch, lchToHex } from './colorScience';
 
 export type PaletteColors = [string, string, string, string, string];
 export interface CustomPalette { version: 1; colors: PaletteColors }
@@ -73,8 +73,6 @@ export function buildPaletteTheme(colors: PaletteColors): PaletteTheme {
   });
   return { tokens, theme: {
     name: '自定义', dot: colors[2], accent, accentSoft: soft,
-    base: `radial-gradient(130% 130% at 70% 20%, ${surface} 0%, ${background} 55%, ${neutral(.957, .015)} 100%)`,
     vig: 'rgba(30,30,35,.035)',
-    blobs: Array.from({ length: 6 }, (_, index) => hexToRgb(tokens[`--sugar-card-${index % 5}-bg`]).map(value => Math.round(value * 255)).join(',')),
   } };
 }

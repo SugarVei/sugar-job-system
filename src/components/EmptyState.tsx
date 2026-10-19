@@ -21,7 +21,7 @@ export default function EmptyState({
         boxShadow: '0 6px 18px rgba(60,50,35,.05)',
         padding: '48px 24px',
         textAlign: 'center',
-        color: '#8a8478',
+        color: 'var(--sugar-ink-tertiary)',
         fontSize: 14.5,
       }}
     >

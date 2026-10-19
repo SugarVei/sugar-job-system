@@ -43,11 +43,12 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     const root = document.documentElement;
     root.dataset.sugarTheme = themeKey;
-    const tokens = themeKey === 'custom' && custom ? custom.tokens : {};
+    const tokens: Record<string, string> = themeKey === 'custom' && custom ? custom.tokens : {};
     Object.entries(tokens).forEach(([key, value]) => root.style.setProperty(key, value));
     root.style.setProperty('--sugar-accent', theme.accent);
     root.style.setProperty('--sugar-accent-soft', theme.accentSoft);
-    document.querySelector('meta[name="theme-color"]')?.setAttribute('content', theme.dot);
+    // 地址栏颜色与页面底色一致，不随预设强调色变化
+    document.querySelector('meta[name="theme-color"]')?.setAttribute('content', tokens['--sugar-background'] ?? '#efe9e1');
     return () => { Object.keys(tokens).forEach(key => root.style.removeProperty(key)); delete root.dataset.sugarTheme; };
   }, [themeKey, theme, custom]);
   return <ThemeContext.Provider value={{ autoCycle, setAutoCycle, themeKey, theme, setThemeKey, customPalette, applyCustomPalette }}>{children}</ThemeContext.Provider>;

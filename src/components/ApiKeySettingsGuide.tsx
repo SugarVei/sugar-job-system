@@ -153,7 +153,7 @@ export default function ApiKeySettingsGuide() {
             <span style={{ fontSize: 20 }}>🔑</span>
             <div>
               <div style={{ fontFamily: 'Poppins', fontWeight: 700, fontSize: 15, color: '#1b1a17' }}>AI 模型设置</div>
-              <div style={{ fontSize: 11.5, color: '#a39d90', marginTop: 1 }}>配置你自己的 API Key，调用不同 AI 服务商</div>
+              <div style={{ fontSize: 11.5, color: 'var(--sugar-ink-tertiary)', marginTop: 1 }}>配置你自己的 API Key，调用不同 AI 服务商</div>
             </div>
           </div>
           <button onClick={() => setOpen(false)} style={iconBtn}>×</button>
@@ -211,7 +211,7 @@ export default function ApiKeySettingsGuide() {
             })}
           </div>
           {error && <div style={errorBox}>{error}</div>}
-          <div style={{ marginTop: 16, fontSize: 12, color: '#a39d90', lineHeight: 1.7 }}>💡 API Key 存储在你的 Supabase 账号数据中，并受 RLS 行级权限保护。每次 AI 调用都使用你配置的 Key，不消耗系统资源。</div>
+          <div style={{ marginTop: 16, fontSize: 12, color: 'var(--sugar-ink-tertiary)', lineHeight: 1.7 }}>💡 API Key 存储在你的 Supabase 账号数据中，并受 RLS 行级权限保护。每次 AI 调用都使用你配置的 Key，不消耗系统资源。</div>
         </div>
       </div>
     </div>,
@@ -262,7 +262,7 @@ function PriceCard({ title, price, suffix, recommended = false, children }: { ti
         <div style={{ fontSize: 13, fontWeight: 700, color: '#1b1a17' }}>{title}</div>
         {recommended && <span style={{ fontSize: 9.5, fontWeight: 700, background: '#b87345', color: '#fff', padding: '2px 6px', borderRadius: 999 }}>推荐</span>}
       </div>
-      <div style={{ fontSize: 18, fontWeight: 800, color: '#1b1a17', marginBottom: 8 }}>{price} <span style={{ fontSize: 11, fontWeight: 500, color: '#8a8478' }}>{suffix}</span></div>
+      <div style={{ fontSize: 18, fontWeight: 800, color: '#1b1a17', marginBottom: 8 }}>{price} <span style={{ fontSize: 11, fontWeight: 500, color: 'var(--sugar-ink-tertiary)' }}>{suffix}</span></div>
       <p style={{ fontSize: 11.5, lineHeight: 1.6, color: '#6b665c', margin: 0 }}>{children}</p>
     </div>
   );
@@ -280,19 +280,19 @@ const mainShell: React.CSSProperties = { width: '100%', maxWidth: 560, maxHeight
 const guideShell: React.CSSProperties = { width: '100%', maxHeight: 'calc(100vh - 70px)', background: '#fffdf8', border: '1px solid rgba(255,255,255,0.72)', borderRadius: 22, boxShadow: '0 30px 60px -25px rgba(20,15,10,.42)', display: 'flex', flexDirection: 'column', overflow: 'hidden', animation: 'popIn .24s ease both' };
 const mainHeader: React.CSSProperties = { padding: '18px 22px 14px', borderBottom: '1px solid #f0ebe0', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexShrink: 0 };
 const guideHeader: React.CSSProperties = { padding: '26px 26px 8px', display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 14, flexShrink: 0 };
-const guideSub: React.CSSProperties = { fontSize: 12.5, color: '#8a8478', margin: '8px 0 0' };
+const guideSub: React.CSSProperties = { fontSize: 12.5, color: 'var(--sugar-ink-tertiary)', margin: '8px 0 0' };
 const sectionLabel: React.CSSProperties = { fontSize: 12, fontWeight: 700, color: '#6b665c', marginBottom: 8, textTransform: 'uppercase', letterSpacing: '.04em' };
 const settingsBtn: React.CSSProperties = { width: '100%', display: 'flex', alignItems: 'center', gap: 10, height: 46, padding: '0 14px', border: '1px solid #e0d8c9', background: '#fffdf8', borderRadius: 14, fontSize: 14, fontWeight: 600, color: '#4a463e', cursor: 'pointer', marginTop: 0, whiteSpace: 'nowrap' };
-const iconBtn: React.CSSProperties = { width: 34, height: 34, borderRadius: 10, border: '1px solid #e4ddcf', background: '#faf7f0', color: '#8a8478', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 18, flexShrink: 0 };
-const backBtn: React.CSSProperties = { width: 26, height: 26, border: 'none', background: 'transparent', color: '#8a8478', cursor: 'pointer', fontSize: 15, padding: 0, flex: 'none' };
+const iconBtn: React.CSSProperties = { width: 34, height: 34, borderRadius: 10, border: '1px solid #e4ddcf', background: '#faf7f0', color: 'var(--sugar-ink-tertiary)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 18, flexShrink: 0 };
+const backBtn: React.CSSProperties = { width: 26, height: 26, border: 'none', background: 'transparent', color: 'var(--sugar-ink-tertiary)', cursor: 'pointer', fontSize: 15, padding: 0, flex: 'none' };
 const providerCard: React.CSSProperties = { background: '#fffdf8', border: '1px solid #eee4d5', borderRadius: 18, padding: '20px 22px' };
 const providerLogo: React.CSSProperties = { width: 28, height: 28, borderRadius: 8, color: '#fff', fontSize: 13, fontWeight: 800, display: 'flex', alignItems: 'center', justifyContent: 'center', flex: 'none' };
 const configuredBadge: React.CSSProperties = { fontSize: 11.5, fontWeight: 700, padding: '3px 9px', borderRadius: 999, background: '#e2f2dc', color: '#3f7a51' };
-const unconfiguredBadge: React.CSSProperties = { fontSize: 11.5, fontWeight: 700, padding: '3px 9px', borderRadius: 999, background: '#f0ece4', color: '#8a8478' };
+const unconfiguredBadge: React.CSSProperties = { fontSize: 11.5, fontWeight: 700, padding: '3px 9px', borderRadius: 999, background: '#f0ece4', color: 'var(--sugar-ink-tertiary)' };
 const tutorialLink: React.CSSProperties = { border: 'none', background: 'transparent', color: '#7f796f', fontSize: 12.5, fontWeight: 500, textDecoration: 'none', cursor: 'pointer', padding: 0, whiteSpace: 'nowrap' };
 const apiKeyLink: React.CSSProperties = { color: '#b36a3a', fontSize: 12.5, fontWeight: 700, textDecoration: 'none', whiteSpace: 'nowrap' };
 const inputStyle: React.CSSProperties = { width: '100%', height: 40, borderRadius: 10, border: '1.5px solid #e0d8c9', background: '#fff', padding: '0 38px 0 12px', fontSize: 13, outline: 'none', color: '#1b1a17', fontFamily: 'monospace', boxSizing: 'border-box' };
-const eyeBtn: React.CSSProperties = { position: 'absolute', right: 10, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', color: '#a39d90', fontSize: 14, padding: 2 };
+const eyeBtn: React.CSSProperties = { position: 'absolute', right: 10, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', color: 'var(--sugar-ink-tertiary)', fontSize: 14, padding: 2 };
 const choiceCard: React.CSSProperties = { display: 'block', color: 'inherit', border: '1px solid #e4ddcf', borderRadius: 16, padding: 18, background: '#fffdf8' };
 const choicePrimaryBtn: React.CSSProperties = { width: '100%', height: 38, border: 'none', borderRadius: 10, background: '#1b1a17', color: '#fff', fontSize: 13, fontWeight: 700, cursor: 'pointer' };
 const choiceOutlineBtn: React.CSSProperties = { width: '100%', height: 38, border: '1px solid #1b1a17', borderRadius: 10, background: 'transparent', color: '#1b1a17', fontSize: 13, fontWeight: 700, cursor: 'pointer' };
@@ -302,7 +302,7 @@ const completeBtn: React.CSSProperties = { display: 'inline-flex', alignItems: '
 const safeNotice: React.CSSProperties = { marginTop: 20, display: 'flex', gap: 10, background: '#f4f1ea', border: '1px solid #e4ddcf', borderRadius: 12, padding: '12px 14px', fontSize: 11.5, lineHeight: 1.6, color: '#6b665c' };
 const qrBlock: React.CSSProperties = { display: 'flex', gap: 16, alignItems: 'center', background: '#f7f3eb', border: '1px solid #e4ddcf', borderRadius: 16, padding: 16, marginBottom: 20 };
 const qrImage: React.CSSProperties = { flex: 'none', width: 96, height: 96, objectFit: 'cover', borderRadius: 12, background: '#fff', border: '1px solid #e9e1d2' };
-const qrPlaceholder: React.CSSProperties = { flex: 'none', width: 96, height: 96, borderRadius: 12, border: '1px dashed #d8d0c2', background: '#fffdf8', color: '#8a8478', display: 'flex', alignItems: 'center', justifyContent: 'center', textAlign: 'center', fontSize: 12, fontWeight: 700, padding: 8, boxSizing: 'border-box' };
+const qrPlaceholder: React.CSSProperties = { flex: 'none', width: 96, height: 96, borderRadius: 12, border: '1px dashed #d8d0c2', background: '#fffdf8', color: 'var(--sugar-ink-tertiary)', display: 'flex', alignItems: 'center', justifyContent: 'center', textAlign: 'center', fontSize: 12, fontWeight: 700, padding: 8, boxSizing: 'border-box' };
 const feeExample: React.CSSProperties = { fontSize: 11, color: '#7f796f', background: '#f7f3eb', borderRadius: 10, padding: '10px 12px', marginBottom: 16, lineHeight: 1.7 };
 const warningBox: React.CSSProperties = { fontSize: 12, color: '#c0800a', background: '#fff8e0', borderRadius: 8, padding: '8px 12px', marginTop: 10 };
 const errorBox: React.CSSProperties = { marginTop: 14, fontSize: 13, color: '#a23d24', background: '#fbe0d8', borderRadius: 10, padding: '10px 14px' };

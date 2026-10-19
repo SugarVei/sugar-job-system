@@ -23,7 +23,7 @@ export default function ApplicationTrend({ applications }: { applications: Appli
   }, [path]);
   const selected = hover === null ? null : days[hover];
   return <section className="ao-card sugar-trend" aria-label="最近七天投递趋势">
-    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}><h2 style={{ margin: 0 }}>最近 7 天投递</h2><span style={{ color: '#8a8478', fontSize: 11 }}>当前筛选 · {days.reduce((n, d) => n + d.count, 0)} 次</span></div>
+    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}><h2 style={{ margin: 0 }}>最近 7 天投递</h2><span style={{ color: 'var(--sugar-ink-tertiary)', fontSize: 11 }}>当前筛选 · {days.reduce((n, d) => n + d.count, 0)} 次</span></div>
     <div className="sugar-trend-plot" onPointerLeave={() => setHover(null)}>
       <svg viewBox="0 0 648 172" preserveAspectRatio="none" aria-hidden="true">
         {[34, 87, 140].map(y => <line key={y} x1="24" x2="624" y1={y} y2={y} stroke="#eee7dc" strokeWidth="1" />)}
@@ -33,6 +33,6 @@ export default function ApplicationTrend({ applications }: { applications: Appli
       {days.map((d, i) => <button className="sugar-trend-point" key={d.key} aria-label={`${d.key}，投递 ${d.count} 次`} onPointerEnter={() => setHover(i)} onFocus={() => setHover(i)} onBlur={() => setHover(null)} onClick={() => setHover(i)} style={{ left: `${points[i].x / 648 * 100}%` }}><span>{d.label}</span></button>)}
       {selected && <div className="sugar-trend-tooltip" role="status" style={{ left: `clamp(64px, ${points[hover!].x / 648 * 100}%, calc(100% - 64px))` }}>{selected.label} · {selected.count} 次投递</div>}
     </div>
-    <p style={{ margin: 0, color: '#9a9488', fontSize: 11 }}>按投递日期统计，不含待投递记录</p>
+    <p style={{ margin: 0, color: 'var(--sugar-ink-tertiary)', fontSize: 11 }}>按投递日期统计，不含待投递记录</p>
   </section>;
 }

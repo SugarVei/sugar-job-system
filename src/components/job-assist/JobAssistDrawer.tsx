@@ -395,7 +395,7 @@ export default function JobAssistDrawer(props: JobAssistDrawerProps) {
         <header style={headerStyle}>
           <div style={{ minWidth: 0 }}>
             <div style={{ fontSize: 18, fontWeight: 800, color: '#1b1a17' }}>✨ 求职辅助</div>
-            <div style={{ fontSize: 12.5, color: '#8a8478', marginTop: 4, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+            <div style={{ fontSize: 12.5, color: 'var(--sugar-ink-tertiary)', marginTop: 4, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
               当前简历：{resume.resume_name} · {routeName(route)}
             </div>
           </div>
@@ -518,7 +518,7 @@ export default function JobAssistDrawer(props: JobAssistDrawerProps) {
         </main>
 
         <footer style={footerStyle}>
-          <p style={{ margin: 0, fontSize: 11.5, lineHeight: 1.55, color: '#8a8478' }}>
+          <p style={{ margin: 0, fontSize: 11.5, lineHeight: 1.55, color: 'var(--sugar-ink-tertiary)' }}>
             安全边界：不自动最终提交；不处理密码、验证码、身份证、银行卡、健康/犯罪/征信、电子签名或法律声明；不生成或换脸证件照。
           </p>
         </footer>
@@ -537,7 +537,7 @@ function RouteStep({ route, busy, onChoose }: { route: JobAssistRoute | null; bu
           ['social', '💼 社招', '跳槽、转行、正式工作机会'],
         ] as const).map(([value, title, detail]) => (
           <button key={value} type="button" disabled={busy} onClick={() => onChoose(value)} className="btn-press" style={{ ...choiceCardStyle, borderColor: route === value ? '#8f6bd8' : '#e5ddcf', background: route === value ? '#f3effc' : '#faf7f0' }}>
-            <strong style={{ fontSize: 16 }}>{title}</strong><span style={{ fontSize: 12.5, color: '#8a8478' }}>{detail}</span>
+            <strong style={{ fontSize: 16 }}>{title}</strong><span style={{ fontSize: 12.5, color: 'var(--sugar-ink-tertiary)' }}>{detail}</span>
           </button>
         ))}
       </div>

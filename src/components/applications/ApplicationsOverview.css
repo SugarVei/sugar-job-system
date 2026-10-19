@@ -1,6 +1,6 @@
 .applications-toolbar { display: grid; grid-template-columns: minmax(120px, 1fr) auto auto auto; gap: 12px; padding: 16px; align-items: center; }
 .applications-view-switch button { white-space: nowrap; flex: 1; }
-.applications-overview { --ao-surface: #fffdf8; --ao-text: #1b1a17; --ao-muted: #8a8478; --ao-border: #ece6dc; display: grid; gap: 18px; min-width: 0; color: var(--ao-text); }
+.applications-overview { --ao-surface: #fffdf8; --ao-text: #1b1a17; --ao-muted: var(--sugar-ink-tertiary); --ao-border: #ece6dc; display: grid; gap: 18px; min-width: 0; color: var(--ao-text); }
 .applications-overview button { font-family: inherit; cursor: pointer; }
 .applications-overview button:focus-visible, .applications-view-switch button:focus-visible { outline: 2px solid #2f7a45; outline-offset: 3px; }
 .ao-card { min-width: 0; border-radius: 22px; background: var(--ao-surface); box-shadow: 0 6px 18px rgba(60,50,35,.05); }

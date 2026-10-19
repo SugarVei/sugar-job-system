@@ -63,50 +63,6 @@ select {
     transform: rotate(-360deg);
   }
 }
-@keyframes drift1 {
-  0% {
-    transform: translate(0, 0) scale(1);
-  }
-  50% {
-    transform: translate(8vw, 6vh) scale(1.25);
-  }
-  100% {
-    transform: translate(0, 0) scale(1);
-  }
-}
-@keyframes drift2 {
-  0% {
-    transform: translate(0, 0) scale(1.1);
-  }
-  50% {
-    transform: translate(-10vw, -5vh) scale(1.3);
-  }
-  100% {
-    transform: translate(0, 0) scale(1.1);
-  }
-}
-@keyframes drift3 {
-  0% {
-    transform: translate(0, 0) scale(1);
-  }
-  50% {
-    transform: translate(6vw, -8vh) scale(1.2);
-  }
-  100% {
-    transform: translate(0, 0) scale(1);
-  }
-}
-@keyframes drift4 {
-  0% {
-    transform: translate(0, 0) scale(1.15);
-  }
-  50% {
-    transform: translate(-7vw, 7vh) scale(0.95);
-  }
-  100% {
-    transform: translate(0, 0) scale(1.15);
-  }
-}
 @keyframes fadeIn {
   from {
     opacity: 0;
@@ -424,7 +380,7 @@ select {
 }
 .ai-record-importer__upload-icon { font-size: 24px; opacity: .72; }
 .ai-record-importer__dropzone strong { display: block; font-size: 13px; }
-.ai-record-importer__dropzone small { display: block; margin-top: 3px; color: #8a8478; font-size: 11px; }
+.ai-record-importer__dropzone small { display: block; margin-top: 3px; color: var(--sugar-ink-tertiary); font-size: 11px; }
 .ai-record-importer__previews { display: grid; gap: 8px; margin-top: 9px; }
 .ai-record-importer__preview {
   height: 48px;

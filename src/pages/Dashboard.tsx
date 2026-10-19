@@ -271,7 +271,7 @@ function Metric({
       }}
     >
       <div>
-        <div style={{ fontSize: 13, color: 'var(--sugar-muted, #8a8478)' }}>{label}</div>
+        <div style={{ fontSize: 13, color: 'var(--sugar-muted, #6b665c)' }}>{label}</div>
         <div style={{ fontFamily: 'Poppins', fontSize: 30, fontWeight: 600, marginTop: 3 }}>{value}</div>
         {hint && <div style={{ fontSize: 11, color: 'var(--sugar-muted, #b0a898)', marginTop: 4 }}>{hint}</div>}
       </div>

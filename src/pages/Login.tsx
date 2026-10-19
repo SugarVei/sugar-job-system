@@ -90,7 +90,7 @@ export default function Login({ passwordRecovery = false }: { passwordRecovery?:
       <div className="w-full md:w-[440px] p-7 sm:p-[46px]" style={{ flex: 'none', display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
         <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 18 }}><SugarMark size={44} /></div>
         <h1 style={{ fontFamily: 'Poppins', fontSize: 30, fontWeight: 700, textAlign: 'center', margin: '0 0 6px' }}>{title}</h1>
-        <p style={{ textAlign: 'center', fontSize: 13.5, color: '#9a9488', margin: '0 0 28px' }}>{description}</p>
+        <p style={{ textAlign: 'center', fontSize: 13.5, color: 'var(--sugar-ink-tertiary)', margin: '0 0 28px' }}>{description}</p>
         <form onSubmit={submit}>
           {!passwordRecovery && <><label style={lbl}>邮箱</label><input type="email" value={email} onChange={(event) => setEmail(event.target.value)} placeholder="you@example.com" autoComplete="email" style={underlineInput} /></>}
           {mode !== 'forgot' && <><label style={lbl}>{passwordRecovery ? '新密码' : '密码'}</label><PasswordInput value={password} onChange={setPassword} show={showPw} onToggle={() => setShowPw((current) => !current)} autoComplete={passwordRecovery || mode === 'signup' ? 'new-password' : 'current-password'} />{passwordRecovery && <><label style={lbl}>确认新密码</label><PasswordInput value={confirmPassword} onChange={setConfirmPassword} show={showPw} onToggle={() => setShowPw((current) => !current)} autoComplete="new-password" /></>}</>}
@@ -110,7 +110,7 @@ export default function Login({ passwordRecovery = false }: { passwordRecovery?:
 }
 
 function PasswordInput({ value, onChange, show, onToggle, autoComplete }: { value: string; onChange: (value: string) => void; show: boolean; onToggle: () => void; autoComplete: string }) {
-  return <div style={{ display: 'flex', alignItems: 'center', borderBottom: '1.5px solid #e0d8c9', marginBottom: 20 }}><input type={show ? 'text' : 'password'} value={value} onChange={(event) => onChange(event.target.value)} placeholder="••••••••" autoComplete={autoComplete} style={{ flex: 1, height: 42, border: 'none', background: 'transparent', fontSize: 14, outline: 'none', color: '#1b1a17' }} /><button type="button" onClick={onToggle} aria-label="显示或隐藏密码" style={{ border: 'none', background: 'none', cursor: 'pointer', color: '#a39d90', display: 'flex' }}><IconEye size={18} /></button></div>;
+  return <div style={{ display: 'flex', alignItems: 'center', borderBottom: '1.5px solid #e0d8c9', marginBottom: 20 }}><input type={show ? 'text' : 'password'} value={value} onChange={(event) => onChange(event.target.value)} placeholder="••••••••" autoComplete={autoComplete} style={{ flex: 1, height: 42, border: 'none', background: 'transparent', fontSize: 14, outline: 'none', color: '#1b1a17' }} /><button type="button" onClick={onToggle} aria-label="显示或隐藏密码" style={{ border: 'none', background: 'none', cursor: 'pointer', color: 'var(--sugar-ink-tertiary)', display: 'flex' }}><IconEye size={18} /></button></div>;
 }
 const lbl: React.CSSProperties = { display: 'block', fontSize: 13, fontWeight: 600, color: '#4a463e', marginBottom: 6 };
 const underlineInput: React.CSSProperties = { width: '100%', height: 42, border: 'none', borderBottom: '1.5px solid #e0d8c9', background: 'transparent', fontSize: 14, outline: 'none', marginBottom: 22, color: '#1b1a17' };

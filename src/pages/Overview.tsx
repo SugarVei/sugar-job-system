@@ -116,7 +116,7 @@ Offer 转化率：${items.length > 0 ? Math.round((byStatus['Offer']/items.lengt
       <div className="flex items-center justify-between flex-wrap gap-3">
         <div>
           <div style={{ fontFamily: 'Poppins', fontSize: 20, fontWeight: 700, color: '#1b1a17' }}>投递总览</div>
-          <div style={{ fontSize: 13, color: '#8a8478', marginTop: 2 }}>共 {stats.total} 条投递记录</div>
+          <div style={{ fontSize: 13, color: 'var(--sugar-ink-tertiary)', marginTop: 2 }}>共 {stats.total} 条投递记录</div>
         </div>
         <AIChatDialog
           systemPrompt={aiSystemPrompt}
@@ -140,7 +140,7 @@ Offer 转化率：${items.length > 0 ? Math.round((byStatus['Offer']/items.lengt
           <div className="flex items-center gap-5" style={{ marginTop: 18, flexWrap: 'wrap' }}>
             <div style={{ position: 'relative', width: 172, height: 172, borderRadius: '50%', background: donut, flex: 'none' }}>
               <div style={{ position: 'absolute', inset: 34, borderRadius: '50%', background: '#fffdf8', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
-                <div style={{ fontSize: 11, color: '#8a8478' }}>总计</div>
+                <div style={{ fontSize: 11, color: 'var(--sugar-ink-tertiary)' }}>总计</div>
                 <div style={{ fontFamily: 'Poppins', fontSize: 24, fontWeight: 700 }}>{stats.total}</div>
               </div>
             </div>
@@ -175,9 +175,9 @@ Offer 转化率：${items.length > 0 ? Math.round((byStatus['Offer']/items.lengt
         {/* 城市分布 */}
         <div style={{ ...CARD, ...paletteCardStyle(1), padding: 24 }}>
           <div style={{ fontFamily: 'Poppins', fontSize: 17, fontWeight: 600 }}>投递城市分布</div>
-          <div style={{ fontSize: 13, color: '#8a8478', marginTop: 3 }}>按城市统计全部 {stats.total} 份投递</div>
+          <div style={{ fontSize: 13, color: 'var(--sugar-ink-tertiary)', marginTop: 3 }}>按城市统计全部 {stats.total} 份投递</div>
           {cityBars.length === 0 ? (
-            <div style={{ fontSize: 13, color: '#a39d90', marginTop: 20 }}>暂无城市信息</div>
+            <div style={{ fontSize: 13, color: 'var(--sugar-ink-tertiary)', marginTop: 20 }}>暂无城市信息</div>
           ) : (
             <div className="flex items-end justify-between gap-[14px]" style={{ height: 200, marginTop: 22 }}>
               {cityBars.map(([city, v]) => (
@@ -203,9 +203,9 @@ Offer 转化率：${items.length > 0 ? Math.round((byStatus['Offer']/items.lengt
       {/* 岗位分布 */}
       <div style={{ ...CARD, ...paletteCardStyle(2), padding: 24 }}>
         <div style={{ fontFamily: 'Poppins', fontSize: 17, fontWeight: 600 }}>投递岗位分布</div>
-        <div style={{ fontSize: 13, color: '#8a8478', marginTop: 3 }}>按岗位名称统计全部 {stats.total} 份投递</div>
+        <div style={{ fontSize: 13, color: 'var(--sugar-ink-tertiary)', marginTop: 3 }}>按岗位名称统计全部 {stats.total} 份投递</div>
         {positionBars.length === 0 ? (
-          <div style={{ fontSize: 13, color: '#a39d90', marginTop: 20 }}>暂无岗位信息</div>
+          <div style={{ fontSize: 13, color: 'var(--sugar-ink-tertiary)', marginTop: 20 }}>暂无岗位信息</div>
         ) : (
           <div className="flex items-end justify-between gap-[18px]" style={{ height: 220, marginTop: 22, overflowX: 'auto', paddingBottom: 4 }}>
             {positionBars.map(([position, v]) => (
@@ -243,7 +243,7 @@ Offer 转化率：${items.length > 0 ? Math.round((byStatus['Offer']/items.lengt
         <div style={{ ...CARD, ...paletteCardStyle(3), padding: 24 }}>
           <div style={{ fontFamily: 'Poppins', fontSize: 17, fontWeight: 600, marginBottom: 18 }}>投递渠道</div>
           {channelBars.length === 0 ? (
-            <div style={{ fontSize: 13, color: '#a39d90' }}>暂无渠道信息</div>
+            <div style={{ fontSize: 13, color: 'var(--sugar-ink-tertiary)' }}>暂无渠道信息</div>
           ) : (
             <div className="flex flex-col gap-[14px]">
               {channelBars.map(([ch, v]) => (
@@ -274,13 +274,13 @@ Offer 转化率：${items.length > 0 ? Math.round((byStatus['Offer']/items.lengt
                   >
                     打开投递记录
                   </button>
-                  <button onClick={() => setActiveStatus(null)} className="btn-press" style={{ background: 'none', border: 'none', fontSize: 13, color: '#8a8478', cursor: 'pointer' }}>
+                  <button onClick={() => setActiveStatus(null)} className="btn-press" style={{ background: 'none', border: 'none', fontSize: 13, color: 'var(--sugar-ink-tertiary)', cursor: 'pointer' }}>
                     清除
                   </button>
                 </div>
               </div>
               {listForStatus.length === 0 ? (
-                <div style={{ fontSize: 13.5, color: '#8a8478' }}>该状态暂无投递。</div>
+                <div style={{ fontSize: 13.5, color: 'var(--sugar-ink-tertiary)' }}>该状态暂无投递。</div>
               ) : (
                 <div className="flex flex-col gap-2">
                   {listForStatus.map((a) => {
@@ -297,7 +297,7 @@ Offer 转化率：${items.length > 0 ? Math.round((byStatus['Offer']/items.lengt
                           <div style={{ fontSize: 14, fontWeight: 600, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                             {a.company_name} · {a.position_name}
                           </div>
-                          <div style={{ fontSize: 12, color: '#8a8478', marginTop: 2 }}>{[a.city, a.channel].filter(Boolean).join(' · ') || '—'}</div>
+                          <div style={{ fontSize: 12, color: 'var(--sugar-ink-tertiary)', marginTop: 2 }}>{[a.city, a.channel].filter(Boolean).join(' · ') || '—'}</div>
                         </div>
                         <span style={{ background: tag.bg, color: tag.fg, fontSize: 12, fontWeight: 600, padding: '4px 10px', borderRadius: 999, flex: 'none' }}>{a.status}</span>
                       </button>
@@ -377,7 +377,7 @@ function ApiBalanceCard() {
           <div style={{ width: 38, height: 38, borderRadius: 12, background: '#e8f4fd', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 18 }}>{provider.emoji}</div>
           <div>
             <div style={{ fontFamily: 'Poppins', fontSize: 15, fontWeight: 700, color: '#1b1a17' }}>{provider.label} API 余额</div>
-            <div style={{ fontSize: 11.5, color: '#a39d90', marginTop: 1 }}>
+            <div style={{ fontSize: 11.5, color: 'var(--sugar-ink-tertiary)', marginTop: 1 }}>
               {lastUpdated ? `更新于 ${hhmm(lastUpdated)}` : apiKey ? '未获取' : '未配置 API Key'}
             </div>
           </div>
@@ -402,7 +402,7 @@ function ApiBalanceCard() {
       </div>
 
       {!apiKey && (
-        <div style={{ fontSize: 13, color: '#a39d90', background: '#faf7f0', borderRadius: 12, padding: '12px 16px' }}>
+        <div style={{ fontSize: 13, color: 'var(--sugar-ink-tertiary)', background: '#faf7f0', borderRadius: 12, padding: '12px 16px' }}>
           请在侧边栏「⚙️ AI 设置」中配置 <strong>{provider.label}</strong> 的 API Key，即可在此查看余额
         </div>
       )}
@@ -457,7 +457,7 @@ function ApiBalanceCard() {
       )}
 
       {apiKey && provider.supportsBalance && !error && !balance && !loading && (
-        <div style={{ fontSize: 13, color: '#a39d90' }}>暂无数据</div>
+        <div style={{ fontSize: 13, color: 'var(--sugar-ink-tertiary)' }}>暂无数据</div>
       )}
     </div>
   );

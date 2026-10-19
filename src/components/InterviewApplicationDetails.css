@@ -6,7 +6,7 @@
 .interview-application-summary h3 span { display:inline-block; margin-left:9px; padding:3px 8px; border-radius:7px; background:#e0ebd9; color:#426343; font-size:12px; vertical-align:middle; }
 .interview-application-facts { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:12px 18px; margin-top:15px; }
 .interview-application-field { min-width:0; display:flex; flex-direction:column; gap:3px; overflow-wrap:anywhere; }
-.interview-application-field span { color:#8a8478; font-size:11px; }
+.interview-application-field span { color:var(--sugar-ink-tertiary); font-size:11px; }
 .interview-application-field strong { color:#423f38; font-size:13px; font-weight:600; }
 .interview-application-note { margin:14px 0 0; padding:11px 13px; border-radius:10px; background:#f7f3eb; color:#5d584d; font-size:12.5px; line-height:1.7; white-space:pre-wrap; overflow-wrap:anywhere; }
 .interview-application-summary .interview-application-note { background:#eaf2e5; }

@@ -28,7 +28,7 @@ export function buildSteps(status: ApplicationStatus) {
   return PIPELINE.map((label, index) => {
     const reached = terminal ? index <= activeIndex : index <= activeIndex;
     let dotBg = '#e7dfd0';
-    let dotFg = '#a39d90';
+    let dotFg = 'var(--sugar-ink-tertiary)';
 
     if (reached) {
       if (offer) {
@@ -52,7 +52,7 @@ export function buildSteps(status: ApplicationStatus) {
       dotFg,
       lineL: index === 0 ? 'transparent' : lineOn,
       lineR: index === PIPELINE.length - 1 ? 'transparent' : index < activeIndex ? lineOn : '#efe9dd',
-      labelColor: label === progress ? '#1b1a17' : '#a39d90',
+      labelColor: label === progress ? '#1b1a17' : 'var(--sugar-ink-tertiary)',
       labelWeight: label === progress ? 700 : 500,
     };
   });

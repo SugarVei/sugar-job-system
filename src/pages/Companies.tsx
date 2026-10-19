@@ -236,7 +236,7 @@ export default function Companies() {
                       >
                         {company.company_name}
                       </div>
-                      <div style={{ fontSize: 12, color: '#9a9488', marginTop: 2 }}>
+                      <div style={{ fontSize: 12, color: 'var(--sugar-ink-tertiary)', marginTop: 2 }}>
                         {[company.industry, company.scale, company.city].filter(Boolean).join(' · ') || '-'}
                       </div>
                     </div>
@@ -250,7 +250,7 @@ export default function Companies() {
 
                 <div style={{ marginTop: 14, paddingTop: 12, borderTop: '1px solid #eee7da' }}>
                   <div className="flex items-center justify-between gap-3" style={{ marginBottom: 9 }}>
-                    <span style={{ fontSize: 12, color: '#8a8478' }}>关联投递</span>
+                    <span style={{ fontSize: 12, color: 'var(--sugar-ink-tertiary)' }}>关联投递</span>
                     <button
                       type="button"
                       onClick={() => viewApplications(company.company_name)}
@@ -273,13 +273,13 @@ export default function Companies() {
                       );
                     })}
                     {relatedApplications.length > 3 && (
-                      <div style={{ fontSize: 12, color: '#9a9488' }}>另有 {relatedApplications.length - 3} 条投递记录</div>
+                      <div style={{ fontSize: 12, color: 'var(--sugar-ink-tertiary)' }}>另有 {relatedApplications.length - 3} 条投递记录</div>
                     )}
                   </div>
                 </div>
 
                 {company.notes && (
-                  <p style={{ fontSize: 13, lineHeight: 1.6, color: '#8a8478', margin: '14px 0 12px' }}>{company.notes}</p>
+                  <p style={{ fontSize: 13, lineHeight: 1.6, color: 'var(--sugar-ink-tertiary)', margin: '14px 0 12px' }}>{company.notes}</p>
                 )}
                 {company.website && (
                   <a
@@ -356,7 +356,7 @@ const miniBtn: React.CSSProperties = {
   borderRadius: 10,
   border: '1px solid #e4ddcf',
   background: '#faf7f0',
-  color: '#8a8478',
+  color: 'var(--sugar-ink-tertiary)',
   display: 'flex',
   alignItems: 'center',
   justifyContent: 'center',

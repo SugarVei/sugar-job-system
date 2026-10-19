@@ -1,0 +1,88 @@
+/* ============================================================
+   Sugar 设计 token（设计系统 https://claude.ai/artifact/Mui9KAqwiuH2P7jdWQaVuw）
+   命名规则：设计系统里的 token `x` 在代码里是 `--sugar-x`。
+
+   这里只声明代码里原本没有的变量。以下变量由主题系统负责，这里不声明，
+   预设主题继续使用各处 var(--sugar-x, 兜底值) 里的兜底值：
+   --sugar-accent / --sugar-accent-soft（ThemeContext 按主题写入）、
+   --sugar-surface / -ink / -muted / -line / -shell / -background /
+   -primary / -on-accent / -card-* / -chart-*（仅自定义配色时写入）。
+   ============================================================ */
+
+:root {
+  /* ---- 底色层级 ---- */
+  --sugar-canvas: #efe9e1;
+  --sugar-surface-muted: #faf7f0;
+  --sugar-surface-sunken: #f5f0e7;
+  --sugar-line-control: #928a7b;
+
+  /* ---- 文字 ---- */
+  --sugar-ink-secondary: #4a463e;
+  --sugar-ink-tertiary: #6b665c;
+  --sugar-ink-disabled: #b3ac9f;
+  --sugar-on-ink: #f4f1ea;
+
+  /* ---- 品牌色 ---- */
+  --sugar-yellow: #f4c84a;
+  --sugar-coral: #f0613f;
+
+  /* ---- 状态色（底 / 字成对使用） ---- */
+  --sugar-status-neutral-bg: #ece4d6;
+  --sugar-status-neutral: #5d584d;
+  --sugar-status-applied-bg: #fbeec2;
+  --sugar-status-applied: #7a5a12;
+  --sugar-status-interview-bg: #dde8fb;
+  --sugar-status-interview: #345b9a;
+  --sugar-status-success-bg: #dcebd5;
+  --sugar-status-success: #2f5d36;
+  --sugar-status-danger-bg: #fbe0d8;
+  --sugar-status-danger: #a23d24;
+  --sugar-status-follow-bg: #e4e0f7;
+  --sugar-status-follow: #4a3f96;
+
+  --sugar-scrim: rgba(27, 26, 23, 0.32);
+
+  /* ---- 间距（4px 基准） ---- */
+  --sugar-space-1: 4px;
+  --sugar-space-2: 8px;
+  --sugar-space-3: 12px;
+  --sugar-space-4: 16px;
+  --sugar-space-5: 20px;
+  --sugar-space-6: 24px;
+  --sugar-space-8: 32px;
+  --sugar-space-10: 40px;
+
+  /* ---- 圆角 ---- */
+  --sugar-radius-xs: 6px;
+  --sugar-radius-sm: 10px;
+  --sugar-radius-md: 12px;
+  --sugar-radius-lg: 20px;
+  --sugar-radius-xl: 24px;
+  --sugar-radius-shell: 32px;
+  --sugar-radius-full: 9999px;
+
+  /* ---- 阴影 ---- */
+  --sugar-shadow-card: 0 1px 2px rgba(60, 50, 35, 0.04), 0 4px 14px rgba(60, 50, 35, 0.05);
+  --sugar-shadow-raised: 0 2px 4px rgba(60, 50, 35, 0.06), 0 14px 32px rgba(60, 50, 35, 0.12);
+  --sugar-shadow-overlay: 0 24px 64px rgba(60, 50, 35, 0.16);
+  --sugar-shadow-shell: 0 30px 80px rgba(60, 50, 35, 0.12);
+  --sugar-focus-ring: 0 0 0 2px #fffdf8, 0 0 0 4px var(--sugar-accent, #9a5b62);
+
+  /* ---- 尺寸 ---- */
+  --sugar-size-control-sm: 32px;
+  --sugar-size-control: 40px;
+  --sugar-size-control-lg: 44px;
+  --sugar-size-sidebar: 240px;
+  --sugar-size-content: 1200px;
+
+  /* ---- 字族 ---- */
+  --sugar-font-sans: 'DM Sans', 'PingFang SC', 'HarmonyOS Sans SC', 'Microsoft YaHei', system-ui, sans-serif;
+  --sugar-font-display: Poppins, 'PingFang SC', 'HarmonyOS Sans SC', 'Microsoft YaHei', system-ui, sans-serif;
+  --sugar-font-mono: 'SF Mono', ui-monospace, Menlo, Consolas, monospace;
+}
+
+/* 自定义配色：文字与底色跟随配色工作室生成的变量 */
+html[data-sugar-theme='custom'] {
+  --sugar-ink-tertiary: var(--sugar-muted);
+  --sugar-canvas: var(--sugar-background);
+}

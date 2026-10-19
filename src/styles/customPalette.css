@@ -1,4 +1,4 @@
-.sugar-palette-entry{position:relative;display:flex;color:#8a8478}
+.sugar-palette-entry{position:relative;display:flex;color:var(--sugar-ink-tertiary)}
 .sugar-palette-entry>button:hover{color:var(--sugar-accent,#9a5b62);background:#ffffff80}
 .sugar-theme-switcher .sugar-palette-tip{position:absolute;z-index:100;top:calc(100% + 9px);left:50%;transform:translate(-50%,-3px);background:#1b1a17;color:#fffdf8;border:0;border-radius:8px;padding:7px 10px;width:auto;height:auto;font-size:11px;line-height:1.5;font-weight:500;white-space:nowrap;pointer-events:none;opacity:0;visibility:hidden;transition:opacity .15s,transform .15s}
 .sugar-palette-tip:before{content:"";position:absolute;top:-4px;left:calc(50% - 4px);width:8px;height:8px;transform:rotate(45deg);background:inherit}

@@ -22,7 +22,7 @@
 .app-sidebar-account-name,.app-sidebar-account-chevron{display:none}
 .app-sidebar-account-name{min-width:0}
 .app-sidebar-account-name strong{display:block;font-size:14px;font-weight:600;max-width:136px;overflow:hidden;text-overflow:ellipsis}
-.app-sidebar-account-name small{display:block;font-size:10px;font-weight:400;color:#9a9488;margin-top:3px}
+.app-sidebar-account-name small{display:block;font-size:10px;font-weight:400;color:var(--sugar-ink-tertiary);margin-top:3px}
 .app-sidebar.expanded .app-sidebar-top{flex-direction:row;gap:0;padding-bottom:22px}
 .app-sidebar.expanded .app-sidebar-brand{width:auto;flex:1;height:42px;padding:0 6px}
 .app-sidebar.expanded .app-sidebar-brand>span,.app-sidebar.expanded .app-sidebar-nav-button>span,.app-sidebar.expanded .app-sidebar-account-name,.app-sidebar.expanded .app-sidebar-account-chevron{display:block}
@@ -30,14 +30,14 @@
 .app-sidebar.expanded .app-sidebar-nav-button{width:100%;justify-content:flex-start;padding:0 13px}
 .app-sidebar.expanded .app-sidebar-bottom{align-items:stretch}
 .app-sidebar.expanded .app-sidebar-account-button{width:100%;justify-content:flex-start;padding:0 8px}
-.app-sidebar-account-chevron{color:#9a9488;margin-left:auto}
+.app-sidebar-account-chevron{color:var(--sugar-ink-tertiary);margin-left:auto}
 .app-sidebar-tooltip{position:fixed;z-index:160;background:#1b1a17;color:#fffdf8;padding:8px 12px;border-radius:9px;box-shadow:0 5px 18px rgba(27,26,23,.16);font-size:12px;line-height:1.4;transform:translateY(-50%);pointer-events:none;white-space:nowrap}
 .app-sidebar-account-dismiss{position:fixed;inset:0;z-index:130;border:0;background:transparent}
 .app-sidebar-account-menu{position:fixed;bottom:18px;z-index:131;width:270px;border:1px solid #e4ddcf;border-radius:17px;padding:20px;background:#fffdf8;box-shadow:0 12px 34px rgba(60,50,35,.17);display:flex;flex-direction:column;gap:13px}
 .app-sidebar-account-menu>strong{font-size:14px}
-.app-sidebar-account-menu label{display:flex;flex-direction:column;gap:7px;font-size:11px;color:#9a9488}
+.app-sidebar-account-menu label{display:flex;flex-direction:column;gap:7px;font-size:11px;color:var(--sugar-ink-tertiary)}
 .app-sidebar-account-menu input{border:1px solid #e4ddcf;background:#faf7f0;border-radius:9px;padding:9px 11px;color:#1b1a17;font-size:13px;min-width:0}
 .app-sidebar-account-menu button{border:0;background:transparent;border-radius:8px;padding:9px 8px;display:flex;align-items:center;gap:9px;color:#6b665c;font-size:13px;cursor:pointer;text-align:left}
 .app-sidebar-account-menu button:hover{background:#f5f0e7}
-.app-sidebar button:focus-visible,.app-sidebar-account-menu button:focus-visible{outline:2px solid #9a9488;outline-offset:2px}
+.app-sidebar button:focus-visible,.app-sidebar-account-menu button:focus-visible{outline:2px solid var(--sugar-ink-tertiary);outline-offset:2px}
 @media(prefers-reduced-motion:reduce){.app-sidebar{transition:none}}

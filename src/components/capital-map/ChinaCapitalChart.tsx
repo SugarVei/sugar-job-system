@@ -207,7 +207,7 @@ function buildOption(
                 formatter: '{b}',
                 fontWeight: city.isCapital ? 'bold' : 600,
                 fontSize: city.isCapital ? 12 : 10,
-                color: canSelect ? MAP_COLORS.label : '#8a8478',
+                color: canSelect ? MAP_COLORS.label : '#6b665c',
                 textBorderColor: MAP_COLORS.labelHalo,
                 textBorderWidth: 3,
               },

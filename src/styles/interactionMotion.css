@@ -4,7 +4,7 @@
 @keyframes sugar-content-enter{from{opacity:0;filter:blur(2px);transform:translateY(3px)}to{opacity:1;filter:none;transform:none}}
 .sugar-content-enter{animation:sugar-content-enter .22s ease-out both}
 .sugar-motion-tabs{position:relative;display:flex;background:#f5f0e7;border:1px solid #e4ddcf;border-radius:12px;padding:3px;height:44px;isolation:isolate;flex:none}
-.sugar-motion-tabs button{position:relative;z-index:1;border:0;border-radius:9px;padding:0 13px;background:transparent;color:#8a8478;font-size:13px;font-weight:700;cursor:pointer}
+.sugar-motion-tabs button{position:relative;z-index:1;border:0;border-radius:9px;padding:0 13px;background:transparent;color:var(--sugar-ink-tertiary);font-size:13px;font-weight:700;cursor:pointer}
 .sugar-motion-tabs button[aria-pressed=true]{color:#1b1a17}
 .sugar-tab-indicator{position:absolute;top:3px;height:36px;border-radius:9px;background:#fffdf8;box-shadow:0 2px 7px rgba(60,50,35,.08);z-index:0;pointer-events:none}
 .sugar-status-success{background:#e5efdf!important;color:#457b56!important;border-color:#cdddca!important}
@@ -18,18 +18,18 @@
 .sugar-command{background:#fffdf8;border:1px solid #e4ddcf;border-radius:22px;width:100%;max-width:580px;overflow:hidden;box-shadow:0 25px 80px #30231520}
 .sugar-command-search{display:flex;align-items:center;gap:12px;padding:18px;border-bottom:1px solid #e4ddcf}
 .sugar-command-search input{border:0;outline:none;background:none;flex:1;min-width:0;font:inherit;font-size:15px}
-.sugar-command-search button{border:1px solid #e4ddcf;border-radius:6px;background:none;color:#8a8478;font-size:11px;padding:4px;cursor:pointer}
+.sugar-command-search button{border:1px solid #e4ddcf;border-radius:6px;background:none;color:var(--sugar-ink-tertiary);font-size:11px;padding:4px;cursor:pointer}
 .sugar-command-results{padding:8px;max-height:340px;overflow:auto}
 .sugar-command-option{display:flex;align-items:center;gap:12px;padding:12px;width:100%;border:0;border-radius:11px;text-align:left;background:none;color:#1b1a17;font-size:13px;cursor:pointer}
 .sugar-command-option[aria-selected=true]{background:#f5f0e7}
-.sugar-command-option small{display:block;color:#8a8478;font-size:11px;margin-top:5px}
-.sugar-command-footer{padding:12px 18px;border-top:1px solid #e4ddcf;font-size:11px;color:#8a8478}
+.sugar-command-option small{display:block;color:var(--sugar-ink-tertiary);font-size:11px;margin-top:5px}
+.sugar-command-footer{padding:12px 18px;border-top:1px solid #e4ddcf;font-size:11px;color:var(--sugar-ink-tertiary)}
 .sugar-task-capsule{margin-top:16px;padding:14px 16px;border:1px solid #d9cdeb;border-radius:16px;background:#faf7ff;display:flex;align-items:center;gap:12px}
 .sugar-task-capsule strong{font-size:13px;color:#594679}.sugar-task-capsule small{display:block;font-size:11px;margin-top:5px;color:#93889e}
 .sugar-task-tray{position:fixed;right:18px;bottom:28px;z-index:210;max-width:calc(100vw - 36px);border:1px solid #d9cdeb;background:#faf7ff;color:#594679;border-radius:16px;padding:13px 16px;box-shadow:0 8px 25px #30231512;cursor:pointer;display:flex;align-items:center;gap:10px;font-size:12px}
 .sugar-task-stages{display:flex;flex-wrap:wrap;gap:7px;margin-bottom:14px}.sugar-task-stages span{padding:6px 9px;border-radius:8px;background:#ece7f3;color:#9b93a9;font-size:11px}.sugar-task-stages .is-done{background:#e1ecdc;color:#457b56}.sugar-task-stages .is-current{background:#dcd0ef;color:#5f467e}
 .sugar-mail-draft{margin-top:16px;border:1px solid #e4ddcf;border-radius:16px;padding:18px;background:#faf7f0}
-.sugar-mail-draft-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin:15px 0}.sugar-mail-draft label{display:flex;flex-direction:column;gap:7px;color:#8a8478;font-size:11px}.sugar-mail-draft input,.sugar-mail-draft select{border:1px solid #e4ddcf;background:#fffdf8;border-radius:10px;min-width:0;padding:10px;width:100%;color:#1b1a17;font:inherit;font-size:12px}
+.sugar-mail-draft-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin:15px 0}.sugar-mail-draft label{display:flex;flex-direction:column;gap:7px;color:var(--sugar-ink-tertiary);font-size:11px}.sugar-mail-draft input,.sugar-mail-draft select{border:1px solid #e4ddcf;background:#fffdf8;border-radius:10px;min-width:0;padding:10px;width:100%;color:#1b1a17;font:inherit;font-size:12px}
 .sugar-mail-draft button{min-height:36px;padding:0 13px;border:1px solid #e4ddcf;border-radius:10px;background:#fffdf8;cursor:pointer;font-size:12px;font-weight:600}.sugar-mail-draft button[type=submit]{background:#1b1a17;color:#fffdf8;border-color:#1b1a17}
 .sugar-inline-error{background:#fbebe8;border:1px solid #e8b9ad;border-radius:10px;padding:10px 12px;color:#a9413e;font-size:12px;margin-top:12px}
 .interview-drop-label{position:absolute;z-index:5;pointer-events:none;background:#1b1a17;color:#fffdf8;border-radius:6px;font-size:10px;padding:4px 6px;right:4px;bottom:3px;white-space:nowrap}
@@ -41,4 +41,4 @@ body,input,button,select,textarea{font-family:Geist,"Noto Sans SC","Microsoft Ya
 .interview-hour-cell{position:relative}
 @media(max-width:767px){.sugar-mail-list{min-height:0!important;max-height:320px}.sugar-mail-list>div:last-child{max-height:250px}.sugar-mail-draft-grid{grid-template-columns:1fr}.sugar-command-overlay{padding-top:10vh}}
 
-.sugar-trend{padding:20px 24px}.sugar-trend-plot{position:relative;height:170px;margin-top:12px}.sugar-trend-plot svg{width:100%;height:150px;overflow:visible}.sugar-trend-point{position:absolute;top:0;bottom:0;width:30px;transform:translateX(-50%);border:0;background:transparent;cursor:crosshair;color:#9a9488;font-size:10px;padding:0}.sugar-trend-point span{position:absolute;bottom:0;left:50%;transform:translateX(-50%);white-space:nowrap}.sugar-trend-point:focus-visible{outline:1px dashed var(--sugar-accent,#9a5b62);border-radius:8px}.sugar-trend-tooltip{position:absolute;top:8px;transform:translateX(-50%);padding:8px 11px;background:#1b1a17;color:#fffdf8;border-radius:9px;font-size:11px;pointer-events:none;white-space:nowrap}
+.sugar-trend{padding:20px 24px}.sugar-trend-plot{position:relative;height:170px;margin-top:12px}.sugar-trend-plot svg{width:100%;height:150px;overflow:visible}.sugar-trend-point{position:absolute;top:0;bottom:0;width:30px;transform:translateX(-50%);border:0;background:transparent;cursor:crosshair;color:var(--sugar-ink-tertiary);font-size:10px;padding:0}.sugar-trend-point span{position:absolute;bottom:0;left:50%;transform:translateX(-50%);white-space:nowrap}.sugar-trend-point:focus-visible{outline:1px dashed var(--sugar-accent,#9a5b62);border-radius:8px}.sugar-trend-tooltip{position:absolute;top:8px;transform:translateX(-50%);padding:8px 11px;background:#1b1a17;color:#fffdf8;border-radius:9px;font-size:11px;pointer-events:none;white-space:nowrap}

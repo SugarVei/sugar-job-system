@@ -450,11 +450,11 @@ export default function HotCompanies() {
         <div className="flex items-start justify-between gap-4 flex-wrap">
           <div>
             <div style={{ fontFamily: 'Poppins', fontSize: 16, fontWeight: 700, color: '#1b1a17' }}>AI 找公司</div>
-            <div style={{ fontSize: 12.5, color: '#8a8478', marginTop: 4 }}>
+            <div style={{ fontSize: 12.5, color: 'var(--sugar-ink-tertiary)', marginTop: 4 }}>
               输入你的目标，AI 会整理候选公司。确认导入后可在本页搜索或删除。
             </div>
           </div>
-          <div style={{ fontSize: 12, color: '#9a9488' }}>使用当前 AI 设置中的 API</div>
+          <div style={{ fontSize: 12, color: 'var(--sugar-ink-tertiary)' }}>使用当前 AI 设置中的 API</div>
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-[1fr_auto] gap-3" style={{ marginTop: 14 }}>
@@ -520,7 +520,7 @@ export default function HotCompanies() {
                     </div>
                     <div style={{ minWidth: 0 }}>
                       <div style={{ fontSize: 14, fontWeight: 700, color: '#4a463e', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{candidate.name}</div>
-                      <div style={{ fontSize: 11.5, color: '#9a9488', marginTop: 2, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                      <div style={{ fontSize: 11.5, color: 'var(--sugar-ink-tertiary)', marginTop: 2, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                         {[candidate.industry, candidate.city, candidate.regionType].filter(Boolean).join(' · ')}
                       </div>
                     </div>
@@ -721,7 +721,7 @@ function recruitmentStatusPresentation(
     return {
       label: '27校招查询中',
       title: '正在读取每日同步结果',
-      style: { borderColor: '#d8d0c2', background: '#f3efe6', color: '#8a8478' },
+      style: { borderColor: '#d8d0c2', background: '#f3efe6', color: 'var(--sugar-ink-tertiary)' },
     };
   }
 

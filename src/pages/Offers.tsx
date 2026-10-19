@@ -149,7 +149,7 @@ export default function Offers() {
       <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">{list.map(o => {
         const urgent = o.reply_deadline && (+new Date(o.reply_deadline) - Date.now()) / 86400000 <= 4;
         return <article key={o.id} className="card-hover" style={{ ...CARD, ...paletteCardStyle(o.id), padding: 20 }}>
-          <div className="flex justify-between gap-3"><div><h3 className="font-bold text-lg m-0">{o.company_name}</h3><p className="text-sm text-[#8a8478] mt-1">{o.position_name} · {o.city || '城市未填'}</p></div><span style={pill(o.offer_status)}>{o.offer_status}</span></div>
+          <div className="flex justify-between gap-3"><div><h3 className="font-bold text-lg m-0">{o.company_name}</h3><p className="text-sm text-ink-tertiary mt-1">{o.position_name} · {o.city || '城市未填'}</p></div><span style={pill(o.offer_status)}>{o.offer_status}</span></div>
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 my-4 text-sm"><Metric label="月薪" value={money(o.base_salary)} /><Metric label="年包" value={money(o.annual_package)} /><Metric label="回复截止" value={dt(o.reply_deadline)} warn={!!urgent} /><Metric label="综合评分" value={o.total_score == null ? '—' : `${o.total_score} 分`} /></div>
           <div className="flex flex-wrap gap-2 mb-4">{risks(o).map(x => <span key={x} className="text-xs px-2 py-1 rounded-full bg-[#fbe0d8] text-[#a23d24]">{x}</span>)}</div>
           <div className="flex flex-wrap items-center gap-2 border-t border-[#f0ebe0] pt-3">
@@ -192,7 +192,7 @@ export default function Offers() {
       </div>
       <FormSection title="薪资结构（元）">
         <div className="offer-form-grid offer-form-grid--5">{(['base_salary','salary_months','bonus','subsidy','annual_package'] as const).map((k,i) => <Field key={k} label={['月薪','薪数','奖金','年度补贴','年包（可手填）'][i]}><TextInput type="number" value={form[k] ?? ''} onChange={e => patch(k,n(e.target.value))} /></Field>)}</div>
-        <div className="text-[11px] text-[#8a8478] -mt-2">年包未手填时，将按“月薪 × 薪数 + 奖金 + 补贴”自动估算。</div>
+        <div className="text-[11px] text-ink-tertiary -mt-2">年包未手填时，将按“月薪 × 薪数 + 奖金 + 补贴”自动估算。</div>
       </FormSection>
       <FormSection title="谈薪、风险与备注">
         <div className="offer-form-grid offer-form-grid--2"><Field label="谈薪记录"><TextArea className="offer-compact-textarea" value={form.negotiation_notes ?? ''} onChange={e => patch('negotiation_notes',e.target.value)} /></Field><Field label="风险备注"><TextArea className="offer-compact-textarea" value={form.risk_notes ?? ''} onChange={e => patch('risk_notes',e.target.value)} /></Field></div>
@@ -204,7 +204,7 @@ export default function Offers() {
   </div>;
 }
 
-function Metric({ label, value, warn }: { label:string; value:string; warn?:boolean }) { return <div className={warn ? 'text-[#a23d24]' : ''}><div className="text-xs text-[#9a9488]">{label}</div><b className="block mt-1">{value}</b></div>; }
+function Metric({ label, value, warn }: { label:string; value:string; warn?:boolean }) { return <div className={warn ? 'text-[#a23d24]' : ''}><div className="text-xs text-ink-tertiary">{label}</div><b className="block mt-1">{value}</b></div>; }
 function Section({ title, children }: { title:string; children:React.ReactNode }) { return <section className="mb-6"><h3 className="text-base">{title}</h3><div className="text-sm leading-7 text-[#5d584d] bg-[#faf7f0] rounded-2xl p-4">{children}</div></section>; }
 function FormSection({ title, children }: { title:string; children:React.ReactNode }) { return <section className="offer-form-section"><h3>{title}</h3>{children}</section>; }
 function Drawer({ title, onClose, children }: { title:string; onClose:()=>void; children:React.ReactNode }) { return <div className="fixed inset-0 z-[90] bg-black/25" onClick={onClose}><aside className="absolute right-0 top-0 h-full w-full sm:w-[560px] overflow-y-auto bg-[#fffdf8] p-6 shadow-2xl" onClick={e => e.stopPropagation()}><div className="flex justify-between gap-4 mb-5"><h2>{title}</h2><button className="w-11 h-11 rounded-xl border" onClick={onClose}>×</button></div>{children}</aside></div>; }

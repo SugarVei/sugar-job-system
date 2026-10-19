@@ -23,7 +23,7 @@
 }
 .mail-auto-sync-info p {
   font-size: 11.5px;
-  color: #8a8478;
+  color: var(--sugar-ink-tertiary);
   margin: 5px 0 0;
 }
 .mail-auto-sync-switch {
@@ -80,14 +80,14 @@
 }
 .mail-auto-sync-note {
   font-size: 11px;
-  color: #8a8478;
+  color: var(--sugar-ink-tertiary);
   line-height: 1.7;
   margin: 7px 2px 14px;
 }
 .mail-auto-sync-empty {
   padding: 22px 0;
   text-align: center;
-  color: #8a8478;
+  color: var(--sugar-ink-tertiary);
   font-size: 13px;
 }
 .mail-sync-review {
@@ -170,7 +170,7 @@
   font-size: 13px;
 }
 .mail-sync-history-row p {
-  color: #8a8478;
+  color: var(--sugar-ink-tertiary);
   font-size: 11px;
   margin: 6px 0;
 }
