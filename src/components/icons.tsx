@@ -223,6 +223,7 @@ export const IconReview = ({ size = 20, ...p }: IconProps) => (<svg {...base(siz
 export const IconMail = ({ size = 20, ...p }: IconProps) => (<svg {...base(size, p)}><rect x="3" y="5" width="18" height="14" rx="2" /><path d="m3 7 9 6 9-6" /></svg>);
 export const IconMore = ({ size = 20, ...p }: IconProps) => (<svg {...base(size, p)}><circle cx="5" cy="12" r="1.5" fill="currentColor" stroke="none" /><circle cx="12" cy="12" r="1.5" fill="currentColor" stroke="none" /><circle cx="19" cy="12" r="1.5" fill="currentColor" stroke="none" /></svg>);
 export const IconPlugin = ({ size = 20, ...p }: IconProps) => (<svg {...base(size, p)}><path d="M12 2v7m0 0a3 3 0 1 0-3-3m3 3a3 3 0 1 1 3-3M5 12H2v4a3 3 0 0 0 3 3h2v3h4v-7H8a3 3 0 1 1 0-6h3v3Z" /><path d="M15 12h7v7h-7z" /></svg>);
+export const IconSmartInput = ({ size = 20, ...p }: IconProps) => (<svg {...base(size, p)}><path d="M8 3H5a2 2 0 0 0-2 2v3m13-5h3a2 2 0 0 1 2 2v3M3 16v3a2 2 0 0 0 2 2h3m8 0h3a2 2 0 0 0 2-2v-3"/><path d="M7 10h10M7 14h7"/></svg>);
 
 /** Sugar 品牌 Logo（透明背景，与 favicon 保持一致） */
 export const SugarMark = ({ size = 26 }: { size?: number; color?: string }) => (

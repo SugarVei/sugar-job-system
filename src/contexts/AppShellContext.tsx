@@ -3,10 +3,14 @@ import type { ApplicationStatus, ScreenKey } from '../types';
 import type { ResumeAssistantTab } from '../types/resumeAssistant';
 
 export type ApplicationsListFilter = 'all' | 'active' | ApplicationStatus;
-export type HeaderChrome = { searchPlaceholder: string | null; showAdd: boolean; inlineContent?: ReactNode; actions?: ReactNode; contentScroll?: boolean; primaryAction?: { label: string; onClick: () => void; loading?: boolean } | null };
+export type HeaderChrome = { searchPlaceholder: string | null; showAdd: boolean; inlineContent?: ReactNode; actions?: ReactNode; contentScroll?: boolean; primaryAction?: { label: string; onClick: () => void; loading?: boolean; icon?: ReactNode } | null };
 
 const SCREEN_STORAGE_KEY = 'sugar.screen';
-const VALID_SCREENS: ScreenKey[] = ['dashboard', 'overview', 'applications', 'capitalMap', 'companies', 'referralCodes', 'hotCompanies', 'resumes', 'interviews', 'offers', 'resumeAssistant', 'mailbox'];
+const VALID_SCREENS: ScreenKey[] = ['dashboard', 'overview', 'applications', 'capitalMap', 'companies', 'referralCodes', 'hotCompanies', 'resumes', 'interviews', 'offers', 'resumeAssistant', 'mailbox', 'smartInput'];
+function syncSmartInputRoute(next: ScreenKey) {
+  if (next === 'smartInput') window.history.replaceState(null, '', '#/smart-information-entry');
+  else if (/^#\/(?:smart-information-entry|smart-input)(?:\/|$)/.test(window.location.hash)) window.history.replaceState(null, '', window.location.pathname + window.location.search);
+}
 function readStoredScreen(): ScreenKey {
   try {
     const raw = sessionStorage.getItem(SCREEN_STORAGE_KEY);
@@ -39,8 +43,9 @@ export function AppShellProvider({ children }: { children: ReactNode }) {
   const pendingAdd = useRef<ScreenKey | null>(null);
 
   useEffect(() => { try { sessionStorage.setItem(SCREEN_STORAGE_KEY, screen); } catch { /* ignore */ } }, [screen]);
-  const setScreen = useCallback((next: ScreenKey) => { setQuery(''); if (next !== 'applications') setApplicationsFilter('all'); if (next !== 'interviews') setInterviewDateFilter(null); setScreenState(next); }, []);
+  const setScreen = useCallback((next: ScreenKey) => { syncSmartInputRoute(next); setQuery(''); if (next !== 'applications') setApplicationsFilter('all'); if (next !== 'interviews') setInterviewDateFilter(null); setScreenState(next); }, []);
   const navigate = useCallback((next: ScreenKey, opts?: NavigateOptions) => {
+    syncSmartInputRoute(next);
     setQuery(opts?.query ?? ''); setApplicationsFilter(next === 'applications' ? opts?.applicationsFilter ?? 'all' : 'all'); setInterviewDateFilter(next === 'interviews' ? opts?.interviewDate ?? null : null);
     pendingAdd.current = opts?.add ? next : null;
     if (next === screen && opts?.add && addRef.current) { pendingAdd.current = null; addRef.current(); }
@@ -48,7 +53,7 @@ export function AppShellProvider({ children }: { children: ReactNode }) {
   }, [screen]);
 
   useEffect(() => {
-    const applyHash = () => { const [screenPath, tab] = window.location.hash.replace(/^#\/?/, '').split('/'); if (screenPath === 'community-world' && screenRef.current !== 'capitalMap') setScreen('capitalMap'); if (screenPath === 'interview-reviews' && screenRef.current !== 'resumeAssistant') setScreen('resumeAssistant'); if (screenPath === 'resume-assistant') { if (screenRef.current !== 'resumeAssistant') setScreen('resumeAssistant'); if (['overview', 'profile', 'settings', 'runs'].includes(tab)) setAssistantTab(tab as ResumeAssistantTab); } };
+    const applyHash = () => { const [screenPath, tab] = window.location.hash.replace(/^#\/?/, '').split('/'); if (['smart-information-entry', 'smart-input'].includes(screenPath) && screenRef.current !== 'smartInput') setScreen('smartInput'); if (screenPath === 'community-world' && screenRef.current !== 'capitalMap') setScreen('capitalMap'); if (screenPath === 'interview-reviews' && screenRef.current !== 'resumeAssistant') setScreen('resumeAssistant'); if (screenPath === 'resume-assistant') { if (screenRef.current !== 'resumeAssistant') setScreen('resumeAssistant'); if (['overview', 'profile', 'settings', 'runs'].includes(tab)) setAssistantTab(tab as ResumeAssistantTab); } };
     applyHash(); window.addEventListener('hashchange', applyHash); return () => window.removeEventListener('hashchange', applyHash);
   }, [setScreen]);
   const setAssistantTabWithHash = useCallback((tab: ResumeAssistantTab) => { setAssistantTab(tab); if (window.location.hash !== `#/resume-assistant/${tab}`) window.history.replaceState(null, '', `#/resume-assistant/${tab}`); }, []);

@@ -126,7 +126,7 @@ export default function AppSidebar({ screen, onNavigate, name, avatar, onUpdateN
           </SidebarButton>
           <SidebarButton className="app-sidebar-account-button" aria-expanded={accountOpen} aria-haspopup="dialog" label="个人账号" onActivate={() => setAccountOpen(value => !value)} {...tooltipEvents}>
             <span className="app-sidebar-avatar">{avatar ? <img src={avatar} alt="用户头像" /> : <IconUser size={19} />}</span>
-            <span className="app-sidebar-account-name"><strong>{name}</strong><small>个人账号</small></span>
+            <span className="app-sidebar-account-name"><strong>{name}</strong></span>
             <ChevronUp className="app-sidebar-account-chevron" size={15} />
           </SidebarButton>
         </div>

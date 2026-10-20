@@ -179,8 +179,8 @@ export default function AppLayout({ children }: { children: ReactNode }) {
               </div>}
               <button type="button" className="sugar-command-trigger" onClick={openCommandPalette} aria-label="打开快捷操作" title="Ctrl / ⌘ K">⌘ K</button>
               {headerChrome?.actions}
-              {(headerChrome?.primaryAction || headerChrome?.showAdd !== false) && <button onClick={headerChrome?.primaryAction?.onClick ?? triggerAdd} disabled={headerChrome?.primaryAction?.loading} className="btn-press" style={addBtn}>
-                <IconPlus size={17} />
+              {(headerChrome?.primaryAction || headerChrome?.showAdd !== false) && <button aria-label={headerChrome?.primaryAction?.label ?? '新增'} onClick={headerChrome?.primaryAction?.onClick ?? triggerAdd} disabled={headerChrome?.primaryAction?.loading} className="btn-press" style={addBtn}>
+                {headerChrome?.primaryAction?.icon ?? <IconPlus size={17} />}
                 <span className="hidden sm:inline">{headerChrome?.primaryAction?.label ?? '新增'}</span>
               </button>}
             </div>

@@ -1,0 +1,2542 @@
+@font-face {
+  font-family: "Sugar Input Sans";
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url(/fonts/smart-input/font-0.ttf) format("truetype");
+}
+@font-face {
+  font-family: "Sugar Input Sans";
+  font-style: normal;
+  font-weight: 500;
+  font-display: swap;
+  src: url(/fonts/smart-input/font-1.ttf) format("truetype");
+}
+@font-face {
+  font-family: "Sugar Input Sans";
+  font-style: normal;
+  font-weight: 600;
+  font-display: swap;
+  src: url(/fonts/smart-input/font-2.ttf) format("truetype");
+}
+@font-face {
+  font-family: "Sugar Input Sans";
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+  src: url(/fonts/smart-input/font-3.ttf) format("truetype");
+}
+@font-face {
+  font-family: "Sugar Input Display";
+  font-style: normal;
+  font-weight: 500;
+  font-display: swap;
+  src: url(/fonts/smart-input/font-4.ttf) format("truetype");
+}
+@font-face {
+  font-family: "Sugar Input Display";
+  font-style: normal;
+  font-weight: 600;
+  font-display: swap;
+  src: url(/fonts/smart-input/font-5.ttf) format("truetype");
+}
+@font-face {
+  font-family: "Sugar Input Display";
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+  src: url(/fonts/smart-input/font-6.ttf) format("truetype");
+}
+
+.smart-input-page {
+  --canvas: var(--sugar-canvas, #efe9e1);
+  --shell: var(--sugar-shell, #f7f3ec);
+  --surface: var(--sugar-surface, #fffdf8);
+  --surface-muted: var(--sugar-surface-muted, #faf7f0);
+  --surface-sunken: var(--sugar-surface-sunken, #f5f0e7);
+  --line: var(--sugar-line, #ece4d6);
+  --line-control: var(--sugar-line-control, #928a7b);
+  --ink: var(--sugar-ink, #1b1a17);
+  --ink-secondary: var(--sugar-ink-secondary, #4a463e);
+  --ink-tertiary: var(--sugar-ink-tertiary, #6b665c);
+  --ink-disabled: var(--sugar-ink-disabled, #b3ac9f);
+  --on-ink: var(--sugar-on-ink, #f4f1ea);
+  --scrim: var(--sugar-scrim, #1b1a1752);
+  --accent: var(--sugar-accent, #c93a64);
+  --accent-soft: var(--sugar-accent-soft, #f9dfe7);
+  --success-bg: var(--sugar-status-success-bg, #dcebd5);
+  --success: var(--sugar-status-success, #2f5d36);
+  --neutral-bg: var(--sugar-status-neutral-bg, #ece4d6);
+  --neutral: var(--sugar-status-neutral, #5d584d);
+  --interview-bg: var(--sugar-status-interview-bg, #dde8fb);
+  --interview: var(--sugar-status-interview, #345b9a);
+  --shadow-card: var(--sugar-shadow-card);
+  --shadow-raised: var(--sugar-shadow-raised);
+  --shadow-overlay: var(--sugar-shadow-overlay);
+  --radius-xs: 6px;
+  --radius-sm: 10px;
+  --radius-md: 12px;
+  --radius-lg: 20px;
+  --radius-xl: 24px;
+  max-width: 1200px;
+  margin: 0 auto;
+  font-family:
+    "Sugar Input Sans", "PingFang SC", "HarmonyOS Sans SC", "Microsoft YaHei",
+    sans-serif;
+  font-size: 14px;
+  line-height: 22px;
+  color: var(--ink);
+}
+.smart-input-page .module-intro {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  margin: 0 0 16px;
+  color: var(--ink-tertiary);
+  font-size: 13px;
+  line-height: 20px;
+}
+.smart-input-page .module-intro > span {
+  font-size: 12px;
+  white-space: nowrap;
+}
+.smart-input-page .module-footer {
+  padding-bottom: 8px;
+}
+.smart-input-page .button.outline {
+  outline: none;
+}
+@media (max-width: 767px) {
+  .smart-input-page .module-intro {
+    display: block;
+  }
+  .smart-input-page .module-intro > span {
+    display: block;
+    margin-top: 6px;
+  }
+  .smart-input-page .toast {
+    bottom: 88px;
+  }
+}
+
+.smart-input-page * {
+  box-sizing: border-box;
+}
+.smart-input-page button,
+.smart-input-page a,
+.smart-input-page input {
+  font: inherit;
+}
+.smart-input-page button,
+.smart-input-page a {
+  -webkit-tap-highlight-color: transparent;
+}
+.smart-input-page button {
+  border: 0;
+  color: inherit;
+  cursor: pointer;
+  background: none;
+  padding: 0;
+}
+.smart-input-page a {
+  color: inherit;
+  text-decoration: none;
+}
+.smart-input-page button:disabled {
+  cursor: not-allowed;
+  color: var(--ink-disabled);
+}
+.smart-input-page button:not(:disabled):active,
+.smart-input-page .button:not(:disabled):active {
+  transform: scale(0.98);
+}
+.smart-input-page button,
+.smart-input-page a,
+.smart-input-page input {
+  transition:
+    background 0.16s ease-out,
+    box-shadow 0.16s ease-out,
+    color 0.16s ease-out,
+    opacity 0.16s ease-out;
+}
+.smart-input-page button:focus-visible,
+.smart-input-page a:focus-visible,
+.smart-input-page input:focus-visible {
+  outline: 0;
+  box-shadow:
+    0 0 0 2px var(--surface),
+    0 0 0 4px var(--accent);
+}
+.smart-input-page h1,
+.smart-input-page h2,
+.smart-input-page h3,
+.smart-input-page h4,
+.smart-input-page p {
+  margin: 0;
+}
+.smart-input-page h1,
+.smart-input-page h2,
+.smart-input-page h3,
+.smart-input-page h4 {
+  font-weight: 600;
+  line-height: 1.45;
+}
+.smart-input-page h1,
+.smart-input-page h2 {
+  font-family:
+    "Sugar Input Display", "PingFang SC", "HarmonyOS Sans SC",
+    "Microsoft YaHei", sans-serif;
+}
+.smart-input-page svg {
+  flex-shrink: 0;
+  stroke-width: 1.8;
+}
+.smart-input-page input[type="checkbox"] {
+  accent-color: var(--accent);
+  width: 16px;
+  height: 16px;
+  margin: 0;
+  flex: none;
+  cursor: pointer;
+}
+.smart-input-page input[type="checkbox"]:disabled {
+  cursor: not-allowed;
+}
+.smart-input-page input::placeholder {
+  color: var(--ink-tertiary);
+}
+.smart-input-page .brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  font-family: "Sugar Input Display", sans-serif;
+  font-size: 25px;
+  font-weight: 600;
+  letter-spacing: -1px;
+  color: var(--ink);
+}
+.smart-input-page .brand img {
+  object-fit: contain;
+  width: 32px;
+  height: 32px;
+}
+.smart-input-page .brand-small {
+  font-size: 17px;
+  gap: 7px;
+  letter-spacing: -0.6px;
+}
+.smart-input-page .brand-small img {
+  width: 24px;
+  height: 24px;
+}
+.smart-input-page .button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 40px;
+  padding: 9px 18px;
+  border-radius: var(--radius-md);
+  font-size: 14px;
+  line-height: 20px;
+  font-weight: 600;
+  white-space: nowrap;
+  border: 1px solid transparent;
+}
+.smart-input-page .button.primary {
+  background: var(--ink);
+  color: var(--on-ink);
+}
+.smart-input-page .button.primary:hover {
+  opacity: 0.88;
+}
+.smart-input-page .button.outline {
+  border-color: var(--line-control);
+  background: transparent;
+  color: var(--ink);
+}
+.smart-input-page .button.outline:hover {
+  background: var(--surface-sunken);
+}
+.smart-input-page .button:disabled {
+  background: var(--surface-sunken);
+  color: var(--ink-disabled);
+  border-color: transparent;
+}
+.smart-input-page .button.full,
+.smart-input-page .full {
+  width: 100%;
+}
+.smart-input-page .text-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  color: var(--ink-secondary);
+  font-size: 13px;
+  line-height: 20px;
+  border-radius: 6px;
+  padding: 4px 0;
+}
+.smart-input-page .text-button:hover {
+  color: var(--ink);
+  text-decoration: underline;
+  text-underline-offset: 4px;
+}
+.smart-input-page .text-button.strong {
+  font-weight: 600;
+  font-size: 14px;
+  color: var(--ink);
+}
+.smart-input-page .text-button.accent-link {
+  color: var(--accent);
+}
+.smart-input-page .icon-button {
+  display: inline-grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  border-radius: var(--radius-xs);
+  color: var(--ink-tertiary);
+  flex: none;
+}
+.smart-input-page .icon-button:hover {
+  background: var(--surface-sunken);
+  color: var(--ink);
+}
+.smart-input-page .module-tabs {
+  display: flex;
+  border-bottom: 1px solid var(--line);
+  gap: 24px;
+  max-width: 1200px;
+  margin: 0 auto 24px;
+  overflow: auto;
+  scrollbar-width: none;
+}
+.smart-input-page .module-tabs button {
+  height: 48px;
+  padding: 0 4px;
+  font-weight: 500;
+  white-space: nowrap;
+  color: var(--ink-tertiary);
+  position: relative;
+  font-size: 14px;
+}
+.smart-input-page .module-tabs button.active {
+  color: var(--ink);
+  font-weight: 600;
+}
+.smart-input-page .module-tabs button.active:after {
+  position: absolute;
+  height: 3px;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  background: var(--accent);
+  content: "";
+  border-radius: 3px 3px 0 0;
+}
+.smart-input-page .module-tabs button:hover {
+  color: var(--ink);
+}
+.smart-input-page .module-body {
+  max-width: 1200px;
+  margin: auto;
+}
+.smart-input-page .hero {
+  display: grid;
+  grid-template-columns: 1fr 1.05fr;
+  gap: 32px;
+  align-items: center;
+  padding: 32px;
+  margin-bottom: 20px;
+  background: var(--surface-muted);
+  border-radius: var(--radius-lg);
+  min-height: 350px;
+}
+.smart-input-page .hero-copy h2 {
+  font-size: 30px;
+  line-height: 1.45;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  margin-bottom: 16px;
+}
+.smart-input-page .hero-copy > p {
+  font-size: 14px;
+  line-height: 24px;
+  color: var(--ink-secondary);
+  max-width: 400px;
+}
+.smart-input-page .hero-actions {
+  display: flex;
+  gap: 24px;
+  align-items: center;
+  margin-top: 28px;
+  flex-wrap: wrap;
+}
+.smart-input-page .hero-note {
+  margin-top: 24px;
+  color: var(--ink-tertiary);
+  font-size: 12px;
+  line-height: 18px;
+}
+.smart-input-page .hero-preview {
+  min-width: 0;
+  padding: 0 4px;
+}
+.smart-input-page .browser-frame {
+  border-radius: 14px;
+  overflow: hidden;
+  box-shadow: var(--shadow-raised);
+  background: var(--surface);
+}
+.smart-input-page .browser-title {
+  height: 36px;
+  background: var(--surface-sunken);
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 0 16px;
+  font-size: 12px;
+  line-height: 18px;
+  color: var(--ink-tertiary);
+}
+.smart-input-page .browser-title > svg {
+  margin-left: auto;
+}
+.smart-input-page .window-dots {
+  display: flex;
+  gap: 5px;
+}
+.smart-input-page .window-dots i {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--line-control);
+  opacity: 0.5;
+}
+.smart-input-page .window-dots i:first-child {
+  background: #c47667;
+}
+.smart-input-page .window-dots i:nth-child(2) {
+  background: #c7a66b;
+}
+.smart-input-page .window-dots i:last-child {
+  background: #83a87f;
+}
+.smart-input-page .preview-jobs {
+  padding: 16px;
+}
+.smart-input-page .preview-jobs h3 {
+  font-size: 15px;
+  line-height: 22px;
+  margin: 0 0 12px;
+}
+.smart-input-page .preview-job {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  border-radius: 8px;
+  border: 1px solid var(--line);
+  padding: 10px;
+  margin-top: 6px;
+  font-size: 12px;
+  line-height: 18px;
+}
+.smart-input-page .preview-job.selected {
+  border-color: color-mix(in srgb, var(--accent) 50%, transparent);
+  background: color-mix(in srgb, var(--accent-soft) 26%, var(--surface));
+}
+.smart-input-page .mock-check {
+  width: 15px;
+  height: 15px;
+  display: grid;
+  place-items: center;
+  border: 1px solid var(--line-control);
+  border-radius: 4px;
+  flex: none;
+}
+.smart-input-page .selected .mock-check {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--surface);
+}
+.smart-input-page .preview-job strong {
+  font-weight: 600;
+  white-space: nowrap;
+}
+.smart-input-page .preview-job .location {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin-left: auto;
+  color: var(--ink-tertiary);
+}
+.smart-input-page .preview-job > svg {
+  color: var(--ink-tertiary);
+}
+.smart-input-page .connect-line {
+  height: 32px;
+  display: flex;
+  align-items: center;
+  flex-direction: column;
+  justify-content: center;
+  color: var(--accent);
+}
+.smart-input-page .connect-line span {
+  height: 15px;
+  border-left: 2px dotted var(--accent);
+  display: block;
+}
+.smart-input-page .mini-sugar {
+  border-radius: 14px;
+  background: var(--surface);
+  padding: 14px;
+  box-shadow: var(--shadow-card);
+}
+.smart-input-page .mini-sugar-title {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12px;
+}
+.smart-input-page .skeleton-lines {
+  display: flex;
+  gap: 6px;
+}
+.smart-input-page .skeleton-lines i {
+  display: block;
+  width: 28px;
+  height: 6px;
+  background: var(--surface-sunken);
+  border-radius: 99px;
+}
+.smart-input-page .mini-record {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: var(--surface-muted);
+  border-radius: 9px;
+  padding: 10px;
+}
+.smart-input-page .mini-record strong {
+  font-size: 12px;
+  line-height: 18px;
+}
+.smart-input-page .mini-record p {
+  font-size: 12px;
+  color: var(--ink-tertiary);
+  margin-top: 2px;
+}
+.smart-input-page .document-icon {
+  background: var(--surface-sunken);
+  border-radius: 6px;
+  width: 32px;
+  height: 36px;
+  display: grid;
+  place-items: center;
+  color: var(--ink-secondary);
+}
+.smart-input-page .record-city {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  font-size: 12px;
+  color: var(--ink-tertiary);
+  margin-left: auto;
+}
+.smart-input-page .badge {
+  font-family: inherit;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  padding: 4px 8px;
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 18px;
+  border-radius: var(--radius-xs);
+  white-space: nowrap;
+  flex: none;
+}
+.smart-input-page .badge.success {
+  background: var(--success-bg);
+  color: var(--success);
+}
+.smart-input-page .badge.neutral {
+  background: var(--neutral-bg);
+  color: var(--neutral);
+}
+.smart-input-page .surface {
+  background: var(--surface);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-card);
+}
+.smart-input-page .quick-start {
+  padding: 20px 24px;
+  margin-bottom: 16px;
+  border: 1px solid var(--line);
+  box-shadow: none;
+}
+.smart-input-page .section-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 16px;
+  margin-bottom: 20px;
+}
+.smart-input-page .section-header h2 {
+  font-size: 18px;
+  line-height: 26px;
+}
+.smart-input-page .quick-steps {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+.smart-input-page .quick-step {
+  position: relative;
+  text-align: left;
+  padding: 0 20px;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 6px;
+  border-right: 1px solid var(--line);
+  border-radius: 0;
+}
+.smart-input-page .quick-step:first-child {
+  padding-left: 0;
+}
+.smart-input-page .quick-step:last-child {
+  border: 0;
+  padding-right: 0;
+}
+.smart-input-page .quick-step:hover strong {
+  color: var(--accent);
+}
+.smart-input-page .step-number {
+  font-family: "Sugar Input Display", sans-serif;
+  font-size: 18px;
+  line-height: 26px;
+  font-weight: 600;
+  color: var(--accent);
+  margin-bottom: 4px;
+}
+.smart-input-page .quick-step strong {
+  font-size: 15px;
+  line-height: 22px;
+  font-weight: 600;
+}
+.smart-input-page .quick-step p {
+  font-size: 12px;
+  line-height: 18px;
+  color: var(--ink-tertiary);
+}
+.smart-input-page .quick-step-arrow {
+  display: none;
+}
+.smart-input-page .privacy-strip {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 16px 20px;
+  border-radius: var(--radius-md);
+  background: var(--surface-sunken);
+  font-size: 13px;
+  line-height: 20px;
+  color: var(--ink-secondary);
+  margin-top: 16px;
+}
+.smart-input-page .privacy-strip > .text-button {
+  margin-left: auto;
+  flex: none;
+}
+.smart-input-page .module-footer {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  margin-top: 16px;
+  color: var(--ink-tertiary);
+  font-size: 12px;
+  line-height: 18px;
+}
+.smart-input-page .footer-design {
+  white-space: nowrap;
+}
+.smart-input-page .view-heading,
+.smart-input-page .faq-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+  margin-bottom: 24px;
+}
+.smart-input-page .view-heading h2,
+.smart-input-page .faq-heading h2 {
+  font-size: 22px;
+  line-height: 30px;
+  margin-bottom: 8px;
+}
+.smart-input-page .view-heading p,
+.smart-input-page .faq-heading p {
+  font-size: 13px;
+  color: var(--ink-tertiary);
+}
+.smart-input-page .browser-switch {
+  display: inline-flex;
+  background: var(--surface-sunken);
+  padding: 4px;
+  border-radius: var(--radius-md);
+  flex: none;
+  gap: 4px;
+}
+.smart-input-page .browser-switch button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  font-size: 13px;
+  color: var(--ink-tertiary);
+  height: 32px;
+  padding: 0 12px;
+  border-radius: 8px;
+}
+.smart-input-page .browser-switch button svg,
+.smart-input-page .browser-name svg {
+  width: 17px;
+  height: 17px;
+}
+.smart-input-page .browser-switch button.active {
+  background: var(--surface);
+  box-shadow: 0 1px 3px #0000000a;
+  color: var(--ink);
+  font-weight: 600;
+}
+.smart-input-page .edge-icon {
+  font-family: Georgia, serif;
+  font-size: 20px;
+  font-weight: bold;
+  color: #3c827d;
+  line-height: 17px;
+}
+.smart-input-page .guide-layout {
+  display: grid;
+  grid-template-columns: 244px minmax(0, 1fr);
+  gap: 24px;
+}
+.smart-input-page .guide-step {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  text-align: left;
+  padding: 16px 12px;
+  border-radius: var(--radius-md);
+  margin-bottom: 8px;
+  color: var(--ink-secondary);
+}
+.smart-input-page .guide-step:hover {
+  background: var(--surface-sunken);
+}
+.smart-input-page .guide-step.active {
+  background: var(--surface-sunken);
+}
+.smart-input-page .step-index {
+  font-family: "Sugar Input Display", sans-serif;
+  width: 32px;
+  height: 32px;
+  display: grid;
+  place-items: center;
+  font-size: 13px;
+  font-weight: 500;
+  border-radius: var(--radius-sm);
+  color: var(--ink-tertiary);
+  background: var(--surface);
+}
+.smart-input-page .guide-step.active .step-index {
+  color: var(--accent);
+  background: var(--accent-soft);
+}
+.smart-input-page .step-index.done {
+  color: var(--success);
+  background: var(--success-bg);
+}
+.smart-input-page .guide-step strong {
+  font-size: 14px;
+  line-height: 20px;
+  font-weight: 600;
+}
+.smart-input-page .guide-step p {
+  font-size: 12px;
+  line-height: 18px;
+  margin-top: 4px;
+  color: var(--ink-tertiary);
+}
+.smart-input-page .guide-step > svg {
+  margin-left: auto;
+  color: var(--ink-tertiary);
+}
+.smart-input-page .guide-step.active > svg {
+  color: var(--accent);
+}
+.smart-input-page .guide-support {
+  border-top: 1px solid var(--line);
+  padding: 24px 12px;
+  margin-top: 24px;
+  display: flex;
+  gap: 10px;
+  color: var(--ink-tertiary);
+}
+.smart-input-page .guide-support strong {
+  font-size: 13px;
+  color: var(--ink-secondary);
+}
+.smart-input-page .guide-support p {
+  font-size: 12px;
+  margin: 6px 0;
+}
+.smart-input-page .guide-support .text-button {
+  font-size: 12px;
+}
+.smart-input-page .guide-detail {
+  padding: 24px 28px;
+  border: 1px solid var(--line);
+  box-shadow: none;
+  min-height: 530px;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+}
+.smart-input-page .guide-detail-head {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12px;
+  font-size: 12px;
+  color: var(--ink-tertiary);
+}
+.smart-input-page .guide-detail-head > span:first-child {
+  color: var(--accent);
+}
+.smart-input-page .browser-name {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.smart-input-page .guide-detail h3 {
+  font-size: 22px;
+  line-height: 30px;
+  margin-bottom: 12px;
+}
+.smart-input-page .guide-description {
+  color: var(--ink-secondary);
+  font-size: 14px;
+  line-height: 24px;
+  margin-bottom: 20px;
+}
+.smart-input-page .folder-visual {
+  border: 1px solid var(--line);
+  border-radius: var(--radius-md);
+  background: var(--surface-muted);
+  width: 100%;
+  overflow: hidden;
+  margin: 0 0 20px;
+}
+.smart-input-page .folder-head {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  padding: 16px 20px;
+  background: var(--surface-sunken);
+  font-size: 14px;
+}
+.smart-input-page .folder-head > svg {
+  color: var(--ink-tertiary);
+}
+.smart-input-page .folder-head .badge {
+  margin-left: auto;
+}
+.smart-input-page .folder-files {
+  padding: 12px 20px 16px 32px;
+}
+.smart-input-page .folder-files > span {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 7px 0;
+  font-family: "SF Mono", Consolas, monospace;
+  font-size: 13px;
+  color: var(--ink-secondary);
+}
+.smart-input-page .folder-files em {
+  font-family: inherit;
+  font-style: normal;
+  color: var(--accent);
+  font-size: 12px;
+  margin-left: auto;
+}
+.smart-input-page .folder-files > span:first-child {
+  color: var(--ink);
+}
+.smart-input-page .info-line {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  color: var(--ink-tertiary);
+  font-size: 12px;
+  line-height: 20px;
+  margin-bottom: 16px;
+  max-width: 100%;
+}
+.smart-input-page .info-line > svg {
+  margin-top: 2px;
+}
+.smart-input-page .guide-bottom {
+  margin-top: auto;
+  padding-top: 24px;
+  border-top: 1px solid var(--line);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  font-size: 12px;
+  color: var(--ink-tertiary);
+}
+.smart-input-page .guide-bottom > .button {
+  min-height: 36px;
+  padding: 7px 12px;
+  font-size: 13px;
+}
+.smart-input-page .copy-field {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  gap: 12px;
+  padding: 10px 14px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--line-control);
+  background: var(--surface-muted);
+  margin-bottom: 20px;
+}
+.smart-input-page .copy-field code {
+  font-family: "SF Mono", Consolas, monospace;
+  font-size: 13px;
+  color: var(--ink);
+  overflow-wrap: anywhere;
+}
+.smart-input-page .copy-field button {
+  font-size: 12px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  white-space: nowrap;
+  color: var(--ink-secondary);
+  padding: 4px;
+  border-radius: 6px;
+}
+.smart-input-page .extension-install-visual {
+  background: var(--surface-muted);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  width: 100%;
+  margin-bottom: 16px;
+  border: 1px solid var(--line);
+}
+.smart-input-page .extension-toolbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 16px;
+  font-size: 13px;
+  border-bottom: 1px solid var(--line);
+  gap: 8px;
+}
+.smart-input-page .extension-toolbar > span {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 600;
+}
+.smart-input-page .extension-toolbar label {
+  font-size: 12px;
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  color: var(--ink-tertiary);
+}
+.smart-input-page .mock-toggle {
+  width: 28px;
+  height: 16px;
+  background: var(--accent);
+  border-radius: 99px;
+  position: relative;
+  display: block;
+}
+.smart-input-page .mock-toggle:before {
+  content: "";
+  width: 12px;
+  height: 12px;
+  position: absolute;
+  right: 2px;
+  top: 2px;
+  border-radius: 99px;
+  background: var(--surface);
+}
+.smart-input-page .extension-actions {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  padding: 12px 16px;
+  flex-wrap: wrap;
+  font-size: 12px;
+  color: var(--ink-tertiary);
+}
+.smart-input-page .mock-load {
+  padding: 6px 10px;
+  border: 1px solid var(--accent);
+  border-radius: 6px;
+  color: var(--accent);
+  background: var(--accent-soft);
+}
+.smart-input-page .extension-example {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 0 16px 16px;
+  padding: 16px;
+  background: var(--surface);
+  border-radius: 10px;
+  box-shadow: var(--shadow-card);
+}
+.smart-input-page .extension-logo {
+  display: inline-grid;
+  place-items: center;
+  font-family: "Sugar Input Display", sans-serif;
+  font-weight: 600;
+  color: #fffdf8;
+  background: #256c51;
+  border-radius: 9px;
+  width: 32px;
+  height: 32px;
+  font-size: 20px;
+  flex: none;
+}
+.smart-input-page .extension-example strong {
+  font-size: 13px;
+}
+.smart-input-page .extension-example small {
+  display: block;
+  font-size: 12px;
+  color: var(--ink-tertiary);
+  margin-top: 2px;
+}
+.smart-input-page .extension-example > svg {
+  margin-left: auto;
+  color: var(--success);
+}
+.smart-input-page .instructions {
+  padding-left: 20px;
+  color: var(--ink-secondary);
+  font-size: 13px;
+  line-height: 23px;
+  margin: 0 0 20px;
+}
+.smart-input-page .instructions li {
+  padding-left: 3px;
+  margin-bottom: 6px;
+}
+.smart-input-page .login-visual {
+  border-radius: var(--radius-md);
+  background: var(--surface-muted);
+  padding: 20px 24px;
+  width: 100%;
+  max-width: 410px;
+  margin: 0 auto 20px;
+  border: 1px solid var(--line);
+}
+.smart-input-page .login-visual > div:first-child {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+}
+.smart-input-page .login-visual h4 {
+  font-size: 18px;
+  margin-bottom: 16px;
+}
+.smart-input-page .login-visual label {
+  display: block;
+  margin-bottom: 12px;
+  font-size: 12px;
+  color: var(--ink-secondary);
+}
+.smart-input-page .login-visual label > span {
+  display: block;
+  margin-top: 6px;
+  padding: 9px 12px;
+  background: var(--surface);
+  border: 1px solid var(--line-control);
+  border-radius: 8px;
+  color: var(--ink-tertiary);
+  font-size: 13px;
+}
+.smart-input-page .mock-password {
+  letter-spacing: 2px;
+}
+.smart-input-page .mock-black-button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  border-radius: 8px;
+  background: var(--ink);
+  color: var(--on-ink);
+  height: 36px;
+  font-weight: 600;
+  font-size: 13px;
+  margin-top: 16px;
+}
+.smart-input-page .login-visual > p {
+  font-size: 12px;
+  color: var(--ink-tertiary);
+  margin-top: 12px;
+  text-align: center;
+}
+.smart-input-page .settings-visual {
+  border-radius: var(--radius-md);
+  background: var(--surface-muted);
+  padding: 20px;
+  width: 100%;
+  border: 1px solid var(--line);
+  margin-bottom: 16px;
+}
+.smart-input-page .settings-visual-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+  margin-bottom: 20px;
+}
+.smart-input-page .settings-visual-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 13px;
+  margin-bottom: 14px;
+  gap: 12px;
+}
+.smart-input-page .mock-field {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border: 1px solid var(--line-control);
+  padding: 8px 12px;
+  border-radius: 8px;
+  background: var(--surface);
+  color: var(--ink-secondary);
+  min-width: 58%;
+  gap: 12px;
+}
+.smart-input-page .check-line {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--ink-secondary);
+  font-size: 12px;
+}
+.smart-input-page .check-line > svg {
+  background: var(--accent);
+  color: var(--surface);
+  padding: 1px;
+  border-radius: 3px;
+}
+.smart-input-page .settings-hint {
+  font-size: 12px;
+  color: var(--ink-tertiary);
+  margin: 8px 0 16px;
+  padding-left: 21px;
+}
+.smart-input-page .site-permission {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  border-top: 1px solid var(--line);
+  padding-top: 16px;
+  font-size: 13px;
+}
+.smart-input-page .site-permission strong {
+  font-size: 13px;
+}
+.smart-input-page .site-permission p {
+  font-size: 12px;
+  color: var(--ink-tertiary);
+  margin-top: 4px;
+}
+.smart-input-page .site-permission > svg:last-child {
+  color: var(--success);
+  margin-left: auto;
+}
+.smart-input-page .demo-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1.12fr) minmax(300px, 0.88fr);
+  gap: 24px;
+  align-items: start;
+}
+.smart-input-page .demo-browser {
+  background: var(--surface-muted);
+  padding: 16px;
+}
+.smart-input-page .demo-browser .browser-frame {
+  box-shadow: none;
+  border: 1px solid var(--line);
+}
+.smart-input-page .fictional-company {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  padding: 24px 20px 20px;
+  border-bottom: 1px solid var(--line);
+}
+.smart-input-page .company-monogram {
+  height: 42px;
+  width: 42px;
+  display: grid;
+  place-items: center;
+  border-radius: var(--radius-sm);
+  font-weight: 600;
+  background: var(--surface-sunken);
+  font-size: 18px;
+}
+.smart-input-page .fictional-company h3 {
+  font-size: 18px;
+  line-height: 26px;
+}
+.smart-input-page .fictional-company p {
+  font-size: 12px;
+  color: var(--ink-tertiary);
+  margin-top: 2px;
+}
+.smart-input-page .fictional-company > .badge {
+  margin-left: auto;
+}
+.smart-input-page .demo-company-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 20px 20px 6px;
+  font-size: 13px;
+}
+.smart-input-page .demo-company-header h4 {
+  font-size: 15px;
+  line-height: 22px;
+}
+.smart-input-page .demo-company-header span {
+  font-size: 12px;
+  color: var(--ink-tertiary);
+}
+.smart-input-page .website-job {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  align-items: center;
+  margin: 0 20px;
+  padding: 18px 0;
+  border-bottom: 1px solid var(--line);
+}
+.smart-input-page .website-job h4 {
+  font-size: 15px;
+  margin: 4px 0 8px;
+}
+.smart-input-page .website-job-company {
+  font-size: 12px;
+  color: var(--ink-tertiary);
+}
+.smart-input-page .website-job p {
+  font-size: 12px;
+  color: var(--ink-tertiary);
+  display: flex;
+  gap: 4px;
+  align-items: center;
+}
+.smart-input-page .website-job:last-of-type {
+  border-bottom: 0;
+}
+.smart-input-page .website-example-note {
+  text-align: center;
+  font-size: 12px;
+  color: var(--ink-tertiary);
+  padding: 14px 8px;
+  background: var(--surface-muted);
+}
+.smart-input-page .data-boundary {
+  display: flex;
+  justify-content: center;
+  gap: 8px;
+  margin-top: 16px;
+  font-size: 12px;
+  color: var(--ink-tertiary);
+}
+.smart-input-page .demo-panel {
+  overflow: hidden;
+  border: 1px solid var(--line);
+  box-shadow: none;
+  min-height: 560px;
+  display: flex;
+  flex-direction: column;
+}
+.smart-input-page .demo-panel > header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 20px;
+}
+.smart-input-page .demo-panel > header strong {
+  font-size: 14px;
+}
+.smart-input-page .demo-panel > header small {
+  font-size: 12px;
+  color: var(--ink-tertiary);
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  margin-top: 2px;
+}
+.smart-input-page .demo-panel > header > .icon-button {
+  margin-left: auto;
+}
+.smart-input-page .connection-dot {
+  width: 5px;
+  height: 5px;
+  background: var(--success);
+  border-radius: 50%;
+}
+.smart-input-page .panel-tabs {
+  display: flex;
+  margin: 0 16px 16px;
+  background: var(--surface-sunken);
+  padding: 4px;
+  border-radius: var(--radius-sm);
+}
+.smart-input-page .panel-tabs button {
+  flex: 1;
+  height: 32px;
+  border-radius: 7px;
+  font-size: 13px;
+  color: var(--ink-tertiary);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 6px;
+}
+.smart-input-page .panel-tabs button.active {
+  background: var(--surface);
+  box-shadow: var(--shadow-card);
+  color: var(--ink);
+  font-weight: 600;
+}
+.smart-input-page .panel-tabs button > span {
+  font-size: 12px;
+  color: var(--accent);
+}
+.smart-input-page .recognition-state {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: var(--success-bg);
+  color: var(--success);
+  margin: 0 16px 12px;
+  padding: 12px;
+  border-radius: var(--radius-sm);
+}
+.smart-input-page .recognition-state strong {
+  font-size: 13px;
+}
+.smart-input-page .recognition-state p {
+  font-size: 12px;
+  line-height: 18px;
+  opacity: 0.9;
+  margin-top: 2px;
+}
+.smart-input-page .panel-tools {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0 20px 12px;
+  font-size: 12px;
+}
+.smart-input-page .panel-tools label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.smart-input-page .panel-tools .text-button {
+  font-size: 12px;
+  padding: 0;
+}
+.smart-input-page .panel-search {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0 16px 4px;
+  padding: 8px 10px;
+  border: 1px solid var(--line-control);
+  border-radius: 8px;
+  color: var(--ink-tertiary);
+}
+.smart-input-page .panel-search input {
+  border: 0;
+  outline: none;
+  background: none;
+  color: var(--ink);
+  width: 100%;
+  font-size: 12px;
+  min-width: 0;
+}
+.smart-input-page .panel-job {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  padding: 14px 20px;
+  border-bottom: 1px solid var(--line);
+  cursor: pointer;
+}
+.smart-input-page .panel-job.checked {
+  background: color-mix(in srgb, var(--accent-soft) 30%, var(--surface));
+}
+.smart-input-page .panel-job > span:nth-child(2) {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  flex: 1;
+  min-width: 0;
+}
+.smart-input-page .panel-job small {
+  font-size: 12px;
+  color: var(--ink-tertiary);
+}
+.smart-input-page .panel-job strong {
+  font-size: 13px;
+  line-height: 20px;
+}
+.smart-input-page .panel-job p {
+  font-size: 12px;
+  color: var(--ink-tertiary);
+}
+.smart-input-page .panel-job > .badge {
+  font-size: 12px;
+  padding: 2px 5px;
+}
+.smart-input-page .panel-save {
+  padding: 16px 20px;
+  margin-top: auto;
+}
+.smart-input-page .panel-save > div {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+.smart-input-page .panel-save strong {
+  font-size: 13px;
+  font-weight: 500;
+}
+.smart-input-page .panel-save em {
+  font-family: "Sugar Input Display", sans-serif;
+  font-style: normal;
+  color: var(--accent);
+  font-weight: 600;
+}
+.smart-input-page .panel-save small {
+  font-size: 12px;
+  color: var(--ink-tertiary);
+}
+.smart-input-page .panel-save > .button {
+  font-size: 13px;
+}
+.smart-input-page .panel-save > p {
+  font-size: 12px;
+  color: var(--ink-tertiary);
+  text-align: center;
+  margin-top: 10px;
+}
+.smart-input-page .panel-records {
+  padding: 4px 16px 20px;
+  flex: 1;
+}
+.smart-input-page .panel-records article {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 16px 0;
+  border-bottom: 1px solid var(--line);
+}
+.smart-input-page .panel-records article strong {
+  font-size: 13px;
+}
+.smart-input-page .panel-records article p {
+  font-size: 12px;
+  color: var(--ink-tertiary);
+  margin-top: 4px;
+}
+.smart-input-page .panel-records article > .badge {
+  margin-left: auto;
+}
+.smart-input-page .record-icon {
+  display: grid;
+  place-items: center;
+  min-width: 30px;
+  width: 30px;
+  height: 36px;
+  background: var(--surface-sunken);
+  border-radius: 6px;
+  color: var(--ink-secondary);
+}
+.smart-input-page .panel-records > .text-button {
+  display: flex;
+  justify-content: flex-end;
+  font-size: 12px;
+  margin-top: 16px;
+}
+.smart-input-page .empty-records {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 330px;
+  gap: 12px;
+  text-align: center;
+  color: var(--ink-tertiary);
+  padding: 0 24px;
+}
+.smart-input-page .empty-records h4 {
+  color: var(--ink);
+  font-size: 15px;
+}
+.smart-input-page .empty-records p {
+  font-size: 13px;
+}
+.smart-input-page .demo-tip {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 20px;
+  background: var(--surface-sunken);
+  border-radius: var(--radius-md);
+  margin-top: 20px;
+  color: var(--ink-secondary);
+}
+.smart-input-page .demo-tip strong {
+  font-size: 13px;
+  font-weight: 500;
+}
+.smart-input-page .demo-tip span {
+  font-size: 12px;
+  display: block;
+  color: var(--ink-tertiary);
+  margin-top: 4px;
+}
+.smart-input-page .demo-tip > .text-button {
+  margin-left: auto;
+  flex: none;
+}
+.smart-input-page .faq-heading {
+  align-items: flex-start;
+}
+.smart-input-page .faq-search {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  width: 300px;
+  max-width: 100%;
+  border: 1px solid var(--line-control);
+  border-radius: var(--radius-md);
+  padding: 8px 12px;
+  color: var(--ink-tertiary);
+}
+.smart-input-page .faq-search input {
+  color: var(--ink);
+  outline: 0;
+  border: 0;
+  background: none;
+  min-width: 0;
+  flex: 1;
+  font-size: 13px;
+}
+.smart-input-page .faq-search:focus-within,
+.smart-input-page .panel-search:focus-within {
+  box-shadow:
+    0 0 0 2px var(--surface),
+    0 0 0 4px var(--accent);
+}
+.smart-input-page .faq-search .icon-button {
+  width: 20px;
+  height: 24px;
+}
+.smart-input-page .faq-layout {
+  display: grid;
+  grid-template-columns: 220px minmax(0, 1fr);
+  gap: 24px;
+  margin-bottom: 24px;
+}
+.smart-input-page .faq-categories > button {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  height: 44px;
+  padding: 0 12px;
+  width: 100%;
+  border-radius: var(--radius-sm);
+  font-size: 13px;
+  color: var(--ink-secondary);
+  margin-bottom: 6px;
+  text-align: left;
+}
+.smart-input-page .faq-categories > button.active {
+  background: var(--surface-sunken);
+  font-weight: 600;
+  color: var(--ink);
+}
+.smart-input-page .faq-categories > button > svg:last-child {
+  margin-left: auto;
+  color: var(--ink-tertiary);
+}
+.smart-input-page .faq-categories > button.active > svg:first-child {
+  color: var(--accent);
+}
+.smart-input-page .faq-contact {
+  border-top: 1px solid var(--line);
+  margin-top: 20px;
+  padding: 20px 12px;
+  font-size: 13px;
+}
+.smart-input-page .faq-contact strong {
+  font-weight: 500;
+}
+.smart-input-page .faq-contact p {
+  font-size: 12px;
+  color: var(--ink-tertiary);
+  margin: 8px 0;
+}
+.smart-input-page .faq-contact .text-button {
+  font-size: 12px;
+}
+.smart-input-page .faq-list {
+  padding: 0 24px;
+  border: 1px solid var(--line);
+  box-shadow: none;
+  align-self: start;
+  min-height: 250px;
+}
+.smart-input-page .faq-list article {
+  border-bottom: 1px solid var(--line);
+}
+.smart-input-page .faq-list article:last-child {
+  border-bottom: 0;
+}
+.smart-input-page .faq-list h3 button {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 24px;
+  width: 100%;
+  text-align: left;
+  padding: 20px 0;
+  font-size: 14px;
+  font-weight: 500;
+  line-height: 22px;
+}
+.smart-input-page .faq-list h3 button > svg {
+  color: var(--ink-tertiary);
+  transition: transform 0.16s ease-out;
+}
+.smart-input-page .faq-list article.open h3 button > svg {
+  transform: rotate(180deg);
+  color: var(--accent);
+}
+.smart-input-page .faq-list article > div {
+  padding: 0 24px 20px 0;
+  font-size: 13px;
+  line-height: 24px;
+  color: var(--ink-secondary);
+}
+.smart-input-page .faq-list article > div > .text-button {
+  color: var(--accent);
+  margin-top: 12px;
+}
+.smart-input-page .no-results {
+  text-align: center;
+  padding: 48px 20px;
+  color: var(--ink-tertiary);
+}
+.smart-input-page .no-results h3 {
+  font-size: 15px;
+  color: var(--ink);
+  margin: 16px 0 8px;
+}
+.smart-input-page .no-results p {
+  font-size: 13px;
+  margin-bottom: 12px;
+}
+.smart-input-page .modal {
+  border: 0;
+  border-radius: var(--radius-xl);
+  padding: 0;
+  width: min(480px, calc(100vw - 32px));
+  max-height: calc(100dvh - 48px);
+  background: var(--surface);
+  color: var(--ink);
+  box-shadow: var(--shadow-overlay);
+  overflow: auto;
+  animation: smart-input-modalIn 0.24s ease-out;
+}
+.smart-input-page .modal::backdrop {
+  background: var(--scrim);
+  backdrop-filter: blur(3px);
+}
+.smart-input-page .modal > header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 16px;
+  padding: 20px 24px;
+  border-bottom: 1px solid var(--line);
+}
+.smart-input-page .modal > header h2 {
+  font-size: 18px;
+  line-height: 26px;
+}
+.smart-input-page .modal-body {
+  padding: 24px;
+}
+.smart-input-page .modal-body > p {
+  font-size: 14px;
+  line-height: 24px;
+  color: var(--ink-secondary);
+  margin-bottom: 20px;
+}
+.smart-input-page .download-product {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 20px;
+}
+.smart-input-page .extension-logo.large {
+  width: 48px;
+  height: 48px;
+  font-size: 30px;
+  border-radius: 12px;
+}
+.smart-input-page .download-product h3 {
+  font-size: 15px;
+  line-height: 22px;
+}
+.smart-input-page .download-product p {
+  font-size: 12px;
+  color: var(--ink-tertiary);
+  margin-top: 4px;
+}
+.smart-input-page .download-product > .badge {
+  margin-left: auto;
+}
+.smart-input-page .modal-body > .browser-switch {
+  margin-bottom: 20px;
+}
+.smart-input-page .download-checklist {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  font-size: 13px;
+  color: var(--ink-secondary);
+  padding: 16px 0 24px;
+  border-top: 1px solid var(--line);
+}
+.smart-input-page .download-checklist span {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+.smart-input-page .download-checklist svg {
+  color: var(--success);
+}
+.smart-input-page .button-meta {
+  font-size: 12px;
+  font-weight: 400;
+  opacity: 0.7;
+  margin-left: auto;
+}
+.smart-input-page .modal-body > a.primary > svg {
+  margin-right: auto;
+}
+.smart-input-page .modal-body > .text-button.full {
+  margin: 12px 0 0;
+}
+.smart-input-page .modal-body > p.modal-note {
+  font-size: 12px;
+  line-height: 20px;
+  margin: 16px 0 0;
+  color: var(--ink-tertiary);
+}
+.smart-input-page .modal-illustration {
+  display: grid;
+  place-items: center;
+  width: 64px;
+  height: 64px;
+  margin-bottom: 20px;
+  border-radius: var(--radius-lg);
+  background: var(--surface-sunken);
+  color: var(--ink-tertiary);
+}
+.smart-input-page .modal-body > h3 {
+  font-size: 18px;
+  line-height: 26px;
+  margin-bottom: 12px;
+}
+.smart-input-page .fallback-copy {
+  border: 1px solid var(--line-control);
+  padding: 12px;
+  border-radius: var(--radius-md);
+  width: 100%;
+  background: var(--surface-muted);
+  color: var(--ink);
+  font:
+    13px "SF Mono",
+    Consolas,
+    monospace;
+}
+.smart-input-page .job-detail > .badge {
+  margin-bottom: 16px;
+}
+.smart-input-page .job-detail > h4 {
+  font-size: 14px;
+  margin: 24px 0 8px;
+}
+.smart-input-page .toast {
+  position: fixed;
+  left: 50%;
+  bottom: 36px;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 13px;
+  line-height: 20px;
+  max-width: calc(100vw - 32px);
+  width: max-content;
+  padding: 14px 20px;
+  border-radius: var(--radius-md);
+  background: var(--ink);
+  color: var(--on-ink);
+  box-shadow: var(--shadow-overlay);
+  z-index: 300;
+  animation: smart-input-toastIn 0.16s ease-out;
+}
+.smart-input-page .spin {
+  animation: smart-input-spin 0.8s linear infinite;
+}
+.smart-input-page .pulse {
+  animation: smart-input-pulse 0.7s ease-in-out infinite;
+}
+@keyframes smart-input-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+@keyframes smart-input-pulse {
+  50% {
+    opacity: 0.3;
+  }
+}
+@keyframes smart-input-modalIn {
+  from {
+    opacity: 0;
+    transform: translateY(16px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+@keyframes smart-input-toastIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+@media (min-width: 1550px) {
+  .smart-input-page .hero {
+    min-height: 390px;
+    padding: 40px;
+  }
+  .smart-input-page .hero-copy h2 {
+    font-size: 30px;
+  }
+  .smart-input-page .hero-preview {
+    padding: 4px 16px;
+  }
+  .smart-input-page .preview-jobs {
+    padding: 20px;
+  }
+  .smart-input-page .preview-job {
+    padding: 12px;
+  }
+  .smart-input-page .mini-sugar {
+    padding: 16px;
+  }
+  .smart-input-page .mini-record {
+    padding: 14px;
+  }
+  .smart-input-page .quick-start {
+    padding: 24px 28px;
+  }
+  .smart-input-page .quick-step {
+    gap: 8px;
+  }
+  .smart-input-page .quick-step p {
+    font-size: 13px;
+    line-height: 20px;
+  }
+}
+@media (min-width: 1024px) and (max-width: 1279px) {
+  .smart-input-page .hero {
+    gap: 20px;
+    padding: 24px;
+  }
+  .smart-input-page .hero-copy h2 {
+    font-size: 26px;
+  }
+  .smart-input-page .hero-actions {
+    gap: 12px;
+  }
+  .smart-input-page .hero-actions .button {
+    padding: 9px 12px;
+  }
+  .smart-input-page .hero-actions .text-button {
+    font-size: 13px;
+  }
+  .smart-input-page .preview-job .location {
+    display: none;
+  }
+  .smart-input-page .record-city {
+    display: none;
+  }
+  .smart-input-page .guide-layout {
+    grid-template-columns: 220px minmax(0, 1fr);
+    gap: 16px;
+  }
+  .smart-input-page .guide-detail {
+    padding: 24px;
+  }
+  .smart-input-page .quick-step {
+    padding: 0 12px;
+  }
+  .smart-input-page .quick-step strong {
+    font-size: 14px;
+  }
+  .smart-input-page .demo-layout {
+    grid-template-columns: minmax(0, 1fr) minmax(300px, 1fr);
+    gap: 16px;
+  }
+  .smart-input-page .demo-browser {
+    padding: 10px;
+  }
+  .smart-input-page .fictional-company > .badge {
+    display: none;
+  }
+  .smart-input-page .panel-save small {
+    display: none;
+  }
+}
+@media (max-width: 1023px) {
+  .smart-input-page .module-tabs {
+    gap: 24px;
+  }
+  .smart-input-page .hero {
+    padding: 28px;
+    gap: 24px;
+  }
+  .smart-input-page .hero-copy h2 {
+    font-size: 26px;
+    line-height: 1.5;
+  }
+  .smart-input-page .hero-actions {
+    gap: 12px;
+    margin-top: 24px;
+  }
+  .smart-input-page .hero-actions .text-button {
+    font-size: 13px;
+  }
+  .smart-input-page .hero-note {
+    margin-top: 16px;
+  }
+  .smart-input-page .preview-job .location,
+  .smart-input-page .record-city {
+    display: none;
+  }
+  .smart-input-page .mini-record {
+    gap: 8px;
+  }
+  .smart-input-page .preview-jobs {
+    padding: 12px;
+  }
+  .smart-input-page .preview-job {
+    padding: 8px;
+    gap: 7px;
+  }
+  .smart-input-page .mini-sugar {
+    padding: 12px;
+  }
+  .smart-input-page .toast {
+    bottom: 88px;
+  }
+  .smart-input-page .quick-step {
+    padding: 0 12px;
+  }
+  .smart-input-page .quick-step strong {
+    font-size: 14px;
+  }
+  .smart-input-page .guide-layout {
+    grid-template-columns: 220px minmax(0, 1fr);
+    gap: 16px;
+  }
+  .smart-input-page .guide-detail {
+    padding: 24px;
+  }
+  .smart-input-page .demo-layout {
+    gap: 16px;
+    grid-template-columns: minmax(0, 1fr) minmax(300px, 1fr);
+  }
+  .smart-input-page .demo-browser {
+    padding: 10px;
+  }
+  .smart-input-page .fictional-company > .badge {
+    display: none;
+  }
+  .smart-input-page .faq-layout {
+    grid-template-columns: 180px minmax(0, 1fr);
+    gap: 16px;
+  }
+  .smart-input-page .faq-search {
+    width: 240px;
+  }
+  .smart-input-page .faq-contact {
+    padding-left: 12px;
+  }
+  .smart-input-page .demo-tip > .text-button {
+    display: none;
+  }
+}
+@media (max-width: 767px) {
+  .smart-input-page .module-tabs {
+    gap: 0;
+    justify-content: space-between;
+    margin-bottom: 20px;
+  }
+  .smart-input-page .module-tabs button {
+    font-size: 13px;
+    padding: 0 5px;
+    height: 44px;
+  }
+  .smart-input-page .hero {
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    padding: 24px 20px;
+    gap: 28px;
+    margin-bottom: 16px;
+    min-height: 0;
+  }
+  .smart-input-page .hero-copy h2 {
+    font-size: 26px;
+    line-height: 38px;
+    margin-bottom: 12px;
+  }
+  .smart-input-page .hero-copy > p {
+    font-size: 14px;
+    line-height: 23px;
+  }
+  .smart-input-page .desktop-break {
+    display: none;
+  }
+  .smart-input-page .hero-actions {
+    gap: 20px;
+    margin-top: 20px;
+  }
+  .smart-input-page .hero-note {
+    font-size: 12px;
+    margin-top: 16px;
+  }
+  .smart-input-page .hero-preview {
+    max-width: 480px;
+    width: 100%;
+    align-self: center;
+    padding: 0;
+  }
+  .smart-input-page .preview-job .location {
+    display: flex;
+  }
+  .smart-input-page .preview-jobs {
+    padding: 16px;
+  }
+  .smart-input-page .preview-job {
+    padding: 10px;
+    font-size: 12px;
+  }
+  .smart-input-page .mini-record {
+    padding: 12px;
+  }
+  .smart-input-page .mini-record .record-city {
+    display: flex;
+  }
+  .smart-input-page .quick-start {
+    padding: 20px;
+  }
+  .smart-input-page .section-header {
+    align-items: flex-start;
+    gap: 10px;
+    margin-bottom: 12px;
+    flex-wrap: wrap;
+  }
+  .smart-input-page .section-header h2 {
+    font-size: 18px;
+    line-height: 26px;
+  }
+  .smart-input-page .section-header > .text-button {
+    font-size: 12px;
+  }
+  .smart-input-page .quick-steps {
+    grid-template-columns: 1fr;
+  }
+  .smart-input-page .quick-step {
+    display: grid;
+    grid-template-columns: 28px 1fr 16px;
+    align-items: center;
+    column-gap: 14px;
+    padding: 14px 0 !important;
+    border-right: 0;
+    border-bottom: 1px solid var(--line);
+    gap: 4px 14px;
+  }
+  .smart-input-page .quick-step:last-child {
+    border-bottom: 0;
+    padding-bottom: 2px !important;
+  }
+  .smart-input-page .quick-step .step-number {
+    grid-column: 1;
+    grid-row: 1/3;
+    font-size: 15px;
+    line-height: 22px;
+    margin: 0;
+    align-self: center;
+  }
+  .smart-input-page .quick-step strong {
+    grid-column: 2;
+    font-size: 14px;
+    line-height: 22px;
+  }
+  .smart-input-page .quick-step p {
+    grid-column: 2;
+    grid-row: 2;
+    font-size: 12px;
+  }
+  .smart-input-page .quick-step-arrow {
+    display: block;
+    grid-column: 3;
+    grid-row: 1/3;
+    color: var(--ink-tertiary);
+  }
+  .smart-input-page .privacy-strip {
+    flex-wrap: wrap;
+    gap: 8px 10px;
+    padding: 16px;
+    font-size: 12px;
+    align-items: flex-start;
+  }
+  .smart-input-page .privacy-strip > svg {
+    width: 19px;
+    height: 19px;
+  }
+  .smart-input-page .privacy-strip > span {
+    flex: 1;
+    min-width: 0;
+  }
+  .smart-input-page .privacy-strip > .text-button {
+    margin-left: 29px;
+    flex-basis: calc(100% - 29px);
+    justify-content: flex-start;
+    font-size: 12px;
+    padding: 0;
+  }
+  .smart-input-page .module-footer {
+    font-size: 12px;
+    line-height: 20px;
+    margin-top: 16px;
+  }
+  .smart-input-page .footer-design {
+    display: none;
+  }
+  .smart-input-page .view-heading,
+  .smart-input-page .faq-heading {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 16px;
+    margin-bottom: 20px;
+  }
+  .smart-input-page .view-heading h2,
+  .smart-input-page .faq-heading h2 {
+    font-size: 22px;
+    line-height: 30px;
+    margin-bottom: 8px;
+  }
+  .smart-input-page .view-heading p,
+  .smart-input-page .faq-heading p {
+    font-size: 13px;
+    line-height: 22px;
+  }
+  .smart-input-page .browser-switch {
+    align-self: flex-start;
+  }
+  .smart-input-page .guide-layout {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+  }
+  .smart-input-page .guide-steps {
+    display: flex;
+    overflow: auto;
+    gap: 8px;
+    padding: 2px 2px 8px;
+    scrollbar-width: thin;
+  }
+  .smart-input-page .guide-step {
+    flex-shrink: 0;
+    min-width: 145px;
+    padding: 10px;
+    margin: 0;
+    gap: 8px;
+    border: 1px solid var(--line);
+  }
+  .smart-input-page .guide-step p,
+  .smart-input-page .guide-step > svg {
+    display: none;
+  }
+  .smart-input-page .guide-step strong {
+    font-size: 12px;
+  }
+  .smart-input-page .step-index {
+    width: 26px;
+    height: 26px;
+    font-size: 12px;
+  }
+  .smart-input-page .guide-support {
+    display: none;
+  }
+  .smart-input-page .guide-detail {
+    padding: 20px;
+    min-height: 520px;
+    max-width: 100%;
+  }
+  .smart-input-page .guide-detail h3 {
+    font-size: 22px;
+  }
+  .smart-input-page .guide-description {
+    font-size: 13px;
+    line-height: 22px;
+  }
+  .smart-input-page .folder-head {
+    padding: 12px;
+    gap: 8px;
+    font-size: 12px;
+    flex-wrap: wrap;
+  }
+  .smart-input-page .folder-head .badge {
+    font-size: 12px;
+    padding: 2px 6px;
+  }
+  .smart-input-page .folder-files {
+    padding: 12px 16px;
+  }
+  .smart-input-page .folder-files > span {
+    font-size: 12px;
+    flex-wrap: wrap;
+    column-gap: 8px;
+  }
+  .smart-input-page .folder-files em {
+    flex-basis: 100%;
+    margin-left: 24px;
+    font-size: 12px;
+  }
+  .smart-input-page .guide-bottom {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 16px;
+    margin-top: 20px;
+    padding-top: 20px;
+  }
+  .smart-input-page .guide-bottom > .button {
+    width: 100%;
+    height: 40px;
+  }
+  .smart-input-page .copy-field {
+    gap: 8px;
+    padding: 9px 10px;
+  }
+  .smart-input-page .copy-field code {
+    font-size: 12px;
+  }
+  .smart-input-page .copy-field button {
+    font-size: 12px;
+    gap: 4px;
+  }
+  .smart-input-page .extension-toolbar {
+    padding: 12px;
+    gap: 12px;
+    flex-wrap: wrap;
+  }
+  .smart-input-page .extension-actions {
+    padding: 12px;
+    gap: 8px;
+    font-size: 12px;
+  }
+  .smart-input-page .extension-example {
+    margin: 0 12px 12px;
+    padding: 12px;
+    gap: 8px;
+  }
+  .smart-input-page .extension-example > svg {
+    width: 15px;
+  }
+  .smart-input-page .extension-toolbar label {
+    gap: 8px;
+  }
+  .smart-input-page .login-visual {
+    padding: 16px;
+    margin-bottom: 16px;
+  }
+  .smart-input-page .login-visual .badge {
+    font-size: 12px;
+    padding: 3px 6px;
+  }
+  .smart-input-page .settings-visual {
+    padding: 16px;
+  }
+  .smart-input-page .mock-field {
+    min-width: 55%;
+    font-size: 12px;
+    padding: 8px;
+    gap: 6px;
+  }
+  .smart-input-page .settings-visual-row {
+    font-size: 12px;
+    gap: 8px;
+  }
+  .smart-input-page .settings-hint {
+    margin-bottom: 12px;
+  }
+  .smart-input-page .site-permission {
+    gap: 8px;
+  }
+  .smart-input-page .site-permission > svg {
+    width: 15px;
+  }
+  .smart-input-page .site-permission p {
+    line-height: 18px;
+  }
+  .smart-input-page .demo-layout {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+  }
+  .smart-input-page .demo-browser,
+  .smart-input-page .demo-panel {
+    width: 100%;
+  }
+  .smart-input-page .demo-browser {
+    padding: 12px;
+  }
+  .smart-input-page .fictional-company {
+    padding: 20px 16px;
+  }
+  .smart-input-page .fictional-company > .badge {
+    display: flex;
+    font-size: 12px;
+    padding: 3px 6px;
+  }
+  .smart-input-page .fictional-company h3 {
+    font-size: 15px;
+  }
+  .smart-input-page .company-monogram {
+    width: 36px;
+    height: 36px;
+    font-size: 15px;
+  }
+  .smart-input-page .demo-company-header {
+    padding: 16px 16px 0;
+  }
+  .smart-input-page .website-job {
+    padding: 14px 0;
+    margin: 0 16px;
+  }
+  .smart-input-page .website-job-company {
+    font-size: 12px;
+  }
+  .smart-input-page .website-job h4 {
+    font-size: 14px;
+    margin: 4px 0 6px;
+  }
+  .smart-input-page .website-example-note {
+    font-size: 12px;
+    padding: 12px 8px;
+  }
+  .smart-input-page .demo-tip {
+    padding: 16px;
+    align-items: flex-start;
+  }
+  .smart-input-page .demo-tip > svg {
+    margin-top: 2px;
+    flex: none;
+  }
+  .smart-input-page .demo-tip strong {
+    font-size: 13px;
+    line-height: 22px;
+  }
+  .smart-input-page .demo-tip span {
+    font-size: 12px;
+    line-height: 20px;
+  }
+  .smart-input-page .faq-search {
+    width: 100%;
+  }
+  .smart-input-page .faq-layout {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+  }
+  .smart-input-page .faq-categories {
+    display: flex;
+    gap: 8px;
+    overflow: auto;
+    padding-bottom: 4px;
+    scrollbar-width: thin;
+  }
+  .smart-input-page .faq-categories > button {
+    width: auto;
+    flex-shrink: 0;
+    margin: 0;
+    height: 36px;
+    padding: 0 10px;
+    font-size: 12px;
+    gap: 6px;
+    background: var(--surface-muted);
+    border: 1px solid var(--line);
+  }
+  .smart-input-page .faq-categories > button.active {
+    border-color: var(--line-control);
+  }
+  .smart-input-page .faq-categories > button > svg:last-child,
+  .smart-input-page .faq-contact {
+    display: none;
+  }
+  .smart-input-page .faq-list {
+    width: 100%;
+    padding: 0 20px;
+  }
+  .smart-input-page .faq-list h3 button {
+    font-size: 14px;
+    padding: 18px 0;
+    gap: 16px;
+  }
+  .smart-input-page .faq-list article > div {
+    padding: 0 0 20px;
+    font-size: 13px;
+    line-height: 23px;
+  }
+  .smart-input-page .modal > header {
+    padding: 18px 20px;
+  }
+  .smart-input-page .modal-body {
+    padding: 20px;
+  }
+  .smart-input-page .download-product {
+    gap: 10px;
+    flex-wrap: wrap;
+  }
+  .smart-input-page .download-product h3 {
+    font-size: 14px;
+  }
+  .smart-input-page .extension-logo.large {
+    width: 40px;
+    height: 40px;
+    font-size: 24px;
+  }
+  .smart-input-page .download-product > .badge {
+    padding: 3px 6px;
+    font-size: 12px;
+  }
+  .smart-input-page .modal > header h2 {
+    font-size: 18px;
+  }
+  .smart-input-page .modal-body > .button {
+    white-space: normal;
+  }
+  .smart-input-page .toast {
+    padding: 12px 16px;
+    font-size: 12px;
+    width: calc(100% - 32px);
+    justify-content: center;
+    bottom: 88px;
+  }
+}
+@media (max-width: 390px) {
+  .smart-input-page .hero {
+    padding: 20px 16px;
+  }
+  .smart-input-page .hero-actions {
+    gap: 14px;
+  }
+  .smart-input-page .hero-actions .button {
+    padding: 9px 12px;
+  }
+  .smart-input-page .hero-actions .text-button {
+    font-size: 12px;
+    gap: 5px;
+  }
+  .smart-input-page .preview-job .location {
+    display: none;
+  }
+  .smart-input-page .mini-record .record-city {
+    display: none;
+  }
+  .smart-input-page .preview-job {
+    gap: 8px;
+  }
+  .smart-input-page .folder-head > .badge {
+    margin-left: 0;
+  }
+  .smart-input-page .module-tabs button {
+    padding: 0 4px;
+  }
+  .smart-input-page .fictional-company > .badge {
+    display: none;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .smart-input-page *,
+  .smart-input-page *:before,
+  .smart-input-page *:after {
+    animation: none !important;
+    transition: none !important;
+    scroll-behavior: auto !important;
+  }
+  .smart-input-page button:not(:disabled):active,
+  .smart-input-page .button:not(:disabled):active {
+    transform: none;
+  }
+}
+
+/* 按确认意见，左侧只保留功能入口，不显示分组小字。 */

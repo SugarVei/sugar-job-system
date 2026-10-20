@@ -22,6 +22,7 @@ import ResumeAssistant from './pages/ResumeAssistant';
 import WebPetCompanion from './components/web-pet/WebPetCompanion';
 import WelcomeNoticeModal from './components/WelcomeNoticeModal';
 
+const SmartInformationEntry = lazy(() => import('./pages/SmartInformationEntry'));
 const CommunityTown = lazy(() => import('./pages/CommunityTown'));
 const StandaloneTown = lazy(() => import('./components/community-world/StandaloneTown'));
 
@@ -49,6 +50,7 @@ function CurrentPage() {
     case 'resumes': return <Resumes />;
     case 'interviews': return <Interviews />;
     case 'offers': return <Offers />;
+    case 'smartInput': return <Suspense fallback={<div className="smart-input-loading" role="status">正在打开智能信息录入…</div>}><SmartInformationEntry /></Suspense>;
     case 'resumeAssistant': return <ResumeAssistant />;
     case 'mailbox': return <Mailbox />;
     default: return <Dashboard />;

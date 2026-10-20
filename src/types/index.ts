@@ -235,4 +235,5 @@ export type ScreenKey =
   | 'offers'
   | 'interviewReviews'
   | 'mailbox'
+  | 'smartInput'
   | 'resumeAssistant';
