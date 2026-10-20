@@ -52,16 +52,14 @@ type GuideDialog =
 const DOWNLOAD = "/downloads/Sugar-Job-Assistant-2.0.1.zip";
 const TABS: GuideTab[] = ["功能概览", "安装与配置", "操作演示", "常见问题"];
 const STEPS = [
-  { title: "下载并解压", desc: "保留插件文件夹", short: "下载并解压" },
+  { title: "下载并解压", short: "下载并解压" },
   {
     title: "安装到浏览器",
-    desc: "开启开发者模式并加载",
     short: "安装到浏览器",
   },
-  { title: "登录你的账号", desc: "关联自己的投递管理", short: "登录与配置" },
+  { title: "登录你的账号", short: "登录与配置" },
   {
     title: "配置 AI 与授权",
-    desc: "接入个人 AI，授权招聘网站",
     short: "配置 AI 与授权",
   },
 ];
@@ -419,10 +417,6 @@ export default function SmartInformationEntry() {
   );
   return (
     <div className="smart-input-page">
-      <div className="module-intro">
-        <p>安装一次，让招聘网页和你的投递记录连起来。</p>
-        <span>v2.0.1 · 电脑端 Chrome / Edge</span>
-      </div>
       <div
         className="module-tabs"
         role="tablist"
@@ -492,9 +486,6 @@ export default function SmartInformationEntry() {
                     试试操作演示 <ArrowRight size={16} />
                   </button>
                 </div>
-                <div className="hero-note">
-                  AI 服务由你配置，记录前由你确认。
-                </div>
               </div>
               <HeroPreview />
             </section>
@@ -514,35 +505,10 @@ export default function SmartInformationEntry() {
                   >
                     <span className="step-number">0{i + 1}</span>
                     <strong>{s.short}</strong>
-                    <p>
-                      {
-                        [
-                          "保留插件文件夹。",
-                          "开启开发者模式并加载。",
-                          "使用网站账号，接入个人 AI。",
-                          "保存个人 AI 配置，授权招聘网站。",
-                        ][i]
-                      }
-                    </p>
                     <ArrowRight className="quick-step-arrow" size={15} />
                   </button>
                 ))}
               </div>
-            </section>
-            <section className="privacy-strip">
-              <ShieldCheck size={22} />
-              <span>你的投递，只保存到你自己的账号。</span>
-              <button
-                className="text-button"
-                onClick={() => {
-                  setQuestion("");
-                  setFaqCategory("sync");
-                  setFaqOpen("privacy");
-                  go("常见问题");
-                }}
-              >
-                了解数据与权限 <ArrowRight size={16} />
-              </button>
             </section>
           </>
         )}
@@ -551,7 +517,6 @@ export default function SmartInformationEntry() {
             <div className="view-heading">
               <div>
                 <h2>跟着步骤，装好就能用</h2>
-                <p>已经完成的步骤可以跳过，配置会保留在你的浏览器中。</p>
               </div>
               <BrowserSwitch browser={browser} setBrowser={setBrowser} />
             </div>
@@ -575,24 +540,10 @@ export default function SmartInformationEntry() {
                     </span>
                     <div>
                       <strong>{s.title}</strong>
-                      <p>{s.desc}</p>
                     </div>
                     <ChevronRight size={16} />
                   </button>
                 ))}
-                <div className="guide-support">
-                  <CircleHelp size={17} />
-                  <div>
-                    <strong>遇到问题也没关系</strong>
-                    <p>常见问题里有对应解决方法。</p>
-                    <button
-                      className="text-button"
-                      onClick={() => go("常见问题")}
-                    >
-                      查看帮助 <ArrowRight size={13} />
-                    </button>
-                  </div>
-                </div>
               </nav>
               <article className="guide-detail surface">
                 <div className="guide-detail-head">
@@ -691,7 +642,7 @@ export default function SmartInformationEntry() {
                         <span className="extension-logo">S</span>
                         <div>
                           <strong>Sugar 求职助手</strong>
-                          <small>2.0.1 · 已加载</small>
+                          <small>已加载</small>
                         </div>
                         <CheckCircle2 size={17} />
                       </div>
@@ -803,7 +754,6 @@ export default function SmartInformationEntry() {
             <div className="view-heading">
               <div>
                 <h2>选一个岗位，体验一次同步</h2>
-                <p>下面使用虚构岗位演示，操作不会写入你的真实账号。</p>
               </div>
               <button
                 className="text-button"
@@ -825,7 +775,6 @@ export default function SmartInformationEntry() {
                     <span className="company-monogram">星</span>
                     <div>
                       <h3>星河科技</h3>
-                      <p>2027 校园招聘 · 演示页面</p>
                     </div>
                     <span className="badge neutral">虚构公司</span>
                   </div>
@@ -854,14 +803,7 @@ export default function SmartInformationEntry() {
                       </button>
                     </article>
                   ))}
-                  <p className="website-example-note">
-                    页面已加载 → 插件识别 → 你来确认 → 同步记录
-                  </p>
                 </BrowserFrame>
-                <div className="data-boundary">
-                  <ShieldCheck size={17} />
-                  <span>识别和勾选不会自动新增投递。</span>
-                </div>
               </section>
               <section className="demo-panel surface" aria-label="插件操作演示">
                 <header>
@@ -907,7 +849,6 @@ export default function SmartInformationEntry() {
                         <strong>
                           {recognizing ? "正在识别岗位…" : "已识别 3 个岗位"}
                         </strong>
-                        <p>公司、岗位与城市已整理，待你确认。</p>
                       </div>
                     </div>
                     <div className="panel-tools">
@@ -1000,7 +941,6 @@ export default function SmartInformationEntry() {
                         <strong>
                           已选择 <em>{checked.size}</em> 个岗位
                         </strong>
-                        <small>只记录你已投递的职位</small>
                       </div>
                       <button
                         className="button outline full"
@@ -1019,7 +959,6 @@ export default function SmartInformationEntry() {
                           </>
                         )}
                       </button>
-                      <p>练习记录 · 仅在当前页面生效</p>
                     </div>
                   </>
                 ) : (
@@ -1066,16 +1005,6 @@ export default function SmartInformationEntry() {
                 )}
               </section>
             </div>
-            <div className="demo-tip">
-              <CheckCircle2 size={19} />
-              <p>
-                <strong>同步由你确认，投递进度继续在网站管理。</strong>
-                <span>重复记录会检查已有岗位，保留原来的面试阶段。</span>
-              </p>
-              <button className="text-button" onClick={() => guide(2)}>
-                查看账号关联方式 <ArrowRight size={15} />
-              </button>
-            </div>
           </>
         )}
         {tab === "常见问题" && (
@@ -1083,7 +1012,6 @@ export default function SmartInformationEntry() {
             <div className="faq-heading">
               <div>
                 <h2>把疑问，留在开始之前</h2>
-                <p>安装、识别和同步中常见的问题，都在这里。</p>
               </div>
               <div className="faq-search">
                 <Search size={17} />
@@ -1125,13 +1053,6 @@ export default function SmartInformationEntry() {
                     <ChevronRight size={14} />
                   </button>
                 ))}
-                <div className="faq-contact">
-                  <strong>更习惯跟着步骤？</strong>
-                  <p>完整安装教程可以随时回看。</p>
-                  <button className="text-button" onClick={() => guide()}>
-                    返回安装教程 <ArrowRight size={14} />
-                  </button>
-                </div>
               </nav>
               <div className="faq-list surface">
                 {filteredFAQ.length ? (
@@ -1186,22 +1107,8 @@ export default function SmartInformationEntry() {
                 )}
               </div>
             </div>
-            <section className="privacy-strip">
-              <ShieldCheck size={22} />
-              <span>页面仅演示操作，不接收你的密码或 API Key。</span>
-              <button
-                className="text-button"
-                onClick={() => setModal({ kind: "account" })}
-              >
-                了解教学演示 <ArrowRight size={14} />
-              </button>
-            </section>
           </>
         )}
-        <footer className="module-footer">
-          <span>下载包含完整扩展源码与 GPL-3.0 许可证。</span>
-          <span className="footer-design">Sugar · 让求职有条理</span>
-        </footer>
       </div>
       {modal && (
         <Modal
@@ -1220,7 +1127,6 @@ export default function SmartInformationEntry() {
                 <span className="extension-logo large">S</span>
                 <div>
                   <h3>Sugar 求职助手</h3>
-                  <p>v2.0.1 · 电脑端 Chrome / Edge 120+</p>
                 </div>
                 <span className="badge neutral">ZIP 安装包</span>
               </div>
@@ -1229,20 +1135,6 @@ export default function SmartInformationEntry() {
                 Edge。下载后先解压，再到浏览器扩展管理页加载。
               </p>
               <BrowserSwitch browser={browser} setBrowser={setBrowser} />
-              <div className="download-checklist">
-                <span>
-                  <Check size={15} />
-                  网站同一账号登录
-                </span>
-                <span>
-                  <Check size={15} />
-                  后台识别与投递同步
-                </span>
-                <span>
-                  <Check size={15} />
-                  保留智能简历填表
-                </span>
-              </div>
               <a
                 className="button primary full"
                 href={DOWNLOAD}
@@ -1250,8 +1142,7 @@ export default function SmartInformationEntry() {
                 onClick={() => toast("插件 ZIP 已开始下载，下载后请解压")}
               >
                 <Download size={16} />
-                下载 {browser} 安装包{" "}
-                <span className="button-meta">528 KB</span>
+                下载 {browser} 安装包
               </a>
               <button
                 className="text-button full"
@@ -1262,9 +1153,6 @@ export default function SmartInformationEntry() {
               >
                 下载后，查看安装步骤 <ArrowRight size={15} />
               </button>
-              <p className="modal-note">
-                使用自己的 Sugar 账号与个人 AI 配置。请在插件中完成登录与配置。
-              </p>
             </div>
           ) : modal.kind === "copy" ? (
             <div className="modal-body">

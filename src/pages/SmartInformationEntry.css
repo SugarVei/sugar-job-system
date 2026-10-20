@@ -87,33 +87,10 @@
   line-height: 22px;
   color: var(--ink);
 }
-.smart-input-page .module-intro {
-  display: flex;
-  justify-content: space-between;
-  gap: 16px;
-  margin: 0 0 16px;
-  color: var(--ink-tertiary);
-  font-size: 13px;
-  line-height: 20px;
-}
-.smart-input-page .module-intro > span {
-  font-size: 12px;
-  white-space: nowrap;
-}
-.smart-input-page .module-footer {
-  padding-bottom: 8px;
-}
 .smart-input-page .button.outline {
   outline: none;
 }
 @media (max-width: 767px) {
-  .smart-input-page .module-intro {
-    display: block;
-  }
-  .smart-input-page .module-intro > span {
-    display: block;
-    margin-top: 6px;
-  }
   .smart-input-page .toast {
     bottom: 88px;
   }
@@ -374,12 +351,6 @@
   margin-top: 28px;
   flex-wrap: wrap;
 }
-.smart-input-page .hero-note {
-  margin-top: 24px;
-  color: var(--ink-tertiary);
-  font-size: 12px;
-  line-height: 18px;
-}
 .smart-input-page .hero-preview {
   min-width: 0;
   padding: 0 4px;
@@ -627,41 +598,8 @@
   line-height: 22px;
   font-weight: 600;
 }
-.smart-input-page .quick-step p {
-  font-size: 12px;
-  line-height: 18px;
-  color: var(--ink-tertiary);
-}
 .smart-input-page .quick-step-arrow {
   display: none;
-}
-.smart-input-page .privacy-strip {
-  display: flex;
-  align-items: center;
-  gap: 14px;
-  padding: 16px 20px;
-  border-radius: var(--radius-md);
-  background: var(--surface-sunken);
-  font-size: 13px;
-  line-height: 20px;
-  color: var(--ink-secondary);
-  margin-top: 16px;
-}
-.smart-input-page .privacy-strip > .text-button {
-  margin-left: auto;
-  flex: none;
-}
-.smart-input-page .module-footer {
-  display: flex;
-  justify-content: space-between;
-  gap: 16px;
-  margin-top: 16px;
-  color: var(--ink-tertiary);
-  font-size: 12px;
-  line-height: 18px;
-}
-.smart-input-page .footer-design {
-  white-space: nowrap;
 }
 .smart-input-page .view-heading,
 .smart-input-page .faq-heading {
@@ -676,11 +614,6 @@
   font-size: 22px;
   line-height: 30px;
   margin-bottom: 8px;
-}
-.smart-input-page .view-heading p,
-.smart-input-page .faq-heading p {
-  font-size: 13px;
-  color: var(--ink-tertiary);
 }
 .smart-input-page .browser-switch {
   display: inline-flex;
@@ -766,37 +699,12 @@
   line-height: 20px;
   font-weight: 600;
 }
-.smart-input-page .guide-step p {
-  font-size: 12px;
-  line-height: 18px;
-  margin-top: 4px;
-  color: var(--ink-tertiary);
-}
 .smart-input-page .guide-step > svg {
   margin-left: auto;
   color: var(--ink-tertiary);
 }
 .smart-input-page .guide-step.active > svg {
   color: var(--accent);
-}
-.smart-input-page .guide-support {
-  border-top: 1px solid var(--line);
-  padding: 24px 12px;
-  margin-top: 24px;
-  display: flex;
-  gap: 10px;
-  color: var(--ink-tertiary);
-}
-.smart-input-page .guide-support strong {
-  font-size: 13px;
-  color: var(--ink-secondary);
-}
-.smart-input-page .guide-support p {
-  font-size: 12px;
-  margin: 6px 0;
-}
-.smart-input-page .guide-support .text-button {
-  font-size: 12px;
 }
 .smart-input-page .guide-detail {
   padding: 24px 28px;
@@ -1214,11 +1122,6 @@
   font-size: 18px;
   line-height: 26px;
 }
-.smart-input-page .fictional-company p {
-  font-size: 12px;
-  color: var(--ink-tertiary);
-  margin-top: 2px;
-}
 .smart-input-page .fictional-company > .badge {
   margin-left: auto;
 }
@@ -1263,21 +1166,6 @@
 }
 .smart-input-page .website-job:last-of-type {
   border-bottom: 0;
-}
-.smart-input-page .website-example-note {
-  text-align: center;
-  font-size: 12px;
-  color: var(--ink-tertiary);
-  padding: 14px 8px;
-  background: var(--surface-muted);
-}
-.smart-input-page .data-boundary {
-  display: flex;
-  justify-content: center;
-  gap: 8px;
-  margin-top: 16px;
-  font-size: 12px;
-  color: var(--ink-tertiary);
 }
 .smart-input-page .demo-panel {
   overflow: hidden;
@@ -1450,10 +1338,6 @@
   color: var(--accent);
   font-weight: 600;
 }
-.smart-input-page .panel-save small {
-  font-size: 12px;
-  color: var(--ink-tertiary);
-}
 .smart-input-page .panel-save > .button {
   font-size: 13px;
 }
@@ -1519,30 +1403,6 @@
 .smart-input-page .empty-records p {
   font-size: 13px;
 }
-.smart-input-page .demo-tip {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  padding: 20px;
-  background: var(--surface-sunken);
-  border-radius: var(--radius-md);
-  margin-top: 20px;
-  color: var(--ink-secondary);
-}
-.smart-input-page .demo-tip strong {
-  font-size: 13px;
-  font-weight: 500;
-}
-.smart-input-page .demo-tip span {
-  font-size: 12px;
-  display: block;
-  color: var(--ink-tertiary);
-  margin-top: 4px;
-}
-.smart-input-page .demo-tip > .text-button {
-  margin-left: auto;
-  flex: none;
-}
 .smart-input-page .faq-heading {
   align-items: flex-start;
 }
@@ -1606,23 +1466,6 @@
 }
 .smart-input-page .faq-categories > button.active > svg:first-child {
   color: var(--accent);
-}
-.smart-input-page .faq-contact {
-  border-top: 1px solid var(--line);
-  margin-top: 20px;
-  padding: 20px 12px;
-  font-size: 13px;
-}
-.smart-input-page .faq-contact strong {
-  font-weight: 500;
-}
-.smart-input-page .faq-contact p {
-  font-size: 12px;
-  color: var(--ink-tertiary);
-  margin: 8px 0;
-}
-.smart-input-page .faq-contact .text-button {
-  font-size: 12px;
 }
 .smart-input-page .faq-list {
   padding: 0 24px;
@@ -1734,51 +1577,17 @@
   font-size: 15px;
   line-height: 22px;
 }
-.smart-input-page .download-product p {
-  font-size: 12px;
-  color: var(--ink-tertiary);
-  margin-top: 4px;
-}
 .smart-input-page .download-product > .badge {
   margin-left: auto;
 }
 .smart-input-page .modal-body > .browser-switch {
   margin-bottom: 20px;
 }
-.smart-input-page .download-checklist {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-  font-size: 13px;
-  color: var(--ink-secondary);
-  padding: 16px 0 24px;
-  border-top: 1px solid var(--line);
-}
-.smart-input-page .download-checklist span {
-  display: flex;
-  gap: 8px;
-  align-items: center;
-}
-.smart-input-page .download-checklist svg {
-  color: var(--success);
-}
-.smart-input-page .button-meta {
-  font-size: 12px;
-  font-weight: 400;
-  opacity: 0.7;
-  margin-left: auto;
-}
 .smart-input-page .modal-body > a.primary > svg {
   margin-right: auto;
 }
 .smart-input-page .modal-body > .text-button.full {
   margin: 12px 0 0;
-}
-.smart-input-page .modal-body > p.modal-note {
-  font-size: 12px;
-  line-height: 20px;
-  margin: 16px 0 0;
-  color: var(--ink-tertiary);
 }
 .smart-input-page .modal-illustration {
   display: grid;
@@ -1897,10 +1706,6 @@
   .smart-input-page .quick-step {
     gap: 8px;
   }
-  .smart-input-page .quick-step p {
-    font-size: 13px;
-    line-height: 20px;
-  }
 }
 @media (min-width: 1024px) and (max-width: 1279px) {
   .smart-input-page .hero {
@@ -1948,9 +1753,6 @@
   .smart-input-page .fictional-company > .badge {
     display: none;
   }
-  .smart-input-page .panel-save small {
-    display: none;
-  }
 }
 @media (max-width: 1023px) {
   .smart-input-page .module-tabs {
@@ -1970,9 +1772,6 @@
   }
   .smart-input-page .hero-actions .text-button {
     font-size: 13px;
-  }
-  .smart-input-page .hero-note {
-    margin-top: 16px;
   }
   .smart-input-page .preview-job .location,
   .smart-input-page .record-city {
@@ -2024,12 +1823,6 @@
   .smart-input-page .faq-search {
     width: 240px;
   }
-  .smart-input-page .faq-contact {
-    padding-left: 12px;
-  }
-  .smart-input-page .demo-tip > .text-button {
-    display: none;
-  }
 }
 @media (max-width: 767px) {
   .smart-input-page .module-tabs {
@@ -2066,10 +1859,6 @@
   .smart-input-page .hero-actions {
     gap: 20px;
     margin-top: 20px;
-  }
-  .smart-input-page .hero-note {
-    font-size: 12px;
-    margin-top: 16px;
   }
   .smart-input-page .hero-preview {
     max-width: 480px;
@@ -2139,46 +1928,11 @@
     font-size: 14px;
     line-height: 22px;
   }
-  .smart-input-page .quick-step p {
-    grid-column: 2;
-    grid-row: 2;
-    font-size: 12px;
-  }
   .smart-input-page .quick-step-arrow {
     display: block;
     grid-column: 3;
     grid-row: 1/3;
     color: var(--ink-tertiary);
-  }
-  .smart-input-page .privacy-strip {
-    flex-wrap: wrap;
-    gap: 8px 10px;
-    padding: 16px;
-    font-size: 12px;
-    align-items: flex-start;
-  }
-  .smart-input-page .privacy-strip > svg {
-    width: 19px;
-    height: 19px;
-  }
-  .smart-input-page .privacy-strip > span {
-    flex: 1;
-    min-width: 0;
-  }
-  .smart-input-page .privacy-strip > .text-button {
-    margin-left: 29px;
-    flex-basis: calc(100% - 29px);
-    justify-content: flex-start;
-    font-size: 12px;
-    padding: 0;
-  }
-  .smart-input-page .module-footer {
-    font-size: 12px;
-    line-height: 20px;
-    margin-top: 16px;
-  }
-  .smart-input-page .footer-design {
-    display: none;
   }
   .smart-input-page .view-heading,
   .smart-input-page .faq-heading {
@@ -2192,11 +1946,6 @@
     font-size: 22px;
     line-height: 30px;
     margin-bottom: 8px;
-  }
-  .smart-input-page .view-heading p,
-  .smart-input-page .faq-heading p {
-    font-size: 13px;
-    line-height: 22px;
   }
   .smart-input-page .browser-switch {
     align-self: flex-start;
@@ -2221,7 +1970,6 @@
     gap: 8px;
     border: 1px solid var(--line);
   }
-  .smart-input-page .guide-step p,
   .smart-input-page .guide-step > svg {
     display: none;
   }
@@ -2232,9 +1980,6 @@
     width: 26px;
     height: 26px;
     font-size: 12px;
-  }
-  .smart-input-page .guide-support {
-    display: none;
   }
   .smart-input-page .guide-detail {
     padding: 20px;
@@ -2389,26 +2134,6 @@
     font-size: 14px;
     margin: 4px 0 6px;
   }
-  .smart-input-page .website-example-note {
-    font-size: 12px;
-    padding: 12px 8px;
-  }
-  .smart-input-page .demo-tip {
-    padding: 16px;
-    align-items: flex-start;
-  }
-  .smart-input-page .demo-tip > svg {
-    margin-top: 2px;
-    flex: none;
-  }
-  .smart-input-page .demo-tip strong {
-    font-size: 13px;
-    line-height: 22px;
-  }
-  .smart-input-page .demo-tip span {
-    font-size: 12px;
-    line-height: 20px;
-  }
   .smart-input-page .faq-search {
     width: 100%;
   }
@@ -2438,8 +2163,7 @@
   .smart-input-page .faq-categories > button.active {
     border-color: var(--line-control);
   }
-  .smart-input-page .faq-categories > button > svg:last-child,
-  .smart-input-page .faq-contact {
+  .smart-input-page .faq-categories > button > svg:last-child {
     display: none;
   }
   .smart-input-page .faq-list {
