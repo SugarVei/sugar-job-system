@@ -6,7 +6,7 @@ export type ApplicationsListFilter = 'all' | 'active' | ApplicationStatus;
 export type HeaderChrome = { searchPlaceholder: string | null; showAdd: boolean; inlineContent?: ReactNode; actions?: ReactNode; contentScroll?: boolean; primaryAction?: { label: string; onClick: () => void; loading?: boolean; icon?: ReactNode } | null };
 
 const SCREEN_STORAGE_KEY = 'sugar.screen';
-const VALID_SCREENS: ScreenKey[] = ['dashboard', 'overview', 'applications', 'capitalMap', 'companies', 'referralCodes', 'hotCompanies', 'resumes', 'interviews', 'offers', 'resumeAssistant', 'mailbox', 'smartInput'];
+const VALID_SCREENS: ScreenKey[] = ['dashboard', 'overview', 'applications', 'companies', 'referralCodes', 'hotCompanies', 'resumes', 'interviews', 'offers', 'resumeAssistant', 'mailbox', 'smartInput'];
 function syncSmartInputRoute(next: ScreenKey) {
   if (next === 'smartInput') window.history.replaceState(null, '', '#/smart-information-entry');
   else if (/^#\/(?:smart-information-entry|smart-input)(?:\/|$)/.test(window.location.hash)) window.history.replaceState(null, '', window.location.pathname + window.location.search);
@@ -53,7 +53,21 @@ export function AppShellProvider({ children }: { children: ReactNode }) {
   }, [screen]);
 
   useEffect(() => {
-    const applyHash = () => { const [screenPath, tab] = window.location.hash.replace(/^#\/?/, '').split('/'); if (['smart-information-entry', 'smart-input'].includes(screenPath) && screenRef.current !== 'smartInput') setScreen('smartInput'); if (screenPath === 'community-world' && screenRef.current !== 'capitalMap') setScreen('capitalMap'); if (screenPath === 'interview-reviews' && screenRef.current !== 'resumeAssistant') setScreen('resumeAssistant'); if (screenPath === 'resume-assistant') { if (screenRef.current !== 'resumeAssistant') setScreen('resumeAssistant'); if (['overview', 'profile', 'settings', 'runs'].includes(tab)) setAssistantTab(tab as ResumeAssistantTab); } };
+    const applyHash = () => {
+      const [screenPath, tab] = window.location.hash.replace(/^#\/?/, '').split('/');
+      // Old bookmarks for the retired module should open the dashboard.
+      if (screenPath === 'community-world') {
+        window.history.replaceState(null, '', window.location.pathname + window.location.search);
+        setScreen('dashboard');
+        return;
+      }
+      if (['smart-information-entry', 'smart-input'].includes(screenPath) && screenRef.current !== 'smartInput') setScreen('smartInput');
+      if (screenPath === 'interview-reviews' && screenRef.current !== 'resumeAssistant') setScreen('resumeAssistant');
+      if (screenPath === 'resume-assistant') {
+        if (screenRef.current !== 'resumeAssistant') setScreen('resumeAssistant');
+        if (['overview', 'profile', 'settings', 'runs'].includes(tab)) setAssistantTab(tab as ResumeAssistantTab);
+      }
+    };
     applyHash(); window.addEventListener('hashchange', applyHash); return () => window.removeEventListener('hashchange', applyHash);
   }, [setScreen]);
   const setAssistantTabWithHash = useCallback((tab: ResumeAssistantTab) => { setAssistantTab(tab); if (window.location.hash !== `#/resume-assistant/${tab}`) window.history.replaceState(null, '', `#/resume-assistant/${tab}`); }, []);

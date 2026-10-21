@@ -23,18 +23,12 @@ import WebPetCompanion from './components/web-pet/WebPetCompanion';
 import WelcomeNoticeModal from './components/WelcomeNoticeModal';
 
 const SmartInformationEntry = lazy(() => import('./pages/SmartInformationEntry'));
-const CommunityTown = lazy(() => import('./pages/CommunityTown'));
-const StandaloneTown = lazy(() => import('./components/community-world/StandaloneTown'));
-
-function isTownExploreRoute() {
-  return window.location.hash.replace(/^#\/?/, '').replace(/\/$/, '') === 'community-world/explore';
-}
 
 function PageCompanion() {
   const { screen } = useAppShell();
   const [compact, setCompact] = useState(() => window.matchMedia('(max-width: 767px)').matches);
   useEffect(() => { const media = window.matchMedia('(max-width: 767px)'); const update = () => setCompact(media.matches); media.addEventListener('change', update); return () => media.removeEventListener('change', update); }, []);
-  return ['capitalMap', 'overview'].includes(screen) || (compact && ['applications', 'resumes', 'mailbox', 'interviews'].includes(screen)) ? null : <WebPetCompanion />;
+  return screen === 'overview' || (compact && ['applications', 'resumes', 'mailbox', 'interviews'].includes(screen)) ? null : <WebPetCompanion />;
 }
 
 function CurrentPage() {
@@ -43,7 +37,6 @@ function CurrentPage() {
     case 'dashboard': return <Dashboard />;
     case 'overview': return <Overview />;
     case 'applications': return <Applications />;
-    case 'capitalMap': return <Suspense fallback={<div style={{ color: 'var(--sugar-ink-tertiary)', fontSize: 14, padding: 12 }}>正在打开求职小镇…</div>}><CommunityTown /></Suspense>;
     case 'companies': return <Companies />;
     case 'referralCodes': return <ReferralCodes />;
     case 'hotCompanies': return <HotCompanies />;
@@ -61,14 +54,6 @@ function Gate() {
   const initialized = useRef(false);
   const previousSession = useRef(session);
   const [showWelcomeNotice, setShowWelcomeNotice] = useState(false);
-  const [exploringTown, setExploringTown] = useState(isTownExploreRoute);
-
-  useEffect(() => {
-    const updateRoute = () => setExploringTown(isTownExploreRoute());
-    updateRoute();
-    window.addEventListener('hashchange', updateRoute);
-    return () => window.removeEventListener('hashchange', updateRoute);
-  }, []);
 
   useEffect(() => {
     if (loading) return;
@@ -80,7 +65,6 @@ function Gate() {
 
   if (loading) return <><LiquidBackground /><div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#7a7468', fontSize: 15 }}>加载中…</div></>;
   if (!session || passwordRecovery) return <><LiquidBackground /><Login passwordRecovery={passwordRecovery} /></>;
-  if (exploringTown) return <Suspense fallback={<div style={{ minHeight: '100dvh', display: 'grid', placeItems: 'center', background: '#d9e7d8', color: '#425f4b' }}>正在进入求职小镇…</div>}><StandaloneTown key={session.user.id}/></Suspense>;
   return <>
     <LiquidBackground />
     <AppShellProvider><ApiKeysProvider key={session.user.id}><ResumeTaskProvider><AppLayout><CurrentPage /></AppLayout><PageCompanion /></ResumeTaskProvider></ApiKeysProvider></AppShellProvider>
