@@ -16,7 +16,7 @@ final result: passed
 
 - Selected concept: `C:/Users/86181/.codex/generated_images/01a15c71-4763-7f30-a362-c856c463c318/exec-be4c65ad-69ee-417c-8fff-7531ee7152f5.png` (1605 × 980 pixels).
 - User-approved typography specification: helper text 13–14px, labels 15px, body/controls 16px, company headings 20px; centered pastel summary cards and saturated state badges.
-- Latest correction: use `2026.10.12.08：25` for deadline display. The reference's Chinese date is deliberately replaced.
+- Latest correction: deadline displays use date only, for example `2026.10.12`; times remain available in the edit form.
 - Existing global navigation, theme picker, search, companion and account controls remain the existing app's components. The concept's review-only status palette and preview heading are not shipped as product UI.
 
 ## Rendered evidence
@@ -55,7 +55,7 @@ No actionable P0/P1/P2 design findings remain within Offer management.
 - Browser: regular Playwright with installed Chromium headless shell. The in-app Browser bootstrap was blocked by its missing `26.1013.40934/scripts/browser-service.mjs`; the selected browser was not a user requirement.
 - Seven tested widths: 1920, 1440, 1280, 1024, 768, 390, 320px; no document, summary or record/action/metric horizontal overflow.
 - Status filter -> one rejected record -> reset -> select two records -> compare -> return to list -> details -> edit status through all five colors -> cancel -> new Offer with enlarged AI importer -> mobile form scrolling -> persistent save/cancel footer -> Escape -> expanded-sidebar layout.
-- Numeric date assertion: exactly `2026.10.12.08：25` in the summary.
+- Numeric date assertion: date only, exactly `2026.10.12` in the summary.
 - Final browser run: 22 assertions passed, no runtime or console errors (including the final error-health assertion).
 
 ## Remaining limits and follow-up polish

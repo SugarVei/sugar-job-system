@@ -29,7 +29,7 @@ const dt = (v: string | null) => {
   const date = new Date(v);
   if (Number.isNaN(date.getTime())) return '—';
   const pad = (part: number) => String(part).padStart(2, '0');
-  return `${date.getFullYear()}.${pad(date.getMonth() + 1)}.${pad(date.getDate())}.${pad(date.getHours())}：${pad(date.getMinutes())}`;
+  return `${date.getFullYear()}.${pad(date.getMonth() + 1)}.${pad(date.getDate())}`;
 };
 const money = (v: number | null) => v == null ? '—' : `¥${Number(v).toLocaleString('zh-CN')}`;
 const risks = (o: Offer) => [
@@ -216,7 +216,7 @@ export default function Offers() {
 function OfferDate({ value }: { value: string | null }) {
   const formatted = dt(value);
   if (formatted === '—') return <>—</>;
-  return <time className="offer-date" dateTime={value ?? undefined}><span>{formatted.slice(0, 11)}</span><span>{formatted.slice(11)}</span></time>;
+  return <time className="offer-date" dateTime={value ?? undefined}>{formatted}</time>;
 }
 function OfferStatusBadge({ status }: { status: OfferStatus }) {
   return <span className="offer-status" data-offer-status={status}>{status}</span>;
