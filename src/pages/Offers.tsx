@@ -1,5 +1,6 @@
-import { paletteCardStyle, paletteTint } from '../lib/customPalette';
+import { paletteCardStyle } from '../lib/customPalette';
 import { useEffect, useMemo, useState } from 'react';
+import { createPortal } from 'react-dom';
 import type { Application, NewOffer, Offer, OfferStatus } from '../types';
 import { useCollection } from '../hooks/useCollection';
 import { useAppShell } from '../contexts/AppShellContext';
@@ -9,6 +10,7 @@ import { Field, FormError, GhostButton, PrimaryButton, Select, TextArea, TextInp
 import EmptyState from '../components/EmptyState';
 import { CARD } from '../lib/appHelpers';
 import AIRecordImporter, { type OfferExtraction } from '../components/AIRecordImporter';
+import './Offers.css';
 
 const blank: NewOffer = {
   application_id: null, company_name: '', position_name: '', city: '', department: '', manager_or_contact: '',
@@ -22,7 +24,13 @@ const blank: NewOffer = {
 };
 const statuses: OfferStatus[] = ['待考虑', '谈薪中', '已接受', '已拒绝', '已过期'];
 const n = (v: string) => v === '' ? null : Number(v);
-const dt = (v: string | null) => v ? new Date(v).toLocaleString('zh-CN', { dateStyle: 'medium', timeStyle: 'short' }) : '—';
+const dt = (v: string | null) => {
+  if (!v) return '—';
+  const date = new Date(v);
+  if (Number.isNaN(date.getTime())) return '—';
+  const pad = (part: number) => String(part).padStart(2, '0');
+  return `${date.getFullYear()}.${pad(date.getMonth() + 1)}.${pad(date.getDate())}.${pad(date.getHours())}：${pad(date.getMinutes())}`;
+};
 const money = (v: number | null) => v == null ? '—' : `¥${Number(v).toLocaleString('zh-CN')}`;
 const risks = (o: Offer) => [
   o.is_big_week && '大小周', o.is_overtime && '加班', o.probation_cut && '试用期折薪',
@@ -129,11 +137,11 @@ export default function Offers() {
     ['最高年包', money(Math.max(...db.items.map(x => x.annual_package ?? 0)) || null), '总包估算'], ['最近截止', nearest ? dt(nearest.reply_deadline) : '—', nearest?.company_name ?? '暂无'],
   ];
 
-  return <div className="flex flex-col gap-[18px] animate-rise">
-    {db.error && <FormError message={db.error} />}
-    <div className="grid grid-cols-2 xl:grid-cols-6 gap-3">{stats.map(([a,b,c],i) =>
-      <div key={String(a)} style={{ ...CARD, padding: 16, background: paletteTint(i, ['#f9dfe7','#fbeec2','#dcebd5','#e6e2da','#dde8fb',theme.accentSoft][i]) }}>
-        <div className="text-xs font-semibold opacity-70">{a}</div><div className="text-xl font-bold mt-1 truncate">{b}</div><div className="text-[11px] opacity-60 mt-1 truncate">{c}</div>
+  return <div className="offers-page flex flex-col gap-[18px] animate-rise">
+    {db.error && <div className="offer-error"><FormError message={db.error} /></div>}
+    <div className="offer-stats">{stats.map(([a,b,c],i) =>
+      <div className={`offer-stat${i === 5 ? ' offer-stat--deadline' : ''}`} key={String(a)} style={{ ...CARD, ...paletteCardStyle(i, ['#f9dfe7','#fbeec2','#dcebd5','#e6e2da','#dde8fb',theme.accentSoft][i]) }}>
+        <div className="offer-stat__label">{a}</div><div className="offer-stat__value">{i === 5 ? <OfferDate value={nearest?.reply_deadline ?? null} /> : b}</div><div className="offer-stat__hint">{c}</div>
       </div>)}</div>
     <div className="module-toolbar offer-toolbar" style={{ ...CARD, borderRadius: 18 }}>
       <div className="segmented-control">
@@ -148,17 +156,18 @@ export default function Offers() {
       <EmptyState text="还没有收到 Offer，可以先从投递记录中标记 Offer，或手动新增一个 Offer。" actionLabel="新增 Offer" onAction={openCreate} /> :
       <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">{list.map(o => {
         const urgent = o.reply_deadline && (+new Date(o.reply_deadline) - Date.now()) / 86400000 <= 4;
-        return <article key={o.id} className="card-hover" style={{ ...CARD, ...paletteCardStyle(o.id), padding: 20 }}>
-          <div className="flex justify-between gap-3"><div><h3 className="font-bold text-lg m-0">{o.company_name}</h3><p className="text-sm text-ink-tertiary mt-1">{o.position_name} · {o.city || '城市未填'}</p></div><span style={pill(o.offer_status)}>{o.offer_status}</span></div>
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 my-4 text-sm"><Metric label="月薪" value={money(o.base_salary)} /><Metric label="年包" value={money(o.annual_package)} /><Metric label="回复截止" value={dt(o.reply_deadline)} warn={!!urgent} /><Metric label="综合评分" value={o.total_score == null ? '—' : `${o.total_score} 分`} /></div>
-          <div className="flex flex-wrap gap-2 mb-4">{risks(o).map(x => <span key={x} className="text-xs px-2 py-1 rounded-full bg-[#fbe0d8] text-[#a23d24]">{x}</span>)}</div>
-          <div className="flex flex-wrap items-center gap-2 border-t border-[#f0ebe0] pt-3">
-            <label className="text-sm mr-auto"><input type="checkbox" checked={compare.includes(o.id)} onChange={e => setCompare(v => e.target.checked ? v.length < 5 ? [...v,o.id] : v : v.filter(x => x !== o.id))} /> 加入对比</label>
-            <GhostButton onClick={() => setDetail(o)}>查看详情</GhostButton><GhostButton onClick={() => openEdit(o)}>编辑</GhostButton><GhostButton onClick={() => void del(o)}>删除</GhostButton>
+        return <article key={o.id} className="offer-card card-hover" style={{ ...CARD, ...paletteCardStyle(o.id) }}>
+          <div className="offer-card__header"><div className="offer-card__identity"><h3>{o.company_name}</h3><p>{o.position_name} · {o.city || '城市未填'}</p></div><OfferStatusBadge status={o.offer_status} /></div>
+          <div className="offer-card__metrics"><Metric label="月薪" value={money(o.base_salary)} /><Metric label="年包" value={money(o.annual_package)} /><Metric label="回复截止" value={<OfferDate value={o.reply_deadline} />} warn={!!urgent} /><Metric label="综合评分" value={o.total_score == null ? '—' : `${o.total_score} 分`} /></div>
+          {risks(o).length > 0 && <div className="offer-card__risks">{risks(o).map(x => <span key={x}>{x}</span>)}</div>}
+          <div className="offer-card__footer">
+            <label className="offer-card__compare"><input type="checkbox" checked={compare.includes(o.id)} onChange={e => setCompare(v => e.target.checked ? v.length < 5 ? [...v,o.id] : v : v.filter(x => x !== o.id))} /> 加入对比</label>
+            <div className="offer-card__actions"><GhostButton onClick={() => setDetail(o)}>查看详情</GhostButton><GhostButton onClick={() => openEdit(o)}>编辑</GhostButton><GhostButton style={{ color: '#b91c1c', background: '#fff1f2', borderColor: '#fecdd3' }} onClick={() => void del(o)}>删除</GhostButton></div>
           </div>
         </article>;
       })}</div>}
     {detail && <Drawer title={`${detail.company_name} · ${detail.position_name}`} onClose={() => setDetail(null)}>
+      <div className="offer-detail-status"><OfferStatusBadge status={detail.offer_status} /></div>
       <Section title="基本信息">{detail.city || '—'} · {detail.department || '部门未填'}<br/>入职日期：{detail.join_date || '—'}<br/>回复截止：{dt(detail.reply_deadline)}</Section>
       <Section title="薪资结构">月薪 {money(detail.base_salary)} × {detail.salary_months ?? 12} 薪<br/>奖金 {money(detail.bonus)} · 补贴 {money(detail.subsidy)}<br/>年包 {money(detail.annual_package)}</Section>
       <Section title="决策评分">薪资 {detail.salary_score ?? '—'} · 匹配 {detail.match_score ?? '—'} · 成长 {detail.growth_score ?? '—'} · 稳定 {detail.stability_score ?? '—'}<br/>综合：{detail.total_score ?? '—'} 分</Section>
@@ -176,11 +185,11 @@ export default function Offers() {
       bodyClassName="offer-form-modal-body"
       footer={<><GhostButton onClick={() => setModal(false)}>取消</GhostButton><PrimaryButton accent="#1b1a17" onClick={() => void save()} disabled={saving} style={{ minWidth: 128 }}>{saving ? '保存中…' : '保存 Offer'}</PrimaryButton></>}
     >
-      <FormError message={formError} />
+      <div className="offer-error"><FormError message={formError} /></div>
       {!editing && <AIRecordImporter<OfferExtraction> kind="offer" onApply={applyAIExtraction} />}
       <FormSection title="基本信息">
         <Field label="关联投递记录"><Select value={form.application_id ?? ''} onChange={e => selectApplication(e.target.value)}><option value="">手动录入</option>{apps.items.filter(x => x.status === 'Offer').map(x => <option value={x.id} key={x.id}>{x.company_name} · {x.position_name}</option>)}</Select></Field>
-        <div className="offer-form-grid offer-form-grid--4"><Field label="公司名称 *"><TextInput value={form.company_name} onChange={e => patch('company_name',e.target.value)} /></Field><Field label="岗位名称 *"><TextInput value={form.position_name} onChange={e => patch('position_name',e.target.value)} /></Field><Field label="城市"><TextInput value={form.city ?? ''} onChange={e => patch('city',e.target.value)} /></Field><Field label="状态"><Select value={form.offer_status} onChange={e => patch('offer_status',e.target.value as OfferStatus)}>{statuses.map(x => <option key={x}>{x}</option>)}</Select></Field></div>
+        <div className="offer-form-grid offer-form-grid--4"><Field label="公司名称 *"><TextInput value={form.company_name} onChange={e => patch('company_name',e.target.value)} /></Field><Field label="岗位名称 *"><TextInput value={form.position_name} onChange={e => patch('position_name',e.target.value)} /></Field><Field label="城市"><TextInput value={form.city ?? ''} onChange={e => patch('city',e.target.value)} /></Field><Field label="状态"><Select aria-label="Offer 状态" className="offer-status-select" data-offer-status={form.offer_status} value={form.offer_status} onChange={e => patch('offer_status',e.target.value as OfferStatus)}>{statuses.map(x => <option value={x} key={x}>{x}</option>)}</Select></Field></div>
       </FormSection>
       <div className="offer-form-section-row">
         <FormSection title="时间信息">
@@ -192,7 +201,7 @@ export default function Offers() {
       </div>
       <FormSection title="薪资结构（元）">
         <div className="offer-form-grid offer-form-grid--5">{(['base_salary','salary_months','bonus','subsidy','annual_package'] as const).map((k,i) => <Field key={k} label={['月薪','薪数','奖金','年度补贴','年包（可手填）'][i]}><TextInput type="number" value={form[k] ?? ''} onChange={e => patch(k,n(e.target.value))} /></Field>)}</div>
-        <div className="text-[11px] text-ink-tertiary -mt-2">年包未手填时，将按“月薪 × 薪数 + 奖金 + 补贴”自动估算。</div>
+        <div className="offer-form-hint">年包未手填时，将按“月薪 × 薪数 + 奖金 + 补贴”自动估算。</div>
       </FormSection>
       <FormSection title="谈薪、风险与备注">
         <div className="offer-form-grid offer-form-grid--2"><Field label="谈薪记录"><TextArea className="offer-compact-textarea" value={form.negotiation_notes ?? ''} onChange={e => patch('negotiation_notes',e.target.value)} /></Field><Field label="风险备注"><TextArea className="offer-compact-textarea" value={form.risk_notes ?? ''} onChange={e => patch('risk_notes',e.target.value)} /></Field></div>
@@ -204,10 +213,41 @@ export default function Offers() {
   </div>;
 }
 
-function Metric({ label, value, warn }: { label:string; value:string; warn?:boolean }) { return <div className={warn ? 'text-[#a23d24]' : ''}><div className="text-xs text-ink-tertiary">{label}</div><b className="block mt-1">{value}</b></div>; }
-function Section({ title, children }: { title:string; children:React.ReactNode }) { return <section className="mb-6"><h3 className="text-base">{title}</h3><div className="text-sm leading-7 text-[#5d584d] bg-[#faf7f0] rounded-2xl p-4">{children}</div></section>; }
+function OfferDate({ value }: { value: string | null }) {
+  const formatted = dt(value);
+  if (formatted === '—') return <>—</>;
+  return <time className="offer-date" dateTime={value ?? undefined}><span>{formatted.slice(0, 11)}</span><span>{formatted.slice(11)}</span></time>;
+}
+function OfferStatusBadge({ status }: { status: OfferStatus }) {
+  return <span className="offer-status" data-offer-status={status}>{status}</span>;
+}
+function Metric({ label, value, warn }: { label: string; value: React.ReactNode; warn?: boolean }) {
+  return <div className={`offer-metric${warn ? ' offer-metric--urgent' : ''}`}><div className="offer-metric__label">{label}</div><b className="offer-metric__value">{value}</b></div>;
+}
+function Section({ title, children }: { title: string; children: React.ReactNode }) {
+  return <section className="offer-detail-section"><h3>{title}</h3><div>{children}</div></section>;
+}
 function FormSection({ title, children }: { title:string; children:React.ReactNode }) { return <section className="offer-form-section"><h3>{title}</h3>{children}</section>; }
-function Drawer({ title, onClose, children }: { title:string; onClose:()=>void; children:React.ReactNode }) { return <div className="fixed inset-0 z-[90] bg-black/25" onClick={onClose}><aside className="absolute right-0 top-0 h-full w-full sm:w-[560px] overflow-y-auto bg-[#fffdf8] p-6 shadow-2xl" onClick={e => e.stopPropagation()}><div className="flex justify-between gap-4 mb-5"><h2>{title}</h2><button className="w-11 h-11 rounded-xl border" onClick={onClose}>×</button></div>{children}</aside></div>; }
-function Compare({ offers }: { offers:Offer[] }) { if (!offers.length) return <EmptyState text="勾选最多 5 个 Offer 后在这里进行对比。" />; return <div style={{...CARD,padding:18,overflowX:'auto'}}><table className="hidden sm:table w-full text-sm"><thead><tr><th className="text-left p-3">指标</th>{offers.map(x => <th className="p-3" key={x.id}>{x.company_name}<br/><span className="font-normal">{x.position_name}</span></th>)}</tr></thead><tbody>{[['年包',(x:Offer)=>money(x.annual_package)],['综合评分',(x:Offer)=>`${x.total_score ?? '—'} 分`],['回复截止',(x:Offer)=>dt(x.reply_deadline)],['风险',(x:Offer)=>risks(x).join('、') || '低风险']].map(([l,f]) => <tr className="border-t" key={String(l)}><td className="p-3 font-semibold">{String(l)}</td>{offers.map(x => <td className="p-3 text-center" key={x.id}>{(f as (x:Offer)=>string)(x)}</td>)}</tr>)}</tbody></table><div className="sm:hidden grid gap-3">{offers.map(x => <div className="rounded-2xl bg-[#faf7f0] p-4" key={x.id}><b>{x.company_name} · {x.position_name}</b><p>年包 {money(x.annual_package)} · {x.total_score ?? '—'} 分</p><p>{risks(x).join('、') || '低风险'}</p></div>)}</div></div>; }
+function Drawer({ title, onClose, children }: { title: string; onClose: () => void; children: React.ReactNode }) {
+  useEffect(() => {
+    const onKeyDown = (event: KeyboardEvent) => { if (event.key === 'Escape') onClose(); };
+    document.addEventListener('keydown', onKeyDown);
+    return () => document.removeEventListener('keydown', onKeyDown);
+  }, [onClose]);
+  return createPortal(<div className="offer-drawer-overlay" onClick={onClose}><aside aria-label={title} className="offer-drawer" onClick={e => e.stopPropagation()}><div className="offer-drawer__header"><h2>{title}</h2><button aria-label="关闭 Offer 详情" className="w-11 h-11 rounded-xl border" onClick={onClose}>×</button></div>{children}</aside></div>, document.body);
+}
+function Compare({ offers }: { offers: Offer[] }) {
+  if (!offers.length) return <EmptyState text="勾选最多 5 个 Offer 后在这里进行对比。" />;
+  const rows: [string, (offer: Offer) => React.ReactNode][] = [
+    ['状态', offer => <OfferStatusBadge status={offer.offer_status} />],
+    ['年包', offer => money(offer.annual_package)],
+    ['综合评分', offer => `${offer.total_score ?? '—'} 分`],
+    ['回复截止', offer => <OfferDate value={offer.reply_deadline} />],
+    ['风险', offer => risks(offer).join('、') || '低风险'],
+  ];
+  return <div className="offer-comparison" style={CARD}>
+    <table className="hidden sm:table w-full"><thead><tr><th scope="col">指标</th>{offers.map(offer => <th scope="col" key={offer.id}>{offer.company_name}<br/><span className="font-normal">{offer.position_name}</span></th>)}</tr></thead><tbody>{rows.map(([label, render]) => <tr key={label}><th scope="row">{label}</th>{offers.map(offer => <td key={offer.id}>{render(offer)}</td>)}</tr>)}</tbody></table>
+    <div className="sm:hidden grid gap-4">{offers.map(offer => <div className="offer-comparison__mobile" key={offer.id}><b>{offer.company_name} · {offer.position_name}</b><div className="my-3"><OfferStatusBadge status={offer.offer_status} /></div><p>年包 {money(offer.annual_package)} · {offer.total_score ?? '—'} 分</p><p>回复截止：<OfferDate value={offer.reply_deadline} /></p><p>{risks(offer).join('、') || '低风险'}</p></div>)}</div>
+  </div>;
+}
 const tab = (active:boolean):React.CSSProperties => ({ height:38,padding:'0 18px',border:0,borderRadius:10,background:active?'#fffdf8':'transparent',fontWeight:700,whiteSpace:'nowrap',flexShrink:0 });
-const pill = (s:OfferStatus):React.CSSProperties => ({ padding:'5px 11px',borderRadius:999,fontSize:12,fontWeight:700,height:'fit-content',background:s==='已接受'?'#dcebd5':s==='谈薪中'?'#dde8fb':s==='待考虑'?'#fbeec2':'#e6e2da',color:'#4a463e' });

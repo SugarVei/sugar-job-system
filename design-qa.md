@@ -1,96 +1,65 @@
-# 热门公司附图修正核对
+# Offer management readability and status colors
 
 final result: passed
 
-## Source and implementation
+## Scope and visual truth
 
-The user's latest attached image is the source of truth. The earlier directory/dropdown design is superseded.
+- Selected concept: `C:/Users/86181/.codex/generated_images/01a15c71-4763-7f30-a362-c856c463c318/exec-be4c65ad-69ee-417c-8fff-7531ee7152f5.png` (1605 × 980 pixels).
+- User-approved typography specification: helper text 13–14px, labels 15px, body/controls 16px, company headings 20px; centered pastel summary cards and saturated state badges.
+- Latest correction: use `2026.10.12.08：25` for deadline display. The reference's Chinese date is deliberately replaced.
+- Existing global navigation, theme picker, search, companion and account controls remain the existing app's components. The concept's review-only status palette and preview heading are not shipped as product UI.
 
-- Original source: C:/Temp/codex-clipboard-bd04eeed-d371-4a59-8570-3ab4df407b10.png
-- Preserved source: design-qa-assets/corrected-target.png
-- Working preview: http://127.0.0.1:4187/hot-companies-preview.html?layout=side-panel
-- Desktop screenshot: design-qa-assets/corrected-desktop.png
-- Full comparison, source left and implementation right: design-qa-assets/corrected-comparison-full.png
-- Focused panel comparison at original density: design-qa-assets/corrected-comparison-panel.png
-- Mobile screenshots: design-qa-assets/corrected-mobile-cards.png and corrected-mobile-panel.png
-- Desktop source, CSS viewport and output are all 1487 x 1058, device scale 1. No density normalization was needed. Focused panel crops are 344 x 834 each.
-- Comparison state: light warm surface, expanded app sidebar, first page, scroll top 0, discovery panel expanded and Resume selected, no file selected.
+## Rendered evidence
 
-## Comparison history
+- Local sample preview: `http://127.0.0.1:5191/`; real component code served by Vite at `http://127.0.0.1:5190/`.
+- Primary screenshot: `D:/Users/86181/Documents/简历/outputs/offer-readability-20261020/offers-desktop-1920.png` (1920 × 1080, CSS viewport 1920 × 1080, deviceScaleFactor 1).
+- Content comparison screenshot: `D:/Users/86181/Documents/简历/outputs/offer-readability-20261020/offers-content-1605.png` (1473 × 546 pixels, CSS viewport 1605 × 980, deviceScaleFactor 1).
+- Full-view combined comparison: `D:/Users/86181/Documents/简历/outputs/offer-readability-20261020/design-comparison.png`.
+- Focused summary comparison: `D:/Users/86181/Documents/简历/outputs/offer-readability-20261020/design-comparison-summary.png`.
+- Normalization: crop the concept to app content `(36,121)-(1574,807)`, excluding its heading and review-only palette; normalize to the implementation's 1473px content width. Both are DPR 1. The real app uses the explicitly approved CSS text sizes rather than inferring CSS sizes from generated-image lettering. Its existing shell and denser content height are intentional.
+- Other screenshots in the same output directory: `offers-1440.png`, `offers-390.png`, `offers-320.png`, `offers-sidebar-expanded.png`, `offers-comparison.png`, `offers-details.png`, `offers-create-desktop.png`, `offers-edit-desktop.png`, `offers-create-mobile.png`, `offers-create-mobile-bottom.png`, `offers-mobile-record.png`.
+- State: two isolated sample records based on the preview; pending count 1, accepted 0, ended 1, highest package 314000. This does not read or write the production account.
 
-1. [P1, resolved] The previous implementation used the wrong visual target. Replaced the list and discovery popover with the attached two-column card layout and a persistent right-side discovery panel. Default mode is Resume; AI and Excel switch within the same panel.
-2. [P2, resolved] The first corrected render had the content about 25px too low. Reduced header/status-strip spacing and adjusted main padding. Final panel is x=1129, y=199.66, width=344, height=834, against the source panel around x=1127, y=197. First card is x=318, y=389.66, width=380.5, height=137. Source card is around x=316, y=388, width=381, height=136.
-3. [P2, resolved] Early panel labels were too small and the upload icon lacked the reference's text lines. Increased tab, description, consent, option and primary-action text; used the existing outline FileText library icon. Final upload well is 302 x 180; primary action is 302 x 48. Recaptured and compared both full view and focused panel after this change.
+## Comparison history and findings
 
-No remaining actionable P0/P1/P2 findings in the reviewed states.
+1. Initial rendered review: six centered pastel summary cards, enlarged body/control type and amber/red sample badges preserved the target's hierarchy. Chinese deadlines were replaced by numeric deadlines as requested. No core composition changes needed.
+2. [P2, fixed] The existing animated page container bounded the details drawer to the card grid; its lower content was clipped. Moved the drawer into a body portal and added Escape dismissal. The post-fix `offers-details.png` shows the panel filling the 1080px viewport, and the browser assertion verifies its full viewport height.
+3. Screenshot capture correction: initial captures caught CSS entrance animations mid-frame; final captures disable finite animations. Color checks finish native color transitions before sampling. These were capture problems rather than style defects.
+4. Preview infrastructure correction: the local sample proxy now forwards Vite's WebSocket upgrades. Placeholder account-profile reads are fulfilled with empty test responses. Final UI run has zero page errors and zero console errors. Remaining warnings are the explicit missing-Supabase demo-mode notice and the pre-existing browser-externalized `stream` dependency warning.
+
+No actionable P0/P1/P2 design findings remain within Offer management.
 
 ## Required fidelity surfaces
 
-- Typography: system sans-serif with Chinese UI fallbacks, 34px page title, 27px panel title, 18px tool title, 16px company names and main action. Platform font rasterization differs from the generated reference; the hierarchy and wrapping have been checked.
-- Spacing/layout: five separated status totals, search plus filter button, three aligned selectors, two company columns, right panel 344px wide, persistent pagination, segmented AI/Resume/Excel modes. Panel geometry and first-card position closely match the attached target. Existing sidebar navigation remains functional, with its account and footer arrangement styled for this module.
-- Color/tokens: the user approved the attached layout and then requested colors to follow the selected site theme. Company cards use stable name-based tint slots. All six presets update card surfaces, initials, panel, tabs, selected preferences, pagination and focus colors. Custom palettes reuse the existing five card slots and contrast-safe foregrounds. Recruitment status colors retain their meaning. The reference black primary action is retained.
-- Images/icons: preserved the source application's native company-initial avatars with its existing initialOf helper and stable paletteSlot mapping, matching the attached design's text-avatar treatment. Icons come from the installed outline library. No generated corporate logos or approximated brand marks are introduced. Unused logo assets from the superseded concept were archived outside the worktree.
-- Copy/content: matches 发现公司, AI / 简历 / Excel, 通过简历找公司, 上传简历, 匹配偏好, 开始匹配 and administrator-only Excel messaging. Consent and account-private results remain in place. Existing additional preferences are available through 更多. The application uses its catalog and audit data instead of copying fictional company counts or dates from the source image.
+- Typography: retain the existing DM Sans/system/PingFang/Microsoft YaHei stack. Summary labels 15px, values 26px, hints 14px, numeric deadline 17px desktop / 15px mobile. Company headings 20px, body/buttons/inputs 16px, metric labels/status badges 14px. Form sections/labels 15px and modal headings 22px. More generous line heights and darker helper copy preserve readability.
+- Spacing/layout: centered summary cards use 140px minimum height, 14px gaps and six / three / two responsive columns. Record cards use 24px desktop / 20px mobile padding, a divider before actions and wrapping action groups. Date and time can wrap only between their complete parts.
+- Colors/tokens: preserve six pastel surfaces and existing custom-palette hooks. Statuses map consistently across records, details, comparison and form selection: amber `#fbbf24` / dark brown `#422006`, blue `#2563eb`, green `#15803d`, red `#dc2626`, purple `#7c3aed`, with white text for the last four. Solid text contrast ratios are 8.730, 5.169, 5.016, 4.829 and 5.699 respectively; all exceed 4.5:1. This is not a full accessibility certification.
+- Image/asset quality: the selected content has no raster assets requiring generation. All page text and cards remain real editable UI; existing product icons and companion assets are retained.
+- Copy/content: preserve business labels, actions, sample totals, filters and sorting. All displayed Offer deadlines use the numeric format; native date/time editing controls retain their standard browser input behavior. No preview legend or design instructions leak into the production page.
 
-## Interaction evidence
+## Checks and interaction evidence
 
-Checked in the isolated Playwright browser previously authorized by the user:
+- `npm run lint`: passed.
+- `npm run build`: passed after final source changes; pre-existing bundle-size and mixed JSZip import warnings remain.
+- `git diff --check`: passed.
+- Browser: regular Playwright with installed Chromium headless shell. The in-app Browser bootstrap was blocked by its missing `26.1013.40934/scripts/browser-service.mjs`; the selected browser was not a user requirement.
+- Seven tested widths: 1920, 1440, 1280, 1024, 768, 390, 320px; no document, summary or record/action/metric horizontal overflow.
+- Status filter -> one rejected record -> reset -> select two records -> compare -> return to list -> details -> edit status through all five colors -> cancel -> new Offer with enlarged AI importer -> mobile form scrolling -> persistent save/cancel footer -> Escape -> expanded-sidebar layout.
+- Numeric date assertion: exactly `2026.10.12.08：25` in the summary.
+- Final browser run: 22 assertions passed, no runtime or console errors (including the final error-health assertion).
 
-- Responsive layouts at 320, 390, 768, 1280 and 1487px; no horizontal document overflow. A fresh mobile load starts with discovery collapsed. Opening it uses a single inline panel.
-- Administrator has AI, Resume and Excel tabs. Ordinary user has only AI and Resume. End-key navigation selects the last available tab.
-- AI search returns the in-memory example candidate. Prompt survives tab changes and panel collapse/reopen.
-- Resume selection, 科技 preference, required consent, and mocked upload/parse/match/save flow completed with one displayed recommendation.
-- Actual XLSX fixture parsing, change-preview dialog, cancel, collapse/reopen and preserved file selection. Evidence: design-qa-assets/corrected-excel-confirm.png.
-- Next page changes page index to 1; empty-search/reset returns to page 0. Full pages remain bounded to 48 cards. Direct-page selection and numbered controls remain available.
-- All existing website, evidence, applied-record and private-delete handlers remain connected to the card actions.
-- Browser console: zero errors in final checks. Existing xlsx-js-style stream compatibility warning remains; the workbook parser flow passed.
+## Remaining limits and follow-up polish
 
-## Validation and scope
+- UI checks use isolated sample data. Authenticated production persistence, external AI/OCR APIs and cross-device native rendering were not tested or changed.
+- The existing global companion can float over content on narrow screens; its behavior belongs to the app shell and is outside this Offer-only change.
+- The shared page title/navigation retain their original sizes. Only Offer-owned content and its form/detail/comparison surfaces are enlarged.
+- Build and browser evidence are local; this branch has not been deployed.
 
-- Production build passed after the final font/icon adjustment. Existing chunk-size and JSZip import warnings remain.
-- Targeted ESLint passed on changed TSX components.
-- Existing standardCompanyImport, standardCompanyWorkbook and standardCatalogAdmin tests plus customPalette tests: 25 passed.
-- git diff --check passed.
-- Preview uses a fake Supabase origin and in-memory API/storage/database responses. It does not sign in to a real account, call paid AI, or write production data.
-- Release target: existing GitHub main to the sugarvresume production project, https://www.sugarv.mom/. Production asset and browser verification follows the push; simulated API checks do not prove real-account writes or live AI matching.
+## Implementation checklist
 
-## Accepted P3 differences
-
-- Current navigation includes the existing 求职小镇 entry and current theme/command controls; none were removed to mimic the illustrative image.
-- Company names, counts and audit dates differ because the existing catalog is used. The preview is explicitly labelled as example data.
-- Small platform-dependent font and icon-weight differences remain.
-
-## Completion checklist
-
-- [x] Latest attached image is the sole layout target.
-- [x] Corrected two-column cards plus right discovery panel.
-- [x] Functional modes, collapse/reopen, persistent selections and administrator checks.
-- [x] Source and final screenshots reviewed together at the same viewport/state.
-- [x] Required typography, layout, palette, assets and copy checks complete.
-- [x] Build, lint, 25 relevant tests and local interaction checks pass.
-
-## Theme follow-up verification (2026-10-16)
-
-- Checked every preset through the existing theme switcher; all six produced distinct card, initial, panel and selected-tab colors.
-- Applied a five-color custom palette through the actual palette-studio iframe bridge. Multiple company card hues and readable matching foregrounds appeared; custom selection persisted after reload.
-- Verified no document overflow at 320, 390, 768, 1280 and 1487px.
-- Browser console: no errors.
-- Evidence: design-qa-assets/theme-blue.png and design-qa-assets/theme-custom.png.
-- AI and resume result cards and the compact Excel upload area also inherit the selected theme. Shared components preserve their normal appearance outside the compact panel.
-
-## Sidebar restoration requested after release (2026-10-16)
-
-- The user requested the original sidebar with the avatar/account control at the bottom. Removed all HotCompanies-specific sidebar sizing, reordering, avatar, typography and footer overrides.
-- The shared sidebar CSS is once again authoritative: 248px expanded and 64px collapsed, with navigation above the AI settings/logout/account footer. The account is the last item at the bottom.
-- At 1487 x 1058: sidebar width 248, footer y=887, account y=991 with height 55 and 12px bottom inset.
-- Checked account dialog open/close, collapse/expand, and 390/1280/1487px without horizontal overflow. The company card and discovery panel design and theme tokens remain in place.
-- Evidence: design-qa-assets/restored-sidebar.png. Build and whitespace checks passed.
-
-## Shared module background requested after sidebar restoration (2026-10-16)
-
-- The user requested the Hot Companies background to match the other modules and provided the green Overview screen as reference.
-- Removed the module-specific app-fullscreen-surface background and backdrop-filter override. Hot Companies now uses the same AppLayout shell and LiquidBackground as Overview, including the current preset/custom theme.
-- Compared computed shell backgrounds and backdrop filters between Hot Companies and Overview in all six presets: all matched. Custom palette shell, filter and background gradient also matched.
-- Confirmed the green view visually against the supplied reference and checked 390px for horizontal overflow (none). Existing cards, theme accents and restored bottom account controls remain intact.
-- Evidence: design-qa-assets/shared-background.png (1854 x 917, isolated fixture).
-- Vite production build and git diff --check passed.
+- [x] Center all six statistics cards and enlarge the agreed type scale.
+- [x] Keep numeric deadlines complete across responsive widths.
+- [x] Use five distinct, legible saturated state colors throughout Offer surfaces.
+- [x] Enlarge the importer, form, detail and comparison text.
+- [x] Keep detail content reachable with a full viewport drawer.
+- [x] Run local lint/build, browser interaction checks and visual comparisons.

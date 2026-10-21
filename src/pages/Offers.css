@@ -1,0 +1,159 @@
+/* Scoped to Offer management, including its portal-rendered form. */
+.offers-page,
+.offer-drawer,
+.offer-form-modal {
+  --offer-muted: var(--sugar-muted, #625d54);
+  --offer-line: var(--sugar-line, #e9e2d6);
+  font-size: 16px;
+  line-height: 1.6;
+  min-width: 0;
+}
+
+.offer-stats {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+}
+.offer-stat {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  min-width: 0;
+  min-height: 140px;
+  padding: 18px 12px;
+  text-align: center;
+}
+.offer-stat__label { font-size: 15px; font-weight: 600; }
+.offer-stat__value { max-width: 100%; font-size: 26px; font-weight: 750; line-height: 1.35; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+.offer-stat__hint { max-width: 100%; font-size: 14px; color: var(--offer-muted); overflow-wrap: anywhere; }
+.offer-stat--deadline .offer-stat__value { font-size: 17px; }
+.offer-date { display: inline-flex; flex-wrap: wrap; max-width: 100%; column-gap: 0; font-variant-numeric: tabular-nums; vertical-align: baseline; }
+.offer-date > span { white-space: nowrap; }
+.offer-stat .offer-date { justify-content: center; }
+
+.offers-page .offer-toolbar { gap: 14px; padding: 16px; }
+.offers-page .offer-toolbar .toolbar-select { flex: 0 1 180px; }
+.offers-page .offer-toolbar > .btn-press { margin-left: auto; }
+.offers-page .offer-toolbar .segmented-control button { height: 42px !important; }
+/* Shared controls have inline sizes; override only within this module. */
+.offers-page .btn-press,
+.offer-drawer .btn-press,
+.offers-page .offer-toolbar button,
+.offers-page .field-input,
+.offer-form-modal .btn-press,
+.offer-form-modal .field-input { font-size: 16px !important; }
+.offers-page .offer-toolbar .field-input,
+.offer-form-modal .field-input { min-height: 48px !important; line-height: 1.5; }
+
+.offer-card { display: flex; flex-direction: column; min-width: 0; padding: 24px; }
+.offer-card__header { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; }
+.offer-card__identity { min-width: 0; }
+.offer-card__identity h3 { margin: 0; font-size: 20px; font-weight: 750; line-height: 1.5; overflow-wrap: anywhere; }
+.offer-card__identity p { margin: 5px 0 0; color: var(--offer-muted); font-size: 16px; overflow-wrap: anywhere; }
+.offer-card__metrics { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 20px 14px; margin: 28px 0; }
+.offer-metric { min-width: 0; }
+.offer-metric__label { margin-bottom: 6px; color: var(--offer-muted); font-size: 14px; }
+.offer-metric__value { display: block; font-size: 20px; line-height: 1.45; font-weight: 700; overflow-wrap: anywhere; font-variant-numeric: tabular-nums; }
+.offer-metric:has(.offer-date) .offer-metric__value { font-size: 16px; }
+.offer-metric--urgent .offer-metric__value { color: #a23d24; }
+.offer-card__risks { display: flex; flex-wrap: wrap; gap: 8px; margin: -8px 0 20px; }
+.offer-card__risks > span { padding: 4px 10px; border-radius: 999px; background: #fbe0d8; color: #a23d24; font-size: 14px; }
+.offer-card__footer { display: flex; flex-wrap: wrap; align-items: center; gap: 14px; margin-top: auto; padding-top: 20px; border-top: 1px solid var(--offer-line); }
+.offer-card__compare { display: inline-flex; align-items: center; gap: 8px; margin-right: auto; font-size: 16px; cursor: pointer; }
+.offer-card__compare input { width: 18px; height: 18px; accent-color: var(--sugar-accent, #9e5865); }
+.offer-card__actions { display: flex; flex-wrap: wrap; gap: 8px; }
+.offer-card__actions .btn-press { min-width: 72px !important; padding: 0 14px !important; }
+
+/* State colors keep the same meaning across all preset and custom themes. */
+.offers-page,
+.offer-drawer,
+.offer-form-modal {
+  --offer-consider-bg: #fbbf24;
+  --offer-consider-fg: #422006;
+  --offer-negotiating-bg: #2563eb;
+  --offer-accepted-bg: #15803d;
+  --offer-rejected-bg: #dc2626;
+  --offer-expired-bg: #7c3aed;
+}
+[data-offer-status="待考虑"] { --offer-status-bg: var(--offer-consider-bg); --offer-status-fg: var(--offer-consider-fg); }
+[data-offer-status="谈薪中"] { --offer-status-bg: var(--offer-negotiating-bg); --offer-status-fg: #fff; }
+[data-offer-status="已接受"] { --offer-status-bg: var(--offer-accepted-bg); --offer-status-fg: #fff; }
+[data-offer-status="已拒绝"] { --offer-status-bg: var(--offer-rejected-bg); --offer-status-fg: #fff; }
+[data-offer-status="已过期"] { --offer-status-bg: var(--offer-expired-bg); --offer-status-fg: #fff; }
+.offer-status { display: inline-flex; flex: none; align-items: center; justify-content: center; min-height: 36px; padding: 6px 16px; border-radius: 999px; background: var(--offer-status-bg); color: var(--offer-status-fg); font-size: 14px; line-height: 1.5; font-weight: 700; white-space: nowrap; }
+.offer-form-modal .offer-status-select { background: var(--offer-status-bg) !important; color: var(--offer-status-fg) !important; border-color: transparent !important; font-weight: 700; }
+.offer-status-select option { background: var(--sugar-surface, #fffdf8); color: var(--sugar-ink, #1b1a17); }
+
+.offer-drawer-overlay { position: fixed; inset: 0; z-index: 90; background: rgb(0 0 0 / 25%); }
+.offer-drawer { position: absolute; inset: 0 0 0 auto; width: min(560px, 100%); height: 100%; overflow-y: auto; overscroll-behavior: contain; padding: 24px; color: var(--sugar-ink, #1b1a17); background: var(--sugar-surface, #fffdf8); box-shadow: 0 25px 50px -12px rgb(0 0 0 / 25%); }
+.offer-drawer__header { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; margin-bottom: 20px; }
+.offer-drawer__header h2 { font-size: 22px; font-weight: 700; overflow-wrap: anywhere; }
+.offer-drawer__header button { flex: none; font-size: 22px; }
+.offer-detail-status { margin-bottom: 24px; }
+.offer-detail-section { margin-bottom: 24px; }
+.offer-detail-section h3 { margin: 0 0 10px; font-size: 18px; font-weight: 600; }
+.offer-detail-section > div { padding: 16px; border-radius: 16px; background: var(--sugar-background, #faf7f0); color: var(--offer-muted); font-size: 16px; line-height: 1.85; overflow-wrap: anywhere; }
+.offer-comparison { min-width: 0; padding: 20px; overflow-x: auto; font-size: 16px; }
+.offer-comparison th,
+.offer-comparison td { min-width: 130px; padding: 16px 14px; text-align: center; vertical-align: middle; overflow-wrap: anywhere; }
+.offer-comparison th:first-child { min-width: 96px; text-align: left; }
+.offer-comparison tbody tr { border-top: 1px solid var(--offer-line); }
+.offer-comparison .offer-date { justify-content: center; }
+.offer-comparison__mobile { padding: 18px; border-radius: 16px; background: var(--sugar-background, #faf7f0); overflow-wrap: anywhere; }
+.offer-comparison__mobile p { margin: 8px 0 0; }
+
+.offer-form-modal > div > h2 { font-size: 22px !important; }
+.offer-form-modal label { font-size: 15px !important; color: var(--offer-muted); }
+.offer-form-modal .offer-form-section { padding: 16px 18px 6px; margin-bottom: 16px; }
+.offer-form-modal .offer-form-section > h3 { font-size: 15px; margin-bottom: 14px; }
+.offer-form-modal .offer-form-section-row { grid-template-columns: 1fr 1fr; gap: 16px; }
+.offer-form-modal .offer-form-section-row .offer-form-grid--2 { grid-template-columns: 1fr; }
+.offer-form-modal .offer-form-grid { gap: 0 16px; }
+.offer-form-modal .offer-compact-textarea { min-height: 84px !important; padding-top: 12px !important; padding-bottom: 12px !important; }
+.offer-form-modal .offer-risk-check { min-height: 38px; padding: 4px 12px; font-size: 14px !important; }
+.offer-form-hint { margin: -2px 0 14px; color: var(--offer-muted); font-size: 13px; line-height: 1.6; }
+.offer-form-modal .ai-record-importer { padding: 18px; }
+.offer-form-modal .ai-record-importer__title { font-size: 16px; }
+.offer-form-modal .ai-record-importer__badge { font-size: 14px; }
+.offer-form-modal .ai-record-importer__subtitle,
+.offer-form-modal .ai-record-importer__actions > span,
+.offer-form-modal .ai-record-importer__preview span { font-size: 13.5px; }
+.offer-form-modal .ai-record-importer__dropzone strong { font-size: 15px; }
+.offer-form-modal .ai-record-importer__dropzone small { font-size: 13px; }
+.offer-form-modal .ai-record-importer__success { font-size: 15px; }
+.offers-page .save-toast { font-size: 15.5px; }
+.offer-error > div,
+.offer-form-modal .ai-record-importer > div[style] { font-size: 15px !important; line-height: 1.6; }
+
+@media (min-width: 640px) {
+  .offer-stats { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .offer-card__metrics { grid-template-columns: 1fr 1fr 1.4fr .8fr; }
+  .offer-metric + .offer-metric { border-left: 1px solid var(--offer-line); padding-left: 14px; }
+}
+@media (min-width: 1280px) {
+  .offer-stats { grid-template-columns: repeat(6, minmax(0, 1fr)); }
+}
+@media (max-width: 1180px) {
+  .offer-form-modal .offer-form-section-row { grid-template-columns: 1fr; }
+  .offer-form-modal .offer-form-section-row .offer-form-grid--2 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+@media (max-width: 767px) {
+  .offers-page .offer-toolbar .toolbar-select { flex: 1 1 140px; }
+  .offers-page .offer-toolbar > .btn-press { margin-left: 0; }
+  .offer-stat { min-height: 132px; }
+  .offer-stat__value { font-size: 24px; }
+  .offer-stat--deadline .offer-stat__value { font-size: 15px; }
+  .offer-card { padding: 20px; }
+  .offer-card__footer { align-items: flex-start; }
+  .offer-card__actions { width: 100%; }
+  .offer-card__actions .btn-press { flex: 1; padding: 0 10px !important; }
+  .offer-form-modal .ai-record-importer__actions { align-items: stretch; flex-direction: column; }
+  .offer-form-modal .ai-record-importer__actions > button { align-self: flex-end; }
+}
+@media (max-width: 480px) {
+  .offer-form-modal .offer-form-section-row .offer-form-grid--2 { grid-template-columns: 1fr; }
+  .offer-form-modal .offer-form-section { padding: 14px 12px 4px; }
+  .offer-form-modal .ai-record-importer { padding: 14px 12px; }
+}
