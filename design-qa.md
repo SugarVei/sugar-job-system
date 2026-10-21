@@ -2,6 +2,16 @@
 
 final result: passed
 
+## Release update: 2026-10-21
+
+- User requested another font-size increase and authorized production publication.
+- Rebased onto current main `1c6a271` to retain its job-town removal.
+- Increased all Offer-owned CSS font sizes by another 2px: body/inputs/buttons 18px, company headings and metric values 22px, summary values 28px (26px mobile), labels 17px, status pills 16px, deadline 19px (17px mobile), helper text 15–16px.
+- Summary cards now have a 152px minimum height (144px mobile); fields use 50px minimum height and action buttons 48px. Mobile actions use a three-column grid with more width for the longer details label.
+- New evidence: `D:/Users/86181/Documents/简历/outputs/offer-readability-release-20261021/`. The same seven viewport widths, centered summary, exact date format, five state colors, filters, comparison, details and mobile form checks passed; 18px input type was asserted. Browser page and console errors: zero. Existing demo-mode and stream warnings remain.
+- `npm run lint`, `npm run build`, and `git diff --check` passed after this update.
+- Production release uses the existing GitHub main-branch deployment integration. The Vercel connector returned 403/404 for deployment inspection and the CLI had no saved credentials; production verification therefore checks GitHub deployment statuses and the actual HTML-linked public JS/CSS.
+
 ## Scope and visual truth
 
 - Selected concept: `C:/Users/86181/.codex/generated_images/01a15c71-4763-7f30-a362-c856c463c318/exec-be4c65ad-69ee-417c-8fff-7531ee7152f5.png` (1605 × 980 pixels).
