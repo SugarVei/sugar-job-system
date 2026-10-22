@@ -3,7 +3,6 @@ import {
   useEffect,
   useRef,
   useState,
-  type ReactNode,
 } from "react";
 import {
   ChevronDown,
@@ -32,10 +31,18 @@ import {
   CircleHelp,
 } from "lucide-react";
 import { useAppShell } from "../contexts/AppShellContext";
+import {
+  BrowserFrame,
+  BrowserSwitch,
+  ChromeIcon,
+  Mark,
+  Modal,
+  ModuleTabs,
+  type BrowserKind,
+} from "../components/guide/GuideKit";
 import "./SmartInformationEntry.css";
 
 type GuideTab = "功能概览" | "安装与配置" | "操作演示" | "常见问题";
-type BrowserKind = "Chrome" | "Edge";
 type DemoJob = {
   id: string;
   company: string;
@@ -136,83 +143,6 @@ const FAQ = [
     "支持结构化岗位数据、常见岗位卡片及 AI 辅助识别。特殊招聘系统、跨域内嵌页面或验证码可能影响提取。首次使用新网站时，请核对公司、岗位和城市，缺失字段可手动补充。",
   ],
 ];
-function Mark({ small = false }: { small?: boolean }) {
-  return (
-    <span className={`brand ${small ? "brand-small" : ""}`}>
-      <img src="/sugar-logo-v2.png" alt="" />
-      <span>Sugar</span>
-    </span>
-  );
-}
-function ChromeIcon() {
-  return (
-    <svg viewBox="0 0 24 24" aria-hidden="true">
-      <circle cx="12" cy="12" r="10" fill="#e9e3d7" />
-      <path
-        d="M12 2a10 10 0 0 1 8.7 5H11l-4 7-4.7-8A10 10 0 0 1 12 2Z"
-        fill="#c35b4e"
-      />
-      <path d="M20.7 7a10 10 0 0 1-8.6 15l4.8-8.3L12 7Z" fill="#e2b847" />
-      <path d="M12.1 22A10 10 0 0 1 2.3 6L7 14l5 8Z" fill="#72996b" />
-      <circle cx="12" cy="12" r="4.3" fill="#fffdf8" />
-      <circle cx="12" cy="12" r="3.2" fill="#7a9bbf" />
-    </svg>
-  );
-}
-function BrowserSwitch({
-  browser,
-  setBrowser,
-}: {
-  browser: BrowserKind;
-  setBrowser: (browser: BrowserKind) => void;
-}) {
-  return (
-    <div className="browser-switch" aria-label="选择浏览器">
-      {(["Chrome", "Edge"] as const).map((b) => (
-        <button
-          key={b}
-          aria-label={b}
-          aria-pressed={browser === b}
-          className={browser === b ? "active" : ""}
-          onClick={() => setBrowser(b)}
-        >
-          {b === "Chrome" ? (
-            <ChromeIcon />
-          ) : (
-            <span className="edge-icon" aria-hidden="true">
-              e
-            </span>
-          )}
-          {b}
-        </button>
-      ))}
-    </div>
-  );
-}
-function BrowserFrame({
-  title,
-  children,
-  compact = false,
-}: {
-  title: string;
-  children: ReactNode;
-  compact?: boolean;
-}) {
-  return (
-    <div className={`browser-frame ${compact ? "compact" : ""}`}>
-      <div className="browser-title">
-        <div className="window-dots">
-          <i />
-          <i />
-          <i />
-        </div>
-        <span>{title}</span>
-        <Puzzle size={14} />
-      </div>
-      {children}
-    </div>
-  );
-}
 function HeroPreview() {
   return (
     <div
@@ -268,45 +198,6 @@ function HeroPreview() {
         </div>
       </div>
     </div>
-  );
-}
-function Modal({
-  title,
-  children,
-  onClose,
-  wide = false,
-}: {
-  title: string;
-  children: ReactNode;
-  onClose: () => void;
-  wide?: boolean;
-}) {
-  const ref = useRef<HTMLDialogElement>(null);
-  useEffect(() => {
-    const previous = document.activeElement as HTMLElement | null;
-    ref.current?.showModal();
-    return () => previous?.focus?.();
-  }, []);
-  return (
-    <dialog
-      className={`modal ${wide ? "wide" : ""}`}
-      ref={ref}
-      onCancel={(e) => {
-        e.preventDefault();
-        onClose();
-      }}
-      onClick={(e) => {
-        if (e.target === e.currentTarget) onClose();
-      }}
-    >
-      <header>
-        <h2>{title}</h2>
-        <button className="icon-button" aria-label="关闭弹窗" onClick={onClose}>
-          <X size={18} />
-        </button>
-      </header>
-      {children}
-    </dialog>
   );
 }
 export default function SmartInformationEntry() {
@@ -417,44 +308,13 @@ export default function SmartInformationEntry() {
   );
   return (
     <div className="smart-input-page">
-      <div
-        className="module-tabs"
-        role="tablist"
-        aria-label="智能信息录入"
-        onKeyDown={(e) => {
-          if (!["ArrowLeft", "ArrowRight", "Home", "End"].includes(e.key))
-            return;
-          e.preventDefault();
-          const focusedIndex = Array.from(e.currentTarget.children).findIndex(
-            (child) => child.contains(e.target as Node),
-          );
-          const i = focusedIndex < 0 ? TABS.indexOf(tab) : focusedIndex,
-            next =
-              e.key === "Home"
-                ? 0
-                : e.key === "End"
-                  ? TABS.length - 1
-                  : (i + (e.key === "ArrowRight" ? 1 : -1) + TABS.length) %
-                    TABS.length;
-          go(TABS[next]);
-          (e.currentTarget.children[next] as HTMLElement | undefined)?.focus();
-        }}
-      >
-        {TABS.map((t, index) => (
-          <button
-            key={t}
-            id={`smart-input-tab-${index}`}
-            role="tab"
-            tabIndex={tab === t ? 0 : -1}
-            aria-selected={tab === t}
-            aria-controls="module-content"
-            className={tab === t ? "active" : ""}
-            onClick={() => go(t)}
-          >
-            {t}
-          </button>
-        ))}
-      </div>
+      <ModuleTabs
+        tabs={TABS}
+        value={tab}
+        onChange={go}
+        label="智能信息录入"
+        idPrefix="smart-input-tab"
+      />
       <div
         className="module-body"
         id="module-content"
