@@ -224,7 +224,6 @@ export interface MailboxMessage {
 
 export type ScreenKey =
   | 'dashboard'
-  | 'overview'
   | 'applications'
   | 'companies'
   | 'referralCodes'

@@ -9,7 +9,6 @@ import LiquidBackground from './components/LiquidBackground';
 import AppLayout from './layouts/AppLayout';
 import Login from './pages/Login';
 import Dashboard from './pages/Dashboard';
-import Overview from './pages/Overview';
 import Applications from './pages/Applications';
 import Companies from './pages/Companies';
 import ReferralCodes from './pages/ReferralCodes';
@@ -28,14 +27,13 @@ function PageCompanion() {
   const { screen } = useAppShell();
   const [compact, setCompact] = useState(() => window.matchMedia('(max-width: 767px)').matches);
   useEffect(() => { const media = window.matchMedia('(max-width: 767px)'); const update = () => setCompact(media.matches); media.addEventListener('change', update); return () => media.removeEventListener('change', update); }, []);
-  return screen === 'overview' || (compact && ['applications', 'resumes', 'mailbox', 'interviews'].includes(screen)) ? null : <WebPetCompanion />;
+  return compact && ['applications', 'resumes', 'mailbox', 'interviews'].includes(screen) ? null : <WebPetCompanion />;
 }
 
 function CurrentPage() {
   const { screen } = useAppShell();
   switch (screen) {
     case 'dashboard': return <Dashboard />;
-    case 'overview': return <Overview />;
     case 'applications': return <Applications />;
     case 'companies': return <Companies />;
     case 'referralCodes': return <ReferralCodes />;

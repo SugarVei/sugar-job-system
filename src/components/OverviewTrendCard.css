@@ -30,9 +30,6 @@
 .overview-trend-dot { position: absolute; width: 10px; height: 10px; border: 2px solid #fff8f0; border-radius: 50%; background: #c18b68; transform: translate(-50%, -50%); pointer-events: none; }
 .overview-trend-tooltip { position: absolute; transform: translate(-50%, -100%); padding: 9px 12px; border-radius: 9px; background: #302820; color: #fff8f0; font-size: 12px; white-space: nowrap; pointer-events: none; box-shadow: 0 3px 9px #2a21151a; }
 .overview-trend-tooltip small { display: block; color: #d7c6b9; margin-bottom: 3px; font-size: 10px; }
-.overview-trend-status { margin-top: 20px; padding-top: 18px; border-top: 1px solid #e9dbce; }
-.overview-trend-status-head { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px; margin-bottom: 14px; }
-.overview-trend-status-head h3 { margin: 0; font-size: 14px; font-weight: 600; }
 .overview-trend-range { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 12px; margin-top: 18px; }
 .overview-trend-range label { display: flex; flex-direction: column; gap: 5px; min-width: 0; color: #867366; font-size: 11px; }
 .overview-trend-range input { min-width: 0; width: 100%; box-sizing: border-box; height: 35px; padding: 5px 8px; border: 1px solid #e3d3c5; border-radius: 8px; background: #fffaf5; color: #302820; font-family: inherit; font-size: 12px; }

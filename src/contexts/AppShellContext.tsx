@@ -6,7 +6,7 @@ export type ApplicationsListFilter = 'all' | 'active' | ApplicationStatus;
 export type HeaderChrome = { searchPlaceholder: string | null; showAdd: boolean; inlineContent?: ReactNode; actions?: ReactNode; contentScroll?: boolean; primaryAction?: { label: string; onClick: () => void; loading?: boolean; icon?: ReactNode } | null };
 
 const SCREEN_STORAGE_KEY = 'sugar.screen';
-const VALID_SCREENS: ScreenKey[] = ['dashboard', 'overview', 'applications', 'companies', 'referralCodes', 'hotCompanies', 'resumes', 'interviews', 'offers', 'resumeAssistant', 'mailbox', 'smartInput'];
+const VALID_SCREENS: ScreenKey[] = ['dashboard', 'applications', 'companies', 'referralCodes', 'hotCompanies', 'resumes', 'interviews', 'offers', 'resumeAssistant', 'mailbox', 'smartInput'];
 function syncSmartInputRoute(next: ScreenKey) {
   if (next === 'smartInput') window.history.replaceState(null, '', '#/smart-information-entry');
   else if (/^#\/(?:smart-information-entry|smart-input)(?:\/|$)/.test(window.location.hash)) window.history.replaceState(null, '', window.location.pathname + window.location.search);

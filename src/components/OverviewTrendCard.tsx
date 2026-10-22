@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import type { PointerEvent, ReactNode } from 'react';
+import type { PointerEvent } from 'react';
 import type { Application, ApplicationStatus } from '../types';
 import { buildApplicationTrend, resolveTrendRange, trendDateKey } from '../lib/applicationTrend';
 import type { TrendPreset } from '../lib/applicationTrend';
@@ -13,10 +13,9 @@ const PERIODS: { value: TrendPreset; label: string }[] = [
   { value: 'custom', label: '自定义日期' },
 ];
 
-export default function OverviewTrendCard({ applications, activeStatus, children }: {
+export default function OverviewTrendCard({ applications, activeStatus }: {
   applications: Application[];
   activeStatus: ApplicationStatus | null;
-  children?: ReactNode;
 }) {
   const [preset, setPreset] = useState<TrendPreset>('week');
   const [custom, setCustom] = useState(() => {
@@ -34,7 +33,7 @@ export default function OverviewTrendCard({ applications, activeStatus, children
     <section className="overview-trend-card" aria-label="投递趋势">
       <div className="overview-trend-head">
         <div>
-          <h2>让每一次投递，都有迹可循。</h2>
+          <h2>投递趋势</h2>
           <div className="overview-trend-summary">
             <strong>{range ? total.toLocaleString('zh-CN') : '—'}</strong>
             <span>{period}投递{activeStatus ? ` · ${activeStatus}` : ''}</span>
@@ -58,7 +57,6 @@ export default function OverviewTrendCard({ applications, activeStatus, children
         {range.end > trendDateKey(now) && <span> · 截至今天</span>}
         {total === 0 && <span> · 暂无投递</span>}
       </p>}
-      {children}
     </section>
   );
 }
