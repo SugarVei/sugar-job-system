@@ -9,8 +9,9 @@
     "build": "tsc -p tsconfig.json --noEmit && vite build",
     "preview": "vite preview",
     "lint": "eslint .",
-    "test": "node --experimental-strip-types --import ./scripts/register-ts-ext.mjs --test src/lib/customPalette.test.ts src/lib/standardCompanyImport.test.ts src/lib/standardCompanyCatalog.test.ts src/lib/standardCompanyWorkbook.test.ts src/lib/standardCatalogAdmin.test.ts src/data/hotCompanyHq.test.ts src/lib/jobAssistAI.test.ts src/lib/applicationsOverview.test.ts src/lib/applicationsHeatmap.test.ts src/lib/interviewApplicationMatch.test.ts src/lib/interviewSummary.test.ts src/lib/interviewCalendar.test.ts src/lib/mailInterview.test.ts src/lib/mailSyncRules.test.ts server/_lib/mail-sync-imap.test.ts",
-    "prebuild": "node scripts/build-mail-sync.mjs"
+    "test": "node --experimental-strip-types --import ./scripts/register-ts-ext.mjs --test src/lib/customPalette.test.ts src/lib/standardCompanyImport.test.ts src/lib/standardCompanyCatalog.test.ts src/lib/standardCompanyWorkbook.test.ts src/lib/standardCatalogAdmin.test.ts src/data/hotCompanyHq.test.ts src/lib/jobAssistAI.test.ts src/lib/applicationsOverview.test.ts src/lib/applicationsHeatmap.test.ts src/lib/interviewApplicationMatch.test.ts src/lib/interviewSummary.test.ts src/lib/interviewCalendar.test.ts src/lib/mailInterview.test.ts src/lib/mailSyncRules.test.ts server/_lib/mail-sync-imap.test.ts server/_lib/standard-catalog-sync.test.ts",
+    "prebuild": "node scripts/build-mail-sync.mjs",
+    "build:catalog-sync": "node scripts/build-catalog-sync.mjs"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.45.4",

@@ -1,0 +1,51 @@
+name: Feishu company catalog sync
+
+on:
+  schedule:
+    - cron: '17 8 * * *'
+      timezone: America/New_York
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: 'Preview changes or apply the update'
+        type: choice
+        default: preview
+        options: [preview, apply]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: feishu-company-catalog
+  cancel-in-progress: false
+
+jobs:
+  sync:
+    if: github.event_name != 'schedule' || vars.FEISHU_CATALOG_SYNC_ENABLED == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@08eba0b27e820071cde6df949e0beb9ba4906955 # v4.3.0
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: '24'
+          cache: npm
+      - name: Install parser and browser dependencies
+        run: |
+          npm ci --ignore-scripts --no-audit --no-fund
+          npm ci --prefix tools/feishu-sync --ignore-scripts --no-audit --no-fund
+          cd tools/feishu-sync
+          npx playwright install --with-deps chromium
+      - name: Download and validate latest Excel
+        env:
+          FEISHU_SESSION_GZIP_B64: ${{ secrets.FEISHU_SESSION_GZIP_B64 }}
+          FEISHU_BROWSER_CHANNEL: chromium
+        run: node tools/feishu-sync/probe.mjs export
+      - name: Preview or apply company updates
+        env:
+          FEISHU_SYNC_SIGNING_KEY: ${{ secrets.FEISHU_SYNC_SIGNING_KEY }}
+          FEISHU_CATALOG_SYNC_URL: ${{ vars.FEISHU_CATALOG_SYNC_URL }}
+          SYNC_MODE: ${{ github.event_name == 'schedule' && 'apply' || inputs.mode }}
+        run: node --experimental-strip-types --import ./scripts/register-ts-ext.mjs tools/feishu-sync/sync.mjs "$SYNC_MODE"
