@@ -9,7 +9,7 @@
 .app-sidebar-toggle:hover{background:rgba(120,105,80,.07)}
 .app-sidebar-nav{flex:1;min-height:0;display:flex;flex-direction:column;gap:5px;overflow-y:auto;overflow-x:hidden;scrollbar-width:none}
 .app-sidebar-nav::-webkit-scrollbar{display:none}
-.app-sidebar-nav-button{width:42px;min-height:41px;flex:none;padding:0;display:flex;align-items:center;justify-content:center;gap:11px;font-size:13.5px;font-weight:600;border:0;border-radius:10px;background:transparent;color:#6b665c;cursor:pointer;white-space:nowrap;text-align:left}
+.app-sidebar-nav-button{width:42px;min-height:41px;flex:none;padding:0;display:flex;align-items:center;justify-content:center;gap:11px;font-size:14.5px;font-weight:600;border:0;border-radius:10px;background:transparent;color:#6b665c;cursor:pointer;white-space:nowrap;text-align:left}
 .app-sidebar-nav-button>span{display:none}
 .app-sidebar-nav-button.active{background:#1b1a17;color:#f4f1ea}
 .app-sidebar-nav-button:hover:not(.active){background:rgba(120,105,80,.07)}

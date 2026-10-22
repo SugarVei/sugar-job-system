@@ -118,12 +118,6 @@ export default function AppSidebar({ screen, onNavigate, name, avatar, onUpdateN
         </nav>
         <div className="app-sidebar-bottom">
           <div style={{ display: 'none' }}><ApiKeySettings /></div>
-          <SidebarButton className="app-sidebar-nav-button" label="AI 设置" onActivate={openSettings} {...tooltipEvents}>
-            <IconSettings size={19} /><span>AI 设置</span>
-          </SidebarButton>
-          <SidebarButton className="app-sidebar-nav-button" label="退出登录" onActivate={() => { void onLogout(); }} {...tooltipEvents}>
-            <IconLogout size={19} /><span>退出登录</span>
-          </SidebarButton>
           <SidebarButton className="app-sidebar-account-button" aria-expanded={accountOpen} aria-haspopup="dialog" label="个人账号" onActivate={() => setAccountOpen(value => !value)} {...tooltipEvents}>
             <span className="app-sidebar-avatar">{avatar ? <img src={avatar} alt="用户头像" /> : <IconUser size={19} />}</span>
             <span className="app-sidebar-account-name"><strong>{name}</strong></span>
