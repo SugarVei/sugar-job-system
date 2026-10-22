@@ -1,7 +1,7 @@
 import { CATALOG_SYNC_PUBLIC_KEY } from './catalog-sync-public-key';
 import { normalizeCompanyName } from '../../src/lib/companyName';
 import { diffCatalog, normalizeImportedCompanies, STANDARD_CATALOG_MAX_ROWS, type CatalogCompany } from '../../src/lib/standardCompanyImport';
-import { EXCEL_CAMPUS_COMPANIES_ALL } from '../../src/data/excelCampusRecruitment2027';
+import { EXCEL_CAMPUS_COMPANIES } from '../../src/data/excelCampusRecruitment2027';
 
 const MAX_BODY_BYTES = 4 * 1024 * 1024;
 const encoder = new TextEncoder();
@@ -35,7 +35,7 @@ export async function verifyCatalogSignature(request: Request, body: string, pub
 
 function baselineCatalog(rows: StoredCompany[]): CatalogCompany[] {
   const companies = new Map<string, CatalogCompany>();
-  for (const seed of EXCEL_CAMPUS_COMPANIES_ALL) {
+  for (const seed of EXCEL_CAMPUS_COMPANIES) {
     companies.set(normalizeCompanyName(seed.name), { ...seed, group: seed.industry || '飞书导入' });
   }
   for (const row of rows) {
