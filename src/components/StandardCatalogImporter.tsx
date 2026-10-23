@@ -15,7 +15,6 @@ import {
   type CatalogDiffSummary,
   type IncomingCompany,
 } from '../lib/standardCompanyImport';
-import { parseCatalogWorkbookFile } from '../lib/standardCompanyWorkbook';
 
 type PreviewResponse = {
   summary: CatalogDiffSummary & { sheets?: string[] };
@@ -130,6 +129,8 @@ export default function StandardCatalogImporter({
   const parsedCompanies = async () => {
     if (!file) throw new Error('请先选择 Excel 文件。');
     if (companies) return { companies, skipped: parseSkipped, sheets: parseSheets };
+    // Excel 解析库较大，选中文件后才加载
+    const { parseCatalogWorkbookFile } = await import('../lib/standardCompanyWorkbook');
     const local = await parseCatalogWorkbookFile(file);
     setCompanies(local.companies);
     setParseSkipped(local.skipped);

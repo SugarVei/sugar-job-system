@@ -9,20 +9,51 @@ import LiquidBackground from './components/LiquidBackground';
 import AppLayout from './layouts/AppLayout';
 import Login from './pages/Login';
 import Dashboard from './pages/Dashboard';
-import Applications from './pages/Applications';
-import Companies from './pages/Companies';
-import ReferralCodes from './pages/ReferralCodes';
-import HotCompanies from './pages/HotCompanies';
-import Resumes from './pages/Resumes';
-import Interviews from './pages/Interviews';
-import Offers from './pages/Offers';
-import Mailbox from './pages/Mailbox';
-import ResumeAssistant from './pages/ResumeAssistant';
+import EmptyState from './components/EmptyState';
 import WelcomeNoticeModal from './components/WelcomeNoticeModal';
 
-const SmartInformationEntry = lazy(() => import('./pages/SmartInformationEntry'));
+// 总览是默认首页，直接打包；其余页面打开时才下载，首次加载更快。
+const pageLoaders = {
+  applications: () => import('./pages/Applications'),
+  companies: () => import('./pages/Companies'),
+  referralCodes: () => import('./pages/ReferralCodes'),
+  hotCompanies: () => import('./pages/HotCompanies'),
+  resumes: () => import('./pages/Resumes'),
+  interviews: () => import('./pages/Interviews'),
+  offers: () => import('./pages/Offers'),
+  mailbox: () => import('./pages/Mailbox'),
+  resumeAssistant: () => import('./pages/ResumeAssistant'),
+  smartInput: () => import('./pages/SmartInformationEntry'),
+};
+const Applications = lazy(pageLoaders.applications);
+const Companies = lazy(pageLoaders.companies);
+const ReferralCodes = lazy(pageLoaders.referralCodes);
+const HotCompanies = lazy(pageLoaders.hotCompanies);
+const Resumes = lazy(pageLoaders.resumes);
+const Interviews = lazy(pageLoaders.interviews);
+const Offers = lazy(pageLoaders.offers);
+const Mailbox = lazy(pageLoaders.mailbox);
+const ResumeAssistant = lazy(pageLoaders.resumeAssistant);
+const SmartInformationEntry = lazy(pageLoaders.smartInput);
+
+// 首屏稳定后，趁浏览器空闲在后台预取其他页面，之后切换页面无需等待。
+function usePrefetchPages() {
+  useEffect(() => {
+    const run = () => Object.values(pageLoaders).forEach(load => { void load().catch(() => undefined); });
+    if ('requestIdleCallback' in window) {
+      const id = window.requestIdleCallback(run, { timeout: 8000 });
+      return () => window.cancelIdleCallback(id);
+    }
+    const timer = setTimeout(run, 4000);
+    return () => clearTimeout(timer);
+  }, []);
+}
 
 function CurrentPage() {
+  usePrefetchPages();
+  return <Suspense fallback={<EmptyState text="加载中…" />}><PageContent /></Suspense>;
+}
+function PageContent() {
   const { screen } = useAppShell();
   switch (screen) {
     case 'dashboard': return <Dashboard />;
