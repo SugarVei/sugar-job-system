@@ -18,17 +18,9 @@ import Interviews from './pages/Interviews';
 import Offers from './pages/Offers';
 import Mailbox from './pages/Mailbox';
 import ResumeAssistant from './pages/ResumeAssistant';
-import WebPetCompanion from './components/web-pet/WebPetCompanion';
 import WelcomeNoticeModal from './components/WelcomeNoticeModal';
 
 const SmartInformationEntry = lazy(() => import('./pages/SmartInformationEntry'));
-
-function PageCompanion() {
-  const { screen } = useAppShell();
-  const [compact, setCompact] = useState(() => window.matchMedia('(max-width: 767px)').matches);
-  useEffect(() => { const media = window.matchMedia('(max-width: 767px)'); const update = () => setCompact(media.matches); media.addEventListener('change', update); return () => media.removeEventListener('change', update); }, []);
-  return compact && ['applications', 'resumes', 'mailbox', 'interviews'].includes(screen) ? null : <WebPetCompanion />;
-}
 
 function CurrentPage() {
   const { screen } = useAppShell();
@@ -65,7 +57,7 @@ function Gate() {
   if (!session || passwordRecovery) return <><LiquidBackground /><Login passwordRecovery={passwordRecovery} /></>;
   return <>
     <LiquidBackground />
-    <AppShellProvider><ApiKeysProvider key={session.user.id}><ResumeTaskProvider><AppLayout><CurrentPage /></AppLayout><PageCompanion /></ResumeTaskProvider></ApiKeysProvider></AppShellProvider>
+    <AppShellProvider><ApiKeysProvider key={session.user.id}><ResumeTaskProvider><AppLayout><CurrentPage /></AppLayout></ResumeTaskProvider></ApiKeysProvider></AppShellProvider>
     {showWelcomeNotice && <WelcomeNoticeModal onClose={() => setShowWelcomeNotice(false)} />}
   </>;
 }

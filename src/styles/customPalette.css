@@ -5,7 +5,7 @@
 .sugar-palette-entry:hover .sugar-palette-tip,.sugar-palette-entry:focus-within .sugar-palette-tip{opacity:1;visibility:visible;transform:translate(-50%,0)}
 .sugar-palette-studio{position:fixed;inset:0;z-index:700;background:white;overflow:hidden;height:100dvh}
 .sugar-palette-studio iframe{display:block;border:0;width:100%;height:100%;background:white}
-.sugar-palette-editing .sugar-task-tray,.sugar-palette-editing .web-pet-layer{visibility:hidden}
+.sugar-palette-editing .sugar-task-tray{visibility:hidden}
 html[data-sugar-theme=custom] .action-queue{--aq-surface:var(--sugar-card-0-bg);--aq-surface-solid:var(--sugar-surface);--aq-ink:var(--sugar-ink);--aq-ink-2:var(--sugar-muted);--aq-line:var(--sugar-line);--aq-brand:var(--sugar-accent);--aq-brand-deep:var(--sugar-accent);--aq-brand-soft:var(--sugar-accent-soft)}
 html[data-sugar-theme=custom] .recent-interview-folder{background:var(--sugar-card-4-bg);color:var(--sugar-ink)}
 html[data-sugar-theme=custom] .rif-back,html[data-sugar-theme=custom] .rif-back:before{background:var(--sugar-card-4-border);border-color:var(--sugar-card-4-border)}

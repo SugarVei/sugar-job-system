@@ -7,7 +7,6 @@
 /* Keep pagination outside the scroller so short and long results share one bottom edge. */
 .hc-page-scroll { flex: 1; min-height: 0; overflow-y: auto; overscroll-behavior-y: contain; padding-bottom: 20px; }
 .hc-pagination-footer { flex: none; }
-body:has(.hot-companies-layout .hc-pagination-footer) .pet-recall { bottom: 76px; }
 .hc-header-subtitle { font-size: 13px; font-weight: 400; color: #817c75; }
 .hot-companies-page button { cursor: pointer; -webkit-tap-highlight-color: transparent; }
 .hot-companies-page button:disabled { opacity: .4; cursor: default; }
@@ -123,7 +122,7 @@ body:has(.hot-companies-layout .hc-pagination-footer) .pet-recall { bottom: 76px
 .hc-empty p { font-size: 13px; margin: 0 0 14px; }
 @media (max-width: 1300px) and (min-width: 1100px) { .hc-workspace { grid-template-columns: minmax(0,1fr) 304px; gap: 24px; } .hc-workspace-collapsed { grid-template-columns: minmax(0,1fr); } .hc-status-overview { grid-template-columns: repeat(5,minmax(0,1fr)); } .hc-total-filter { grid-column: 1 / -1; justify-content: flex-start; padding-top: 12px; } .hc-status-filter-label { font-size: 11px; gap: 5px; } }
 @media (max-width: 1099px) { .hc-workspace { grid-template-columns: minmax(0,1fr); } .hc-discovery-panel { position: static; grid-column: 1; grid-row: 1; height: auto; max-height: none; min-height: 0; margin-bottom: 12px; } .hc-company-browser { grid-column: 1; grid-row: 2; } .hc-workspace-collapsed .hc-company-browser { grid-row: 1; } .hc-panel-content { overflow: visible; } .hc-panel-footer { padding-bottom: 0; } .hc-status-overview { grid-template-columns: repeat(3,minmax(0,1fr)); row-gap: 18px; } .hc-total-filter { justify-content: flex-start; } }
-@media (max-width: 1023px) { .hot-companies-layout .app-content-scroll { padding-bottom: 84px; } body:has(.hot-companies-layout .hc-pagination-footer) .pet-recall { bottom: 148px; } .hc-company-results { grid-template-columns: repeat(2,minmax(0,1fr)); } }
+@media (max-width: 1023px) { .hot-companies-layout .app-content-scroll { padding-bottom: 84px; } .hc-company-results { grid-template-columns: repeat(2,minmax(0,1fr)); } }
 @media (max-width: 639px) {
   .hot-companies-layout .app-page-title { font-size: 26px; }
   .hot-companies-layout .app-content-header { padding-top: 10px; }

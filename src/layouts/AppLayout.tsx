@@ -8,7 +8,6 @@ import { MOBILE_MORE_NAV, MOBILE_PRIMARY_NAV, NAV_ITEMS } from '../components/na
 import ThemeSwitcher from '../components/ThemeSwitcher';
 import PaletteStudio from '../components/PaletteStudio';
 import AppSidebar from '../components/AppSidebar';
-import PetAnnouncement from '../components/web-pet/PetAnnouncement';
 import AvatarFeatureAnnouncement from '../components/AvatarFeatureAnnouncement';
 import AvatarPicker, { OPEN_AVATAR_PICKER_EVENT } from '../components/AvatarPicker';
 import {
@@ -187,7 +186,6 @@ export default function AppLayout({ children }: { children: ReactNode }) {
           </div>
 
           {/* 内容区（可滚动） */}
-          <PetAnnouncement />
           <AvatarFeatureAnnouncement />
           <div
             className="app-content-scroll scrolly px-4 lg:px-[34px] pb-24 lg:pb-[34px]"
