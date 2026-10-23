@@ -5,6 +5,7 @@ import { IconSearch } from './icons';
 import { useAppShell } from '../contexts/AppShellContext';
 import { useCollection } from '../hooks/useCollection';
 import type { Application, Resume, Interview } from '../types';
+import { interviewDate } from '../lib/interviewCalendar';
 const EVENT = 'sugar:open-command';
 export default function CommandPalette() {
   const [open, setOpen] = useState(false);
@@ -36,7 +37,7 @@ function CommandDialog({ onClose }: { onClose: () => void }) {
     { id: 'new-interview', label: '新增面试', detail: '安排面试时间', action: () => navigate('interviews', { add: true }) },
     ...applications.map(a => ({ id: `a-${a.id}`, label: `${a.company_name} · ${a.position_name}`, detail: `投递 · ${a.status}`, action: () => navigate('applications', { query: a.company_name }) })),
     ...resumes.map(r => ({ id: `r-${r.id}`, label: r.resume_name, detail: '简历', action: () => navigate('resumes', { query: r.resume_name }) })),
-    ...interviews.map(i => ({ id: `i-${i.id}`, label: `${i.company_name} · ${i.round || '面试'}`, detail: i.interview_time ? `面试 · ${new Date(i.interview_time).toLocaleString('zh-CN')}` : '面试 · 待定', action: () => navigate('interviews', { query: i.company_name, interviewDate: i.interview_time ? `${new Date(i.interview_time).getFullYear()}-${String(new Date(i.interview_time).getMonth() + 1).padStart(2, '0')}-${String(new Date(i.interview_time).getDate()).padStart(2, '0')}` : null }) })),
+    ...interviews.map(i => ({ id: `i-${i.id}`, label: `${i.company_name} · ${i.round || '面试'}`, detail: i.interview_time ? `面试 · ${interviewDate(i.interview_time).toFormat('yyyy/M/d HH:mm')}` : '面试 · 待定', action: () => navigate('interviews', { query: i.company_name, interviewDate: i.interview_time ? interviewDate(i.interview_time).toISODate() : null }) })),
   ].filter(c => !query.trim() || `${c.label} ${c.detail}`.toLowerCase().includes(query.trim().toLowerCase())).slice(0, 30), [query, navigate, applications, resumes, interviews]);
   const index = Math.min(active, Math.max(0, commands.length - 1));
   useEffect(() => { root.current?.querySelector('[aria-selected="true"]')?.scrollIntoView({ block: 'nearest' }); }, [index]);

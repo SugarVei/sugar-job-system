@@ -1,22 +1,22 @@
 import { paletteCardVariables } from '../lib/customPalette';
-import { moveInterviewToHour } from '../lib/interviewCalendar';
+import type { DateTime } from 'luxon';
+import { interviewDate, moveInterviewToHour } from '../lib/interviewCalendar';
 import { useRef, useState } from 'react';
 import type { Interview } from '../types';
 import Modal from './Modal';
 import './InterviewWeekGrid.css';
 
-type Entry = { ev: Interview; date: Date };
+type Entry = { ev: Interview; date: DateTime };
 const HOURS = Array.from({ length: 13 }, (_, index) => index + 8);
 const WEEKDAYS = ['周一', '周二', '周三', '周四', '周五', '周六', '周日'];
-const time = (date: Date) => date.toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit', hour12: false });
+const time = (date: DateTime) => date.toFormat('HH:mm');
 const hourLabel = (hour: number) => `${String(hour).padStart(2, '0')}:00`;
-const offsetHours = -new Date().getTimezoneOffset() / 60;
-const timezone = `GMT${offsetHours >= 0 ? '+' : ''}${offsetHours}`;
+const timezone = 'GMT+8';
 
 export default function InterviewWeekGrid({ days, entries, onOpen, onCreate, onDay, onMove, movingId }: {
-  days: Date[]; entries: Entry[][]; onOpen: (ev: Interview) => void;
-  onCreate: (date: Date) => void; onDay: (date: Date) => void;
-  onMove: (ev: Interview, day: Date, hour: number) => void; movingId: string | null;
+  days: DateTime[]; entries: Entry[][]; onOpen: (ev: Interview) => void;
+  onCreate: (date: DateTime) => void; onDay: (date: DateTime) => void;
+  onMove: (ev: Interview, day: DateTime, hour: number) => void; movingId: string | null;
 }) {
   const [outsideOpen, setOutsideOpen] = useState(false);
   const [draggingId, setDraggingId] = useState<string | null>(null);
@@ -30,18 +30,18 @@ export default function InterviewWeekGrid({ days, entries, onOpen, onCreate, onD
     suppressClickUntil.current = Date.now() + 300;
   };
   const dragged = entries.flat().find(entry => entry.ev.id === draggingId)?.ev;
-  const today = new Date().toDateString();
-  const outside = entries.flat().filter(({ date }) => date.getHours() < 8 || date.getHours() >= 21);
+  const today = interviewDate().toISODate();
+  const outside = entries.flat().filter(({ date }) => date.hour < 8 || date.hour >= 21);
   const slotEntries = (day: number, hour: number) => entries[day]
-    .filter(({ date }) => date.getHours() === hour)
-    .sort((a, b) => a.date.getTime() - b.date.getTime());
+    .filter(({ date }) => date.hour === hour)
+    .sort((a, b) => a.date.toMillis() - b.date.toMillis());
 
   return <>
     <section className="interview-week" aria-label="面试周日历">
       <div className="interview-week-head">
-        <div className="interview-timezone"><span>时间</span><strong>{timezone}</strong></div>
-        {days.map((day, index) => <button type="button" key={day.toDateString()} onClick={() => onDay(day)} className={`interview-day-chip${day.toDateString() === today ? ' is-today' : ''}`} aria-label={`查看${day.getMonth() + 1}月${day.getDate()}日面试`}>
-          <span>{WEEKDAYS[index]}</span><strong>{day.getDate()}</strong>
+        <div className="interview-timezone"><span>北京时间</span><strong>{timezone}</strong></div>
+        {days.map((day, index) => <button type="button" key={day.toISODate()!} onClick={() => onDay(day)} className={`interview-day-chip${day.toISODate()! === today ? ' is-today' : ''}`} aria-label={`查看${day.month}月${day.day}日面试`}>
+          <span>{WEEKDAYS[index]}</span><strong>{day.day}</strong>
         </button>)}
       </div>
       <div className="interview-week-scroll">
@@ -51,7 +51,7 @@ export default function InterviewWeekGrid({ days, entries, onOpen, onCreate, onD
             {days.map((day, index) => {
               const events = slotEntries(index, hour);
               const slotKey = `${index}-${hour}`;
-              return <div className={`interview-hour-cell${targetSlot === slotKey ? ' is-drop-target' : ''}`} key={day.toDateString()} style={{ gridTemplateColumns: `repeat(${Math.max(1, events.length)}, minmax(0, 1fr))` }}
+              return <div className={`interview-hour-cell${targetSlot === slotKey ? ' is-drop-target' : ''}`} key={day.toISODate()!} style={{ gridTemplateColumns: `repeat(${Math.max(1, events.length)}, minmax(0, 1fr))` }}
                 onDragOver={event => {
                   if (!draggingInterview.current) return;
                   event.preventDefault();
@@ -68,9 +68,9 @@ export default function InterviewWeekGrid({ days, entries, onOpen, onCreate, onD
                   if (interview) onMove(interview, day, hour);
                 }}
                 onDoubleClick={event => {
-                  if (event.target === event.currentTarget) onCreate(new Date(day.getFullYear(), day.getMonth(), day.getDate(), hour));
+                  if (event.target === event.currentTarget) onCreate(day.set({ hour, minute: 0, second: 0, millisecond: 0 }));
                 }} title="双击空白处新增面试">
-                {targetSlot === slotKey && dragged?.interview_time && <span className="interview-drop-label">移至 {time(new Date(moveInterviewToHour(dragged.interview_time!, day, hour)))}</span>}
+                {targetSlot === slotKey && dragged?.interview_time && <span className="interview-drop-label">移至 {time(interviewDate(moveInterviewToHour(dragged.interview_time!, day, hour)))}</span>}
                 {events.map(({ ev, date }, eventIndex) => <button type="button" key={ev.id}
                   disabled={movingId === ev.id}
                   draggable={!movingId}
@@ -103,8 +103,8 @@ export default function InterviewWeekGrid({ days, entries, onOpen, onCreate, onD
     </section>
     <Modal open={outsideOpen} title="其他时间的面试" onClose={() => setOutsideOpen(false)}>
       <div className="interview-slot-details">
-        {[...outside].sort((a, b) => a.date.getTime() - b.date.getTime()).map(({ ev, date }) => <button type="button" key={ev.id} onClick={() => { setOutsideOpen(false); onOpen(ev); }}>
-          <strong>{ev.company_name}</strong><span>{date.getMonth() + 1}/{date.getDate()} {time(date)} · {ev.round || '面试'}{ev.position_name ? ` · ${ev.position_name}` : ''}</span>
+        {[...outside].sort((a, b) => a.date.toMillis() - b.date.toMillis()).map(({ ev, date }) => <button type="button" key={ev.id} onClick={() => { setOutsideOpen(false); onOpen(ev); }}>
+          <strong>{ev.company_name}</strong><span>{date.month}/{date.day} {time(date)} · {ev.round || '面试'}{ev.position_name ? ` · ${ev.position_name}` : ''}</span>
         </button>)}
       </div>
     </Modal>

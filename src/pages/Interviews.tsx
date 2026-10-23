@@ -13,7 +13,8 @@ import InterviewWeekGrid from '../components/InterviewWeekGrid';
 import InterviewCalendarSidebar from '../components/InterviewCalendarSidebar';
 import InterviewApplicationDetails from '../components/InterviewApplicationDetails';
 import { interviewCompanyKey } from '../lib/interviewApplicationMatch';
-import { moveInterviewToHour } from '../lib/interviewCalendar';
+import type { DateTime } from 'luxon';
+import { interviewDate, interviewInputToISO, interviewTimeInput, moveInterviewToHour } from '../lib/interviewCalendar';
 import { IMPORTED_EXPERIENCE_ARTICLES } from '../data/interviewExperienceData';
 
 const TYPES: InterviewType[] = ['电话', '视频', '现场'];
@@ -111,40 +112,17 @@ const CURATED_EXPERIENCE_ARTICLES: ExperienceArticle[] = [
 
 const EXPERIENCE_ARTICLES: ExperienceArticle[] = [...CURATED_EXPERIENCE_ARTICLES, ...IMPORTED_EXPERIENCE_ARTICLES];
 
-function startOfWeek(d: Date): Date {
-  const x = new Date(d);
-  x.setHours(0, 0, 0, 0);
-  const day = (x.getDay() + 6) % 7;
-  x.setDate(x.getDate() - day);
-  return x;
+const startOfWeek = (date: DateTime) => date.startOf('week');
+const addDays = (date: DateTime, days: number) => date.plus({ days });
+const fmtMD = (date: DateTime) => `${date.month}/${date.day}`;
+const sameDay = (a: DateTime, b: DateTime) => a.hasSame(b, 'day');
+function parseDateKey(key: string): DateTime | null {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(key)) return null;
+  const date = interviewDate(key);
+  return date.isValid ? date : null;
 }
-function addDays(d: Date, n: number): Date {
-  const x = new Date(d);
-  x.setDate(x.getDate() + n);
-  return x;
-}
-function fmtMD(d: Date) {
-  return `${d.getMonth() + 1}/${d.getDate()}`;
-}
-function sameDay(a: Date, b: Date) {
-  return a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate();
-}
-function parseDateKey(key: string): Date | null {
-  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(key);
-  if (!m) return null;
-  const d = new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3]));
-  return Number.isNaN(d.getTime()) ? null : d;
-}
-function toDateKey(d: Date) {
-  const p = (n: number) => String(n).padStart(2, '0');
-  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`;
-}
-function toLocalInput(iso: string) {
-  const d = new Date(iso);
-  if (Number.isNaN(d.getTime())) return '';
-  const p = (n: number) => String(n).padStart(2, '0');
-  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}T${p(d.getHours())}:${p(d.getMinutes())}`;
-}
+const toDateKey = (date: DateTime) => date.toISODate()!;
+const toLocalInput = interviewTimeInput;
 
 function ModuleToggle({ active, onChange }: { active: 'calendar' | 'experience'; onChange: (next: 'calendar' | 'experience') => void }) {
   return (
@@ -310,9 +288,9 @@ export default function Interviews() {
   const { items: applications, loading: applicationsLoading, error: applicationsError } = useCollection<Application>('applications');
   const { registerAdd, query, interviewDateFilter, setInterviewDateFilter, setHeaderChrome } = useAppShell();
   const { theme } = useTheme();
-  const [weekStart, setWeekStart] = useState(() => startOfWeek(new Date()));
-  const [selectedCalendarDay, setSelectedCalendarDay] = useState(() => new Date());
-  const [calendarMonth, setCalendarMonth] = useState(() => new Date(new Date().getFullYear(), new Date().getMonth(), 1));
+  const [weekStart, setWeekStart] = useState(() => startOfWeek(interviewDate()));
+  const [selectedCalendarDay, setSelectedCalendarDay] = useState(() => interviewDate().startOf('day'));
+  const [calendarMonth, setCalendarMonth] = useState(() => interviewDate().startOf('month'));
   const [activeInterviewTypes, setActiveInterviewTypes] = useState<InterviewType[]>(TYPES);
   const [modalOpen, setModalOpen] = useState(false);
   const [selectedInterviewId, setSelectedInterviewId] = useState<string | null>(null);
@@ -363,7 +341,7 @@ export default function Interviews() {
   }, [interviewDateFilter]);
 
   useEffect(() => {
-    setCalendarMonth(new Date(weekStart.getFullYear(), weekStart.getMonth(), 1));
+    setCalendarMonth(weekStart.startOf('month'));
   }, [weekStart]);
 
   const weekDays = useMemo(() => Array.from({ length: 7 }, (_, i) => addDays(weekStart, i)), [weekStart]);
@@ -371,7 +349,7 @@ export default function Interviews() {
   const focusDay = interviewDateFilter ? parseDateKey(interviewDateFilter) : null;
 
   const eventsByDay = useMemo(() => {
-    const cols: { ev: Interview; date: Date }[][] = Array.from({ length: 7 }, () => []);
+    const cols: { ev: Interview; date: DateTime }[][] = Array.from({ length: 7 }, () => []);
     items.forEach((ev) => {
       const interviewTime = moving?.id === ev.id ? moving.time : ev.interview_time;
       if (!interviewTime) return;
@@ -382,7 +360,8 @@ export default function Interviews() {
           .some((v) => (v as string).toLowerCase().includes(q));
         if (!hit) return;
       }
-      const dt = new Date(interviewTime);
+      const dt = interviewDate(interviewTime);
+      if (!dt.isValid) return;
       if (!activeInterviewTypes.includes(ev.interview_type ?? '视频')) return;
       for (let i = 0; i < 7; i++) {
         if (sameDay(dt, weekDays[i])) cols[i].push({ ev, date: dt });
@@ -392,12 +371,12 @@ export default function Interviews() {
   }, [items, moving, weekDays, query, activeInterviewTypes]);
 
   const navigateWeek = (offset: number) => {
-    const next = offset === 0 ? startOfWeek(new Date()) : addDays(weekStart, offset * 7);
+    const next = offset === 0 ? startOfWeek(interviewDate()) : addDays(weekStart, offset * 7);
     setWeekStart(next);
-    setSelectedCalendarDay(offset === 0 ? new Date() : next);
+    setSelectedCalendarDay(offset === 0 ? interviewDate().startOf('day') : next);
   };
 
-  const selectCalendarDay = (day: Date) => {
+  const selectCalendarDay = (day: DateTime) => {
     setWeekStart(startOfWeek(day));
     setSelectedCalendarDay(day);
   };
@@ -411,7 +390,7 @@ export default function Interviews() {
     return items
       .filter((ev) => {
         if (!ev.interview_time) return false;
-        if (!sameDay(new Date(ev.interview_time), focusDay)) return false;
+        if (!sameDay(interviewDate(ev.interview_time), focusDay)) return false;
         if (!query) return true;
         const q = query.toLowerCase();
         return [ev.company_name, ev.position_name, ev.round, ev.notes]
@@ -421,12 +400,11 @@ export default function Interviews() {
       .sort((a, b) => new Date(a.interview_time!).getTime() - new Date(b.interview_time!).getTime());
   }, [items, focusDay, query]);
 
-  const openCreate = (prefill?: Date) => {
+  const openCreate = (prefill?: DateTime) => {
     setEditing(null);
     const next = { ...empty };
     if (prefill) {
-      const p = (n: number) => String(n).padStart(2, '0');
-      next.interview_time = `${prefill.getFullYear()}-${p(prefill.getMonth() + 1)}-${p(prefill.getDate())}T${p(prefill.getHours())}:${p(prefill.getMinutes())}`;
+      next.interview_time = prefill.toFormat("yyyy-MM-dd'T'HH:mm");
     }
     setForm(next);
     setFormError('');
@@ -457,7 +435,7 @@ export default function Interviews() {
   const movingLock = useRef(false);
   const latestInterviews = useRef(items);
   useEffect(() => { latestInterviews.current = items; }, [items]);
-  const moveInterview = async (ev: Interview, day: Date, hour: number) => {
+  const moveInterview = async (ev: Interview, day: DateTime, hour: number) => {
     if (movingLock.current || !ev.interview_time) return;
     let nextTime: string;
     try {
@@ -481,8 +459,8 @@ export default function Interviews() {
         try { await update(ev.id, { interview_time: ev.interview_time }); toast.info('已恢复原面试时间'); }
         finally { movingLock.current = false; setMoving(null); }
       } } });
-      const next = new Date(nextTime);
-      setMoveFeedback({ text: `已改期至 ${next.getMonth() + 1}月${next.getDate()}日 ${toLocalInput(nextTime).slice(11, 16)}`, error: false });
+      const next = interviewDate(nextTime);
+      setMoveFeedback({ text: `已改期至 ${next.month}月${next.day}日 ${toLocalInput(nextTime).slice(11, 16)}`, error: false });
     } catch (error) {
       toast.error('改期保存失败，已恢复原安排');
       setMoveFeedback({ text: `改期失败：${error instanceof Error ? error.message : String(error)}`, error: true });
@@ -518,7 +496,7 @@ export default function Interviews() {
     try {
       const payload: NewRecord<Interview> = {
         ...form,
-        interview_time: form.interview_time ? new Date(form.interview_time).toISOString() : null,
+        interview_time: form.interview_time ? interviewInputToISO(form.interview_time) : null,
       };
       if (editing?.application_id) {
         const linked = applications.find(application => application.id === editing.application_id);
@@ -552,14 +530,14 @@ export default function Interviews() {
           <div className="flex items-center justify-between gap-3 flex-wrap">
             <div>
               <div style={{ fontFamily: 'Geist', fontWeight: 700, fontSize: 15 }}>
-                {focusDay.getMonth() + 1} 月 {focusDay.getDate()} 日面试
+                {focusDay.month} 月 {focusDay.day} 日面试
               </div>
               <div style={{ fontSize: 12.5, color: '#6b665c', marginTop: 3 }}>
                 来自总览日历 · 共 {dayList?.length ?? 0} 场
               </div>
             </div>
             <div className="flex gap-2">
-              <GhostButton onClick={() => { openCreate(new Date(focusDay.getFullYear(), focusDay.getMonth(), focusDay.getDate(), 10, 0)); setInterviewDateFilter(null); }}>
+              <GhostButton onClick={() => { openCreate(focusDay.set({ hour: 10, minute: 0 })); setInterviewDateFilter(null); }}>
                 当天新增
               </GhostButton>
               <GhostButton onClick={() => setInterviewDateFilter(null)}>清除日期筛选</GhostButton>
@@ -569,7 +547,7 @@ export default function Interviews() {
             <div className="flex flex-col gap-2" style={{ marginTop: 12 }}>
               {dayList.map((ev, idx) => {
                 const col = EVENT_COLORS[idx % EVENT_COLORS.length];
-                const t = new Date(ev.interview_time!);
+                const t = interviewDate(ev.interview_time!);
                 return (
                   <button
                     key={ev.id}
@@ -592,7 +570,7 @@ export default function Interviews() {
                     <div>
                       <div style={{ fontWeight: 700, color: col.ac }}>{ev.company_name} · {ev.round || '面试'}</div>
                       <div style={{ fontSize: 12.5, color: col.sub, marginTop: 3 }}>
-                        {t.toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit', hour12: false })}
+                        {t.toFormat('HH:mm')}
                         {ev.position_name ? ` · ${ev.position_name}` : ''}
                         {ev.interview_type ? ` · ${ev.interview_type}` : ''}
                       </div>
@@ -621,7 +599,7 @@ export default function Interviews() {
               interviews={items}
               visibleCount={eventsByDay.flat().length}
               activeTypes={activeInterviewTypes}
-              onMonthChange={offset => setCalendarMonth(current => new Date(current.getFullYear(), current.getMonth() + offset, 1))}
+              onMonthChange={offset => setCalendarMonth(current => current.plus({ months: offset }).startOf('month'))}
               onSelectDay={selectCalendarDay}
               onToggleType={toggleInterviewType}
               onCreate={() => openCreate()}
@@ -629,7 +607,7 @@ export default function Interviews() {
             <section className="interview-schedule" aria-label="本周面试日程">
               <div className="interview-schedule-toolbar">
                 <div className="interview-schedule-title">
-                  <h2>{weekStart.getFullYear()} 年 {weekStart.getMonth() + 1} 月</h2>
+                  <h2>{weekStart.year} 年 {weekStart.month} 月</h2>
                   <span className="interview-schedule-range">{fmtMD(weekStart)} – {fmtMD(weekEnd)}</span>
                 </div>
                 <div className="interview-schedule-nav">
@@ -645,7 +623,7 @@ export default function Interviews() {
 
           {/* 移动端列表 */}
           <div className="md:hidden" style={{ ...CARD, padding: 18, borderRadius: 18 }}>
-            <div style={{ fontFamily: 'Geist', fontWeight: 700, marginBottom: 12 }}>本周面试</div>
+            <div style={{ fontFamily: 'Geist', fontWeight: 700, marginBottom: 12 }}>本周面试 · 北京时间 GMT+8</div>
             {eventsByDay.flat().length === 0 ? (
               <EmptyState text="本周暂无面试，点右上角新增。" actionLabel="新增面试" onAction={() => openCreate()} />
             ) : (
@@ -668,7 +646,7 @@ export default function Interviews() {
                       <div style={{ minWidth: 0 }}>
                         <button type="button" onClick={() => openDetails(ev)} style={{ display: 'block', border: 0, padding: 0, background: 'transparent', fontWeight: 700, color: col.ac, textAlign: 'left', cursor: 'pointer' }}>{ev.company_name}</button>
                         <div style={{ fontSize: 12, color: col.sub, marginTop: 3 }}>
-                          {fmtMD(date)} {date.toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit', hour12: false })}
+                          {fmtMD(date)} {date.toFormat('HH:mm')}
                           {ev.position_name ? ` · ${ev.position_name}` : ''}
                         </div>
                       </div>
@@ -740,7 +718,7 @@ export default function Interviews() {
           <Field label="岗位名称">
             <TextInput value={form.position_name ?? ''} onChange={(e) => setForm({ ...form, position_name: e.target.value })} placeholder="如：产品经理" />
           </Field>
-          <Field label="面试时间">
+          <Field label="面试时间（北京时间 GMT+8）">
             <TextInput type="datetime-local" value={form.interview_time ?? ''} onChange={(e) => setForm({ ...form, interview_time: e.target.value })} />
           </Field>
           <Field label="轮次">

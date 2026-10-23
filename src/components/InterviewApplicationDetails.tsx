@@ -5,6 +5,7 @@ import Modal from './Modal';
 import { GhostButton } from './Field';
 import { buildSteps, statusTag } from '../lib/appHelpers';
 import { callAIJson } from '../lib/aiChatClient';
+import { INTERVIEW_TIME_ZONE } from '../lib/interviewCalendar';
 import { automaticInterviewCompany, interviewCompanyKey, matchingInterviewPosition, rankInterviewCompanies } from '../lib/interviewApplicationMatch';
 import './InterviewApplicationDetails.css';
 import MailInterviewSource from './MailInterviewSource';
@@ -12,7 +13,7 @@ import MailInterviewSource from './MailInterviewSource';
 function dateTime(value: string | null) {
   if (!value) return '';
   const date = new Date(value);
-  return Number.isNaN(date.getTime()) ? value : date.toLocaleString('zh-CN', { year: 'numeric', month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit', hour12: false });
+  return Number.isNaN(date.getTime()) ? value : date.toLocaleString('zh-CN', { timeZone: INTERVIEW_TIME_ZONE, year: 'numeric', month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit', hour12: false });
 }
 
 function Detail({ label, value }: { label: string; value: string | number | null | undefined }) {
@@ -98,7 +99,7 @@ export default function InterviewApplicationDetails({ interview, applications, l
         <div className="interview-application-eyebrow">面试安排</div>
         <h3>{interview.company_name}<span>{interview.round || '面试'}</span></h3>
         <div className="interview-application-facts">
-          <Detail label="时间" value={dateTime(interview.interview_time)} />
+          <Detail label="时间（北京时间）" value={dateTime(interview.interview_time)} />
           <Detail label="面试岗位" value={interview.position_name} />
           <Detail label="形式" value={interview.interview_type} />
           <Detail label="地点" value={interview.location} />

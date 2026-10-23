@@ -5,6 +5,7 @@ import { ArrowLeft, CalendarDays, ChevronDown, ChevronLeft, ChevronRight, MouseP
 import type { Interview } from '../../types';
 import { initialOf } from '../../lib/appHelpers';
 import { groupInterviewsByTime } from '../../lib/interviewSummary';
+import { INTERVIEW_TIME_ZONE } from '../../lib/interviewCalendar';
 import './RecentInterviewFolder.css';
 
 const PALETTES = [
@@ -17,7 +18,7 @@ function interviewDate(value: string | null) {
   return date && Number.isFinite(date.getTime()) ? date : null;
 }
 function shortTime(date: Date | null) {
-  return date?.toLocaleString('zh-CN', { month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', hour12: false }) ?? '时间待定';
+  return date?.toLocaleString('zh-CN', { timeZone: INTERVIEW_TIME_ZONE, month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', hour12: false }) ?? '时间待定';
 }
 function colors(index: number, key: string | number = index): CSSProperties {
   const [accent, tint] = PALETTES[index % PALETTES.length];
@@ -212,7 +213,7 @@ function InterviewDetail({ selection, onClose, onViewCalendar }: { selection: Se
         <div className="rif-card-top"><span className="rif-mark">{initialOf(iv.company_name)}</span><span className="rif-round">{iv.round || '面试'}</span></div>
         <h2 className="rif-company" id={titleId}>{iv.company_name}</h2><span className="rif-role">{iv.position_name || '岗位待补充'}</span>
         <div className="rif-details">
-          <div className="rif-detail-time"><span className="rif-day">{date ? String(date.getDate()).padStart(2, '0') : '—'}<small>{date ? `${date.getMonth() + 1}月` : ''}</small></span><div className="rif-time-copy"><span>{date?.toLocaleDateString('zh-CN', { year: 'numeric', weekday: 'long' }) ?? '日期待定'}</span><strong>{date?.toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit', hour12: false }) ?? '时间待定'}</strong></div></div>
+          <div className="rif-detail-time"><span className="rif-day">{date ? date.toLocaleDateString('zh-CN', { timeZone: INTERVIEW_TIME_ZONE, day: '2-digit' }).replace('日', '') : '—'}<small>{date ? date.toLocaleDateString('zh-CN', { timeZone: INTERVIEW_TIME_ZONE, month: 'numeric' }) : ''}</small></span><div className="rif-time-copy"><span>{date?.toLocaleDateString('zh-CN', { timeZone: INTERVIEW_TIME_ZONE, year: 'numeric', weekday: 'long' }) ?? '日期待定'}</span><strong>{date?.toLocaleTimeString('zh-CN', { timeZone: INTERVIEW_TIME_ZONE, hour: '2-digit', minute: '2-digit', hour12: false }) ?? '时间待定'}</strong></div></div>
           <dl className="rif-fields"><dt>面试岗位</dt><dd>{iv.position_name || '待补充'}</dd><dt>面试轮次</dt><dd>{iv.round || '待确认'}</dd><dt>面试方式</dt><dd>{iv.interview_type || '待确认'}</dd></dl>
           <div className="rif-note"><span>面试备忘</span><p>{iv.notes || '暂无备注，可前往面试日历补充。'}</p></div>
           <button type="button" className="rif-return" onClick={() => void close()}><ArrowLeft size={16} />放回文件夹</button>

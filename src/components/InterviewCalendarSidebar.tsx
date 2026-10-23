@@ -1,57 +1,52 @@
+import type { DateTime } from 'luxon';
+import { interviewDate } from '../lib/interviewCalendar';
 import type { Interview, InterviewType } from '../types';
 import { IconPlus } from './icons';
 
 const WEEKDAYS = ['一', '二', '三', '四', '五', '六', '日'];
 const TYPES: InterviewType[] = ['电话', '视频', '现场'];
-const sameDay = (a: Date, b: Date) => a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate();
-const startOfWeek = (date: Date) => {
-  const result = new Date(date.getFullYear(), date.getMonth(), date.getDate());
-  result.setDate(result.getDate() - (result.getDay() + 6) % 7);
-  return result;
-};
+const sameDay = (a: DateTime, b: DateTime) => a.hasSame(b, 'day');
+const startOfWeek = (date: DateTime) => date.startOf('week');
 
 export default function InterviewCalendarSidebar({ month, weekStart, selectedDay, interviews, visibleCount, activeTypes, onMonthChange, onSelectDay, onToggleType, onCreate }: {
-  month: Date;
-  weekStart: Date;
-  selectedDay: Date;
+  month: DateTime;
+  weekStart: DateTime;
+  selectedDay: DateTime;
   interviews: Interview[];
   visibleCount: number;
   activeTypes: InterviewType[];
   onMonthChange: (offset: number) => void;
-  onSelectDay: (day: Date) => void;
+  onSelectDay: (day: DateTime) => void;
   onToggleType: (type: InterviewType) => void;
   onCreate: () => void;
 }) {
-  const first = new Date(month.getFullYear(), month.getMonth(), 1);
+  const first = month.startOf('month');
   const calendarStart = startOfWeek(first);
   const days = Array.from({ length: 42 }, (_, index) => {
-    const day = new Date(calendarStart);
-    day.setDate(day.getDate() + index);
-    return day;
+    return calendarStart.plus({ days: index });
   });
-  const last = new Date(month.getFullYear(), month.getMonth() + 1, 0);
+  const last = month.endOf('month');
   const lastRowStarts = startOfWeek(last);
   const shownDays = days.slice(0, sameDay(lastRowStarts, days[35]) ? 42 : 35);
   const eventDates = new Set(interviews.filter(item => item.interview_time).map(item => {
-    const date = new Date(item.interview_time!);
-    return `${date.getFullYear()}-${date.getMonth()}-${date.getDate()}`;
+    return interviewDate(item.interview_time!).toISODate();
   }));
-  const weekEnd = new Date(weekStart);
-  weekEnd.setDate(weekEnd.getDate() + 6);
+  const weekEnd = weekStart.plus({ days: 6 });
+  const today = interviewDate();
 
   return <aside className="interview-board-sidebar" aria-label="日历导航与筛选">
     <button className="interview-side-add" type="button" onClick={onCreate}><IconPlus size={16} /> 新增面试</button>
     <section className="interview-side-card">
       <div className="interview-month-head">
         <button type="button" onClick={() => onMonthChange(-1)} aria-label="上个月">‹</button>
-        <strong>{month.getFullYear()} 年 {month.getMonth() + 1} 月</strong>
+        <strong>{month.year} 年 {month.month} 月</strong>
         <button type="button" onClick={() => onMonthChange(1)} aria-label="下个月">›</button>
       </div>
       <div className="interview-month-weekdays">{WEEKDAYS.map(day => <span key={day}>{day}</span>)}</div>
       <div className="interview-month-dates">
-        {shownDays.map(day => day.getMonth() === month.getMonth() ? <button key={day.toDateString()} type="button" onClick={() => onSelectDay(day)} className={`${day >= weekStart && day <= weekEnd ? 'is-week ' : ''}${sameDay(day, selectedDay) ? 'is-selected ' : ''}${sameDay(day, new Date()) ? 'is-today' : ''}`} aria-label={`选择${day.getMonth() + 1}月${day.getDate()}日`} aria-pressed={sameDay(day, selectedDay)}>
-          {day.getDate()}{eventDates.has(`${day.getFullYear()}-${day.getMonth()}-${day.getDate()}`) && <i aria-hidden="true" />}
-        </button> : <span key={day.toDateString()} aria-hidden="true" />)}
+        {shownDays.map(day => day.month === month.month ? <button key={day.toISODate()!} type="button" onClick={() => onSelectDay(day)} className={`${day >= weekStart && day <= weekEnd ? 'is-week ' : ''}${sameDay(day, selectedDay) ? 'is-selected ' : ''}${sameDay(day, today) ? 'is-today' : ''}`} aria-label={`选择${day.month}月${day.day}日`} aria-pressed={sameDay(day, selectedDay)}>
+          {day.day}{eventDates.has(day.toISODate()) && <i aria-hidden="true" />}
+        </button> : <span key={day.toISODate()!} aria-hidden="true" />)}
       </div>
     </section>
     <section className="interview-side-card">
@@ -63,7 +58,7 @@ export default function InterviewCalendarSidebar({ month, weekStart, selectedDay
     </section>
     <section className="interview-side-card">
       <h3>本周安排</h3>
-      <div className="interview-side-count"><strong>{visibleCount}</strong><span>场面试 · {weekStart.getMonth() + 1}/{weekStart.getDate()}–{weekEnd.getMonth() + 1}/{weekEnd.getDate()}</span></div>
+      <div className="interview-side-count"><strong>{visibleCount}</strong><span>场面试 · {weekStart.month}/{weekStart.day}–{weekEnd.month}/{weekEnd.day}</span></div>
     </section>
   </aside>;
 }

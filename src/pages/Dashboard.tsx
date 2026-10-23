@@ -1,4 +1,6 @@
 import { useMemo, useState, type ReactNode } from 'react';
+import type { DateTime } from 'luxon';
+import { interviewDate } from '../lib/interviewCalendar';
 import type { Application, ApplicationPriority, ApplicationStatus, Interview } from '../types';
 import { useCollection } from '../hooks/useCollection';
 import { useProfile } from '../hooks/useProfile';
@@ -42,11 +44,6 @@ function isClosedStatus(status: string) {
   return ['Offer', '已拒绝', '已放弃', '人才库'].includes(status);
 }
 
-function toDateKey(d: Date) {
-  const p = (n: number) => String(n).padStart(2, '0');
-  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`;
-}
-
 function urgencyScore(app: Application, now: Date) {
   const nowTime = now.getTime();
   const deadline = timeValue(app.deadline_at);
@@ -77,6 +74,7 @@ export default function Dashboard() {
   const [activeStatus, setActiveStatus] = useState<ApplicationStatus | null>(null);
 
   const now = new Date();
+  const calendarNow = interviewDate();
 
   const stats = useMemo(() => {
     const nowTime = now.getTime();
@@ -88,14 +86,11 @@ export default function Dashboard() {
     const dueSoon = active.filter((a) => timeValue(a.deadline_at) <= nowTime + 3 * 86400000);
     const todo = new Set([...followUps, ...dueSoon].map((a) => a.id)).size;
 
-    const weekStart = new Date(now);
-    weekStart.setHours(0, 0, 0, 0);
-    weekStart.setDate(weekStart.getDate() - ((weekStart.getDay() + 6) % 7));
-    const weekEnd = new Date(weekStart);
-    weekEnd.setDate(weekEnd.getDate() + 7);
+    const weekStart = interviewDate().startOf('week');
+    const weekEnd = weekStart.plus({ weeks: 1 });
     const weekInterviews = interviews.filter((iv) => {
       if (!iv.interview_time) return false;
-      const t = new Date(iv.interview_time);
+      const t = interviewDate(iv.interview_time);
       return t >= weekStart && t < weekEnd;
     }).length;
 
@@ -112,7 +107,7 @@ export default function Dashboard() {
     [apps],
   );
 
-  const monthDays = useMemo(() => buildMonth(now, interviews), [interviews]); // eslint-disable-line react-hooks/exhaustive-deps
+  const monthDays = useMemo(() => buildMonth(calendarNow, interviews), [interviews]); // eslint-disable-line react-hooks/exhaustive-deps
   const aiSystemPrompt = useMemo(() => buildAiSystemPrompt(apps), [apps]);
 
   const handleViewDetail = (app: Application) => {
@@ -189,7 +184,7 @@ export default function Dashboard() {
         <section className="do-card do-cal-card" aria-label="本月面试">
           <header className="do-card-head">
             <h3>本月面试</h3>
-            <button type="button" className="do-link" onClick={() => navigate('interviews')}>{now.getMonth() + 1} 月 · 查看全部 ›</button>
+            <button type="button" className="do-link" onClick={() => navigate('interviews')}>{calendarNow.month} 月 · 查看全部 ›</button>
           </header>
           <div className="do-cal-week">
             {['一', '二', '三', '四', '五', '六', '日'].map((w) => <span key={w}>{w}</span>)}
@@ -257,10 +252,10 @@ export default function Dashboard() {
                 onRetry={refreshInterviews}
                 onViewAll={() => navigate('interviews')}
                 onViewCalendar={(iv) => {
-                  const date = iv.interview_time ? new Date(iv.interview_time) : null;
+                  const date = iv.interview_time ? interviewDate(iv.interview_time) : null;
                   navigate('interviews', {
                     query: iv.company_name,
-                    interviewDate: date && Number.isFinite(date.getTime()) ? toDateKey(date) : null,
+                    interviewDate: date?.isValid ? date.toISODate() : null,
                   });
                 }}
               />
@@ -339,26 +334,25 @@ interface DayCell {
   dateKey: string | null;
 }
 
-function buildMonth(now: Date, interviews: Interview[]): DayCell[] {
-  const year = now.getFullYear();
-  const month = now.getMonth();
-  const first = new Date(year, month, 1);
-  const lead = (first.getDay() + 6) % 7;
-  const daysInMonth = new Date(year, month + 1, 0).getDate();
+function buildMonth(now: DateTime, interviews: Interview[]): DayCell[] {
+  const year = now.year;
+  const month = now.month;
+  const lead = now.startOf('month').weekday - 1;
+  const daysInMonth = now.daysInMonth!;
   const eventDays = new Set<number>();
   interviews.forEach((iv) => {
     if (!iv.interview_time) return;
-    const t = new Date(iv.interview_time);
-    if (t.getFullYear() === year && t.getMonth() === month) eventDays.add(t.getDate());
+    const t = interviewDate(iv.interview_time);
+    if (t.year === year && t.month === month) eventDays.add(t.day);
   });
   const cells: DayCell[] = [];
   for (let i = 0; i < lead; i++) cells.push({ num: '', empty: true, isToday: false, hasEvent: false, dateKey: null });
   for (let n = 1; n <= daysInMonth; n++) {
-    const dateKey = `${year}-${String(month + 1).padStart(2, '0')}-${String(n).padStart(2, '0')}`;
+    const dateKey = `${year}-${String(month).padStart(2, '0')}-${String(n).padStart(2, '0')}`;
     cells.push({
       num: n,
       empty: false,
-      isToday: n === now.getDate(),
+      isToday: n === now.day,
       hasEvent: eventDays.has(n),
       dateKey,
     });
