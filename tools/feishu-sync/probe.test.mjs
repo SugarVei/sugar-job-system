@@ -1,7 +1,25 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import XLSX from 'xlsx-js-style';
-import { validateWorkbook } from './probe.mjs';
+import { cloudSessionState, validateWorkbook } from './probe.mjs';
+
+test('cloud session retains login proof but excludes document caches and other websites', () => {
+  const auth = { origin: 'https://accounts.feishu.cn', localStorage: [{ name: 'dpop_tg_key_pair_v1', value: 'test-login-proof' }] };
+  const state = cloudSessionState({ cookies: [
+    { name: 'session', value: 'test-session', domain: '.feishu.cn' },
+    { name: 'unrelated', value: 'test-unrelated', domain: 'example.com' },
+  ], origins: [auth, { origin: 'https://yal2at57cvq.feishu.cn', localStorage: [{ name: 'base_chunk0_tmpl_data', value: 'document-cache' }] }] });
+  assert.deepEqual(state.origins, [auth]);
+  assert.equal(state.cookies.length, 1);
+  assert.equal(state.cookies[0].name, 'session');
+});
+
+test('rejects incomplete cookies-only login state and proof on an untrusted origin', () => {
+  const cookies = [{ name: 'session', value: 'test-session', domain: '.feishu.cn' }];
+  assert.throws(() => cloudSessionState({ cookies, origins: [] }), /SESSION_KEY_MISSING/u);
+  assert.throws(() => cloudSessionState({ cookies, origins: [{ origin: 'https://accounts.feishu.cn.example.com', localStorage: [{ name: 'dpop_tg_key_pair_v1', value: 'test-proof' }] }] }), /SESSION_KEY_MISSING/u);
+  assert.throws(() => cloudSessionState({ cookies: [], origins: [] }), /SESSION_MISSING/u);
+});
 
 function workbook(sheets) {
   const book = XLSX.utils.book_new();

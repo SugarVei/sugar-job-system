@@ -181,7 +181,7 @@ export default function HotCompanies() {
     recruitmentOverviewCompanies
       .map(updateDateForCompany)
       .filter((date): date is string => Boolean(date)),
-  ).map(formatUpdateDateLabel), [recruitmentOverviewCompanies]);
+  ), [recruitmentOverviewCompanies]);
 
   const selectedUpdateDate = activeUpdateDate === ALL || (activeUpdateDate && updateDateOptions.includes(activeUpdateDate))
     ? activeUpdateDate
@@ -198,7 +198,7 @@ export default function HotCompanies() {
           const companyKey = normalizeCompanyName(company.name);
           if (activeCompanyType !== ALL && (company.companyType || '未标明') !== activeCompanyType) return false;
           const updateDate = updateDateForCompany(company);
-          if (selectedUpdateDate !== ALL && (!updateDate || formatUpdateDateLabel(updateDate) !== selectedUpdateDate)) return false;
+          if (selectedUpdateDate !== ALL && updateDate !== selectedUpdateDate) return false;
           const dbStatus = recruitmentStatusByCompany.get(companyKey);
           if (activeRecruitmentStatus !== ALL_RECRUITMENT_STATUSES
             && recruitmentStatusKey(company, dbStatus) !== activeRecruitmentStatus) {
@@ -427,7 +427,7 @@ export default function HotCompanies() {
           <div id="hc-company-filter-controls" className="hc-filter-controls" hidden={!filtersOpen}>
             <CompanyFilter label="企业性质" options={companyTypeOptions} value={activeCompanyType} onChange={value => { setActiveCompanyType(value); setPageIndex(0); }} />
             <CompanyFilter label="行业分类" options={industryOptions} value={activeIndustry} onChange={value => { setActiveIndustry(value); setPageIndex(0); }} />
-            <CompanyFilter label="添加时间" options={updateDateOptions} value={selectedUpdateDate} onChange={value => { setActiveUpdateDate(value); setPageIndex(0); }} />
+            <CompanyFilter label="添加时间" options={updateDateOptions} formatOption={formatUpdateDateLabel} value={selectedUpdateDate} onChange={value => { setActiveUpdateDate(value); setPageIndex(0); }} />
           </div>
         </section>
 
@@ -580,8 +580,8 @@ function resolveRecruitmentStatus(company: HotCompany, dbStatus?: CampusRecruitm
   return seedStatusForCompany(company.name, company.url);
 }
 
-function CompanyFilter({ label, options, value, onChange }: { label: string; options: string[]; value: string; onChange: (value: string) => void }) {
-  return <label className={`hc-filter${value !== ALL ? ' hc-filter-active' : ''}`}><select aria-label={label} value={value} onChange={event => onChange(event.target.value)}><option value={ALL}>{label}</option>{options.map(option => <option key={option} value={option}>{option}</option>)}</select><ChevronDown size={15} aria-hidden="true" /></label>;
+function CompanyFilter({ label, options, formatOption, value, onChange }: { label: string; options: string[]; formatOption?: (value: string) => string; value: string; onChange: (value: string) => void }) {
+  return <label className={`hc-filter${value !== ALL ? ' hc-filter-active' : ''}`}><select aria-label={label} value={value} onChange={event => onChange(event.target.value)}><option value={ALL}>{label}</option>{options.map(option => <option key={option} value={option}>{formatOption ? formatOption(option) : option}</option>)}</select><ChevronDown size={15} aria-hidden="true" /></label>;
 }
 
 function CompanyEntry({ company, applied, recruitmentStatus, statusesLoading, removable, deleting, onViewApplications, onDelete }: {

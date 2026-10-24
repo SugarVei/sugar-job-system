@@ -38,6 +38,17 @@ export function validateWorkbook(bytes) {
   return { sheets, rowCount: sheets.reduce((total, sheet) => total + sheet.rowCount, 0), sha256: createHash('sha256').update(bytes).digest('hex'), bytes: bytes.length };
 }
 
+export function cloudSessionState(stored) {
+  const cookies = stored.cookies.filter((cookie) => /(^|\.)(feishu\.cn|larksuite\.com)$/iu.test(cookie.domain));
+  if (!cookies.length) throw new Error('SESSION_MISSING: 请先登录飞书。');
+  // Preserve the sign-in origin, excluding all Base document caches.
+  const origins = stored.origins.filter((origin) => origin.origin === 'https://accounts.feishu.cn');
+  if (!origins.some((origin) => origin.localStorage.some((item) => item.name === 'dpop_tg_key_pair_v1'))) {
+    throw new Error('SESSION_KEY_MISSING: 登录校验信息不完整，请重新登录飞书后再保存。');
+  }
+  return { cookies, origins };
+}
+
 async function firstVisible(locators) {
   for (const locator of locators) {
     for (const item of await locator.all()) {
@@ -152,16 +163,18 @@ export async function main(command = process.argv[2]) {
   const page = context.pages()[0] || await context.newPage();
   try {
     if (command === 'save-session') {
-      // Only the dedicated Feishu browser's cookies are needed. Cached Base
-      // content/localStorage is deliberately excluded from the cloud secret.
-      const cookies = (await context.cookies()).filter((cookie) => /(^|\.)(feishu\.cn|larksuite\.com)$/iu.test(cookie.domain));
-      if (!cookies.length) throw new Error('SESSION_MISSING: 请先登录飞书。');
-      const state = JSON.stringify({ cookies, origins: [] });
+      // Load the sign-in widget before capturing state. Feishu also keeps its
+      // login proof key on the accounts origin; cookies alone can pass once
+      // and then fail account verification in a fresh cloud browser.
+      await page.goto(SOURCE_URL, { waitUntil: 'domcontentloaded', timeout: 60_000 });
+      await page.locator('button.more-btn:not(.header-ssr-layout-component-MoreBtn):visible').first().waitFor({ timeout: 90_000 });
+      const { cookies, origins } = cloudSessionState(await context.storageState());
+      const state = JSON.stringify({ cookies, origins });
       const compressed = gzipSync(Buffer.from(state)).toString('base64');
       if (Buffer.byteLength(compressed) > 47_000) throw new Error('SESSION_TOO_LARGE: 会话超过云端凭据大小限制。');
       await writeFile(join(stateDir, 'session-state.json'), state, { mode: 0o600 });
       await writeFile(join(stateDir, 'session-gzip.b64'), compressed, { mode: 0o600 });
-      console.log(JSON.stringify({ saved: true, cookieCount: cookies.length, compressedBytes: Buffer.byteLength(compressed) }));
+      console.log(JSON.stringify({ saved: true, cookieCount: cookies.length, authOriginCount: origins.length, compressedBytes: Buffer.byteLength(compressed) }));
       return;
     }
     if (command === 'login') {

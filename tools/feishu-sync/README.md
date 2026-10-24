@@ -21,7 +21,7 @@
 
 1. 根目录运行 `node tools/feishu-sync/probe.mjs login`，在独立浏览器登录飞书，看到目标表后关闭窗口。
 2. `node tools/feishu-sync/probe.mjs export`，真实导出并校验。
-3. `node tools/feishu-sync/probe.mjs save-session`，生成供云端复用的压缩会话，仅含独立浏览器的飞书 Cookies，不包含缓存的表格数据。
+3. `node tools/feishu-sync/probe.mjs save-session`，生成供云端复用的压缩会话，包含独立浏览器的飞书 Cookies 及登录页面的校验信息（包括登录证明密钥），不包含缓存的表格数据。Cookies 单独复制可能只成功一次，随后出现账号校验异常；续期后应连续验证两次独立浏览器导出。
 4. 用 PowerShell 更新云端会话：
 
    ```powershell
@@ -48,7 +48,7 @@ node --experimental-strip-types --import ./scripts/register-ts-ext.mjs tools/fei
 
 导入与页面读取上限从 4,000 调整到 20,000，卡片继续沿用现有分页。源表超限时同步报错，避免静默截断。
 
-热门公司的日期筛选按公司记录的 `source_update_date` 自动生成，并默认选择最新开招日期，不使用同步任务的执行日期。已打开的网页每 5 分钟、切回窗口或恢复联网时刷新公司库；刷新失败时保留上次成功加载的数据。用户手动选择历史日期或全部时继续保留选择。
+热门公司的日期筛选按公司记录的 `source_update_date` 自动生成，并默认选择最新开招日期，不使用同步任务的执行日期。筛选值保留完整年月日，避免上一年同月同日的公司混入；下拉文案沿用“月日开招”。已打开的网页每 5 分钟、切回窗口或恢复联网时刷新公司库；刷新失败时保留上次成功加载的数据。用户手动选择历史日期或全部时继续保留选择。
 
 ## 验证命令
 
