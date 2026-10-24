@@ -163,6 +163,15 @@ export async function main(command = process.argv[2]) {
   const page = context.pages()[0] || await context.newPage();
   try {
     if (command === 'save-session') {
+      // storageState only includes origins visited by this context. Register
+      // the sign-in origin with a plain document so its existing proof key is
+      // captured even when the Base page does not open a sign-in iframe.
+      const authPage = await context.newPage();
+      try {
+        await authPage.goto('https://accounts.feishu.cn/robots.txt', { waitUntil: 'domcontentloaded', timeout: 60_000 });
+      } finally {
+        await authPage.close();
+      }
       // Load the sign-in widget before capturing state. Feishu also keeps its
       // login proof key on the accounts origin; cookies alone can pass once
       // and then fail account verification in a fresh cloud browser.
