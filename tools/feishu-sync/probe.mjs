@@ -55,18 +55,13 @@ async function findExport(page) {
 }
 
 export async function openExportMenu(page) {
-  // The server-rendered header is replaced during hydration. Clicking its
-  // placeholder menu can be lost, so wait for the live header first.
-  await page.locator('button.more-btn:not(.header-ssr-layout-stage-0)').waitFor({ state: 'visible', timeout: 90_000 });
+  // Feishu can leave the SSR header mounted beside the hydrated header.
+  // Exclude its placeholder even after stage-0 disappears, and select only a
+  // visible live button so duplicate/hidden headers cannot break strict mode.
+  const menu = page.locator('button.more-btn:not(.header-ssr-layout-component-MoreBtn):not(.header-ssr-layout-stage-0):visible').first();
+  await menu.waitFor({ state: 'visible', timeout: 90_000 });
   const direct = await findExport(page);
   if (direct) return direct;
-  const menu = await firstVisible([
-    page.getByRole('button', { name: /^(更多|更多操作|More|More actions|菜单)$/iu }),
-    page.locator('[data-testid="suite-more-menu"], .suite-more-menu, .suite-more-menu-trigger'),
-    page.locator('button.more-btn:not(.header-ssr-layout-stage-0)'),
-    page.locator('[aria-label="更多"], [aria-label="More"], [title="更多"], [title="More"]'),
-  ]);
-  if (!menu) throw new Error('EXPORT_MENU_MISSING: 未找到表格菜单，请先登录或检查飞书界面。');
   await menu.click();
   await page.getByText(/^(导出|Export)$/iu, { exact: true }).first().waitFor({ state: 'visible', timeout: 5000 })
     .catch(() => { throw new Error('AUTH_OR_PERMISSION_REQUIRED: 当前会话没有导出入口，请重新登录并检查下载权限。'); });
