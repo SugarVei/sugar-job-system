@@ -58,6 +58,7 @@
 .offer-card__metrics { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 20px 14px; margin: 28px 0; }
 .offer-metric { min-width: 0; }
 .offer-metric__label { margin-bottom: 6px; color: var(--offer-muted); font-size: 16px; }
+.offer-metric__salary-months { display: inline-block; font-size: 14px; white-space: nowrap; }
 .offer-metric__value { display: block; font-size: 22px; line-height: 1.45; font-weight: 700; overflow-wrap: anywhere; font-variant-numeric: tabular-nums; }
 .offer-metric:has(.offer-date) .offer-metric__value { font-size: 18px; }
 .offer-metric--urgent .offer-metric__value { color: #a23d24; }
