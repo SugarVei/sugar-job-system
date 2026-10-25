@@ -158,7 +158,7 @@ export default function Offers() {
         const urgent = o.reply_deadline && (+new Date(o.reply_deadline) - Date.now()) / 86400000 <= 4;
         return <article key={o.id} className="offer-card card-hover" style={{ ...CARD, ...paletteCardStyle(o.id) }}>
           <div className="offer-card__header"><div className="offer-card__identity"><h3>{o.company_name}</h3><p>{o.position_name} · {o.city || '城市未填'}</p></div><OfferStatusBadge status={o.offer_status} /></div>
-          <div className="offer-card__metrics"><Metric label={<>月薪{o.salary_months != null && o.salary_months > 0 && <span className="offer-metric__salary-months">（{o.salary_months}薪）</span>}</>} value={money(o.base_salary)} /><Metric label="年包" value={money(o.annual_package)} /><Metric label="回复截止" value={<OfferDate value={o.reply_deadline} />} warn={!!urgent} /><Metric label="综合评分" value={o.total_score == null ? '—' : `${o.total_score} 分`} /></div>
+          <div className="offer-card__metrics"><Metric salary label={<>月薪{o.salary_months != null && o.salary_months > 0 && <span className="offer-metric__salary-months">（{o.salary_months}薪）</span>}</>} value={money(o.base_salary)} /><Metric label="年包" value={money(o.annual_package)} /><Metric label="回复截止" value={<OfferDate value={o.reply_deadline} />} warn={!!urgent} /><Metric label="综合评分" value={o.total_score == null ? '—' : `${o.total_score} 分`} /></div>
           {risks(o).length > 0 && <div className="offer-card__risks">{risks(o).map(x => <span key={x}>{x}</span>)}</div>}
           <div className="offer-card__footer">
             <label className="offer-card__compare"><input type="checkbox" checked={compare.includes(o.id)} onChange={e => setCompare(v => e.target.checked ? v.length < 5 ? [...v,o.id] : v : v.filter(x => x !== o.id))} /> 加入对比</label>
@@ -221,8 +221,8 @@ function OfferDate({ value }: { value: string | null }) {
 function OfferStatusBadge({ status }: { status: OfferStatus }) {
   return <span className="offer-status" data-offer-status={status}>{status}</span>;
 }
-function Metric({ label, value, warn }: { label: React.ReactNode; value: React.ReactNode; warn?: boolean }) {
-  return <div className={`offer-metric${warn ? ' offer-metric--urgent' : ''}`}><div className="offer-metric__label">{label}</div><b className="offer-metric__value">{value}</b></div>;
+function Metric({ label, value, warn, salary }: { label: React.ReactNode; value: React.ReactNode; warn?: boolean; salary?: boolean }) {
+  return <div className={`offer-metric${warn ? ' offer-metric--urgent' : ''}${salary ? ' offer-metric--salary' : ''}`}><div className="offer-metric__label">{label}</div><b className="offer-metric__value">{value}</b></div>;
 }
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return <section className="offer-detail-section"><h3>{title}</h3><div>{children}</div></section>;

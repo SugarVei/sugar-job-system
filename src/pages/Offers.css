@@ -62,6 +62,8 @@
 .offer-metric__value { display: block; font-size: 22px; line-height: 1.45; font-weight: 700; overflow-wrap: anywhere; font-variant-numeric: tabular-nums; }
 .offer-metric:has(.offer-date) .offer-metric__value { font-size: 18px; }
 .offer-metric--urgent .offer-metric__value { color: #a23d24; }
+.offer-metric--salary .offer-metric__value,
+.offer-metric__salary-months { color: #dc2626; font-weight: 800; }
 .offer-card__risks { display: flex; flex-wrap: wrap; gap: 8px; margin: -8px 0 20px; }
 .offer-card__risks > span { padding: 4px 10px; border-radius: 999px; background: #fbe0d8; color: #a23d24; font-size: 16px; }
 .offer-card__footer { display: flex; flex-wrap: wrap; align-items: center; gap: 14px; margin-top: auto; padding-top: 20px; border-top: 1px solid var(--offer-line); }
