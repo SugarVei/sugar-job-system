@@ -53,7 +53,7 @@
 .offer-card { display: flex; flex-direction: column; min-width: 0; padding: 24px; }
 .offer-card__header { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; }
 .offer-card__identity { min-width: 0; }
-.offer-card__identity h3 { margin: 0; font-size: 22px; font-weight: 750; line-height: 1.5; overflow-wrap: anywhere; }
+.offer-card__identity h3 { margin: 0; font-size: 24px; font-weight: 800; line-height: 1.5; overflow-wrap: anywhere; }
 .offer-card__identity p { margin: 5px 0 0; color: var(--offer-muted); font-size: 18px; overflow-wrap: anywhere; }
 .offer-card__metrics { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 20px 14px; margin: 28px 0; }
 .offer-metric { min-width: 0; }
