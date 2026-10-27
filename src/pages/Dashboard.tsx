@@ -1,7 +1,7 @@
 import { useMemo, useState, type ReactNode } from 'react';
 import type { DateTime } from 'luxon';
 import { interviewDate } from '../lib/interviewCalendar';
-import type { Application, ApplicationPriority, ApplicationStatus, Interview } from '../types';
+import type { Application, ApplicationPriority, ApplicationStatus, Interview, Offer } from '../types';
 import { useCollection } from '../hooks/useCollection';
 import { useProfile } from '../hooks/useProfile';
 import { useAppShell } from '../contexts/AppShellContext';
@@ -64,6 +64,7 @@ function pct(n: number, total: number) {
 
 export default function Dashboard() {
   const { items: apps, loading: appsLoading, error: appsError, refresh: refreshApps } = useCollection<Application>('applications');
+  const { items: offerRecords, loading: offersLoading, error: offersError } = useCollection<Offer>('offers');
   const { items: interviews, loading: interviewsLoading, error: interviewsError, refresh: refreshInterviews } = useCollection<Interview>('interviews', {
     column: 'interview_time',
     ascending: true,
@@ -81,7 +82,8 @@ export default function Dashboard() {
     const total = apps.length;
     const active = apps.filter((a) => !isClosedStatus(a.status));
     const interviewing = apps.filter((a) => ['一面', '二面', 'AI面', 'HR面', 'Offer'].includes(a.status)).length;
-    const offers = apps.filter((a) => a.status === 'Offer').length;
+    // Match the total in Offer management, including manually entered offers.
+    const offers = offerRecords.length;
     const followUps = active.filter((a) => a.status === '待跟进');
     const dueSoon = active.filter((a) => timeValue(a.deadline_at) <= nowTime + 3 * 86400000);
     const todo = new Set([...followUps, ...dueSoon].map((a) => a.id)).size;
@@ -96,7 +98,7 @@ export default function Dashboard() {
 
     return { total, inProgress: active.length, interviewing, offers, followUps: followUps.length, dueSoon: dueSoon.length, todo, weekInterviews };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [apps, interviews]);
+  }, [apps, interviews, offerRecords]);
 
   const activeApps = useMemo(
     () =>
@@ -151,12 +153,12 @@ export default function Dashboard() {
         />
         <Kpi
           label="已获 Offer"
-          value={stats.offers}
-          sub={<>Offer 率 <b>{pct(stats.offers, stats.total)}</b></>}
+          value={offersLoading || offersError ? '—' : stats.offers}
+          sub={offersLoading ? '正在加载 Offer…' : offersError ? '暂时无法加载，点击查看' : <>Offer 率 <b>{appsLoading || appsError ? '—' : pct(stats.offers, stats.total)}</b></>}
           tone="success"
           icon={<IconTrophy size={21} />}
-          onClick={() => navigate('applications', { applicationsFilter: 'Offer' })}
-          hint="筛选 Offer 状态"
+          onClick={() => navigate('offers')}
+          hint="打开 Offer 管理"
         />
         <Kpi
           label="需要处理"
@@ -280,7 +282,7 @@ function Kpi({
   alert = false,
 }: {
   label: string;
-  value: number;
+  value: number | string;
   sub: ReactNode;
   tone: 'neutral' | 'interview' | 'success' | 'danger';
   icon: ReactNode;
